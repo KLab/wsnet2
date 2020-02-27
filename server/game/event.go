@@ -2,7 +2,7 @@ package game
 
 type Event interface{}
 
-type EvJoined struct{
+type EvJoined struct {
 	Client *Client
 }
 
