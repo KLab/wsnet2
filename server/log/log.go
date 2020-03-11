@@ -11,61 +11,92 @@ import (
 type Level int
 
 const (
-	// ALL output all logs
-	ALL Level = iota
-	// DEBUG output debug/info/error logs
-	DEBUG
-	// INFO output info/error logs
-	INFO
+	// NOLOG output no logs
+	NOLOG Level = iota
 	// ERROR output error logs
 	ERROR
-	// NOLOG output no logs
-	NOLOG
+	// INFO output info/error logs
+	INFO
+	// DEBUG output debug/info/error logs
+	DEBUG
+	// ALL output all logs
+	ALL
 )
+
+const logFlags = log.Ldate | log.Ltime | log.Lshortfile
 
 var (
-	logger = newLogger(os.Stdout)
-	level  = INFO
+	level Level = INFO // global log level.
+	logger = log.New(os.Stdout, "", logFlags)
 )
 
-func newLogger(w io.Writer) *log.Logger {
-	return log.New(w, "", log.Ldate|log.Ltime|log.Lshortfile)
+// Logger type
+type Logger Level
+
+// Get Logger for custom log level.
+func Get(l Level) Logger {
+	return Logger(l)
 }
 
-// SetWriter sets custom log writer
+// Level returns logger log level.
+func (l Logger) Level() Level {
+	return Level(l)
+}
+
+// Debugf outputs log for debug
+func (l Logger) Debugf(format string, v ...interface{}) {
+	if Level(l) >= DEBUG {
+		output("[DEBUG] "+format, v...)
+	}
+}
+
+// Infof outputs log for information
+func (l Logger) Infof(format string, v ...interface{}) {
+	if Level(l) >= INFO {
+		output("[INFO] "+format, v...)
+	}
+}
+
+// Errorf outouts log for error
+func (l Logger) Errorf(format string, v ...interface{}) {
+	if Level(l) >= ERROR {
+		output("[ERROR] "+format, v...)
+	}
+}
+
+// SetWriter sets custom log writer.
 func SetWriter(w io.Writer) {
-	logger = newLogger(w)
+	logger = log.New(w, "", logFlags)
 }
 
-// CurrentLevel returns current log level
+// CurrentLevel returns global log level
 func CurrentLevel() Level {
 	return level
 }
 
-// SetLevel sets log level
-func SetLevel(l Level) (old Level) {
-	old = level
-	level = l
-	return old
+// SetLevel sets global log level
+func SetLevel(l Level) (Level) {
+	level, l = l, level
+	return l
 }
 
 // Debugf outputs log for debug
 func Debugf(format string, v ...interface{}) {
-	if level <= DEBUG {
+	if level >= DEBUG {
 		output("[DEBUG] "+format, v...)
 	}
 }
 
 // Infof outputs log for information
 func Infof(format string, v ...interface{}) {
-	if level <= INFO {
+	if level >= INFO {
 		output("[INFO] "+format, v...)
 	}
 }
 
 // Errorf outputs log for error
 func Errorf(format string, v ...interface{}) {
-	if level <= ERROR {
+	if level >= ERROR {
 		output("[ERROR] "+format, v...)
 	}
 }
@@ -79,16 +110,15 @@ func output(format string, v ...interface{}) {
 
 // String implements Stringer interface
 func (l Level) String() string {
-	switch l {
-	case DEBUG:
-		return "DEBUG"
-	case INFO:
-		return "INFO"
-	case ERROR:
+	switch {
+	case l <= NOLOG:
+		return "NOLOG"
+	case l == ERROR:
 		return "ERROR"
+	case l == INFO:
+		return "INFO"
+	case l == DEBUG:
+		return "DEBUG"
 	}
-	if l <= ALL {
-		return "ALL"
-	}
-	return "NOLOG"
+	return "ALL"
 }

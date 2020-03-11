@@ -139,6 +139,56 @@ func TestLogLevel(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	tests := []log.Level{log.NOLOG, log.ERROR, log.INFO, log.DEBUG, log.ALL}
+	for _, l := range tests {
+		logger := log.Get(l)
+		if lv := logger.Level(); lv != l {
+			t.Fatalf("Get(%v).Level()=%v, wants %v", l, lv, l)
+		}
+	}
+}
+
+func TestLogger(t *testing.T) {
+	var s string
+	buf := bytes.NewBuffer(nil)
+	log.SetWriter(buf)
+
+	format := map[bool]string{
+		true:  "output must contains \"%s\": \"%s\"",
+		false: "output must not contains \"%s\": \"%s\"",
+	}
+
+	tests := []struct {
+		logger   log.Logger
+		hasDebug bool
+		hasInfo  bool
+		hasError bool
+	}{
+		{log.Get(log.ALL), true, true, true},
+		{log.Get(log.DEBUG), true, true, true},
+		{log.Get(log.INFO), false, true, true},
+		{log.Get(log.ERROR), false, false, true},
+		{log.Get(log.NOLOG), false, false, false},
+	}
+	for _, test := range tests {
+		buf.Reset()
+		test.logger.Debugf("debug")
+		test.logger.Infof("info")
+		test.logger.Errorf("error")
+		s = buf.String()
+		if strings.Contains(s, "debug") != test.hasDebug {
+			t.Fatalf(format[test.hasDebug], "debug", s)
+		}
+		if strings.Contains(s, "info") != test.hasInfo {
+			t.Fatalf(format[test.hasInfo], "info", s)
+		}
+		if strings.Contains(s, "error") != test.hasError {
+			t.Fatalf(format[test.hasError], "error", s)
+		}
+	}
+}
+
 func TestStringer(t *testing.T) {
 	if s, w := log.ALL.String(), "ALL"; s != w {
 		t.Fatalf("string \"%v\" wants \"%v\"", s, w)
