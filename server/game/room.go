@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// RoomMsgBufSize : Msgチャネルのバッファサイズ
-	RoomMsgBufSize = 10
+	// RoomMsgChSize : Msgチャネルのバッファサイズ
+	RoomMsgChSize = 10
 
 	// RoomDefaultClientDeadline : クライアント切断判定の無通信時間の初期値
 	RoomDefaultClientDeadline = 30 * time.Second
@@ -32,6 +32,8 @@ type Room struct {
 	leaved    map[ClientID]error
 	master    *Client
 	order     []ClientID
+
+	logger log.Logger
 }
 
 func NewRoom(id RoomID, maxClient int, master *Client) *Room {
@@ -40,13 +42,15 @@ func NewRoom(id RoomID, maxClient int, master *Client) *Room {
 		maxClient: maxClient,
 		deadline:  RoomDefaultClientDeadline,
 
-		msgCh: make(chan Msg, RoomMsgBufSize),
+		msgCh: make(chan Msg, RoomMsgChSize),
 		done:  make(chan struct{}),
 
 		clients: make(map[ClientID]*Client),
 		leaved:  make(map[ClientID]error),
 		master:  master,
 		order:   []ClientID{master.ID},
+
+		logger: log.Get(log.CurrentLevel()),
 	}
 
 	r.clients[master.ID] = master
@@ -57,21 +61,21 @@ func NewRoom(id RoomID, maxClient int, master *Client) *Room {
 
 // MsgLoop goroutine dispatch messages.
 func (r *Room) MsgLoop() {
-	log.Debugf("Room.MsgLoop() start: room=%v", r.ID)
+	r.logger.Debugf("Room.MsgLoop() start: room=%v", r.ID)
 Loop:
 	for {
 		select {
 		case <-r.Done():
-			log.Infof("Room closed: room=%v", r.ID)
+			r.logger.Infof("Room closed: room=%v", r.ID)
 			break Loop
 		case msg := <-r.msgCh:
-			log.Debugf("Room msg: room=%v, %T %v", r.ID, msg, msg)
+			r.logger.Debugf("Room msg: room=%v, %T %v", r.ID, msg, msg)
 			r.dispatch(msg)
 		}
 	}
 
 	r.drainMsg()
-	log.Debugf("Room.MsgLoop() finish: room=%v", r.ID)
+	r.logger.Debugf("Room.MsgLoop() finish: room=%v", r.ID)
 }
 
 // drainMsg drain msgCh until all clients closed.
@@ -86,7 +90,7 @@ func (r *Room) drainMsg() {
 	for {
 		select {
 		case msg := <-r.msgCh:
-			log.Debugf("Discard msg: room=%v %T %v", r.ID, msg, msg)
+			r.logger.Debugf("Discard msg: room=%v %T %v", r.ID, msg, msg)
 		case <-ch:
 			return
 		}
@@ -114,11 +118,11 @@ func (r *Room) removeClient(c *Client, err error) {
 	cid := c.ID
 
 	if _, ok := r.clients[cid]; !ok {
-		log.Debugf("Client may be aleady leaved: room=%v, client=%v", r.ID, cid)
+		r.logger.Debugf("Client may be aleady leaved: room=%v, client=%v", r.ID, cid)
 		return
 	}
 
-	log.Infof("Client removed: room=%v, client=%v", r.ID, cid)
+	r.logger.Infof("Client removed: room=%v, client=%v", r.ID, cid)
 	delete(r.clients, cid)
 	r.leaved[cid] = err
 	c.Removed()
