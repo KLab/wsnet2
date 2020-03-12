@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package pb;
+
+message RoomInfo {
+	// @inject_tag: db:"id"
+	string id = 1;
+
+	// @inject_tag: db:"app_id"
+	string app_id = 2;
+
+	// @inject_tag: db:"host_id"
+	uint32 host_id = 3;
+
+	// joinable flag. if false, player/watcher cannot join to this room.
+	// @inject_tag: db:"joinable"
+	bool joinable = 5;
+
+	// visible flag. if false, room is not shown in the search result.
+	// @inject_tag: db:"visible"
+	bool visible = 6;
+
+	// unique room number. 0 means not set.
+	// @inject_tag: db:"number"
+	int32 number = 7;
+
+	// @inject_tag: db:"search_group"
+	uint32 search_group = 8;
+
+	// client read deadline
+	uint32 client_deadline = 9;
+
+	// max players count. this is not contained wachers.
+	// @inject_tag: db:"max_players"
+	uint32 max_players = 10;
+
+	uint32 players = 11;
+
+	uint32 watchers = 12;
+
+	// @inject_tag: db:"properties"
+	bytes public_properties = 13;
+
+	bytes private_properties =  14;
+
+	// @inject_tag: db:"created"
+	uint32 created = 15;
+}

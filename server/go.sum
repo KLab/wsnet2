@@ -1,0 +1,7 @@
+github.com/favadi/protoc-go-inject-tag v1.0.0 h1:I1CM4x2YXN9XueTnPKAr4jDSS0Om3y6LB9rFHOkFJJs=
+github.com/favadi/protoc-go-inject-tag v1.0.0/go.mod h1:aqpNBvyaHwaqHh/jR+j3mBjD/Y73PvAUna+5G8tRLA8=
+github.com/golang/protobuf v1.1.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
+github.com/golang/protobuf v1.3.4 h1:87PNWwrRvUSnqS4dlcBU/ftvOIBep4sYuBLlh6rX2wk=
+github.com/golang/protobuf v1.3.4/go.mod h1:vzj43D7+SQXF/4pzW/hwtAqwc6iTitCiVSaWz5lYuqw=
+golang.org/x/net v0.0.0-20180801234040-f4c29de78a2a/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
+golang.org/x/sync v0.0.0-20180314180146-1d60e4601c6f/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=

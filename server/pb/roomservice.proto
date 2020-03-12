@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package pb;
+
+import "clientinfo.proto";
+import "roominfo.proto";
+
+service Room {
+	rpc Create (CreateRoomReq) returns (CreateRoomRes);
+}
+
+message CreateRoomReq {
+	string app_id = 1;
+
+	bool joinable = 5;
+
+	bool visible = 6;
+
+	uint32 search_group = 8;
+
+	uint32 client_deadline = 9;
+
+	uint32 max_players = 10;
+
+	bytes public_properties = 13;
+
+	bytes private_properties = 14;
+
+	ClientInfo master_info = 15;
+}
+
+message CreateRoomRes {
+	RoomInfo room = 1;
+}
