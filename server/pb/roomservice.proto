@@ -4,29 +4,21 @@ package pb;
 
 import "clientinfo.proto";
 import "roominfo.proto";
+import "roomoption.proto";
 
 service Room {
 	rpc Create (CreateRoomReq) returns (CreateRoomRes);
 }
 
+message ClientOption {
+	string id = 1;
+	bytes custom_props = 10;
+}
+
 message CreateRoomReq {
 	string app_id = 1;
-
-	bool joinable = 5;
-
-	bool visible = 6;
-
-	uint32 search_group = 8;
-
-	uint32 client_deadline = 9;
-
-	uint32 max_players = 10;
-
-	bytes public_properties = 13;
-
-	bytes private_properties = 14;
-
-	ClientInfo master_info = 15;
+	RoomOption room_option= 2;
+	ClientInfo client_info = 3;
 }
 
 message CreateRoomRes {

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package pb;
 
+import "timestamp.proto";
+
 message RoomInfo {
 	// @inject_tag: db:"id"
 	string id = 1;
@@ -12,13 +14,17 @@ message RoomInfo {
 	// @inject_tag: db:"host_id"
 	uint32 host_id = 3;
 
-	// joinable flag. if false, player/watcher cannot join to this room.
+	// visible flag. if false, room is not shown in the search result.
+	// @inject_tag: db:"visible"
+	bool visible = 4;
+
+	// joinable flag. if false, player cannot join to this room.
 	// @inject_tag: db:"joinable"
 	bool joinable = 5;
 
-	// visible flag. if false, room is not shown in the search result.
-	// @inject_tag: db:"visible"
-	bool visible = 6;
+	// watchanble flag. if false, watcher cannot join to this room.
+	// @inject_tag: db:"watchable"
+	bool watchable = 6;
 
 	// unique room number. 0 means not set.
 	// @inject_tag: db:"number"
@@ -44,5 +50,5 @@ message RoomInfo {
 	bytes private_properties =  14;
 
 	// @inject_tag: db:"created"
-	uint32 created = 15;
+	Timestamp created = 15;
 }
