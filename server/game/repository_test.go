@@ -46,22 +46,23 @@ func newDbMock(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
 }
 
 func TestNewRoomInfo(t *testing.T) {
-	repo := &RoomRepository{}
+	repo := &Repository{
+		appId: "testing",
+	}
 
 	ctx := context.Background()
-	appId := "testing"
 	db, mock := newDbMock(t)
 	dupErr := fmt.Errorf("Duplicate entry")
 
 	op := &pb.RoomOption{
-		Visible:           true,
-		Watchable:         false,
-		WithNumber:        true,
-		SearchGroup:       5,
-		ClientDeadline:    30,
-		MaxPlayers:        10,
-		PublicProperties:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		PrivateProperties: []byte{11, 12, 13, 14, 15, 16, 17, 18},
+		Visible:        true,
+		Watchable:      false,
+		WithNumber:     true,
+		SearchGroup:    5,
+		ClientDeadline: 30,
+		MaxPlayers:     10,
+		PublicProps:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		PrivateProps:   []byte{11, 12, 13, 14, 15, 16, 17, 18},
 	}
 
 	// 生成されるはずの値
@@ -79,7 +80,7 @@ func TestNewRoomInfo(t *testing.T) {
 
 	rand.Seed(seed)
 	tx, _ := db.Beginx()
-	ri, err := repo.NewRoomInfo(ctx, tx, appId, op)
+	ri, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {
 		t.Fatalf("NewRoomInfo fail: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestNewRoomInfo(t *testing.T) {
 	for i := 0; i < retryCount; i++ {
 		mock.ExpectExec(insQuery).WillReturnError(dupErr)
 	}
-	_, err = repo.NewRoomInfo(ctx, tx, appId, op)
+	_, err = repo.newRoomInfo(ctx, tx, op)
 	if !errors.Is(err, dupErr) {
 		t.Fatalf("NewRoomInfo error: %v wants %v", err, dupErr)
 	}

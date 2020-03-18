@@ -1,8 +1,17 @@
 package game
 
-type Event interface{}
+import (
+	"wsnet2/pb"
+)
 
-type EvJoined struct {
-	Client *Client
+type Event interface {
+	event()
 }
 
+var _ Event = EvJoined{}
+
+type EvJoined struct {
+	Client *pb.ClientInfo
+}
+
+func (EvJoined) event() {}

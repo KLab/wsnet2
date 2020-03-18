@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -25,6 +26,8 @@ const (
 	retryCount = 5
 )
 
+type AppID = string
+
 var (
 	maxNumber int32 = 999999 // 部屋番号桁数. TODO: config化
 
@@ -32,6 +35,8 @@ var (
 
 	roomInsertQuery string
 	roomUpdateQuery string
+
+	repos = make(map[AppID]*Repository)
 )
 
 func init() {
@@ -41,6 +46,11 @@ func init() {
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	rand.Seed(seed.Int64())
 
+	initRepos()
+	initQueries()
+}
+
+func initQueries() {
 	// room_info queries
 	t := reflect.TypeOf(pb.RoomInfo{})
 	cols := make([]string, 0, 16)
@@ -67,20 +77,65 @@ func RandomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-type RoomRepository struct{}
+type Repository struct {
+	appId AppID
 
-func (repo *RoomRepository) NewRoomInfo(ctx context.Context, tx *sqlx.Tx, appId string, op *pb.RoomOption) (*pb.RoomInfo, error) {
+	mu    sync.Mutex
+	rooms map[RoomID]*Room
+
+	db *sqlx.DB
+}
+
+func initRepos() {
+	// TODO: get app ids
+	aid := "testapp"
+	repos[aid] = &Repository{
+		appId: aid,
+		rooms: make(map[RoomID]*Room),
+	}
+}
+
+func GetRepo(appId AppID) *Repository {
+	if repo, ok := repos[appId]; ok {
+		return repo
+	}
+	return nil
+}
+
+func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.RoomInfo, error) {
+	tx, err := repo.db.Beginx()
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := repo.newRoomInfo(ctx, tx, op)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	room := NewRoom(info.Clone(), master.Clone())
+
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	repo.rooms[room.ID()] = room
+	tx.Commit()
+
+	return info, nil
+}
+
+func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
 	ri := &pb.RoomInfo{
-		AppId:             appId,
-		HostId:            hostId,
-		Visible:           op.Visible,
-		Watchable:         op.Watchable,
-		SearchGroup:       op.SearchGroup,
-		ClientDeadline:    op.ClientDeadline,
-		MaxPlayers:        op.MaxPlayers,
-		Players:           1,
-		PublicProperties:  op.PublicProperties,
-		PrivateProperties: op.PrivateProperties,
+		AppId:          repo.appId,
+		HostId:         hostId,
+		Visible:        op.Visible,
+		Watchable:      op.Watchable,
+		SearchGroup:    op.SearchGroup,
+		ClientDeadline: op.ClientDeadline,
+		MaxPlayers:     op.MaxPlayers,
+		Players:        1,
+		PublicProps:    op.PublicProps,
+		PrivateProps:   op.PrivateProps,
 	}
 	ri.SetCreated(time.Now())
 

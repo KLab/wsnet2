@@ -3,30 +3,33 @@ package game
 import (
 	"sync"
 	"time"
+
+	"wsnet2/pb"
 )
 
 const (
-	ClientEventBufSize = 64
+	ClientEventBufSize = 64 // todo: 設定化
 )
 
 type ClientID string
 
 type Client struct {
-	ID      ClientID
+	*pb.ClientInfo
+
 	room    *Room
 	removed chan struct{}
 	done    chan struct{}
 
 	evbuf *EvBuf
 
-	muPeer  sync.Mutex
-	peer    *Peer
-	peerMsg chan Msg
+	mu   sync.Mutex
+	peer *Peer
 }
 
-func NewClient(id ClientID, room *Room) *Client {
+func NewClient(info *pb.ClientInfo, room *Room) *Client {
 	return &Client{
-		ID:      id,
+		ClientInfo: info,
+
 		room:    room,
 		removed: make(chan struct{}),
 		done:    make(chan struct{}),
@@ -53,7 +56,8 @@ loop:
 				<-t.C
 			}
 			break loop
-		case m := <-c.peerMsg:
+		// todo: deadline変更をchanで受け取る
+		case m := <-c.peer.MsgCh:
 			if !t.Stop() {
 				<-t.C
 			}
@@ -65,11 +69,15 @@ loop:
 	close(c.done)
 	for {
 		select {
-		case <-c.peerMsg:
+		case <-c.peer.MsgCh:
 		default:
 			return
 		}
 	}
+}
+
+func (c *Client) ID() ClientID {
+	return ClientID(c.Id)
 }
 
 // RoomのMsgLoopから呼ばれる

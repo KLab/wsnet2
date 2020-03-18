@@ -1,19 +1,35 @@
 package game
 
-type Msg interface{}
+import (
+	"wsnet2/pb"
+)
+
+type Msg interface {
+	msg()
+}
+
+var _ Msg = MsgCreate{}
+var _ Msg = MsgJoin{}
+var _ Msg = MsgLeave{}
+
+type MsgCreate struct{}
+
+func (MsgCreate) msg() {}
 
 type JoinResponse struct {
-	Client      *Client
-	MasterID    ClientID
-	RoomProps   []byte
-	ClientProps map[ClientID][]byte
+	Room   *pb.RoomInfo
+	Client *pb.ClientInfo
 }
 
 type MsgJoin struct {
-	ID  ClientID
-	Res chan<- JoinResponse
+	Info *pb.ClientInfo
+	Res  chan<- JoinResponse
 }
+
+func (MsgJoin) msg() {}
 
 type MsgLeave struct {
 	ID ClientID
 }
+
+func (MsgLeave) msg() {}

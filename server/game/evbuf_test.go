@@ -9,6 +9,8 @@ type EvTest int
 
 var _ Event = EvTest(0)
 
+func (EvTest) event() {}
+
 func TestWriteRead(t *testing.T) {
 	buf := NewEvBuf(5)
 
