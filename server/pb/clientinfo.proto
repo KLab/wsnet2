@@ -4,5 +4,5 @@ package pb;
 
 message ClientInfo {
 	string id = 1;
-	bytes custom_props = 15;
+	bytes props = 15;
 }

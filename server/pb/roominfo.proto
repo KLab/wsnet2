@@ -44,10 +44,10 @@ message RoomInfo {
 
 	uint32 watchers = 12;
 
-	// @inject_tag: db:"properties"
-	bytes public_properties = 13;
+	// @inject_tag: db:"props"
+	bytes public_props = 13;
 
-	bytes private_properties =  14;
+	bytes private_props =  14;
 
 	// @inject_tag: db:"created"
 	Timestamp created = 15;

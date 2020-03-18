@@ -11,8 +11,8 @@ message RoomOption {
 	uint32 client_deadline = 9;
 	uint32 max_players = 10;
 
-	bytes public_properties = 13;
-	bytes private_properties = 14;
+	bytes public_props = 13;
+	bytes private_props = 14;
 
 	bool debug = 15;
 }
