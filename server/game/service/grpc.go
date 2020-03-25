@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -13,7 +12,7 @@ import (
 
 type GameService struct {}
 
-func (r *GameService) Create(ctx context.Context, in *pb.CreateRoomReq, opts ...grpc.CallOption) (*pb.CreateRoomRes, error) {
+func (r *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.CreateRoomRes, error) {
 	repo := game.GetRepo(in.AppId)
 	if repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)

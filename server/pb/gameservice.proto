@@ -12,7 +12,7 @@ service Game {
 
 message CreateRoomReq {
 	string app_id = 1;
-	RoomOption room_option= 2;
+	RoomOption room_option = 2;
 	ClientInfo master_info = 3;
 }
 
