@@ -1,7 +1,13 @@
-protos := $(wildcard pb/*.proto)
-pbs := $(protos:.proto=.pb.go)
+proto := $(wildcard pb/*.proto)
+pb.go := $(proto:.proto=.pb.go)
 
-all: $(pbs)
+all: $(pb.go)
+
+clean:
+	rm $(pb.go)
+
+test: $(pb.go)
+	go test ./...
 
 %.pb.go: %.proto
 	protoc --proto_path=pb --go_out=plugins=grpc:pb "$^"
