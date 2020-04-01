@@ -1,0 +1,6 @@
+[Database]
+host = "localhost"
+port = 3306
+authfile = "dbauth"
+dbname = "wsnet2"
+
