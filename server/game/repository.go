@@ -15,28 +15,20 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"wsnet2/config"
 	"wsnet2/pb"
 )
 
 const (
 	// RoomID文字列長
 	lenId = 16
-
-	// キー衝突時のリトライ回数
-	retryCount = 5
 )
 
-type AppID = string
-
 var (
-	maxNumber int32 = 999999 // 部屋番号桁数. TODO: config化
-
 	hostId uint32
 
 	roomInsertQuery string
 	roomUpdateQuery string
-
-	repos = make(map[AppID]*Repository)
 )
 
 func init() {
@@ -46,14 +38,13 @@ func init() {
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	rand.Seed(seed.Int64())
 
-	initRepos()
 	initQueries()
 }
 
 func initQueries() {
 	// room_info queries
 	t := reflect.TypeOf(pb.RoomInfo{})
-	cols := make([]string, 0, 16)
+	cols := make([]string, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		if c := t.Field(i).Tag.Get("db"); c != "" {
 			cols = append(cols, c)
@@ -78,28 +69,32 @@ func RandomHex(n int) string {
 }
 
 type Repository struct {
-	appId AppID
+	app  pb.App
+	conf *config.GameConf
+	db   *sqlx.DB
 
 	mu    sync.Mutex
 	rooms map[RoomID]*Room
-
-	db *sqlx.DB
 }
 
-func initRepos() {
-	// TODO: get app ids
-	aid := "testapp"
-	repos[aid] = &Repository{
-		appId: aid,
-		rooms: make(map[RoomID]*Room),
+func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, error) {
+	query := "SELECT id, key FROM app"
+	var apps []pb.App
+	err := db.Select(&apps, query)
+	if err != nil {
+		return nil, err
 	}
-}
+	repos := make(map[pb.AppId]*Repository, len(apps))
+	for _, app := range apps {
+		repos[app.Id] = &Repository{
+			app:  app,
+			conf: conf,
+			db:   db,
 
-func GetRepo(appId AppID) *Repository {
-	if repo, ok := repos[appId]; ok {
-		return repo
+			rooms: make(map[RoomID]*Room),
+		}
 	}
-	return nil
+	return repos, nil
 }
 
 func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.RoomInfo, error) {
@@ -126,7 +121,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 
 func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
 	ri := &pb.RoomInfo{
-		AppId:          repo.appId,
+		AppId:          repo.app.Id,
 		HostId:         hostId,
 		Visible:        op.Visible,
 		Watchable:      op.Watchable,
@@ -139,6 +134,8 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	}
 	ri.SetCreated(time.Now())
 
+	maxNumber := int32(repo.conf.MaxRoomNum)
+	retryCount := repo.conf.RetryCount
 	var err error
 	for n := 0; n < retryCount; n++ {
 		select {

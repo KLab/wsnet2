@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package pb;
+
+message App {
+	// @inject_tag: db:"id"
+	string id = 1;
+
+	// @inject_tag: db:"key"
+	string key = 2;
+}

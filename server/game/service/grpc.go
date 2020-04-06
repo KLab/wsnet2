@@ -2,19 +2,40 @@ package service
 
 import (
 	"context"
+	"net"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"wsnet2/game"
+	"wsnet2/log"
 	"wsnet2/pb"
 )
 
-type GameService struct {}
+func (sv *GameService) grpcServe() <-chan error {
+	errCh := make(chan error)
 
-func (r *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.CreateRoomRes, error) {
-	repo := game.GetRepo(in.AppId)
-	if repo == nil {
+	go func() {
+		laddr := sv.conf.GRPCAddr
+		listenPort, err := net.Listen("tcp", laddr)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		server := grpc.NewServer()
+		pb.RegisterGameServer(server, sv)
+
+		log.Infof("game grpc: %s", laddr)
+		errCh <- server.Serve(listenPort)
+	}()
+
+	return errCh
+}
+
+func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.CreateRoomRes, error) {
+	repo, ok := sv.repos[in.AppId]
+	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 

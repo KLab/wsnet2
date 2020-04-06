@@ -12,6 +12,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
 
+	"wsnet2/config"
 	"wsnet2/pb"
 )
 
@@ -46,12 +47,20 @@ func newDbMock(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
 }
 
 func TestNewRoomInfo(t *testing.T) {
-	repo := &Repository{
-		appId: "testing",
-	}
-
 	ctx := context.Background()
 	db, mock := newDbMock(t)
+	retryCount := 3
+	maxNumber := 999
+
+	repo := &Repository{
+		app:  pb.App{Id: "testing"},
+		conf: &config.GameConf{
+			RetryCount: retryCount,
+			MaxRoomNum: maxNumber,
+		},
+		db:   db,
+	}
+
 	dupErr := fmt.Errorf("Duplicate entry")
 
 	op := &pb.RoomOption{
@@ -69,9 +78,9 @@ func TestNewRoomInfo(t *testing.T) {
 	seed := time.Now().Unix()
 	rand.Seed(seed)
 	id1 := RandomHex(lenId)
-	num1 := rand.Int31n(maxNumber) + 1
+	num1 := rand.Int31n(int32(maxNumber)) + 1
 	id2 := RandomHex(lenId)
-	num2 := rand.Int31n(maxNumber) + 1
+	num2 := rand.Int31n(int32(maxNumber)) + 1
 
 	insQuery := "INSERT INTO room "
 	mock.ExpectBegin()

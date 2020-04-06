@@ -1,25 +1,29 @@
 package main
 
 import (
-	"log"
-	"net"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 
-	"google.golang.org/grpc"
-
-	"wsnet2/pb"
+	"wsnet2/config"
 	"wsnet2/game/service"
 )
 
 func main() {
-	listenPort, err := net.Listen("tcp", ":19000")
+
+	conf, err := config.Load("local.toml")
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
 
-	server := grpc.NewServer()
-	service := &service.GameService{}
+	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 
-	pb.RegisterGameServer(server, service)
-	log.Printf("game start")
-	server.Serve(listenPort)
+	service, err := service.New(db, &conf.Game)
+	if err != nil {
+		panic(err)
+	}
+
+	err = service.Serve()
+	if err != nil {
+		panic(err)
+	}
 }
