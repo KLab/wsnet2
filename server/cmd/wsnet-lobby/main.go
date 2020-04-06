@@ -31,6 +31,6 @@ func main() {
 
 
 	res, err := client.Create(context.TODO(), req)
-	fmt.Printf("result:%#v \n", res)
-	fmt.Printf("error::%#v \n", err)
+	fmt.Printf("result:%+v \n", res)
+	fmt.Printf("error::%+v \n", err)
 }

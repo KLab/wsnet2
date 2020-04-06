@@ -34,19 +34,27 @@ func (sv *GameService) grpcServe() <-chan error {
 }
 
 func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.CreateRoomRes, error) {
+	log.Infof("Create request: %v, master=%v", in.AppId, in.MasterInfo.Id)
+	log.Debugf("option: %v", in.RoomOption)
+	log.Debugf("master: %v", in.MasterInfo)
+
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
+		log.Infof("invalid app_id: %v", in.AppId)
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
 	room, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
+		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
 	}
 
 	res := &pb.CreateRoomRes{
 		Room: room,
 	}
+
+	log.Infof("New room: %v master=%v", room.Id, in.MasterInfo.Id)
 
 	return res, nil
 }

@@ -27,16 +27,11 @@ const (
 )
 
 var (
-	hostId uint32
-
 	roomInsertQuery string
 	roomUpdateQuery string
 )
 
 func init() {
-	// TODO: get host id
-	hostId = 1
-
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	rand.Seed(seed.Int64())
 
@@ -71,6 +66,8 @@ func RandomHex(n int) string {
 }
 
 type Repository struct {
+	hostId uint32
+
 	app  pb.App
 	conf *config.GameConf
 	db   *sqlx.DB
@@ -80,6 +77,8 @@ type Repository struct {
 }
 
 func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, error) {
+	hostId := uint32(1) // TODO: ちゃんとした値を取得
+
 	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)
@@ -90,9 +89,10 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, err
 	for _, app := range apps {
 		log.Debugf("new repository: app=%#v", app.Id)
 		repos[app.Id] = &Repository{
-			app:  app,
-			conf: conf,
-			db:   db,
+			hostId: hostId,
+			app:    app,
+			conf:   conf,
+			db:     db,
 
 			rooms: make(map[RoomID]*Room),
 		}
@@ -125,7 +125,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
 	ri := &pb.RoomInfo{
 		AppId:          repo.app.Id,
-		HostId:         hostId,
+		HostId:         repo.hostId,
 		Visible:        op.Visible,
 		Watchable:      op.Watchable,
 		SearchGroup:    op.SearchGroup,
