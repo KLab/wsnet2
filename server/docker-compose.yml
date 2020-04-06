@@ -13,4 +13,12 @@ services:
       - ./sql:/docker-entrypoint-initdb.d
     ports:
       - 3306:3306
-
+  game:
+    container_name: wsnet-game
+    image: golang
+    volumes:
+      - ./:/work
+    working_dir: /work
+    command: go run ./cmd/wsnet-game docker.toml
+    ports:
+      - 19000:19000
