@@ -1,0 +1,16 @@
+version: '3'
+services:
+  db:
+    container_name: wsnet-db
+    image: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: wsnet2
+      MYSQL_USER: wsnet
+      MYSQL_PASSWORD: wsnetpass
+      TZ: Asia/Tokyo
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+    ports:
+      - 3306:3306
+

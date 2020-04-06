@@ -1,0 +1,7 @@
+
+DROP TABLE IF EXISTS `app`;
+CREATE TABLE app (
+  `id`   VARCHAR(32) COLLATE ascii_bin PRIMARY KEY,
+  `name` VARCHAR(255) COLLATE utf8mb4_bin,
+  `key`  VARCHAR(255) COLLATE ascii_bin
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
