@@ -4,3 +4,6 @@ port = 3306
 authfile = "dbauth"
 dbname = "wsnet2"
 
+[Game]
+hostname = "wsnetgame.localhost"
+retry_count = 3

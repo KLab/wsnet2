@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	Db    DbConf `toml:"database"`
+	Db    DbConf `toml:"Database"`
 	Game  GameConf
 	Lobby LobbyConf
 }
@@ -25,14 +25,26 @@ type DbConf struct {
 }
 
 type GameConf struct {
-	Hostname string
+	Hostname   string
+
+	GRPCAddr  string `toml:"grpc_addr"`
+
+	RetryCount int `toml:"retry_count"`
+	MaxRoomNum int
 }
 
 type LobbyConf struct {
 }
 
 func Load(conffile string) (*Config, error) {
-	c := &Config{}
+	c := &Config{
+		// set default values before decode file.
+		Game: GameConf{
+			RetryCount: 5,
+			MaxRoomNum: 999999,
+		},
+	}
+
 	_, err := toml.DecodeFile(conffile, c)
 	if err != nil {
 		return nil, err
@@ -66,4 +78,12 @@ func (db *DbConf) loadAuthfile(conffile string) error {
 	db.User = ss[0]
 	db.Password = ss[1]
 	return nil
+}
+
+func (db *DbConf) DSN() string {
+	user := db.User
+	if db.Password != "" {
+		user = fmt.Sprintf("%s:%s", db.User, db.Password)
+	}
+	return fmt.Sprintf("%s@tcp(%s:%d)/%s", user, db.Host, db.Port, db.DBName)
 }
