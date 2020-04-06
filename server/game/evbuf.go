@@ -1,8 +1,9 @@
 package game
 
 import (
-	"fmt"
 	"sync"
+
+	"golang.org/x/xerrors"
 )
 
 // EvBuf rewindable ring buffer.
@@ -36,7 +37,7 @@ func (b *EvBuf) Write(data Event) error {
 	s := len(b.buf)
 
 	if w-s == r {
-		return fmt.Errorf("EvBuf overflow: size=%v, read=%v, write=%v", s, r, w)
+		return xerrors.Errorf("EvBuf overflow: size=%v, read=%v, write=%v", s, r, w)
 	}
 
 	b.buf[w%s] = data
@@ -75,7 +76,7 @@ func (b *EvBuf) Rewind(seq int) error {
 
 	size := len(b.buf)
 	if b.wSeq-seq >= size {
-		return fmt.Errorf("EvBuf too old seq num: %v, size:%v write:%v", seq, size, b.wSeq)
+		return xerrors.Errorf("EvBuf too old seq num: %v, size:%v write:%v", seq, size, b.wSeq)
 	}
 
 	b.rSeq = seq

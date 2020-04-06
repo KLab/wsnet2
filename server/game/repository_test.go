@@ -3,7 +3,6 @@ package game
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/rand"
 	"regexp"
 	"testing"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/xerrors"
 
 	"wsnet2/config"
 	"wsnet2/pb"
@@ -61,7 +61,7 @@ func TestNewRoomInfo(t *testing.T) {
 		db:   db,
 	}
 
-	dupErr := fmt.Errorf("Duplicate entry")
+	dupErr := xerrors.Errorf("Duplicate entry")
 
 	op := &pb.RoomOption{
 		Visible:        true,

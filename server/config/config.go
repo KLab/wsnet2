@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"golang.org/x/xerrors"
 )
 
 type Config struct {
@@ -72,7 +73,7 @@ func (db *DbConf) loadAuthfile(conffile string) error {
 	}
 	ss := strings.SplitN(string(content), ":", 2)
 	if len(ss) != 2 {
-		return fmt.Errorf("Db authfile format error: %q", string(content))
+		return xerrors.Errorf("Db authfile format error: %q", string(content))
 	}
 
 	db.User = ss[0]

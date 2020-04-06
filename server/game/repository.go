@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/xerrors"
 
 	"wsnet2/config"
+	"wsnet2/log"
 	"wsnet2/pb"
 )
 
@@ -78,14 +80,15 @@ type Repository struct {
 }
 
 func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, error) {
-	query := "SELECT id, key FROM app"
+	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("select apps error: %w", err)
 	}
 	repos := make(map[pb.AppId]*Repository, len(apps))
 	for _, app := range apps {
+		log.Debugf("new repository: app=%#v", app.Id)
 		repos[app.Id] = &Repository{
 			app:  app,
 			conf: conf,
@@ -100,13 +103,13 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, err
 func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.RoomInfo, error) {
 	tx, err := repo.db.Beginx()
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("begin error: %w", err)
 	}
 
 	info, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {
 		tx.Rollback()
-		return nil, err
+		return nil, xerrors.Errorf("", err)
 	}
 
 	room := NewRoom(info.Clone(), master.Clone())
@@ -140,7 +143,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	for n := 0; n < retryCount; n++ {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("ctx done: %w", ctx.Err())
+			return nil, xerrors.Errorf("ctx done: %w", ctx.Err())
 		default:
 		}
 
@@ -155,5 +158,5 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		}
 	}
 
-	return nil, fmt.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
+	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
 }

@@ -26,7 +26,7 @@ func (sv *GameService) grpcServe() <-chan error {
 		server := grpc.NewServer()
 		pb.RegisterGameServer(server, sv)
 
-		log.Infof("game grpc: %s", laddr)
+		log.Infof("game grpc: %#v", laddr)
 		errCh <- server.Serve(listenPort)
 	}()
 

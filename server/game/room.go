@@ -1,9 +1,10 @@
 package game
 
 import (
-	"fmt"
 	"sync"
 	"time"
+
+	"golang.org/x/xerrors"
 
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -116,7 +117,7 @@ func (r *Room) Post(m Msg) {
 }
 
 func (r *Room) Timeout(c *Client) {
-	r.removeClient(c, fmt.Errorf("client timeout: %v", c.Id))
+	r.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
 }
 
 func (r *Room) removeClient(c *Client, err error) {
@@ -150,7 +151,7 @@ func (r *Room) dispatch(msg Msg) error {
 	case MsgJoin:
 		return r.msgJoin(m)
 	default:
-		return fmt.Errorf("unknown msg type: %T %v", m, m)
+		return xerrors.Errorf("unknown msg type: %T %v", m, m)
 	}
 }
 
@@ -179,7 +180,7 @@ func (r *Room) msgJoin(msg MsgJoin) error {
 
 	if r.MaxPlayers == uint32(len(r.clients)) {
 		close(msg.Res)
-		return fmt.Errorf("Room full. max=%v, client=%v", r.MaxPlayers, msg.Info.Id)
+		return xerrors.Errorf("Room full. max=%v, client=%v", r.MaxPlayers, msg.Info.Id)
 	}
 
 	r.wgClient.Add(1)
