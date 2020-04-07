@@ -1,0 +1,45 @@
+settings:
+  legacy:
+    force: false
+    interval: 0s
+schema:
+- name: wsnet-game
+  path: .
+  commands:
+    install:
+      status: true
+      method: go build -race -o /tmp/wsnet-game ./cmd/wsnet-game
+    run:
+      status: true
+      method: /tmp/wsnet-game
+  args:
+  - docker.toml
+  watcher:
+    extensions:
+    - go
+    paths:
+    - /
+    ignored_paths:
+    - .git
+    - .realize
+    - vendor
+- name: wsnet-lobby
+  path: .
+  commands:
+    install:
+      status: true
+      method: go build -race -o /tmp/wsnet-lobby ./cmd/wsnet-lobby
+    run:
+      status: true
+      method: /tmp/wsnet-lobby
+  args:
+  - docker.toml
+  watcher:
+    extensions:
+    - go
+    paths:
+    - /
+    ignored_paths:
+    - .git
+    - .realize
+    - vendor

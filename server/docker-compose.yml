@@ -15,10 +15,13 @@ services:
       - 3306:3306
   game:
     container_name: wsnet-game
-    image: golang
+    depends_on:
+      - db
+    build: .
+    image: realize
     volumes:
       - ./:/work
     working_dir: /work
-    command: go run ./cmd/wsnet-game docker.toml
+    command: realize start -name wsnet-game
     ports:
       - 19000:19000
