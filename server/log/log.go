@@ -26,8 +26,8 @@ const (
 const logFlags = log.Ldate | log.Ltime | log.Lshortfile
 
 var (
-	level Level = INFO // global log level.
-	logger = log.New(os.Stdout, "", logFlags)
+	level  Level = INFO // global log level.
+	logger       = log.New(os.Stdout, "", logFlags)
 )
 
 // Logger type
@@ -75,7 +75,7 @@ func CurrentLevel() Level {
 }
 
 // SetLevel sets global log level
-func SetLevel(l Level) (Level) {
+func SetLevel(l Level) Level {
 	level, l = l, level
 	return l
 }

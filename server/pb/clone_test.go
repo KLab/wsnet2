@@ -3,8 +3,8 @@ package pb
 import (
 	"fmt"
 	"reflect"
-	"testing"
 	"strings"
+	"testing"
 )
 
 // testRef : structに含まれる slice/map/pointer が同一でないことをテスト
@@ -63,4 +63,3 @@ func TestCloneClientInfo(t *testing.T) {
 		t.Fatalf("%T: %v", s, err)
 	}
 }
-

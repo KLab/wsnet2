@@ -26,9 +26,9 @@ type DbConf struct {
 }
 
 type GameConf struct {
-	Hostname   string
+	Hostname string
 
-	GRPCAddr  string `toml:"grpc_addr"`
+	GRPCAddr string `toml:"grpc_addr"`
 
 	RetryCount int `toml:"retry_count"`
 	MaxRoomNum int
