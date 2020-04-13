@@ -37,6 +37,10 @@ func NewClient(info *pb.ClientInfo, room *Room) *Client {
 	}
 }
 
+func (c *Client) ID() ClientID {
+	return ClientID(c.Id)
+}
+
 // MsgLoop goroutine.
 func (c *Client) MsgLoop(deadline time.Duration) {
 	t := time.NewTimer(deadline)
@@ -74,10 +78,6 @@ loop:
 			return
 		}
 	}
-}
-
-func (c *Client) ID() ClientID {
-	return ClientID(c.Id)
 }
 
 // RoomのMsgLoopから呼ばれる

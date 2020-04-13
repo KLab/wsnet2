@@ -72,8 +72,9 @@ type Repository struct {
 	conf *config.GameConf
 	db   *sqlx.DB
 
-	mu    sync.Mutex
-	rooms map[RoomID]*Room
+	mu      sync.RWMutex
+	rooms   map[RoomID]*Room
+	clients map[ClientID]map[RoomID]*Client
 }
 
 func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, error) {
@@ -94,32 +95,52 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, err
 			conf:   conf,
 			db:     db,
 
-			rooms: make(map[RoomID]*Room),
+			rooms:   make(map[RoomID]*Room),
+			clients: make(map[ClientID]map[RoomID]*Client),
 		}
 	}
 	return repos, nil
 }
 
-func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.RoomInfo, error) {
+func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.RoomInfo, *pb.ClientInfo, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
 	tx, err := repo.db.Beginx()
 	if err != nil {
-		return nil, xerrors.Errorf("begin error: %w", err)
+		return nil, nil, xerrors.Errorf("begin error: %w", err)
 	}
 
 	info, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {
 		tx.Rollback()
-		return nil, xerrors.Errorf("", err)
+		return nil, nil, xerrors.Errorf("", err)
 	}
 
-	room := NewRoom(info.Clone(), master.Clone())
+	room, cli, ch := NewRoom(info, master)
+	var joined JoinedInfo
+	select {
+	case j, ok := <-ch:
+		if !ok {
+			tx.Rollback()
+			return nil, nil, xerrors.Errorf("CreateRoom joind chan closed: room=%v", room.ID())
+		}
+		joined = j
+	case <-ctx.Done():
+		tx.Rollback()
+		return nil, nil, xerrors.Errorf("CreateRoom timeout or context done: room=%v", room.ID())
+	}
 
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	repo.rooms[room.ID()] = room
-	tx.Commit()
+	if _, ok := repo.clients[cli.ID()]; !ok {
+		repo.clients[cli.ID()] = make(map[RoomID]*Client)
+	}
+	repo.clients[cli.ID()][room.ID()] = cli
 
-	return info, nil
+	tx.Commit()
+	return joined.Room, joined.Client, nil
 }
 
 func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {

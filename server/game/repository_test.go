@@ -53,12 +53,12 @@ func TestNewRoomInfo(t *testing.T) {
 	maxNumber := 999
 
 	repo := &Repository{
-		app:  pb.App{Id: "testing"},
+		app: pb.App{Id: "testing"},
 		conf: &config.GameConf{
 			RetryCount: retryCount,
 			MaxRoomNum: maxNumber,
 		},
-		db:   db,
+		db: db,
 	}
 
 	dupErr := xerrors.Errorf("Duplicate entry")

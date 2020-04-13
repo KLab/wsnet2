@@ -44,17 +44,18 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Cr
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	room, master, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
 	}
 
 	res := &pb.CreateRoomRes{
-		Room: room,
+		RoomInfo:   room,
+		MasterInfo: master,
 	}
 
-	log.Infof("New room: %v master=%v", room.Id, in.MasterInfo.Id)
+	log.Infof("New room: %v master=%v", room.Id, master.Id)
 
 	return res, nil
 }

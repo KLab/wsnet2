@@ -38,7 +38,7 @@ type Room struct {
 	logger log.Logger
 }
 
-func NewRoom(info *pb.RoomInfo, masterInfo *pb.ClientInfo) *Room {
+func NewRoom(info *pb.RoomInfo, masterInfo *pb.ClientInfo) (*Room, *Client, <-chan JoinedInfo) {
 	r := &Room{
 		RoomInfo: info,
 
@@ -59,9 +59,11 @@ func NewRoom(info *pb.RoomInfo, masterInfo *pb.ClientInfo) *Room {
 	r.order = append(r.order, master.ID())
 
 	go r.MsgLoop()
-	r.Post(MsgCreate{})
 
-	return r
+	ch := make(chan JoinedInfo)
+	r.Post(MsgCreate{ch})
+
+	return r, master, ch
 }
 
 func (r *Room) ID() RoomID {
@@ -169,9 +171,10 @@ func (r *Room) broadcast(ev Event) error {
 }
 
 func (r *Room) msgCreate(msg MsgCreate) error {
-	return r.broadcast(EvJoined{
-		r.master.ClientInfo.Clone(),
-	})
+	rinfo := r.RoomInfo.Clone()
+	cinfo := r.master.ClientInfo.Clone()
+	msg.Joined <- JoinedInfo{rinfo, cinfo}
+	return r.broadcast(EvJoined{cinfo})
 }
 
 func (r *Room) msgJoin(msg MsgJoin) error {
@@ -179,19 +182,17 @@ func (r *Room) msgJoin(msg MsgJoin) error {
 	defer r.muClients.Unlock()
 
 	if r.MaxPlayers == uint32(len(r.clients)) {
-		close(msg.Res)
-		return xerrors.Errorf("Room full. max=%v, client=%v", r.MaxPlayers, msg.Info.Id)
+		close(msg.Joined)
+		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 	}
 
 	r.wgClient.Add(1)
 	c := NewClient(msg.Info, r)
 	r.clients[ClientID(c.Id)] = c
 
+	rinfo := r.RoomInfo.Clone()
 	cinfo := c.ClientInfo.Clone()
-	msg.Res <- JoinResponse{
-		Room:   r.RoomInfo.Clone(),
-		Client: cinfo,
-	}
+	msg.Joined <- JoinedInfo{rinfo, cinfo}
 	r.broadcast(EvJoined{cinfo})
 
 	return nil

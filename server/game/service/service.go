@@ -26,7 +26,7 @@ func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
 
 func (s *GameService) Serve() error {
 	var err error
-	select{
+	select {
 	case err = <-s.grpcServe():
 	}
 	return err

@@ -17,5 +17,6 @@ message CreateRoomReq {
 }
 
 message CreateRoomRes {
-	RoomInfo room = 1;
+	RoomInfo room_info = 1;
+	ClientInfo master_info = 2;
 }
