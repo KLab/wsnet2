@@ -5,15 +5,28 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"golang.org/x/xerrors"
 
+	"wsnet2/game"
 	"wsnet2/log"
 )
 
 const (
 	WebsocketRWTimeout = 5 * time.Minute
+)
+
+var (
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  4000,
+		WriteBufferSize: 4000,
+		Subprotocols:    []string{"wsnet2"},
+		CheckOrigin:     func(r *http.Request) bool { return true },
+	}
 )
 
 type WSHandler struct {
@@ -47,8 +60,12 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 			listener = tls.NewListener(listener, tlsConf)
 		}
 
+		ws := &WSHandler{sv}
+		r := mux.NewRouter()
+		r.HandleFunc("/room/{id:[0-9a-f]+}", ws.HandleRoom).Methods("POST")
+
 		svr := &http.Server{
-			Handler:      &WSHandler{sv},
+			Handler:      r,
 			ReadTimeout:  WebsocketRWTimeout,
 			WriteTimeout: WebsocketRWTimeout,
 		}
@@ -58,6 +75,40 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 	return errCh
 }
 
-func (sv *WSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	roomId := vars["id"]
+	appId := r.Header.Get("X-Wsnet-App")
+	clientId := r.Header.Get("X-Wsnet-User")
 
+	repo, ok := s.repos[appId]
+	if !ok {
+		log.Debugf("WSHandler.handleRoom: invalid app id: %v", appId)
+		http.Error(w, "Bad Request", 400)
+		return
+	}
+	// TODO: authentication
+
+	cli, err := repo.GetClient(roomId, clientId)
+	if err != nil {
+		log.Debugf("GetClient error: %v", err)
+		// TODO: error format
+		return
+	}
+	log.Debugf("client: %v", cli)
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		breq, _ := httputil.DumpRequest(r, false)
+		log.Errorf("upgrade error: room=%v, client=%v, remote=%v: %v\nrequest=%v",
+			roomId, clientId, err, r.RemoteAddr, string(breq))
+		return
+	}
+
+	peer := game.NewPeer(ctx, cli, conn)
+	<-peer.Done()
+	log.Debugf("HandleRoom finished: room=%v, client=%v", roomId, clientId)
 }

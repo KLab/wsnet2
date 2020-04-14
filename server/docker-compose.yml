@@ -25,3 +25,5 @@ services:
     command: realize start -name wsnet-game
     ports:
       - 19000:19000
+      - 8000:8000
+      - 3000:3000

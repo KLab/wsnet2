@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 
 	"google.golang.org/grpc"
 
@@ -31,6 +32,19 @@ func main() {
 	}
 
 	res, err := client.Create(context.TODO(), req)
-	fmt.Printf("result:%+v \n", res)
+	if err != nil {
+		fmt.Printf("create room error: %v", err)
+	}
+
+	h := &http.Client{}
+	hreq, err := http.NewRequest(
+		"POST",
+		fmt.Sprintf("http://localhost:8000/room/%s", res.RoomInfo.Id),
+		nil)
+	hreq.Header.Set("x-wsnet-app", "testapp")
+	hreq.Header.Set("x-wsnet-user", "11111")
+	hres, err := h.Do(hreq)
+
+	fmt.Printf("result:%#v \n", hres)
 	fmt.Printf("error::%+v \n", err)
 }
