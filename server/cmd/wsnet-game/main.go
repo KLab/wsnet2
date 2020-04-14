@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -30,7 +31,9 @@ func main() {
 		panic(fmt.Errorf("%+v\n", err))
 	}
 
-	err = service.Serve()
+	ctx := context.Background()
+
+	err = service.Serve(ctx)
 	if err != nil {
 		panic(fmt.Errorf("%+v\n", err))
 	}

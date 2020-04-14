@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -12,21 +13,22 @@ import (
 	"wsnet2/pb"
 )
 
-func (sv *GameService) grpcServe() <-chan error {
+func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 	errCh := make(chan error)
 
 	go func() {
 		laddr := sv.conf.GRPCAddr
+		log.Infof("game grpc: %#v", laddr)
+
 		listenPort, err := net.Listen("tcp", laddr)
 		if err != nil {
-			errCh <- err
+			errCh <- xerrors.Errorf("listen error: %w", errCh)
 			return
 		}
 
 		server := grpc.NewServer()
 		pb.RegisterGameServer(server, sv)
 
-		log.Infof("game grpc: %#v", laddr)
 		errCh <- server.Serve(listenPort)
 	}()
 

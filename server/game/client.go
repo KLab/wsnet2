@@ -25,7 +25,7 @@ type Client struct {
 
 	evbuf *EvBuf
 
-	mu   sync.Mutex
+	mu sync.Mutex
 }
 
 func NewClient(info *pb.ClientInfo, room *Room) *Client {

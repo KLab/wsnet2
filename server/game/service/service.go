@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/jmoiron/sqlx"
 
 	"wsnet2/config"
@@ -24,10 +26,15 @@ func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
 	}, nil
 }
 
-func (s *GameService) Serve() error {
+func (s *GameService) Serve(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var err error
 	select {
-	case err = <-s.grpcServe():
+	case err = <-s.serveGRPC(ctx):
+	case err = <-s.serveWebSocket(ctx):
+	case err = <-s.servePprof(ctx):
 	}
 	return err
 }

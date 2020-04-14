@@ -28,7 +28,12 @@ type DbConf struct {
 type GameConf struct {
 	Hostname string
 
-	GRPCAddr string `toml:"grpc_addr"`
+	GRPCAddr      string `toml:"grpc_addr"`
+	WebsocketAddr string `toml:"websocket_addr"`
+	PprofAddr     string `toml:"pprof_addr"`
+
+	TLSCert string `toml:"tls_cert"`
+	TLSKey  string `toml:"tls_key"`
 
 	RetryCount int `toml:"retry_count"`
 	MaxRoomNum int `toml:"max_room_num"`
@@ -49,9 +54,10 @@ func Load(conffile string) (*Config, error) {
 			MaxRoomNum: 999999,
 
 			DefaultMaxPlayers: 10,
-			DefaultDeadline: 5,
-			DefaultLoglevel: 2,
+			DefaultDeadline:   5,
+			DefaultLoglevel:   2,
 		},
+		Lobby: LobbyConf{},
 	}
 
 	_, err := toml.DecodeFile(conffile, c)
