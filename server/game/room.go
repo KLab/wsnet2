@@ -20,6 +20,7 @@ type RoomID string
 
 type Room struct {
 	*pb.RoomInfo
+	repo *Repository
 
 	deadline time.Duration
 
@@ -36,9 +37,10 @@ type Room struct {
 	logger log.Logger
 }
 
-func NewRoom(info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo) {
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo) {
 	r := &Room{
 		RoomInfo: info,
+		repo:     repo,
 		deadline: time.Duration(info.ClientDeadline) * time.Second,
 
 		msgCh: make(chan Msg, RoomMsgChSize),
@@ -83,6 +85,7 @@ Loop:
 			r.dispatch(msg)
 		}
 	}
+	r.repo.RemoveRoom(r)
 
 	r.drainMsg()
 	r.logger.Debugf("Room.MsgLoop() finish: room=%v", r.Id)

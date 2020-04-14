@@ -117,7 +117,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		return nil, nil, xerrors.Errorf("", err)
 	}
 
-	room, cli, ch := NewRoom(info, master, repo.conf)
+	room, cli, ch := NewRoom(repo, info, master, repo.conf)
 	var joined JoinedInfo
 	select {
 	case j, ok := <-ch:
@@ -180,4 +180,36 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	}
 
 	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
+}
+
+func (repo *Repository) RemoveRoom(room *Room) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	rid := room.ID()
+	delete(repo.rooms, rid)
+	log.Debugf("room removed from repository: room=%v", rid)
+}
+
+func (repo *Repository) RemoveClient(cli *Client) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	cid := cli.ID()
+	rid := cli.room.ID()
+	if cmap, ok := repo.clients[cid]; ok {
+		delete(cmap, rid)
+		if len(cmap) == 0 {
+			delete(repo.clients, cid)
+		}
+	}
+	log.Debugf("client removed from repository: room=%v, client=%v", rid, cid)
+}
+
+func (repo *Repository) GetClient(roomId, userId string) (*Client, error) {
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+	cli, ok := repo.clients[ClientID(userId)][RoomID(roomId)]
+	if !ok {
+		return nil, xerrors.Errorf("client not found: room=%v, client=%v", roomId, userId)
+	}
+	return cli, nil
 }

@@ -10,6 +10,9 @@ import (
 
 const (
 	ClientEventBufSize = 64
+
+	// 部屋が終了した後で再接続が来た時もバッファに残ったデータを送信できるので一定時間残す
+	ClientWaitAfterClose = time.Second * 30
 )
 
 type ClientID string
@@ -103,6 +106,11 @@ loop:
 	}
 	log.Debugf("Client.MsgLoop close: client=%v", c.Id)
 	close(c.done)
+
+	go func(){
+		time.Sleep(ClientWaitAfterClose)
+		c.room.repo.RemoveClient(c)
+	}()
 
 	c.drainMsg(peerMsgCh)
 	log.Debugf("Client.MsgLoop finish: client=%v", c.Id)
