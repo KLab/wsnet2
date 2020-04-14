@@ -117,7 +117,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		return nil, nil, xerrors.Errorf("", err)
 	}
 
-	room, cli, ch := NewRoom(info, master)
+	room, cli, ch := NewRoom(info, master, repo.conf)
 	var joined JoinedInfo
 	select {
 	case j, ok := <-ch:

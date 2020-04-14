@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/xerrors"
 
+	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -13,9 +14,6 @@ import (
 const (
 	// RoomMsgChSize : Msgチャネルのバッファサイズ
 	RoomMsgChSize = 10
-
-	// RoomDefaultClientDeadline : クライアント切断判定の無通信時間の初期値
-	RoomDefaultClientDeadline = 30 * time.Second
 )
 
 type RoomID string
@@ -38,9 +36,10 @@ type Room struct {
 	logger log.Logger
 }
 
-func NewRoom(info *pb.RoomInfo, masterInfo *pb.ClientInfo) (*Room, *Client, <-chan JoinedInfo) {
+func NewRoom(info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo) {
 	r := &Room{
 		RoomInfo: info,
+		deadline: time.Duration(info.ClientDeadline) * time.Second,
 
 		msgCh: make(chan Msg, RoomMsgChSize),
 		done:  make(chan struct{}),

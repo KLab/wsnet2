@@ -8,3 +8,5 @@ dbname = "wsnet2"
 [Game]
 hostname = "localhost"
 grpc_addr = ":19000"
+default_deadline = 5
+default_loglevel = 4

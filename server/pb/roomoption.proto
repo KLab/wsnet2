@@ -14,5 +14,5 @@ message RoomOption {
 	bytes public_props = 13;
 	bytes private_props = 14;
 
-	bool debug = 15;
+	uint32 log_level = 15;
 }

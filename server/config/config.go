@@ -31,7 +31,11 @@ type GameConf struct {
 	GRPCAddr string `toml:"grpc_addr"`
 
 	RetryCount int `toml:"retry_count"`
-	MaxRoomNum int
+	MaxRoomNum int `toml:"max_room_num"`
+
+	DefaultMaxPlayers uint32 `toml:"default_max_players"`
+	DefaultDeadline   uint32 `toml:"default_deadline"`
+	DefaultLoglevel   uint32 `toml:"default_loglevel"`
 }
 
 type LobbyConf struct {
@@ -43,6 +47,10 @@ func Load(conffile string) (*Config, error) {
 		Game: GameConf{
 			RetryCount: 5,
 			MaxRoomNum: 999999,
+
+			DefaultMaxPlayers: 10,
+			DefaultDeadline: 5,
+			DefaultLoglevel: 2,
 		},
 	}
 

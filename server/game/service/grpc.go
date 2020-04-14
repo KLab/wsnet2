@@ -35,6 +35,7 @@ func (sv *GameService) grpcServe() <-chan error {
 
 func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.CreateRoomRes, error) {
 	log.Infof("Create request: %v, master=%v", in.AppId, in.MasterInfo.Id)
+	sv.fillRoomOption(in.RoomOption)
 	log.Debugf("option: %v", in.RoomOption)
 	log.Debugf("master: %v", in.MasterInfo)
 
@@ -55,7 +56,19 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Cr
 		MasterInfo: master,
 	}
 
-	log.Infof("New room: %v master=%v", room.Id, master.Id)
+	log.Infof("New room: room=%v, master=%v", room.Id, master.Id)
 
 	return res, nil
+}
+
+func (sv *GameService) fillRoomOption(op *pb.RoomOption) {
+	if op.ClientDeadline == 0 {
+		op.ClientDeadline = sv.conf.DefaultDeadline
+	}
+	if op.MaxPlayers == 0 {
+		op.MaxPlayers = sv.conf.DefaultMaxPlayers
+	}
+	if op.LogLevel == 0 {
+		op.LogLevel = sv.conf.DefaultLoglevel
+	}
 }

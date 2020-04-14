@@ -23,7 +23,7 @@ func main() {
 		RoomOption: &pb.RoomOption{
 			Visible:   true,
 			Watchable: true,
-			Debug:     true,
+			LogLevel:  4,
 		},
 		MasterInfo: &pb.ClientInfo{
 			Id: "11111",
