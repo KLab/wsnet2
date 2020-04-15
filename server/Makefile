@@ -4,7 +4,7 @@ pb.go := $(proto:.proto=.pb.go)
 all: $(pb.go)
 
 clean:
-	rm $(pb.go)
+	$(RM) $(pb.go)
 
 test: $(pb.go)
 	go test ./...
