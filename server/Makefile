@@ -1,12 +1,16 @@
 proto := $(wildcard pb/*.proto)
 pb.go := $(proto:.proto=.pb.go)
 
-all: $(pb.go)
+.PHONY: all generate clean test
+
+all: generate
+
+generate: $(pb.go)
 
 clean:
 	$(RM) $(pb.go)
 
-test: $(pb.go)
+test: generate
 	go test ./...
 
 %.pb.go: %.proto

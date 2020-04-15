@@ -22,7 +22,8 @@ services:
     volumes:
       - ./:/work
     working_dir: /work
-    command: realize start -name wsnet-game
+    command: bash -c 'make generate && realize start -n wsnet-game'
+    entrypoint: /wait-for-it.sh wsnet-db:3306 --
     ports:
       - 19000:19000
       - 8000:8000
