@@ -11,6 +11,3 @@ RUN curl -L https://github.com/protocolbuffers/protobuf/releases/download/v3.11.
     unzip -o protoc.zip -d /usr/local bin/protoc && \
     unzip -o protoc.zip -d /usr/local include/* && \
     rm protoc.zip
-
-RUN go get github.com/golang/protobuf/protoc-gen-go
-RUN go get github.com/favadi/protoc-go-inject-tag
