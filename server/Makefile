@@ -1,11 +1,11 @@
 proto := $(wildcard pb/*.proto)
 pb.go := $(proto:.proto=.pb.go)
 
-.PHONY: all generate clean test
+.PHONY: all generate clean test install-go-tools
 
 all: generate
 
-generate: $(pb.go)
+generate: install-go-tools $(pb.go)
 
 clean:
 	$(RM) $(pb.go)
@@ -16,3 +16,6 @@ test: generate
 %.pb.go: %.proto
 	protoc --proto_path=pb --go_out=plugins=grpc:pb "$^"
 	protoc-go-inject-tag --input="$@"
+
+install-go-tools:
+	cat tools.go | awk -F'"' '/_/ {print $$2}' | xargs -tI {} go install {}
