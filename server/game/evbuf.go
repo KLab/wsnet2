@@ -13,13 +13,16 @@ type EvBuf struct {
 	mu   sync.RWMutex
 	rSeq int
 	wSeq int
+
+	hasData chan struct{}
 }
 
 // NewEventBuf creates a new EvBuf.
 // size: length of buffer.
 func NewEvBuf(size int) *EvBuf {
 	return &EvBuf{
-		buf: make([]Event, size),
+		buf:     make([]Event, size),
+		hasData: make(chan struct{}, 1),
 	}
 }
 
@@ -46,7 +49,16 @@ func (b *EvBuf) Write(data Event) error {
 	b.wSeq++
 	b.mu.Unlock()
 
+	select {
+	case b.hasData <- struct{}{}:
+	default:
+	}
+
 	return nil
+}
+
+func (b *EvBuf) HasData() <-chan struct{} {
+	return b.hasData
 }
 
 // Read returns all message stored in this buffer and last seqence numer.
@@ -74,11 +86,19 @@ func (b *EvBuf) Rewind(seq int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	if seq == b.rSeq {
+		return nil
+	}
+
 	size := len(b.buf)
 	if b.wSeq-seq >= size {
 		return xerrors.Errorf("EvBuf too old seq num: %v, size:%v write:%v", seq, size, b.wSeq)
 	}
 
 	b.rSeq = seq
+	select {
+	case b.hasData <- struct{}{}:
+	default:
+	}
 	return nil
 }
