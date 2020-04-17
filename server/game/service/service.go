@@ -32,6 +32,7 @@ func (s *GameService) Serve(ctx context.Context) error {
 
 	var err error
 	select {
+	case <-ctx.Done():
 	case err = <-s.serveGRPC(ctx):
 	case err = <-s.serveWebSocket(ctx):
 	case err = <-s.servePprof(ctx):

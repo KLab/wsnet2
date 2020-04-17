@@ -29,7 +29,18 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 		server := grpc.NewServer()
 		pb.RegisterGameServer(server, sv)
 
-		errCh <- server.Serve(listenPort)
+		c := make(chan error)
+		go func() {
+			c <- server.Serve(listenPort)
+		}()
+		select {
+		case <-ctx.Done():
+			server.Stop()
+			log.Infof("gRPC server stop")
+		case err := <-c:
+			errCh <- err
+			log.Infof("gRPC server error: %v", err)
+		}
 	}()
 
 	return errCh
