@@ -7,7 +7,7 @@ import (
 )
 
 // EvBuf rewindable ring buffer.
-// Read/Write/Rewind can be called from different goroutines.
+// Read/Write can be called from different goroutines.
 type EvBuf struct {
 	buf  []Event
 	mu   sync.RWMutex
@@ -26,17 +26,15 @@ func NewEvBuf(size int) *EvBuf {
 	}
 }
 
-func (b *EvBuf) getSeqNo() (int, int) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	return b.rSeq, b.wSeq
-}
-
 // Write to buffer from Room.MsgLoop goroutine.
 // It returns an error when buffer is full.
 func (b *EvBuf) Write(data Event) error {
-	// MsgLoopは単一goroutineなのでロックし続ける必要はない
-	r, w := b.getSeqNo()
+	// MsgLoopは単一goroutineで、wSeqはここでしか書き換えない
+	// rSeqがwSeqを超えることは無いのでロックし続けなくてよい
+	b.mu.RLock()
+	r, w := b.rSeq, b.wSeq
+	b.mu.RUnlock()
+
 	s := len(b.buf)
 
 	if w-s == r {
@@ -62,43 +60,34 @@ func (b *EvBuf) HasData() <-chan struct{} {
 }
 
 // Read returns all message stored in this buffer and last seqence numer.
-// It called from Peer.EventLoop goroutine.
-func (b *EvBuf) Read() ([]Event, int) {
-	r, w := b.getSeqNo()
-	s := len(b.buf)
+// It called from Client.EventLoop goroutine.
+func (b *EvBuf) Read(seq int) ([]Event, int, error) {
+	size := len(b.buf)
+
+	b.mu.Lock()
+	r, w := b.rSeq, b.wSeq
+	if seq < r {
+		// rewind read seq num
+		if w-seq >= size {
+			return nil, 0, xerrors.Errorf("EvBuf too old seq num: %v, size:%v write:%v", seq, size, w)
+		}
+		b.rSeq = seq
+		r = seq
+	}
+	b.mu.Unlock() // wSeqがrSeqを超えることは無いのでロックし続けなくて良い
+
+	if r == w {
+		return []Event{}, w, nil
+	}
 	count := w - r
 	buf := make([]Event, count)
 	for i := 0; i < count; i++ {
-		buf[i] = b.buf[(r+i)%s]
+		buf[i] = b.buf[(r+i)%size]
 	}
 
-	if count > 0 {
-		b.mu.Lock()
-		b.rSeq = w
-		b.mu.Unlock()
-	}
-
-	return buf, w
-}
-
-// Rewind read sequence number.
-func (b *EvBuf) Rewind(seq int) error {
 	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.rSeq = w
+	b.mu.Unlock()
 
-	if seq == b.rSeq {
-		return nil
-	}
-
-	size := len(b.buf)
-	if b.wSeq-seq >= size {
-		return xerrors.Errorf("EvBuf too old seq num: %v, size:%v write:%v", seq, size, b.wSeq)
-	}
-
-	b.rSeq = seq
-	select {
-	case b.hasData <- struct{}{}:
-	default:
-	}
-	return nil
+	return buf, w, nil
 }

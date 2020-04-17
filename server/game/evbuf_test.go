@@ -21,12 +21,18 @@ func TestWriteRead(t *testing.T) {
 			t.Fatalf("Write(%v) error: %v", ev, e)
 		}
 	}
-	r, seq := buf.Read()
+	r, seq, err := buf.Read(0)
+	if err != nil {
+		t.Fatalf("Read error: %v", err)
+	}
 	if !reflect.DeepEqual(r, evs) || seq != cseq {
 		t.Fatalf("Read (%v, %v), wants (%v, %v)", r, seq, evs, cseq)
 	}
 
-	r, seq = buf.Read()
+	r, seq, err = buf.Read(seq)
+	if err != nil {
+		t.Fatalf("Read error: %v", err)
+	}
 	if len(r) != 0 || seq != cseq {
 		t.Fatalf("Read (%v, %v), wants ([], %v)", r, seq, cseq)
 	}
@@ -38,7 +44,10 @@ func TestWriteRead(t *testing.T) {
 			t.Fatalf("Write(%v) error: %v", m, e)
 		}
 	}
-	r, seq = buf.Read()
+	r, seq, err = buf.Read(seq)
+	if err != nil {
+		t.Fatalf("Read error: %v", err)
+	}
 	if !reflect.DeepEqual(r, evs) || seq != cseq {
 		t.Fatalf("Read (%v, %v), wants (%v, %v)", r, seq, evs, cseq)
 	}
@@ -59,7 +68,7 @@ func TestEvBufOverFlow(t *testing.T) {
 	}
 }
 
-func TestRewind(t *testing.T) {
+func TestReadWithRewind(t *testing.T) {
 	buf := NewEvBuf(5)
 
 	evs := []Event{EvTest(1), EvTest(2), EvTest(3), EvTest(4)}
@@ -68,7 +77,7 @@ func TestRewind(t *testing.T) {
 			t.Fatalf("Write(%v) error: %v", m, e)
 		}
 	}
-	buf.Read()
+	buf.Read(0)
 	evs = []Event{EvTest(5), EvTest(6), EvTest(7)}
 	for _, m := range evs {
 		if e := buf.Write(m); e != nil {
@@ -76,18 +85,17 @@ func TestRewind(t *testing.T) {
 		}
 	}
 
-	if e := buf.Rewind(3); e != nil {
-		t.Fatalf("Rewind(3) error: %v", e)
+	r, seq, e := buf.Read(3)
+	if e != nil {
+		t.Fatalf("Read(3) error: %v", e)
 	}
-
-	r, seq := buf.Read()
 	wants := []Event{EvTest(4), EvTest(5), EvTest(6), EvTest(7)}
 	cseq := 7
 	if !reflect.DeepEqual(r, wants) || seq != cseq {
-		t.Fatalf("Read (%v, %v), wants (%v, %v)", r, seq, wants, cseq)
+		t.Fatalf("Read(3) (%v, %v), wants (%v, %v)", r, seq, wants, cseq)
 	}
 
-	if e := buf.Rewind(1); e == nil {
-		t.Fatalf("Rewind(1) must error")
+	if _, _, e := buf.Read(2); e == nil {
+		t.Fatalf("Read(2) must error")
 	}
 }
