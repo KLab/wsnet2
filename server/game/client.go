@@ -28,8 +28,10 @@ type Client struct {
 
 	mu       sync.RWMutex
 	peer     *Peer
-	waitPeer chan struct{}
+	waitPeer chan *Peer
 	newPeer  chan *Peer
+
+	evErrCh chan error
 }
 
 func NewClient(info *pb.ClientInfo, room *Room) *Client {
@@ -41,10 +43,12 @@ func NewClient(info *pb.ClientInfo, room *Room) *Client {
 		done:        make(chan struct{}),
 		newDeadline: make(chan time.Duration),
 
-		waitPeer: make(chan struct{}),
-		newPeer:  make(chan *Peer),
-
 		evbuf: NewEvBuf(ClientEventBufSize),
+
+		waitPeer: make(chan *Peer, 1),
+		newPeer:  make(chan *Peer, 1),
+
+		evErrCh: make(chan error),
 	}
 
 	go c.MsgLoop(room.deadline)
@@ -65,7 +69,7 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			c.room.logger.Debugf("client timeout: client=%v", c.Id)
+			c.room.logger.Infof("client timeout: client=%v", c.Id)
 			c.room.Timeout(c)
 			break loop
 
@@ -93,11 +97,11 @@ loop:
 		case peer := <-c.newPeer:
 			go c.drainMsg(peerMsgCh)
 			if peer == nil {
-				c.room.logger.Debugf("peer detached: client=%v, peer=%p", c.Id, peer)
+				c.room.logger.Infof("Peer detached: client=%v, peer=%p", c.Id, peer)
 				peerMsgCh = nil
 				continue
 			}
-			c.room.logger.Debugf("assign new peer: client=%v, peer=%p", c.Id, peer)
+			c.room.logger.Infof("New peer attached: client=%v, peer=%p", c.Id, peer)
 			if !t.Stop() {
 				<-t.C
 			}
@@ -111,10 +115,20 @@ loop:
 			}
 			c.room.msgCh <- m
 			t.Reset(deadline)
+		case err := <-c.evErrCh:
+			c.room.logger.Debugf("error from EventLoop: client=%v %v", c.Id, err)
+			c.room.msgCh <- MsgClientError{
+				Client: c,
+				Err: err,
+			}
+			break loop
 		}
 	}
 	c.room.logger.Debugf("Client.MsgLoop close: client=%v", c.Id)
 	close(c.done)
+	c.mu.Lock()
+	c.peer.Close()
+	c.mu.Unlock()
 
 	go func() {
 		time.Sleep(ClientWaitAfterClose)
@@ -122,6 +136,7 @@ loop:
 	}()
 
 	c.drainMsg(peerMsgCh)
+	c.room.wgClient.Done()
 	c.room.logger.Debugf("Client.MsgLoop finish: client=%v", c.Id)
 }
 
@@ -148,13 +163,15 @@ func (c *Client) Send(e Event) error {
 
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
-func (c *Client) attachPeer(p *Peer) {
+func (c *Client) AttachPeer(p *Peer) {
+	c.room.logger.Debugf("attach peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// TODO: seqnumをpeerに通知(送信までする)
-
 	if c.peer == nil {
-		close(c.waitPeer)
+		c.waitPeer <- p
+	} else {
+		c.peer.Detached()
 	}
 	c.peer = p
 	c.newPeer <- p
@@ -162,19 +179,21 @@ func (c *Client) attachPeer(p *Peer) {
 
 // detachPeer: peerを切り離す
 // peer側で切断やエラーを検知したときにpeerのgoroutineから呼ばれる.
-func (c *Client) detachPeer(p *Peer) {
+func (c *Client) DetachPeer(p *Peer) {
+	c.room.logger.Debugf("detach peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.peer != p {
 		return // すでにdetach済み
 	}
+	c.peer.Detached()
 	c.peer = nil
 	c.newPeer <- nil
-	c.waitPeer = make(chan struct{})
+	c.waitPeer = make(chan *Peer, 1)
 }
 
-func (c *Client) getWritePeer() (*Peer, <-chan struct{}) {
+func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.peer, c.waitPeer
@@ -193,19 +212,30 @@ loop:
 
 		peer, wait := c.getWritePeer()
 		if peer == nil {
+			// peerがattachされるまで待つ
 			c.room.logger.Debugf("client EventLoop: wait peer. client=%v", c.Id)
 			select {
 			case <-c.done:
 				break loop
-			case <-wait:
-				c.room.logger.Debugf("client EventLoop: peer available. client=%v", c.Id)
-				continue
+			case peer = <-wait:
+				c.room.logger.Debugf("client EventLoop: peer available. client=%v, peer=%p", c.Id, peer)
 			}
 		}
 
-		evs, last := c.evbuf.Read()
-		c.room.logger.Debugf("client EventLoop: send event %v - %v, client=%v", last-len(evs)+1, last, c.Id)
-		peer.SendEvent(c.evbuf.Read())
+		evs, last, err := c.evbuf.Read(peer.LastEventSeq())
+		if err != nil {
+			// 端末側の持っているLastEventSeqが古すぎる. 基本的に復帰不能
+			c.room.logger.Errorf("evbuf.Read error: client=%v, peer=%p: %v", c.Id, peer, err)
+			c.DetachPeer(peer)
+			peer.ClientError(err)
+			break loop
+		}
+
+		if err := peer.SendEvent(evs, last); err != nil {
+			// 送信失敗は新しいpeerなら復帰できるかもしれない.
+			c.room.logger.Infof("peer SendEvent error, detach: client=%v, peer=%p: %v", c.Id, peer, err)
+			c.DetachPeer(peer)
+		}
 	}
 
 	c.room.logger.Debugf("client EventLoop finish: client=%v", c.Id)

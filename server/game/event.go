@@ -5,7 +5,7 @@ import (
 )
 
 type Event interface {
-	event()
+	Encode() []byte
 }
 
 var _ Event = EvJoined{}
@@ -14,4 +14,6 @@ type EvJoined struct {
 	Client *pb.ClientInfo
 }
 
-func (EvJoined) event() {}
+func (e EvJoined) Encode() []byte {
+	return []byte{}
+}

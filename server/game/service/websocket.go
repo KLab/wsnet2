@@ -62,7 +62,7 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 
 		ws := &WSHandler{sv}
 		r := mux.NewRouter()
-		r.HandleFunc("/room/{id:[0-9a-f]+}", ws.HandleRoom).Methods("POST")
+		r.HandleFunc("/room/{id:[0-9a-f]+}", ws.HandleRoom).Methods("GET")
 
 		svr := &http.Server{
 			Handler:      r,

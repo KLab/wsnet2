@@ -120,6 +120,7 @@ func (r *Room) Post(m Msg) {
 	r.msgCh <- m
 }
 
+// Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる
 func (r *Room) Timeout(c *Client) {
 	r.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
 }
@@ -135,9 +136,11 @@ func (r *Room) removeClient(c *Client, err error) {
 		return
 	}
 
-	r.logger.Infof("Client removed: room=%v, client=%v", r.Id, cid)
+	r.logger.Infof("Client removed: room=%v, client=%v %v", r.Id, cid, err)
 	delete(r.clients, cid)
 	r.leaved[cid] = err
+	// todo: orderの書き換え
+
 	c.Removed()
 
 	if len(r.clients) == 0 {
@@ -154,6 +157,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgCreate(m)
 	case MsgJoin:
 		return r.msgJoin(m)
+	case MsgClientError:
+		return r.msgClientError(m)
 	default:
 		return xerrors.Errorf("unknown msg type: %T %v", m, m)
 	}
@@ -197,5 +202,10 @@ func (r *Room) msgJoin(msg MsgJoin) error {
 	msg.Joined <- JoinedInfo{rinfo, cinfo}
 	r.broadcast(EvJoined{cinfo})
 
+	return nil
+}
+
+func (r *Room) msgClientError(msg MsgClientError) error {
+	r.removeClient(msg.Client, msg.Err)
 	return nil
 }

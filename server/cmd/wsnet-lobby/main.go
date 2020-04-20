@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"google.golang.org/grpc"
+	"github.com/gorilla/websocket"
 
 	"wsnet2/pb"
 )
@@ -36,15 +37,36 @@ func main() {
 		fmt.Printf("create room error: %v", err)
 	}
 
-	h := &http.Client{}
-	hreq, err := http.NewRequest(
-		"POST",
-		fmt.Sprintf("http://localhost:8000/room/%s", res.RoomInfo.Id),
-		nil)
-	hreq.Header.Set("x-wsnet-app", "testapp")
-	hreq.Header.Set("x-wsnet-user", "11111")
-	hres, err := h.Do(hreq)
+	url := fmt.Sprintf("ws://localhost:8000/room/%s", res.RoomInfo.Id)
+	hdr := http.Header{}
+	hdr.Add("X-Wsnet-App", "testapp")
+	hdr.Add("X-Wsnet-User", "11111")
 
-	fmt.Printf("result:%#v \n", hres)
-	fmt.Printf("error::%+v \n", err)
+	d := websocket.Dialer{
+		Subprotocols:    []string{},
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+    }
+	ws, res2, err := d.Dial(url, hdr)
+	if err != nil {
+		fmt.Printf("dial error: %v, %v\n", res2, err)
+		return
+	}
+	fmt.Println("response:", res2)
+
+	done := make(chan bool)
+
+	go func() {
+		defer close(done)
+		for{
+			t, b, err := ws.ReadMessage()
+			if err != nil {
+				fmt.Printf("ReadMessage error: %v\n", err)
+				return
+			}
+			fmt.Printf("ReadMessage: %v, %v\n", t, b)
+		}
+	}()
+
+	<-done
 }
