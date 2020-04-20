@@ -6,9 +6,11 @@ pb.go := $(proto:.proto=.pb.go)
 all: generate
 
 generate: install-go-tools $(pb.go)
+	go generate ./...
 
 clean:
 	$(RM) $(pb.go)
+	$(RM) **/*_string.go
 
 test: generate
 	go test ./...
