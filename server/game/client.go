@@ -31,7 +31,7 @@ type Client struct {
 	waitPeer chan *Peer
 	newPeer  chan *Peer
 
-	evErrCh chan error
+	evErr chan error
 }
 
 func NewClient(info *pb.ClientInfo, room *Room) *Client {
@@ -48,10 +48,11 @@ func NewClient(info *pb.ClientInfo, room *Room) *Client {
 		waitPeer: make(chan *Peer, 1),
 		newPeer:  make(chan *Peer, 1),
 
-		evErrCh: make(chan error),
+		evErr: make(chan error),
 	}
 
 	go c.MsgLoop(room.deadline)
+	go c.EventLoop()
 
 	return c
 }
@@ -115,20 +116,17 @@ loop:
 			}
 			c.room.msgCh <- m
 			t.Reset(deadline)
-		case err := <-c.evErrCh:
+		case err := <-c.evErr:
 			c.room.logger.Debugf("error from EventLoop: client=%v %v", c.Id, err)
 			c.room.msgCh <- MsgClientError{
 				Client: c,
-				Err: err,
+				Err:    err,
 			}
 			break loop
 		}
 	}
 	c.room.logger.Debugf("Client.MsgLoop close: client=%v", c.Id)
 	close(c.done)
-	c.mu.Lock()
-	c.peer.Close()
-	c.mu.Unlock()
 
 	go func() {
 		time.Sleep(ClientWaitAfterClose)
@@ -154,20 +152,33 @@ func (c *Client) drainMsg(msgCh <-chan Msg) {
 // RoomのMsgLoopから呼ばれる
 func (c *Client) Removed() {
 	close(c.removed)
+	c.peer.Close("removed from room")
 }
 
 // RoomのMsgLoopから呼ばれる
 func (c *Client) Send(e Event) error {
+	c.room.logger.Debugf("client.send: client=%v %T", c.Id, e)
 	return c.evbuf.Write(e)
 }
 
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
-func (c *Client) AttachPeer(p *Peer) {
+func (c *Client) AttachPeer(p *Peer) error {
 	c.room.logger.Debugf("attach peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// TODO: seqnumをpeerに通知(送信までする)
+
+	// 未読Eventを再送. client終了後でも送信する.
+	evs, last, err := c.evbuf.Read(p.LastEventSeq())
+	if err != nil {
+		c.room.logger.Debugf("attach error: client%v, peer=%p %v", c.Id, p, err)
+		return err
+	}
+	if err := p.SendEvent(evs, last); err != nil {
+		return err
+	}
+
 	if c.peer == nil {
 		c.waitPeer <- p
 	} else {
@@ -175,6 +186,7 @@ func (c *Client) AttachPeer(p *Peer) {
 	}
 	c.peer = p
 	c.newPeer <- p
+	return nil
 }
 
 // detachPeer: peerを切り離す
@@ -200,6 +212,7 @@ func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
 }
 
 func (c *Client) EventLoop() {
+	c.room.logger.Debugf("client.EventLoop start: client=%v", c.Id)
 loop:
 	for {
 		// dataが来るまで待つ
@@ -226,8 +239,8 @@ loop:
 		if err != nil {
 			// 端末側の持っているLastEventSeqが古すぎる. 基本的に復帰不能
 			c.room.logger.Errorf("evbuf.Read error: client=%v, peer=%p: %v", c.Id, peer, err)
-			c.DetachPeer(peer)
 			peer.ClientError(err)
+			c.evErr <- err
 			break loop
 		}
 

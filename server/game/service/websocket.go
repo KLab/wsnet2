@@ -93,6 +93,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Debugf("GetClient error: %v", err)
 		// TODO: error format
+		http.Error(w, "Bad Request", 400)
 		return
 	}
 	log.Debugf("client: %v", cli)
@@ -108,7 +109,12 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peer := game.NewPeer(ctx, cli, conn)
+	peer, err := game.NewPeer(ctx, cli, conn)
+	if err != nil {
+		log.Errorf("")
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 	<-peer.Done()
 	log.Debugf("HandleRoom finished: room=%v, client=%v", roomId, clientId)
 }

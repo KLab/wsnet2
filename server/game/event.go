@@ -15,5 +15,5 @@ type EvJoined struct {
 }
 
 func (e EvJoined) Encode() []byte {
-	return []byte{}
+	return []byte("joined")
 }
