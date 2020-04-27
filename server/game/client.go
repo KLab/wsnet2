@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/xerrors"
+
 	"wsnet2/pb"
 )
 
@@ -142,10 +144,7 @@ func (c *Client) drainMsg(msgCh <-chan Msg) {
 	if msgCh == nil {
 		return
 	}
-	for {
-		if _, ok := <-msgCh; !ok {
-			return
-		}
+	for _ = range msgCh {
 	}
 }
 
@@ -164,7 +163,7 @@ func (c *Client) Send(e Event) error {
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
 func (c *Client) AttachPeer(p *Peer) error {
-	c.room.logger.Debugf("attach peer: client=%v, peer=%p", c.Id, p)
+	c.room.logger.Debugf("attach peer: client=%v peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// TODO: seqnumをpeerに通知(送信までする)
@@ -172,11 +171,16 @@ func (c *Client) AttachPeer(p *Peer) error {
 	// 未読Eventを再送. client終了後でも送信する.
 	evs, last, err := c.evbuf.Read(p.LastEventSeq())
 	if err != nil {
-		c.room.logger.Debugf("attach error: client%v, peer=%p %v", c.Id, p, err)
+		c.room.logger.Debugf("attach error: client=%v peer=%p %v", c.Id, p, err)
 		return err
 	}
 	if err := p.SendEvent(evs, last); err != nil {
 		return err
+	}
+	select {
+	case <-c.removed:
+		return xerrors.Errorf("client has been removed: client=%v peer=%p", c.Id, p)
+	default:
 	}
 
 	if c.peer == nil {

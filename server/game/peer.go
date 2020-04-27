@@ -155,6 +155,7 @@ loop:
 	}
 
 	p.client.DetachPeer(p)
+	close(p.msgCh)
 	close(p.done)
 	p.client.room.logger.Debugf("Peer.MsgLoop finish: client=%v peer=%p", p.client.Id, p)
 }
