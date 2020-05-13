@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/xerrors"
 
+	"wsnet2/binary"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -30,9 +31,14 @@ type Room struct {
 
 	muClients sync.RWMutex
 	clients   map[ClientID]*Client
-	leaved    map[ClientID]error
+	leaved    map[ClientID]error // todo: いらないかも. 消す
 	master    *Client
 	order     []ClientID
+	// todo: photonのactorNrみたいに連番ふったほうがよいかも。gameObjectのphotonView.IDみたいなのを作るときに必要
+
+	// todo: pongにclientたちの最終送信時刻を入れたい
+	// muLastMsg sync.RWMutex
+	// lastMsg   map[ClientID]int // unixtime
 
 	logger log.Logger
 }
@@ -148,7 +154,7 @@ func (r *Room) removeClient(c *Client, err error) {
 		return
 	}
 
-	r.Post(MsgLeave{c.ID()})
+	r.Post(MsgLeave{c})
 }
 
 func (r *Room) dispatch(msg Msg) error {
@@ -164,7 +170,7 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
-func (r *Room) broadcast(ev Event) error {
+func (r *Room) broadcast(ev *binary.Event) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 
@@ -181,7 +187,7 @@ func (r *Room) msgCreate(msg MsgCreate) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	msg.Joined <- JoinedInfo{rinfo, cinfo}
-	return r.broadcast(EvJoined{cinfo})
+	return r.broadcast(binary.NewEvJoined(cinfo))
 }
 
 func (r *Room) msgJoin(msg MsgJoin) error {
@@ -200,12 +206,12 @@ func (r *Room) msgJoin(msg MsgJoin) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := c.ClientInfo.Clone()
 	msg.Joined <- JoinedInfo{rinfo, cinfo}
-	r.broadcast(EvJoined{cinfo})
+	r.broadcast(binary.NewEvJoined(cinfo))
 
 	return nil
 }
 
 func (r *Room) msgClientError(msg MsgClientError) error {
-	r.removeClient(msg.Client, msg.Err)
+	r.removeClient(msg.Sender, msg.Err)
 	return nil
 }

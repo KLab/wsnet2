@@ -1,23 +1,10 @@
 package game
 
 import (
+	"wsnet2/binary"
 	"wsnet2/pb"
-)
 
-//go:generate stringer -type=MsgType
-type MsgType byte
-
-const (
-	MsgTypeCreate MsgType = 1 + iota
-	MsgTypeJoin
-	MsgTypeLeave
-	MsgTypeRoomInfo
-	MsgTypeRoomProp
-	MsgTypeClientProp
-	MsgTypeBroadcast
-	MsgTypeTarget
-
-	MsgTypeClientError MsgType = 100
+	"golang.org/x/xerrors"
 )
 
 type Msg interface {
@@ -27,6 +14,7 @@ type Msg interface {
 var _ Msg = MsgCreate{}
 var _ Msg = MsgJoin{}
 var _ Msg = MsgLeave{}
+var _ Msg = MsgRoomProp{}
 var _ Msg = MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
@@ -36,6 +24,7 @@ type JoinedInfo struct {
 }
 
 // MsgCreate : 部屋作成メッセージ
+// gRPCリクエストよりwsnet内で発生
 type MsgCreate struct {
 	Joined chan<- JoinedInfo
 }
@@ -43,6 +32,7 @@ type MsgCreate struct {
 func (MsgCreate) msg() {}
 
 // MsgJoin : 入室メッセージ
+// gRPCリクエストよりwsnet内で発生
 type MsgJoin struct {
 	Info   *pb.ClientInfo
 	Joined chan<- JoinedInfo
@@ -51,22 +41,41 @@ type MsgJoin struct {
 func (MsgJoin) msg() {}
 
 // MsgLeave : 退室メッセージ
+// クライアントから
 type MsgLeave struct {
-	ID ClientID
+	Sender *Client
 }
 
 func (MsgLeave) msg() {}
 
+// MsgRoomProp : 部屋情報の変更
+type MsgRoomProp struct {
+	Sender *Client
+}
+
+func (MsgRoomProp) msg() {}
+
 // MsgClientError : Client内部エラー（内部で発生）
 type MsgClientError struct {
-	Client *Client
+	Sender *Client
 	Err    error
 }
 
 func (MsgClientError) msg() {}
 
+func UnmarshalMsg(cli *Client, data []byte) (int, Msg, error) {
+	seq, m, err := binary.UnmarshalMsg(data)
+	if err != nil {
+		return 0, nil, err
+	}
 
-func DecodeMsg(cli *Client, data []byte) (int, Msg, error) {
+	var msg Msg
+	switch m := m.(type) {
+	case *binary.MsgLeave:
+		msg = &MsgLeave{Sender: cli}
+	default:
+		err = xerrors.Errorf("unknown msg type: %T %v", m, m)
+	}
 
-	return 0, nil, nil
+	return seq, msg, err
 }

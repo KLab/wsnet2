@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -80,6 +81,12 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	roomId := vars["id"]
 	appId := r.Header.Get("X-Wsnet-App")
 	clientId := r.Header.Get("X-Wsnet-User")
+	lastEvSeq, err := strconv.Atoi(r.Header.Get("X-Wsnet-LastEventSeq"))
+	if err != nil {
+		log.Debugf("invalid header: X-Wsnet-LastEventSeq", r.Header.Get("X-Wsnet-LastEventSeq"))
+		http.Error(w, "Bad Request", 400)
+		return
+	}
 
 	repo, ok := s.repos[appId]
 	if !ok {
@@ -109,7 +116,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	peer, err := game.NewPeer(ctx, cli, conn)
+	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
 	if err != nil {
 		log.Errorf("")
 		http.Error(w, "Bad Request", 400)

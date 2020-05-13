@@ -6,6 +6,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/xerrors"
+
+	"wsnet2/binary"
 )
 
 type Peer struct {
@@ -23,7 +25,7 @@ type Peer struct {
 	evSeqNum  int
 }
 
-func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn) (*Peer, error) {
+func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq int) (*Peer, error) {
 	p := &Peer{
 		client: cli,
 		conn:   conn,
@@ -31,8 +33,10 @@ func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn) (*Peer, err
 
 		done:     make(chan struct{}),
 		detached: make(chan struct{}),
+
+		evSeqNum: lastEvSeq,
 	}
-	err := cli.AttachPeer(p)
+	err := cli.AttachPeer(p, lastEvSeq)
 	if err != nil {
 		p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 		return nil, err
@@ -56,15 +60,17 @@ func (p *Peer) LastEventSeq() int {
 // SendEvent : Eventをwebsocketで送信.
 // Client.EventLoopから呼ばれる.
 // error時のdetach処理はClient側で行う
-func (p *Peer) SendEvent(evs []Event, last int) error {
+func (p *Peer) SendEvent(evs []*binary.Event) error {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
 		return xerrors.Errorf("peer closed")
 	}
 
+	last := p.evSeqNum
 	for _, ev := range evs {
-		err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Encode())
+		last++
+		err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Serialize(last))
 		if err != nil {
 			return err
 		}
@@ -136,7 +142,7 @@ loop:
 			break loop
 		}
 
-		seq, msg, err := DecodeMsg(p.client, data)
+		seq, msg, err := UnmarshalMsg(p.client, data)
 		if err != nil {
 			p.client.room.logger.Errorf("DecodeMsg error: client=%v peer=%p %v", p.client.Id, p, err)
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())

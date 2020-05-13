@@ -6,6 +6,7 @@ import (
 
 	"golang.org/x/xerrors"
 
+	"wsnet2/binary"
 	"wsnet2/pb"
 )
 
@@ -22,7 +23,8 @@ type Client struct {
 	*pb.ClientInfo
 	room *Room
 
-	removed     chan struct{}
+	removed chan struct{}
+	// todo: remove理由を保存したいかも
 	done        chan struct{}
 	newDeadline chan time.Duration
 
@@ -121,7 +123,7 @@ loop:
 		case err := <-c.evErr:
 			c.room.logger.Debugf("error from EventLoop: client=%v %v", c.Id, err)
 			c.room.msgCh <- MsgClientError{
-				Client: c,
+				Sender: c,
 				Err:    err,
 			}
 			break loop
@@ -144,37 +146,38 @@ func (c *Client) drainMsg(msgCh <-chan Msg) {
 	if msgCh == nil {
 		return
 	}
-	for _ = range msgCh {
+	for range msgCh {
 	}
 }
 
 // RoomのMsgLoopから呼ばれる
+// todo: remove理由(error型)を保存したいかも
 func (c *Client) Removed() {
 	close(c.removed)
 	c.peer.Close("removed from room")
 }
 
 // RoomのMsgLoopから呼ばれる
-func (c *Client) Send(e Event) error {
-	c.room.logger.Debugf("client.send: client=%v %T", c.Id, e)
+func (c *Client) Send(e *binary.Event) error {
+	c.room.logger.Debugf("client.send: client=%v %v", c.Id, e.Type)
 	return c.evbuf.Write(e)
 }
 
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
-func (c *Client) AttachPeer(p *Peer) error {
+func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	c.room.logger.Debugf("attach peer: client=%v peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// TODO: seqnumをpeerに通知(送信までする)
 
 	// 未読Eventを再送. client終了後でも送信する.
-	evs, last, err := c.evbuf.Read(p.LastEventSeq())
+	evs, err := c.evbuf.Read(p.LastEventSeq())
 	if err != nil {
 		c.room.logger.Debugf("attach error: client=%v peer=%p %v", c.Id, p, err)
 		return err
 	}
-	if err := p.SendEvent(evs, last); err != nil {
+	if err := p.SendEvent(evs); err != nil {
 		return err
 	}
 	select {
@@ -239,7 +242,7 @@ loop:
 			}
 		}
 
-		evs, last, err := c.evbuf.Read(peer.LastEventSeq())
+		evs, err := c.evbuf.Read(peer.LastEventSeq())
 		if err != nil {
 			// 端末側の持っているLastEventSeqが古すぎる. 基本的に復帰不能
 			c.room.logger.Errorf("evbuf.Read error: client=%v, peer=%p: %v", c.Id, peer, err)
@@ -248,7 +251,7 @@ loop:
 			break loop
 		}
 
-		if err := peer.SendEvent(evs, last); err != nil {
+		if err := peer.SendEvent(evs); err != nil {
 			// 送信失敗は新しいpeerなら復帰できるかもしれない.
 			c.room.logger.Infof("peer SendEvent error, detach: client=%v, peer=%p: %v", c.Id, peer, err)
 			c.DetachPeer(peer)
