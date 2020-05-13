@@ -30,6 +30,10 @@ func TestLoad(t *testing.T) {
 		Hostname:   "wsnetgame.localhost",
 		RetryCount: 3,
 		MaxRoomNum: 999999,
+
+		DefaultMaxPlayers: 10,
+		DefaultDeadline:   5,
+		DefaultLoglevel:   2,
 	}
 	if diff := cmp.Diff(c.Game, game); diff != "" {
 		t.Fatalf("c.Db differs: (-got +want)\n%s", diff)
