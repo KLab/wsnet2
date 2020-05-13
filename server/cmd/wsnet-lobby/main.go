@@ -62,6 +62,8 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second)
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 1})
+		time.Sleep(time.Second)
 		ws.Close()
 	}()
 
@@ -91,7 +93,7 @@ func main() {
 func eventloop(ws *websocket.Conn, done chan bool) {
 	defer close(done)
 	for {
-		t, b, err := ws.ReadMessage()
+		_, b, err := ws.ReadMessage()
 		if err != nil {
 			fmt.Printf("ReadMessage error: %v\n", err)
 			return
@@ -105,7 +107,7 @@ func eventloop(ws *websocket.Conn, done chan bool) {
 			props := b[7+namelen:]
 			fmt.Printf("%s: %v %#v, %v, %v\n", ty, seqnum, name, props, b)
 		default:
-			fmt.Printf("ReadMessage: %v, %v\n", t, b)
+			fmt.Printf("ReadMessage: %v, %v\n", ty, b)
 		}
 	}
 }

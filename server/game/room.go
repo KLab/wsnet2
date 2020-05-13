@@ -31,7 +31,6 @@ type Room struct {
 
 	muClients sync.RWMutex
 	clients   map[ClientID]*Client
-	leaved    map[ClientID]error // todo: いらないかも. 消す
 	master    *Client
 	order     []ClientID
 	// todo: photonのactorNrみたいに連番ふったほうがよいかも。gameObjectのphotonView.IDみたいなのを作るときに必要
@@ -53,7 +52,6 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		done:  make(chan struct{}),
 
 		clients: make(map[ClientID]*Client),
-		leaved:  make(map[ClientID]error),
 		order:   []ClientID{},
 
 		logger: log.Get(log.CurrentLevel()),
@@ -68,7 +66,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 	go r.MsgLoop()
 
 	ch := make(chan JoinedInfo)
-	r.Post(MsgCreate{ch})
+	r.Post(&MsgCreate{ch})
 
 	return r, master, ch
 }
@@ -144,26 +142,27 @@ func (r *Room) removeClient(c *Client, err error) {
 
 	r.logger.Infof("Client removed: room=%v, client=%v %v", r.Id, cid, err)
 	delete(r.clients, cid)
-	r.leaved[cid] = err
 	// todo: orderの書き換え
 
-	c.Removed()
+	c.Removed(err)
 
 	if len(r.clients) == 0 {
 		close(r.done)
 		return
 	}
 
-	r.Post(MsgLeave{c})
+	r.broadcast(binary.NewEvLeave(string(cid)))
 }
 
 func (r *Room) dispatch(msg Msg) error {
 	switch m := msg.(type) {
-	case MsgCreate:
+	case *MsgCreate:
 		return r.msgCreate(m)
-	case MsgJoin:
+	case *MsgJoin:
 		return r.msgJoin(m)
-	case MsgClientError:
+	case *MsgLeave:
+		return r.msgLeave(m)
+	case *MsgClientError:
 		return r.msgClientError(m)
 	default:
 		return xerrors.Errorf("unknown msg type: %T %v", m, m)
@@ -183,14 +182,14 @@ func (r *Room) broadcast(ev *binary.Event) error {
 	return nil
 }
 
-func (r *Room) msgCreate(msg MsgCreate) error {
+func (r *Room) msgCreate(msg *MsgCreate) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	msg.Joined <- JoinedInfo{rinfo, cinfo}
 	return r.broadcast(binary.NewEvJoined(cinfo))
 }
 
-func (r *Room) msgJoin(msg MsgJoin) error {
+func (r *Room) msgJoin(msg *MsgJoin) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
@@ -211,7 +210,12 @@ func (r *Room) msgJoin(msg MsgJoin) error {
 	return nil
 }
 
-func (r *Room) msgClientError(msg MsgClientError) error {
+func (r *Room) msgLeave(msg *MsgLeave) error {
+	r.removeClient(msg.Sender, nil)
+	return nil
+}
+
+func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.Err)
 	return nil
 }

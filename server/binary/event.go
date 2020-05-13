@@ -22,15 +22,10 @@ type Event struct {
 }
 
 func (ev *Event) Serialize(seqNum int) []byte {
-	buf := make([]byte, 5, len(ev.Payload)+5)
+	buf := make([]byte, len(ev.Payload)+5)
 	buf[0] = byte(ev.Type)
-	// sequence number
-	buf[1] = byte((seqNum & 0xff000000) >> 24)
-	buf[2] = byte((seqNum & 0xff0000) >> 16)
-	buf[3] = byte((seqNum & 0xff00) >> 8)
-	buf[4] = byte(seqNum & 0xff)
-
-	buf = append(buf, ev.Payload...)
+	PutInt32(buf[1:], seqNum)
+	copy(buf[5:], ev.Payload)
 	return buf
 }
 
@@ -40,4 +35,8 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 	payload = append(payload, cli.Props...) // cli.Props marshaled as TypeDict
 
 	return &Event{EvTypeJoined, payload}
+}
+
+func NewEvLeave(cliId string) *Event {
+	return &Event{EvTypeLeave, MarshalStr8(cliId)}
 }

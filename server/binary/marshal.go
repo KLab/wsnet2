@@ -24,6 +24,25 @@ const (
 	TypeDict                   // C#:Dictionary<string, object>; key length < 128
 )
 
+func PutInt8(dst []byte, val int) {
+	dst[0] = byte(val & 0xff)
+}
+func PutInt16(dst []byte, val int) {
+	dst[0] = byte((val & 0xff00) >> 8)
+	dst[1] = byte(val & 0xff)
+}
+func PutInt24(dst []byte, val int) {
+	dst[0] = byte((val & 0xff0000) >> 16)
+	dst[1] = byte((val & 0xff00) >> 8)
+	dst[2] = byte(val & 0xff)
+}
+func PutInt32(dst []byte, val int) {
+	dst[0] = byte((val & 0xff000000) >> 24)
+	dst[1] = byte((val & 0xff0000) >> 16)
+	dst[2] = byte((val & 0xff00) >> 8)
+	dst[3] = byte(val & 0xff)
+}
+
 func MarshalStr8(str string) []byte {
 	len := len(str)
 	if len >= math.MaxUint8 {

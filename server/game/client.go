@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -23,8 +24,8 @@ type Client struct {
 	*pb.ClientInfo
 	room *Room
 
-	removed chan struct{}
-	// todo: remove理由を保存したいかも
+	removed     chan struct{}
+	removeCause string
 	done        chan struct{}
 	newDeadline chan time.Duration
 
@@ -114,7 +115,7 @@ loop:
 			t.Reset(deadline)
 
 		case m := <-peerMsgCh:
-			c.room.logger.Debugf("peer message: client=%v %v", c.Id, m)
+			c.room.logger.Debugf("peer message: client=%v %T %v", c.Id, m, m)
 			if !t.Stop() {
 				<-t.C
 			}
@@ -122,7 +123,7 @@ loop:
 			t.Reset(deadline)
 		case err := <-c.evErr:
 			c.room.logger.Debugf("error from EventLoop: client=%v %v", c.Id, err)
-			c.room.msgCh <- MsgClientError{
+			c.room.msgCh <- &MsgClientError{
 				Sender: c,
 				Err:    err,
 			}
@@ -151,10 +152,13 @@ func (c *Client) drainMsg(msgCh <-chan Msg) {
 }
 
 // RoomのMsgLoopから呼ばれる
-// todo: remove理由(error型)を保存したいかも
-func (c *Client) Removed() {
+func (c *Client) Removed(cause error) {
 	close(c.removed)
-	c.peer.Close("removed from room")
+	c.removeCause = "client leave"
+	if cause != nil {
+		c.removeCause = fmt.Sprintf("removed from room: %v", cause)
+	}
+	c.peer.Close(c.removeCause)
 }
 
 // RoomのMsgLoopから呼ばれる
@@ -182,7 +186,8 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	}
 	select {
 	case <-c.removed:
-		return xerrors.Errorf("client has been removed: client=%v peer=%p", c.Id, p)
+		c.room.logger.Debugf("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
+		return xerrors.Errorf("client has been removed: %s", c.removeCause)
 	default:
 	}
 
