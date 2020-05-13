@@ -1,5 +1,5 @@
 [Database]
-host = "wsnet-db"
+host = "wsnet2-db"
 port = 3306
 user = "wsnet"
 password = "wsnetpass"

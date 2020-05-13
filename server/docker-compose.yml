@@ -1,7 +1,7 @@
 version: '3'
 services:
   db:
-    container_name: wsnet-db
+    container_name: wsnet2-db
     image: mysql
     environment:
       MYSQL_ROOT_PASSWORD: password
@@ -14,16 +14,16 @@ services:
     ports:
       - 3306:3306
   game:
-    container_name: wsnet-game
+    container_name: wsnet2-game
     depends_on:
       - db
     build: .
-    image: realize
+    image: wsnet2-arelo
     volumes:
       - ./:/work
     working_dir: /work
-    command: bash -c 'make generate && realize start -n wsnet-game'
-    entrypoint: /wait-for-it.sh wsnet-db:3306 --
+    command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet-lobby" -d 3s -- go run cmd/wsnet-game/main.go docker.toml'
+    entrypoint: /wait-for-it.sh wsnet2-db:3306 --
     ports:
       - 19000:19000
       - 8000:8000
