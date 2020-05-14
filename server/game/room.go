@@ -66,7 +66,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 	go r.MsgLoop()
 
 	ch := make(chan JoinedInfo)
-	r.Post(&MsgCreate{ch})
+	r.msgCh <- &MsgCreate{ch}
 
 	return r, master, ch
 }
@@ -117,11 +117,6 @@ func (r *Room) drainMsg() {
 // Done returns a channel which cloased when room is done.
 func (r *Room) Done() <-chan struct{} {
 	return r.done
-}
-
-// Post a mssage to room
-func (r *Room) Post(m Msg) {
-	r.msgCh <- m
 }
 
 // Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる

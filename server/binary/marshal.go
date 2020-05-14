@@ -43,6 +43,30 @@ func PutInt32(dst []byte, val int) {
 	dst[3] = byte(val & 0xff)
 }
 
+func Int8(src []byte) int {
+	i := int(src[0])
+	return i
+}
+
+func Int16(src []byte) int {
+	i := int(src[0]) << 8
+	i += int(src[1])
+	return i
+}
+func Int24(src []byte) int {
+	i := int(src[0]) << 16
+	i += int(src[1]) << 8
+	i += int(src[2])
+	return i
+}
+func Int32(src []byte) int {
+	i := int(src[0]) << 24
+	i += int(src[1]) << 16
+	i += int(src[2]) << 8
+	i += int(src[3])
+	return i
+}
+
 func MarshalStr8(str string) []byte {
 	len := len(str)
 	if len >= math.MaxUint8 {

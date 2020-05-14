@@ -6,19 +6,34 @@ import (
 
 // Msg from client via websocket
 //
-// binary format:
+// regular message binary format:
 // | 8bit MsgType | 24bit-be sequence number | payload ... |
+//
+// nonregular message
+// - MsgTypePing
+// binary format:
+// | 8bit MsgType | payload ... |
 //
 type Msg interface {
 	Type() MsgType
+	Payload() []byte
+}
+
+type RegularMsg interface {
+	Msg
+	SequenceNum() int
 }
 
 //go:generate stringer -type=MsgType
 type MsgType byte
 
+const regularMsgType = 30
 const (
+	// nonregular msg
 	MsgTypePing MsgType = 1 + iota
-	MsgTypeLeave
+
+	// regular msg
+	MsgTypeLeave MsgType = regularMsgType + iota
 	MsgTypeRoomProp
 	MsgTypeClientProp
 	MsgTypeTarget
@@ -26,116 +41,42 @@ const (
 	MsgTypeKick
 )
 
-// MsgPing request pong response
-// payload: empty
-type MsgPing struct{}
-
-func (*MsgPing) Type() MsgType { return MsgTypePing }
-
-func newMsgPing(data []byte) (Msg, error) {
-	return &MsgPing{}, nil
+type nonregularMsg struct {
+	mtype   MsgType
+	payload []byte
 }
 
-// MsgLeave request leave from room
-// payload: empty
-type MsgLeave struct{}
+func (m *nonregularMsg) Type() MsgType   { return m.mtype }
+func (m *nonregularMsg) Payload() []byte { return m.payload }
 
-func (*MsgLeave) Type() MsgType { return MsgTypeLeave }
-
-func newMsgLeave(data []byte) (Msg, error) {
-	return &MsgLeave{}, nil
+type regularMsg struct {
+	mtype   MsgType
+	seqNum  int
+	payload []byte
 }
 
-// MsgRoomProp request change room property
-// payload: Map {
-//   "visible": bool,
-//   "joinable": bool,
-//   "watchable": bool,
-//   "searchGroup": uint32,
-//   "clientDeadline": uint32,
-//   "maxPlayers": uint32,
-//   "publicProps": Map,
-//   "privateProps": Map,
-// }
-type MsgRoomProp struct {
-}
+func (m *regularMsg) Type() MsgType    { return m.mtype }
+func (m *regularMsg) Payload() []byte  { return m.payload }
+func (m *regularMsg) SequenceNum() int { return m.seqNum }
 
-func (*MsgRoomProp) Type() MsgType { return MsgTypeRoomProp }
-
-func newMsgRoomProp(data []byte) (Msg, error) {
-	return nil, xerrors.New("not implemented")
-}
-
-// MsgClientProp
-type MsgClientProp struct {
-}
-
-func (*MsgClientProp) Type() MsgType { return MsgTypeClientProp }
-
-func newMsgClientProp(data []byte) (Msg, error) {
-	return nil, xerrors.New("not implemented")
-}
-
-// MsgTarget
-type MsgTarget struct {
-}
-
-func (*MsgTarget) Type() MsgType { return MsgTypeTarget }
-
-func newMsgTarget(data []byte) (Msg, error) {
-	return nil, xerrors.New("not implemented")
-}
-
-// MsgBroadcast
-type MsgBroadcast struct {
-}
-
-func (*MsgBroadcast) Type() MsgType { return MsgTypeBroadcast }
-
-func newMsgBroadcast(data []byte) (Msg, error) {
-	return nil, xerrors.New("not implemented")
-}
-
-// MsgKick
-type MsgKick struct {
-}
-
-func (*MsgKick) Type() MsgType { return MsgTypeKick }
-
-func newMsgKick(data []byte) (Msg, error) {
-	return nil, xerrors.New("not implemented")
-}
-
-// ParseMsg parse binary data, returns sequence number and Msg struct.
-func UnmarshalMsg(data []byte) (int, Msg, error) {
-	if len(data) < 4 {
-		return 0, nil, xerrors.Errorf("data length not enough: %v", len(data))
+// ParseMsg parse binary data to Msg struct
+func UnmarshalMsg(data []byte) (Msg, error) {
+	if len(data) < 1 {
+		return nil, xerrors.Errorf("data length not enough: %v", len(data))
 	}
 
 	mt := MsgType(data[0])
-	seq := int(data[1])<<16 + int(data[2])<<8 + int(data[3])
-	data = data[4:]
+	data = data[1:]
 
-	var msg Msg
-	var err error
-	switch mt {
-	case MsgTypePing:
-		msg, err = newMsgPing(data)
-	case MsgTypeLeave:
-		msg, err = newMsgLeave(data)
-	case MsgTypeRoomProp:
-		msg, err = newMsgRoomProp(data)
-	case MsgTypeClientProp:
-		msg, err = newMsgClientProp(data)
-	case MsgTypeTarget:
-		msg, err = newMsgTarget(data)
-	case MsgTypeBroadcast:
-		msg, err = newMsgBroadcast(data)
-	case MsgTypeKick:
-		msg, err = newMsgKick(data)
-	default:
-		err = xerrors.Errorf("unknown MsgType: %v", mt)
+	if mt < regularMsgType {
+		return &nonregularMsg{mt, data}, nil
 	}
 
-	return seq, msg, err
+	if len(data) < 3 {
+		return nil, xerrors.Errorf("data length not enough: %v", len(data))
+	}
+	seq := Int24(data)
+	data = data[3:]
+
+	return &regularMsg{mt, seq, data}, nil
 }

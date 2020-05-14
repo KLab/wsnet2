@@ -13,7 +13,7 @@ import (
 type Peer struct {
 	client *Client
 	conn   *websocket.Conn
-	msgCh  chan Msg
+	msgCh  chan binary.Msg
 
 	done     chan struct{}
 	detached chan struct{}
@@ -21,15 +21,14 @@ type Peer struct {
 	muWrite sync.Mutex
 	closed  bool
 
-	msgSeqNum int
-	evSeqNum  int
+	evSeqNum int
 }
 
 func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq int) (*Peer, error) {
 	p := &Peer{
 		client: cli,
 		conn:   conn,
-		msgCh:  make(chan Msg),
+		msgCh:  make(chan binary.Msg),
 
 		done:     make(chan struct{}),
 		detached: make(chan struct{}),
@@ -45,7 +44,7 @@ func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq i
 	return p, nil
 }
 
-func (p *Peer) MsgCh() <-chan Msg {
+func (p *Peer) MsgCh() <-chan binary.Msg {
 	return p.msgCh
 }
 
@@ -55,6 +54,11 @@ func (p *Peer) Done() <-chan struct{} {
 
 func (p *Peer) LastEventSeq() int {
 	return p.evSeqNum
+}
+
+func (p *Peer) SendReady(lastMsgSeq int) error {
+	//	p.conn.WriteMessage()
+	return nil
 }
 
 // SendEvent : Eventをwebsocketで送信.
@@ -95,7 +99,9 @@ func (p *Peer) Detached() {
 	close(p.detached)
 }
 
-func (p *Peer) ClientError(err error) {
+// CloseWithClientError : クライアントエラーによってwebsocketを切断する.
+// Clientのgoroutineから呼ばれる.
+func (p *Peer) CloseWithClientError(err error) {
 	p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 }
 
@@ -142,21 +148,13 @@ loop:
 			break loop
 		}
 
-		seq, msg, err := UnmarshalMsg(p.client, data)
+		msg, err := binary.UnmarshalMsg(data)
 		if err != nil {
 			p.client.room.logger.Errorf("DecodeMsg error: client=%v peer=%p %v", p.client.Id, p, err)
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())
 			break loop
 		}
 
-		if seq != p.msgSeqNum+1 {
-			err := xerrors.Errorf("sequence num skipped %d to %d", p.msgSeqNum, seq)
-			p.client.room.logger.Errorf("Peer MsgLoop error: client=%v peer=%p %v", p.client.Id, p, err)
-			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())
-			break loop
-		}
-
-		p.msgSeqNum = seq
 		p.msgCh <- msg
 	}
 

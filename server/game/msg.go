@@ -41,7 +41,7 @@ type MsgJoin struct {
 func (*MsgJoin) msg() {}
 
 // MsgLeave : 退室メッセージ
-// クライアントから
+// クライアントの自発的な退室リクエスト
 type MsgLeave struct {
 	Sender *Client
 }
@@ -50,7 +50,9 @@ func (*MsgLeave) msg() {}
 
 // MsgRoomProp : 部屋情報の変更
 type MsgRoomProp struct {
-	Sender *Client
+	Sender  *Client
+	Payload []byte
+	//todo: mapも必要
 }
 
 func (*MsgRoomProp) msg() {}
@@ -63,19 +65,12 @@ type MsgClientError struct {
 
 func (*MsgClientError) msg() {}
 
-func UnmarshalMsg(cli *Client, data []byte) (int, Msg, error) {
-	seq, m, err := binary.UnmarshalMsg(data)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	var msg Msg
-	switch m := m.(type) {
-	case *binary.MsgLeave:
-		msg = &MsgLeave{Sender: cli}
+func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
+	switch m.Type() {
+	case binary.MsgTypeLeave:
+		msg = &MsgLeave{cli}
 	default:
 		err = xerrors.Errorf("unknown msg type: %T %v", m, m)
 	}
-
-	return seq, msg, err
+	return msg, err
 }

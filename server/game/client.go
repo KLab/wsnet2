@@ -29,7 +29,8 @@ type Client struct {
 	done        chan struct{}
 	newDeadline chan time.Duration
 
-	evbuf *EvBuf
+	evbuf     *EvBuf
+	msgSeqNum int
 
 	mu       sync.RWMutex
 	peer     *Peer
@@ -69,7 +70,8 @@ func (c *Client) ID() ClientID {
 // MsgLoop goroutine.
 func (c *Client) MsgLoop(deadline time.Duration) {
 	c.room.logger.Debugf("Client.MsgLoop start: client=%v", c.Id)
-	var peerMsgCh <-chan Msg
+	var peerMsgCh <-chan binary.Msg
+	var curPeer *Peer
 	t := time.NewTimer(deadline)
 loop:
 	for {
@@ -105,6 +107,7 @@ loop:
 			if peer == nil {
 				c.room.logger.Infof("Peer detached: client=%v, peer=%p", c.Id, peer)
 				peerMsgCh = nil
+				curPeer = nil
 				continue
 			}
 			c.room.logger.Infof("New peer attached: client=%v, peer=%p", c.Id, peer)
@@ -112,15 +115,43 @@ loop:
 				<-t.C
 			}
 			peerMsgCh = peer.MsgCh()
+			curPeer = peer
 			t.Reset(deadline)
 
-		case m := <-peerMsgCh:
+		case m, ok := <-peerMsgCh:
+			if !ok {
+				// peer側でchをcloseした.
+				// すぐにdetachされるはずだけど念の為こちらでもdetach&close.
+				c.room.logger.Errorf("peerMsgCh closed:", c.Id, curPeer)
+				c.DetachAndClosePeer(curPeer, xerrors.Errorf("peer channel closed"))
+				continue
+			}
 			c.room.logger.Debugf("peer message: client=%v %T %v", c.Id, m, m)
+			if regm, ok := m.(binary.RegularMsg); ok {
+				seq := regm.SequenceNum()
+				if seq != c.msgSeqNum+1 {
+					// 再接続時の再送に期待して切断
+					err := xerrors.Errorf("invalid sequence num: %d to %d", c.msgSeqNum, seq)
+					c.room.logger.Errorf("msg error: client=%v %s", err)
+					c.DetachAndClosePeer(curPeer, err)
+					continue
+				}
+				c.msgSeqNum = seq
+			}
+			msg, err := ConstructMsg(c, m)
+			if err != nil {
+				// データ破損? 再送に期待して良い?
+				// fixme: peerのみの破棄かclientを破棄か決める
+				// 一旦peer破棄で.
+				c.DetachAndClosePeer(curPeer, err)
+				continue
+			}
 			if !t.Stop() {
 				<-t.C
 			}
-			c.room.msgCh <- m
+			c.room.msgCh <- msg
 			t.Reset(deadline)
+
 		case err := <-c.evErr:
 			c.room.logger.Debugf("error from EventLoop: client=%v %v", c.Id, err)
 			c.room.msgCh <- &MsgClientError{
@@ -143,7 +174,7 @@ loop:
 	c.room.logger.Debugf("Client.MsgLoop finish: client=%v", c.Id)
 }
 
-func (c *Client) drainMsg(msgCh <-chan Msg) {
+func (c *Client) drainMsg(msgCh <-chan binary.Msg) {
 	if msgCh == nil {
 		return
 	}
@@ -194,14 +225,14 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	if c.peer == nil {
 		c.waitPeer <- p
 	} else {
-		c.peer.Detached()
+		c.peer.CloseWithClientError(xerrors.New("new peer attached"))
 	}
 	c.peer = p
 	c.newPeer <- p
 	return nil
 }
 
-// detachPeer: peerを切り離す
+// DetachPeer : peerを切り離す.
 // peer側で切断やエラーを検知したときにpeerのgoroutineから呼ばれる.
 func (c *Client) DetachPeer(p *Peer) {
 	c.room.logger.Debugf("detach peer: client=%v, peer=%p", c.Id, p)
@@ -212,6 +243,26 @@ func (c *Client) DetachPeer(p *Peer) {
 		return // すでにdetach済み
 	}
 	c.peer.Detached()
+	go c.drainMsg(c.peer.MsgCh())
+	c.peer = nil
+	c.newPeer <- nil
+	c.waitPeer = make(chan *Peer, 1)
+}
+
+// DetachAndClosePeer : peerを切り離して、peerのwebsocketをcloseする.
+// Client側のエラーによりpeerを切断する場合はこっち
+func (c *Client) DetachAndClosePeer(p *Peer, err error) {
+	c.room.logger.Debugf("detach and close peer: client=%v, peer=%p", c.Id, p)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.peer != p {
+		return // すでにdetach済み. closeもされているはず.
+	}
+
+	p.CloseWithClientError(err)
+	c.peer.Detached()
+	go c.drainMsg(c.peer.MsgCh())
 	c.peer = nil
 	c.newPeer <- nil
 	c.waitPeer = make(chan *Peer, 1)
@@ -251,7 +302,7 @@ loop:
 		if err != nil {
 			// 端末側の持っているLastEventSeqが古すぎる. 基本的に復帰不能
 			c.room.logger.Errorf("evbuf.Read error: client=%v, peer=%p: %v", c.Id, peer, err)
-			peer.ClientError(err)
+			peer.CloseWithClientError(err)
 			c.evErr <- err
 			break loop
 		}
@@ -259,7 +310,7 @@ loop:
 		if err := peer.SendEvent(evs); err != nil {
 			// 送信失敗は新しいpeerなら復帰できるかもしれない.
 			c.room.logger.Infof("peer SendEvent error, detach: client=%v, peer=%p: %v", c.Id, peer, err)
-			c.DetachPeer(peer)
+			c.DetachAndClosePeer(peer, err)
 		}
 	}
 
