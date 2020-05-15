@@ -157,6 +157,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgJoin(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
+	case *MsgBroadcast:
+		return r.msgBroadcast(m)
 	case *MsgClientError:
 		return r.msgClientError(m)
 	default:
@@ -164,7 +166,7 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
-func (r *Room) broadcast(ev *binary.Event) error {
+func (r *Room) broadcast(ev *binary.Event) {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 
@@ -174,14 +176,14 @@ func (r *Room) broadcast(ev *binary.Event) error {
 			go r.removeClient(c, err)
 		}
 	}
-	return nil
 }
 
 func (r *Room) msgCreate(msg *MsgCreate) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	msg.Joined <- JoinedInfo{rinfo, cinfo}
-	return r.broadcast(binary.NewEvJoined(cinfo))
+	r.broadcast(binary.NewEvJoined(cinfo))
+	return nil
 }
 
 func (r *Room) msgJoin(msg *MsgJoin) error {
@@ -201,12 +203,16 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	cinfo := c.ClientInfo.Clone()
 	msg.Joined <- JoinedInfo{rinfo, cinfo}
 	r.broadcast(binary.NewEvJoined(cinfo))
-
 	return nil
 }
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
 	r.removeClient(msg.Sender, nil)
+	return nil
+}
+
+func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
+	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Payload))
 	return nil
 }
 

@@ -83,14 +83,14 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	clientId := r.Header.Get("X-Wsnet-User")
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("X-Wsnet-LastEventSeq"))
 	if err != nil {
-		log.Debugf("invalid header: X-Wsnet-LastEventSeq", r.Header.Get("X-Wsnet-LastEventSeq"))
+		log.Debugf("WSHandler.HandleRoom invalid header: X-Wsnet-LastEventSeq", r.Header.Get("X-Wsnet-LastEventSeq"))
 		http.Error(w, "Bad Request", 400)
 		return
 	}
 
 	repo, ok := s.repos[appId]
 	if !ok {
-		log.Debugf("WSHandler.handleRoom: invalid app id: %v", appId)
+		log.Debugf("WSHandler.HandleRoom: invalid app id: %v", appId)
 		http.Error(w, "Bad Request", 400)
 		return
 	}
@@ -98,7 +98,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {
-		log.Debugf("GetClient error: %v", err)
+		log.Debugf("WSHandler.HandleRoom: GetClient error: %v", err)
 		// TODO: error format
 		http.Error(w, "Bad Request", 400)
 		return
@@ -111,17 +111,16 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		breq, _ := httputil.DumpRequest(r, false)
-		log.Errorf("upgrade error: room=%v, client=%v, remote=%v: %v\nrequest=%v",
+		log.Errorf("WSHandler.HandleRoom upgrade error: room=%v, client=%v, remote=%v: %v\nrequest=%v",
 			roomId, clientId, err, r.RemoteAddr, string(breq))
 		return
 	}
 
 	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
 	if err != nil {
-		log.Errorf("")
-		http.Error(w, "Bad Request", 400)
+		log.Errorf("WSHandler.HandleRoom new peer error: %v", err)
 		return
 	}
 	<-peer.Done()
-	log.Debugf("HandleRoom finished: room=%v, client=%v", roomId, clientId)
+	log.Debugf("HandleRoom finished: room=%v client=%v peer=%p", roomId, clientId, peer)
 }

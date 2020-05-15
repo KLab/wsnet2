@@ -127,7 +127,15 @@ loop:
 				curPeer = nil
 				continue
 			}
-			c.room.logger.Debugf("peer message: client=%v %T %v", c.Id, m, m)
+			c.room.logger.Debugf("peer message: client=%v %v %v", c.Id, m.Type(), m)
+			msg, err := ConstructMsg(c, m)
+			if err != nil {
+				// データ破損? 再送に期待して良い?
+				// todo: peerのみの破棄かclientを破棄か決める
+				// 一旦peerのみ破棄で.
+				c.DetachAndClosePeer(curPeer, err)
+				continue
+			}
 			if regmsg, ok := m.(binary.RegularMsg); ok {
 				seq := regmsg.SequenceNum()
 				if seq != c.msgSeqNum+1 {
@@ -138,14 +146,6 @@ loop:
 					continue
 				}
 				c.msgSeqNum = seq
-			}
-			msg, err := ConstructMsg(c, m)
-			if err != nil {
-				// データ破損? 再送に期待して良い?
-				// fixme: peerのみの破棄かclientを破棄か決める
-				// 一旦peerのみ破棄で.
-				c.DetachAndClosePeer(curPeer, err)
-				continue
 			}
 			if !t.Stop() {
 				<-t.C
@@ -287,28 +287,28 @@ loop:
 		case <-c.done:
 			break loop
 		case <-c.evbuf.HasData():
-			c.room.logger.Debugf("client EventLoop: data available. client=%v", c.Id)
+			c.room.logger.Debugf("client.EventLoop: evbuf has data. client=%v", c.Id)
 		}
 
 		peer, wait := c.getWritePeer()
 		if peer == nil {
 			// peerがattachされるまで待つ
-			c.room.logger.Debugf("client EventLoop: wait peer. client=%v", c.Id)
+			c.room.logger.Debugf("client.EventLoop: wait peer. client=%v", c.Id)
 			select {
 			case <-c.done:
 				break loop
 			case peer = <-wait:
-				c.room.logger.Debugf("client EventLoop: peer available. client=%v, peer=%p", c.Id, peer)
+				c.room.logger.Debugf("client.EventLoop: peer available. client=%v, peer=%p", c.Id, peer)
 			}
 		}
 
 		if err := peer.SendEvents(c.evbuf); err != nil {
 			// 再接続でも復帰不能なので終わる.
-			c.room.logger.Errorf("clinetEventLoop: send event error: client=%v peer=%p %v", c.Id, peer, err)
+			c.room.logger.Errorf("clinet.EventLoop: send event error: client=%v peer=%p %v", c.Id, peer, err)
 			c.evErr <- err
 			break loop
 		}
 	}
 
-	c.room.logger.Debugf("client EventLoop finish: client=%v", c.Id)
+	c.room.logger.Debugf("client.EventLoop finish: client=%v", c.Id)
 }

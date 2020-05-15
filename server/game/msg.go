@@ -15,6 +15,7 @@ var _ Msg = &MsgCreate{}
 var _ Msg = &MsgJoin{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
+var _ Msg = &MsgBroadcast{}
 var _ Msg = &MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
@@ -57,6 +58,14 @@ type MsgRoomProp struct {
 
 func (*MsgRoomProp) msg() {}
 
+// MsgBroadcast : 全員に送る
+type MsgBroadcast struct {
+	Sender  *Client
+	Payload []byte
+}
+
+func (*MsgBroadcast) msg() {}
+
 // MsgClientError : Client内部エラー（内部で発生）
 type MsgClientError struct {
 	Sender *Client
@@ -69,6 +78,11 @@ func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 	switch m.Type() {
 	case binary.MsgTypeLeave:
 		msg = &MsgLeave{cli}
+	case binary.MsgTypeBroadcast:
+		msg = &MsgBroadcast{
+			Sender:  cli,
+			Payload: m.Payload(),
+		}
 	default:
 		err = xerrors.Errorf("unknown msg type: %T %v", m, m)
 	}

@@ -1,8 +1,6 @@
 package binary
 
-import (
-	"wsnet2/pb"
-)
+import "wsnet2/pb"
 
 //go:generate stringer -type=EvType
 type EvType byte
@@ -13,7 +11,7 @@ const (
 	EvTypePong
 )
 const (
-	EvTypeJoined = regularEvType + iota
+	EvTypeJoined EvType = regularEvType + iota
 	EvTypeLeave
 	EvTypeRoomProp
 	EvTypeClientProp
@@ -80,4 +78,11 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 
 func NewEvLeave(cliId string) *Event {
 	return &Event{EvTypeLeave, MarshalStr8(cliId)}
+}
+
+func NewEvMessage(cliId string, body []byte) *Event {
+	payload := make([]byte, 0, len(cliId)+1+len(body))
+	payload = append(payload, MarshalStr8(cliId)...)
+	payload = append(payload, body...)
+	return &Event{EvTypeMessage, payload}
 }
