@@ -9,7 +9,7 @@ import (
 // regular message binary format:
 // | 8bit MsgType | 24bit-be sequence number | payload ... |
 //
-// nonregular message
+// nonregular message (without sequence number)
 // - MsgTypePing
 // binary format:
 // | 8bit MsgType | payload ... |
@@ -31,7 +31,8 @@ const regularMsgType = 30
 const (
 	// nonregular msg
 	MsgTypePing MsgType = 1 + iota
-
+)
+const (
 	// regular msg
 	MsgTypeLeave MsgType = regularMsgType + iota
 	MsgTypeRoomProp

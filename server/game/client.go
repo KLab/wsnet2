@@ -121,14 +121,15 @@ loop:
 		case m, ok := <-peerMsgCh:
 			if !ok {
 				// peer側でchをcloseした.
-				// すぐにdetachされるはずだけど念の為こちらでもdetach&close.
 				c.room.logger.Errorf("peerMsgCh closed:", c.Id, curPeer)
-				c.DetachAndClosePeer(curPeer, xerrors.Errorf("peer channel closed"))
+				// DetachPeerは呼ばれているはず
+				peerMsgCh = nil
+				curPeer = nil
 				continue
 			}
 			c.room.logger.Debugf("peer message: client=%v %T %v", c.Id, m, m)
-			if regm, ok := m.(binary.RegularMsg); ok {
-				seq := regm.SequenceNum()
+			if regmsg, ok := m.(binary.RegularMsg); ok {
+				seq := regmsg.SequenceNum()
 				if seq != c.msgSeqNum+1 {
 					// 再接続時の再送に期待して切断
 					err := xerrors.Errorf("invalid sequence num: %d to %d", c.msgSeqNum, seq)
@@ -142,7 +143,7 @@ loop:
 			if err != nil {
 				// データ破損? 再送に期待して良い?
 				// fixme: peerのみの破棄かclientを破棄か決める
-				// 一旦peer破棄で.
+				// 一旦peerのみ破棄で.
 				c.DetachAndClosePeer(curPeer, err)
 				continue
 			}
@@ -204,17 +205,12 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	c.room.logger.Debugf("attach peer: client=%v peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// TODO: seqnumをpeerに通知(送信までする)
 
 	// 未読Eventを再送. client終了後でも送信する.
-	evs, err := c.evbuf.Read(p.LastEventSeq())
-	if err != nil {
-		c.room.logger.Debugf("attach error: client=%v peer=%p %v", c.Id, p, err)
+	if err := p.SendEvents(c.evbuf); err != nil {
 		return err
 	}
-	if err := p.SendEvent(evs); err != nil {
-		return err
-	}
+
 	select {
 	case <-c.removed:
 		c.room.logger.Debugf("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
@@ -222,10 +218,16 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	default:
 	}
 
+	// msgSeqNumの後のメッセージから送信してもらう(再送含む)
+	if err := p.SendReady(c.msgSeqNum); err != nil {
+		c.room.logger.Debugf("attach error: client=%v peer=%p %v", c.Id, p, err)
+		return err
+	}
+
 	if c.peer == nil {
 		c.waitPeer <- p
 	} else {
-		c.peer.CloseWithClientError(xerrors.New("new peer attached"))
+		c.peer.Close("new peer attached")
 	}
 	c.peer = p
 	c.newPeer <- p
@@ -233,7 +235,8 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 }
 
 // DetachPeer : peerを切り離す.
-// peer側で切断やエラーを検知したときにpeerのgoroutineから呼ばれる.
+// Peer.MsgLoopで切断やエラーを検知したときに呼ばれる.
+// websocketの切断は呼び出し側で行う
 func (c *Client) DetachPeer(p *Peer) {
 	c.room.logger.Debugf("detach peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
@@ -274,6 +277,7 @@ func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
 	return c.peer, c.waitPeer
 }
 
+// EventLoop : EvBufにEventが入ってきたらPeerに送信してもらう
 func (c *Client) EventLoop() {
 	c.room.logger.Debugf("client.EventLoop start: client=%v", c.Id)
 loop:
@@ -298,19 +302,11 @@ loop:
 			}
 		}
 
-		evs, err := c.evbuf.Read(peer.LastEventSeq())
-		if err != nil {
-			// 端末側の持っているLastEventSeqが古すぎる. 基本的に復帰不能
-			c.room.logger.Errorf("evbuf.Read error: client=%v, peer=%p: %v", c.Id, peer, err)
-			peer.CloseWithClientError(err)
+		if err := peer.SendEvents(c.evbuf); err != nil {
+			// 再接続でも復帰不能なので終わる.
+			c.room.logger.Errorf("clinetEventLoop: send event error: client=%v peer=%p %v", c.Id, peer, err)
 			c.evErr <- err
 			break loop
-		}
-
-		if err := peer.SendEvent(evs); err != nil {
-			// 送信失敗は新しいpeerなら復帰できるかもしれない.
-			c.room.logger.Infof("peer SendEvent error, detach: client=%v, peer=%p: %v", c.Id, peer, err)
-			c.DetachAndClosePeer(peer, err)
 		}
 	}
 

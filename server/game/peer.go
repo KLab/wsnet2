@@ -10,6 +10,12 @@ import (
 	"wsnet2/binary"
 )
 
+// Peer : websocketの接続
+//
+// CloseCodeが次の場合はクライアントは再接続を試行しない
+//  - CloseNormalClosure
+//  - CloseGoingAway
+//
 type Peer struct {
 	client *Client
 	conn   *websocket.Conn
@@ -37,7 +43,7 @@ func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq i
 	}
 	err := cli.AttachPeer(p, lastEvSeq)
 	if err != nil {
-		p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
+		p.closeWithMessage(websocket.CloseGoingAway, err.Error())
 		return nil, err
 	}
 	go p.MsgLoop(ctx)
@@ -56,31 +62,54 @@ func (p *Peer) LastEventSeq() int {
 	return p.evSeqNum
 }
 
+// SendReady : EvPeerReadyを送信する.
+// clientのAttachPeerから呼ばれる.
 func (p *Peer) SendReady(lastMsgSeq int) error {
-	//	p.conn.WriteMessage()
-	return nil
-}
-
-// SendEvent : Eventをwebsocketで送信.
-// Client.EventLoopから呼ばれる.
-// error時のdetach処理はClient側で行う
-func (p *Peer) SendEvent(evs []*binary.Event) error {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
-		return xerrors.Errorf("peer closed")
+		return xerrors.New("peer closed")
+	}
+	ev := binary.NewEvPeerReady(lastMsgSeq)
+	return p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
+}
+
+// SendEvents : evbufに蓄積されてるイベントを送信
+// 送信失敗時はPeerを閉じて再接続できるようにする. errorは返さない.
+// 再接続しても復帰不能な場合はerrorを返す（Client.EventLoopを止める）.
+func (p *Peer) SendEvents(evbuf *EvBuf) error {
+	p.muWrite.Lock()
+	defer p.muWrite.Unlock()
+	if p.closed {
+		return nil
 	}
 
-	last := p.evSeqNum
+	evs, err := evbuf.Read(p.evSeqNum)
+	if err != nil {
+		// evSeqNumが古すぎるため. 復帰不能.
+		p.conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseGoingAway, err.Error()))
+		p.conn.Close()
+		p.closed = true
+		return err
+	}
+
+	seqNum := p.evSeqNum
 	for _, ev := range evs {
-		last++
-		err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Serialize(last))
+		seqNum++
+		buf := ev.Marshal(seqNum)
+		err := p.conn.WriteMessage(websocket.BinaryMessage, buf)
 		if err != nil {
-			return err
+			// 新しいpeerで復帰できるかもしれない
+			p.client.room.logger.Errorf("Peer SendEvents: write message error: %v", err)
+			p.conn.WriteMessage(websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
+			p.conn.Close()
+			p.closed = true
+			return nil
 		}
 	}
-
-	p.evSeqNum = last
+	p.evSeqNum = seqNum
 	return nil
 }
 
@@ -150,7 +179,7 @@ loop:
 
 		msg, err := binary.UnmarshalMsg(data)
 		if err != nil {
-			p.client.room.logger.Errorf("DecodeMsg error: client=%v peer=%p %v", p.client.Id, p, err)
+			p.client.room.logger.Errorf("Peer UnmarshalMsg error: client=%v peer=%p %v", p.client.Id, p, err)
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())
 			break loop
 		}
