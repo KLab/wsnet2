@@ -182,11 +182,21 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
 }
 
+func (repo *Repository) deleteRoom(id RoomID) {
+	var err error
+	// TODO: 部屋の履歴を残す必要あり？
+	_, err = repo.db.Query("DELETE FROM room WHERE id=?", id)
+	if err != nil {
+		log.Errorf("deleteRoom: %w", err)
+	}
+}
+
 func (repo *Repository) RemoveRoom(room *Room) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	rid := room.ID()
 	delete(repo.rooms, rid)
+	repo.deleteRoom(rid)
 	log.Debugf("room removed from repository: room=%v", rid)
 }
 
