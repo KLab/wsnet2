@@ -31,7 +31,7 @@ type Event struct {
 func (ev *Event) Marshal(seqNum int) []byte {
 	buf := make([]byte, len(ev.Payload)+5)
 	buf[0] = byte(ev.Type)
-	PutInt32(buf[1:], seqNum)
+	put32(buf[1:], seqNum)
 	copy(buf[5:], ev.Payload)
 	return buf
 }
@@ -61,7 +61,7 @@ func (ev *SystemEvent) Marshal() []byte {
 // | 24bit-be msg sequence number |
 func NewEvPeerReady(seqNum int) *SystemEvent {
 	payload := make([]byte, 3)
-	PutInt24(payload, seqNum)
+	put24(payload, seqNum)
 	return &SystemEvent{
 		Type:    EvTypePeerReady,
 		Payload: payload,
