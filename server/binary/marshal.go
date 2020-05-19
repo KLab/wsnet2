@@ -6,6 +6,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
+//go:generate stringer -type=Type -trimprefix=Type
 type Type byte
 
 const (
@@ -111,6 +112,13 @@ func MarshalShort(val int) []byte {
 	return buf
 }
 
+func unmarshalShort(src []byte) (int, int, error) {
+	if len(src) < 3 {
+		return 0, 0, xerrors.Errorf("Unmarshal TypeShort error: not enough data (%v)", len(src))
+	}
+	return get16(src[1:]) + math.MinInt16, 3, nil
+}
+
 // MarshalUInt marshals unsigned 32bit integer
 func MarshalUInt(val int) []byte {
 	val = clamp(val, 0, math.MaxUint32)
@@ -118,6 +126,13 @@ func MarshalUInt(val int) []byte {
 	buf[0] = byte(TypeUInt)
 	put32(buf[1:], val)
 	return buf
+}
+
+func unmarshalUInt(src []byte) (int, int, error) {
+	if len(src) < 5 {
+		return 0, 0, xerrors.Errorf("Unmarshal TypeUInt error: not enough data (%v)", len(src))
+	}
+	return get32(src[1:]), 5, nil
 }
 
 // MarshalInt marshals signed 32bit integer comparably
@@ -129,12 +144,26 @@ func MarshalInt(val int) []byte {
 	return buf
 }
 
+func unmarshalInt(src []byte) (int, int, error) {
+	if len(src) < 5 {
+		return 0, 0, xerrors.Errorf("Unmarshal TypeInt error: not enough data (%v)", len(src))
+	}
+	return get32(src[1:]) + math.MinInt32, 5, nil
+}
+
 // MarshalULong marshals unsigned 64bit integer
 func MarshalULong(val uint64) []byte {
 	buf := make([]byte, 9)
 	buf[0] = byte(TypeULong)
-	put64(buf, val)
+	put64(buf[1:], val)
 	return buf
+}
+
+func unmarshalULong(src []byte) (uint64, int, error) {
+	if len(src) < 9 {
+		return 0, 0, xerrors.Errorf("Unmarshal TypeULong error: not enough data (%v)", len(src))
+	}
+	return get64(src[1:]), 9, nil
 }
 
 // MarshalLong marshals signed 64bit integer comparably
@@ -147,8 +176,19 @@ func MarshalLong(val int) []byte {
 	}
 	buf := make([]byte, 9)
 	buf[0] = byte(TypeLong)
-	put64(buf, v)
+	put64(buf[1:], v)
 	return buf
+}
+
+func unmarshalLong(src []byte) (int, int, error) {
+	if len(src) < 9 {
+		return 0, 0, xerrors.Errorf("Unmarshal TypeLong error: not enough data (%v)", len(src))
+	}
+	v := get64(src[1:])
+	if v >= -math.MinInt64 {
+		return int(v - -math.MinInt64), 9, nil
+	}
+	return int(v) + math.MinInt64, 9, nil
 }
 
 // MarshalStr8 marshals short string (len <= 255)
@@ -255,6 +295,18 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalByte(src)
 	case TypeSByte:
 		return unmarshalSByte(src)
+	case TypeUShort:
+		return unmarshalUShort(src)
+	case TypeShort:
+		return unmarshalShort(src)
+	case TypeUInt:
+		return unmarshalUInt(src)
+	case TypeInt:
+		return unmarshalInt(src)
+	case TypeULong:
+		return unmarshalULong(src)
+	case TypeLong:
+		return unmarshalLong(src)
 	}
 	return nil, 0, xerrors.Errorf("Unknown type: %v", src[0])
 }
