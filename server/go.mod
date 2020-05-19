@@ -13,5 +13,6 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/jmoiron/sqlx v1.2.0
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135
 	google.golang.org/grpc v1.28.0
 )
