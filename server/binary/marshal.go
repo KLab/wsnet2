@@ -21,13 +21,14 @@ const (
 	TypeUInt               // C#:uint
 	TypeLong               // C#:long (64bit)
 	TypeULong              // C#:ulong
-	TypeFloat              // C#:float
-	TypeDouble             // C#:double
+	TypeFloat              // C#:float -- not implemented yet
+	TypeDouble             // C#:double -- not implemented yet
 	TypeStr8               // C#:string; lenght < 256
 	TypeStr16              // C#:string; lenght >= 256
 	TypeObj                // C#:object
 	TypeList               // C#:List<object>; count < 256
 	TypeDict               // C#:Dictionary<string, object>; count < 256; key length < 256
+	TypeBytes              // C#:byte array -- not implemented yet
 )
 
 type Obj struct {
@@ -257,6 +258,21 @@ func MarshalObj(obj *Obj) []byte {
 	return buf
 }
 
+func unmarshalObj(src []byte) (*Obj, int, error) {
+	if len(src) < 4 {
+		return nil, 0, xerrors.Errorf("Unmarshal Obj error: not enough data (%v)", len(src))
+	}
+	l := get16(src[2:])
+	if len(src) < 4+l {
+		return nil, 0, xerrors.Errorf("Unmarshal Obj(%v) error: not enough data (%v)", l, len(src))
+	}
+	obj := &Obj{
+		ClassId: src[1],
+		Body:    src[4 : 4+l],
+	}
+	return obj, 4 + l, nil
+}
+
 // MarshalList marshals List
 // format:
 //  - TypeList
@@ -275,6 +291,28 @@ func MarshalList(list List) []byte {
 		buf = append(buf, b...)
 	}
 	return buf
+}
+
+func unmarshalList(src []byte) (List, int, error) {
+	if len(src) < 2 {
+		return nil, 0, xerrors.Errorf("Unmarshal List error: not enough data (%v)", len(src))
+	}
+	count := get8(src[1:])
+	l := 2
+	list := make(List, count)
+	for i := 0; i < count; i++ {
+		if len(src) < l+2 {
+			return nil, 0, xerrors.Errorf("Unmarshal List[%v](%v..) error: not enough data (%v)", i, l, len(src))
+		}
+		ll := get16(src[l:])
+		l += 2
+		if len(src) < l+ll {
+			return nil, 0, xerrors.Errorf("Unmarshal List[%v](%v+%v) error: not enough data (%v)", i, l, ll, len(src))
+		}
+		list[i] = src[l : l+ll]
+		l += ll
+	}
+	return list, l, nil
 }
 
 // MarshalDict marshals Dict
@@ -299,6 +337,35 @@ func MarshalDict(dict Dict) []byte {
 		buf = append(buf, v...)
 	}
 	return buf
+}
+
+func unmarshalDict(src []byte) (Dict, int, error) {
+	if len(src) < 2 {
+		return nil, 0, xerrors.Errorf("Unmarshal Dict error: not enough data (%v)", len(src))
+	}
+	count := get8(src[1:])
+	l := 2
+	dict := make(Dict)
+	for i := 0; i < count; i++ {
+		if len(src) < l+1 {
+			return nil, 0, xerrors.Errorf("Unmarshal Dict[%v](%v..) error: not enough data (%v)", i, l, len(src))
+		}
+		lk := get8(src[l:])
+		l += 1
+		if len(src) < l+lk+2 {
+			return nil, 0, xerrors.Errorf("Unmarshal Dict[%v](%v..%v..2) error: not enough data (%v)", i, l, lk, len(src))
+		}
+		key := src[l : l+lk]
+		l += lk
+		lv := get16(src[l:])
+		l += 2
+		if len(src) < l+lv {
+			return nil, 0, xerrors.Errorf("Unmarshal Dict[%q](%v..%v) error: not enough data (%v)", key, l, lv, len(src))
+		}
+		dict[string(key)] = src[l : l+lv]
+		l += lv
+	}
+	return dict, l, nil
 }
 
 // Unmarshal bytes
@@ -333,6 +400,12 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalStr8(src)
 	case TypeStr16:
 		return unmarshalStr16(src)
+	case TypeObj:
+		return unmarshalObj(src)
+	case TypeList:
+		return unmarshalList(src)
+	case TypeDict:
+		return unmarshalDict(src)
 	}
 	return nil, 0, xerrors.Errorf("Unknown type: %v", Type(src[0]))
 }

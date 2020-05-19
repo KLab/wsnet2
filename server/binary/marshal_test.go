@@ -221,5 +221,81 @@ func TestMarshalStr16(t *testing.T) {
 			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, string(exp), len(test.buf))
 		}
 	}
+}
+
+func TestMarshalObj(t *testing.T) {
+	obj := &Obj{1, []byte{1, 2, 3, 4, 5}}
+	buf := []byte{byte(TypeObj), 1, 0, 5, 1, 2, 3, 4, 5}
+
+	b := MarshalObj(obj)
+	if !reflect.DeepEqual(b, buf) {
+		t.Fatalf("MarshalObj:\n%#v\n%#v", b, buf)
+	}
+	r, l, e := Unmarshal(b)
+	if e != nil {
+		t.Fatalf("Unmarshal error: %v", e)
+	}
+	if diff := cmp.Diff(r, obj); diff != "" {
+		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+	}
+	if l != len(buf) {
+		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
+	}
+}
+
+func TestMarshalList(t *testing.T) {
+	list := List{
+		[]byte{byte(TypeStr8), 3, 'a', 'b', 'c'},
+		[]byte{byte(TypeNull)},
+		[]byte{byte(TypeByte), 1},
+	}
+	buf := []byte{byte(TypeList), 3,
+		0, 5, byte(TypeStr8), 3, 'a', 'b', 'c',
+		0, 1, byte(TypeNull),
+		0, 2, byte(TypeByte), 1,
+	}
+
+	b := MarshalList(list)
+	if !reflect.DeepEqual(b, buf) {
+		t.Fatalf("MarshalList:\n%#v\n%#v", b, buf)
+	}
+	r, l, e := Unmarshal(b)
+	if e != nil {
+		t.Fatalf("Unmarshal error: %v", e)
+	}
+	if diff := cmp.Diff(r, list); diff != "" {
+		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+	}
+	if l != len(buf) {
+		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
+	}
+}
+
+func TestMarshalDict(t *testing.T) {
+	dict := Dict{
+		"abc":   []byte{byte(TypeStr8), 3, 'a', 'b', 'c'},
+		"null":  []byte{byte(TypeNull)},
+		"byte1": []byte{byte(TypeByte), 1},
+	}
+	buf := []byte{byte(TypeDict), 3,
+		3, 'a', 'b', 'c', 0, 5, byte(TypeStr8), 3, 'a', 'b', 'c',
+		4, 'n', 'u', 'l', 'l', 0, 1, byte(TypeNull),
+		5, 'b', 'y', 't', 'e', '1', 0, 2, byte(TypeByte), 1,
+	}
+
+	b := MarshalDict(dict)
+	if !reflect.DeepEqual(b, buf) {
+		t.Fatalf("MarshalDict:\n%#v\n%#v", b, buf)
+	}
+	r, l, e := Unmarshal(b)
+	if e != nil {
+		t.Fatalf("Unmarshal error: %v", e)
+	}
+	if diff := cmp.Diff(r, dict); diff != "" {
+		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+	}
+	if l != len(buf) {
+		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
+	}
 
 }
