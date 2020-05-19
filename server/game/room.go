@@ -25,6 +25,9 @@ type Room struct {
 
 	deadline time.Duration
 
+	publicProps  binary.Dict
+	privateProps binary.Dict
+
 	msgCh    chan Msg
 	done     chan struct{}
 	wgClient sync.WaitGroup
@@ -42,11 +45,40 @@ type Room struct {
 	logger log.Logger
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo) {
+func initProps(props []byte) (binary.Dict, []byte, error) {
+	if len(props) == 0 {
+		props = binary.MarshalDict(nil)
+	}
+	um, _, err := binary.Unmarshal(props)
+	if err != nil {
+		return nil, nil, err
+	}
+	dict, ok := um.(binary.Dict)
+	if !ok {
+		return nil, nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
+	}
+	return dict, props, nil
+}
+
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo, error) {
+	pubProps, iProps, err := initProps(info.PublicProps)
+	if err != nil {
+		return nil, nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	info.PublicProps = iProps
+	privProps, iProps, err := initProps(info.PrivateProps)
+	if err != nil {
+		return nil, nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+	}
+	info.PrivateProps = iProps
+
 	r := &Room{
 		RoomInfo: info,
 		repo:     repo,
 		deadline: time.Duration(info.ClientDeadline) * time.Second,
+
+		publicProps:  pubProps,
+		privateProps: privProps,
 
 		msgCh: make(chan Msg, RoomMsgChSize),
 		done:  make(chan struct{}),
@@ -68,7 +100,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 	ch := make(chan JoinedInfo)
 	r.msgCh <- &MsgCreate{ch}
 
-	return r, master, ch
+	return r, master, ch, nil
 }
 
 func (r *Room) ID() RoomID {

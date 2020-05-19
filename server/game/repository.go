@@ -114,10 +114,15 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	info, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {
 		tx.Rollback()
-		return nil, nil, xerrors.Errorf("", err)
+		return nil, nil, err
 	}
 
-	room, cli, ch := NewRoom(repo, info, master, repo.conf)
+	room, cli, ch, err := NewRoom(repo, info, master, repo.conf)
+	if err != nil {
+		tx.Rollback()
+		return nil, nil, xerrors.Errorf("NewRoom error: %w", err)
+	}
+
 	var joined JoinedInfo
 	select {
 	case j, ok := <-ch:
