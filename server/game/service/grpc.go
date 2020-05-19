@@ -22,7 +22,7 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 
 		listenPort, err := net.Listen("tcp", laddr)
 		if err != nil {
-			errCh <- xerrors.Errorf("listen error: %w", errCh)
+			errCh <- xerrors.Errorf("listen error: %w", err)
 			return
 		}
 
