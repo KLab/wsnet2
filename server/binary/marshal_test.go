@@ -134,6 +134,10 @@ func TestMarshalUInt64(t *testing.T) {
 		buf []byte
 	}{
 		{0, []byte{byte(TypeULong), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+		{0x0102030405060708,
+			[]byte{byte(TypeULong), 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
+		{math.MaxUint64,
+			[]byte{byte(TypeULong), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
 	}
 	for _, test := range tests {
 		b := MarshalULong(test.val)
@@ -148,4 +152,74 @@ func TestMarshalUInt64(t *testing.T) {
 			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, test.val, len(test.buf))
 		}
 	}
+}
+
+func TestMarshalStr8(t *testing.T) {
+	s := "0123456789abcdef0123456789abcdef" // len=32
+	s = s + s + s + s + s + s + s + s       // len=256
+
+	tests := []struct {
+		val string
+		buf []byte
+	}{
+		{"", []byte{byte(TypeStr8), 0}},
+		{"abc", []byte{byte(TypeStr8), 3, 'a', 'b', 'c'}},
+		{"あいうえお", append([]byte{byte(TypeStr8), 3 * 5}, []byte("あいうえお")...)},
+		{s, append([]byte{byte(TypeStr8), 255}, []byte(s[:255])...)},
+	}
+	for _, test := range tests {
+		b := MarshalStr8(test.val)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalStr8:\n%#v\n%#v", b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		exp := []byte(test.val)
+		if len(exp) > 255 {
+			exp = exp[:255]
+		}
+		if r != string(exp) || l != len(test.buf) {
+			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, string(exp), len(test.buf))
+		}
+	}
+}
+
+func TestMarshalStr16(t *testing.T) {
+	s := "0123456789abcdef0123456789abcdef" // len=32
+	s256 := s + s + s + s + s + s + s + s   // len=256
+	s65536 := s256
+	for len(s65536) < 65536 {
+		s65536 += s65536
+	}
+
+	tests := []struct {
+		val string
+		buf []byte
+	}{
+		{"", []byte{byte(TypeStr16), 0, 0}},
+		{"abc", []byte{byte(TypeStr16), 0, 3, 'a', 'b', 'c'}},
+		{"あいうえお", append([]byte{byte(TypeStr16), 0, 3 * 5}, []byte("あいうえお")...)},
+		{s256, append([]byte{byte(TypeStr16), 0x01, 0x00}, []byte(s256)...)},
+		{s65536, append([]byte{byte(TypeStr16), 0xff, 0xff}, []byte(s65536[:65535])...)},
+	}
+	for _, test := range tests {
+		b := MarshalStr16(test.val)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalStr16:\n%#v\n%#v", b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		exp := []byte(test.val)
+		if len(exp) > math.MaxUint16 {
+			exp = exp[:math.MaxUint16]
+		}
+		if r != string(exp) || l != len(test.buf) {
+			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, string(exp), len(test.buf))
+		}
+	}
+
 }

@@ -63,7 +63,7 @@ func MarshalByte(val int) []byte {
 
 func unmarshalByte(src []byte) (int, int, error) {
 	if len(src) < 2 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeByte error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal Byte error: not enough data (%v)", len(src))
 	}
 	return get8(src[1:]), 2, nil
 }
@@ -82,7 +82,7 @@ func MarshalSByte(val int) []byte {
 
 func unmarshalSByte(src []byte) (int, int, error) {
 	if len(src) < 2 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeSByte error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal SByte error: not enough data (%v)", len(src))
 	}
 	return get8(src[1:]) + math.MinInt8, 2, nil
 }
@@ -98,7 +98,7 @@ func MarshalUShort(val int) []byte {
 
 func unmarshalUShort(src []byte) (int, int, error) {
 	if len(src) < 3 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeUShort error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal UShort error: not enough data (%v)", len(src))
 	}
 	return get16(src[1:]), 3, nil
 }
@@ -114,7 +114,7 @@ func MarshalShort(val int) []byte {
 
 func unmarshalShort(src []byte) (int, int, error) {
 	if len(src) < 3 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeShort error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal Short error: not enough data (%v)", len(src))
 	}
 	return get16(src[1:]) + math.MinInt16, 3, nil
 }
@@ -130,7 +130,7 @@ func MarshalUInt(val int) []byte {
 
 func unmarshalUInt(src []byte) (int, int, error) {
 	if len(src) < 5 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeUInt error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal UInt error: not enough data (%v)", len(src))
 	}
 	return get32(src[1:]), 5, nil
 }
@@ -146,7 +146,7 @@ func MarshalInt(val int) []byte {
 
 func unmarshalInt(src []byte) (int, int, error) {
 	if len(src) < 5 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeInt error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal Int error: not enough data (%v)", len(src))
 	}
 	return get32(src[1:]) + math.MinInt32, 5, nil
 }
@@ -161,7 +161,7 @@ func MarshalULong(val uint64) []byte {
 
 func unmarshalULong(src []byte) (uint64, int, error) {
 	if len(src) < 9 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeULong error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal ULong error: not enough data (%v)", len(src))
 	}
 	return get64(src[1:]), 9, nil
 }
@@ -182,7 +182,7 @@ func MarshalLong(val int) []byte {
 
 func unmarshalLong(src []byte) (int, int, error) {
 	if len(src) < 9 {
-		return 0, 0, xerrors.Errorf("Unmarshal TypeLong error: not enough data (%v)", len(src))
+		return 0, 0, xerrors.Errorf("Unmarshal Long error: not enough data (%v)", len(src))
 	}
 	v := get64(src[1:])
 	if v >= -math.MinInt64 {
@@ -205,6 +205,17 @@ func MarshalStr8(str string) []byte {
 	return buf
 }
 
+func unmarshalStr8(src []byte) (string, int, error) {
+	if len(src) < 2 {
+		return "", 0, xerrors.Errorf("Unmarshal Str8 error: not enough data (%v)", len(src))
+	}
+	l := get8(src[1:])
+	if len(src) < 2+l {
+		return "", 0, xerrors.Errorf("Unmarshal Str8(%v) error: not enough data (%v)", l, len(src))
+	}
+	return string(src[2 : 2+l]), 2 + l, nil
+}
+
 // MarshalStr16 marshals long string (len > 255..65545)
 func MarshalStr16(str string) []byte {
 	len := len(str)
@@ -217,6 +228,17 @@ func MarshalStr16(str string) []byte {
 	put16(buf[1:], len)
 	copy(buf[3:], []byte(str))
 	return buf
+}
+
+func unmarshalStr16(src []byte) (string, int, error) {
+	if len(src) < 3 {
+		return "", 0, xerrors.Errorf("Unmarshal Str16 error: not enough data (%v)", len(src))
+	}
+	l := get16(src[1:])
+	if len(src) < 3+l {
+		return "", 0, xerrors.Errorf("Unmarshal Str16(%v) error: not enough data (%v)", l, len(src))
+	}
+	return string(src[3 : 3+l]), 3 + l, nil
 }
 
 // MarshalObj marshals Obj
@@ -307,8 +329,12 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalULong(src)
 	case TypeLong:
 		return unmarshalLong(src)
+	case TypeStr8:
+		return unmarshalStr8(src)
+	case TypeStr16:
+		return unmarshalStr16(src)
 	}
-	return nil, 0, xerrors.Errorf("Unknown type: %v", src[0])
+	return nil, 0, xerrors.Errorf("Unknown type: %v", Type(src[0]))
 }
 
 func clamp(val, min, max int) int {
