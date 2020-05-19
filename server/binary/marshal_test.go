@@ -273,14 +273,10 @@ func TestMarshalList(t *testing.T) {
 
 func TestMarshalDict(t *testing.T) {
 	dict := Dict{
-		"abc":   []byte{byte(TypeStr8), 3, 'a', 'b', 'c'},
-		"null":  []byte{byte(TypeNull)},
-		"byte1": []byte{byte(TypeByte), 1},
+		"int1": []byte{byte(TypeInt), 0x80, 0x00, 0x00, 0x01},
 	}
-	buf := []byte{byte(TypeDict), 3,
-		3, 'a', 'b', 'c', 0, 5, byte(TypeStr8), 3, 'a', 'b', 'c',
-		4, 'n', 'u', 'l', 'l', 0, 1, byte(TypeNull),
-		5, 'b', 'y', 't', 'e', '1', 0, 2, byte(TypeByte), 1,
+	buf := []byte{byte(TypeDict), 1,
+		4, 'i', 'n', 't', '1', 0, 5, byte(TypeInt), 0x80, 0x00, 0x00, 0x01,
 	}
 
 	b := MarshalDict(dict)
