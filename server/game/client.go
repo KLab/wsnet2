@@ -96,7 +96,7 @@ loop:
 			break loop
 
 		case newDeadline := <-c.newDeadline:
-			c.room.logger.Debugf("new deadline: client=%v, deadline=%v", c.Id, deadline)
+			c.room.logger.Debugf("new deadline: client=%v, deadline=%v", c.Id, newDeadline)
 			if !t.Stop() {
 				<-t.C
 			}

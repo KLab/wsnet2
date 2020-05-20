@@ -117,7 +117,12 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		return nil, nil, err
 	}
 
-	room, cli, ch, err := NewRoom(repo, info, master, repo.conf)
+	loglevel := log.CurrentLevel()
+	if op.LogLevel > 0 {
+		loglevel = log.Level(op.LogLevel)
+	}
+
+	room, cli, ch, err := NewRoom(repo, info, master, repo.conf, loglevel)
 	if err != nil {
 		tx.Rollback()
 		return nil, nil, xerrors.Errorf("NewRoom error: %w", err)

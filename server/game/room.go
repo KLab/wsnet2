@@ -60,7 +60,7 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo, error) {
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, *Client, <-chan JoinedInfo, error) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
@@ -86,7 +86,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		clients: make(map[ClientID]*Client),
 		order:   []ClientID{},
 
-		logger: log.Get(log.CurrentLevel()),
+		logger: log.Get(loglevel),
 	}
 
 	r.wgClient.Add(1)
@@ -99,6 +99,8 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 
 	ch := make(chan JoinedInfo)
 	r.msgCh <- &MsgCreate{ch}
+
+	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
 
 	return r, master, ch, nil
 }
@@ -259,6 +261,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	if msg.Sender != r.master {
 		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
+	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
 
 	deadlineUpdated := r.ClientDeadline != msg.ClientDeadline
 	r.RoomInfo.Visible = msg.Visible
@@ -277,6 +280,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 			}
 		}
 		r.RoomInfo.PublicProps = binary.MarshalDict(r.publicProps)
+		r.logger.Debugf("Room update PublicProps: room=%v %v", r.Id, r.publicProps)
 	}
 
 	if len(msg.PrivateProps) > 0 {
@@ -288,10 +292,12 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 			}
 		}
 		r.RoomInfo.PrivateProps = binary.MarshalDict(r.privateProps)
+		r.logger.Debugf("Room update PrivateProps: room=%v %v", r.Id, r.privateProps)
 	}
 
 	if deadlineUpdated {
 		r.deadline = time.Duration(msg.ClientDeadline) * time.Second
+		r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, r.deadline)
 		r.notifyDeadline(r.deadline)
 	}
 
