@@ -56,7 +56,9 @@ const (
 	MsgTypeClientProp
 
 	// MsgTypeTarget : 特定のクライアントへ送信
-	// payload: (any)
+	// payload:
+	//  - List: user ids
+	//  - Bytes: data
 	MsgTypeTarget
 
 	// MsgTypeBroadcast : 全員に送信する
@@ -110,14 +112,16 @@ func UnmarshalMsg(data []byte) (Msg, error) {
 }
 
 type MsgRoomPropPayload struct {
+	EventPayload []byte
+
 	Visible        bool
 	Joinable       bool
 	Watchable      bool
-	SearchGroup    int
-	MaxPlayer      int
-	ClientDeadline int
-	PublicProps    *Dict
-	PrivateProps   *Dict
+	SearchGroup    uint32
+	MaxPlayer      uint32
+	ClientDeadline uint32
+	PublicProps    Dict
+	PrivateProps   Dict
 }
 
 // flags (1=visible, 2=joinable, 4=watchable)
@@ -146,7 +150,7 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (search group): %w", e)
 	}
-	rpp.SearchGroup = d.(int)
+	rpp.SearchGroup = uint32(d.(int))
 	payload = payload[l:]
 
 	// max players
@@ -154,15 +158,18 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (max players): %w", e)
 	}
-	rpp.SearchGroup = d.(int)
+	rpp.SearchGroup = uint32(d.(int))
 	payload = payload[l:]
+
+	// ここから先はclientに伝える
+	rpp.EventPayload = payload
 
 	// client deadline
 	d, l, e = UnmarshalAs(payload, TypeUShort)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (client deadline): %w", e)
 	}
-	rpp.ClientDeadline = d.(int)
+	rpp.ClientDeadline = uint32(d.(int))
 	payload = payload[l:]
 
 	// public props
@@ -170,7 +177,7 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (public props): %w", e)
 	}
-	rpp.PublicProps = d.(*Dict)
+	rpp.PublicProps = d.(Dict)
 	payload = payload[l:]
 
 	// public props
@@ -178,7 +185,7 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (private props): %w", e)
 	}
-	rpp.PrivateProps = d.(*Dict)
+	rpp.PrivateProps = d.(Dict)
 	payload = payload[l:]
 
 	return &rpp, nil

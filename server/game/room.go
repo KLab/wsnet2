@@ -118,7 +118,9 @@ Loop:
 			break Loop
 		case msg := <-r.msgCh:
 			r.logger.Debugf("Room msg: room=%v, %T %v", r.Id, msg, msg)
-			r.dispatch(msg)
+			if err := r.dispatch(msg); err != nil {
+				r.logger.Infof("Room msg error: %v", err)
+			}
 		}
 	}
 	r.repo.RemoveRoom(r)
@@ -189,6 +191,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgJoin(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
+	case *MsgRoomProp:
+		return r.msgRoomProp(m)
 	case *MsgBroadcast:
 		return r.msgBroadcast(m)
 	case *MsgClientError:
@@ -207,6 +211,14 @@ func (r *Room) broadcast(ev *binary.Event) {
 			// removeClient locks muClients so that must be called another goroutine.
 			go r.removeClient(c, err)
 		}
+	}
+}
+
+func (r *Room) notifyDeadline(deadline time.Duration) {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	for _, c := range r.clients {
+		c.newDeadline <- deadline
 	}
 }
 
@@ -240,6 +252,50 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
 	r.removeClient(msg.Sender, nil)
+	return nil
+}
+
+func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
+	if msg.Sender != r.master {
+		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+	}
+
+	deadlineUpdated := r.ClientDeadline != msg.ClientDeadline
+	r.RoomInfo.Visible = msg.Visible
+	r.RoomInfo.Joinable = msg.Joinable
+	r.RoomInfo.Watchable = msg.Watchable
+	r.RoomInfo.SearchGroup = msg.SearchGroup
+	r.RoomInfo.MaxPlayers = msg.MaxPlayer
+	r.RoomInfo.ClientDeadline = msg.ClientDeadline
+
+	if len(msg.PublicProps) > 0 {
+		for k, v := range msg.PublicProps {
+			if _, ok := r.publicProps[k]; ok && len(v) == 0 {
+				delete(r.publicProps, k)
+			} else {
+				r.publicProps[k] = v
+			}
+		}
+		r.RoomInfo.PublicProps = binary.MarshalDict(r.publicProps)
+	}
+
+	if len(msg.PrivateProps) > 0 {
+		for k, v := range msg.PrivateProps {
+			if _, ok := r.privateProps[k]; ok && len(v) == 0 {
+				delete(r.privateProps, k)
+			} else {
+				r.privateProps[k] = v
+			}
+		}
+		r.RoomInfo.PrivateProps = binary.MarshalDict(r.privateProps)
+	}
+
+	if deadlineUpdated {
+		r.deadline = time.Duration(msg.ClientDeadline) * time.Second
+		r.notifyDeadline(r.deadline)
+	}
+
+	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
 

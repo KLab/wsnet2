@@ -47,7 +47,7 @@ func NewClient(info *pb.ClientInfo, room *Room) *Client {
 
 		removed:     make(chan struct{}),
 		done:        make(chan struct{}),
-		newDeadline: make(chan time.Duration),
+		newDeadline: make(chan time.Duration, 1),
 
 		evbuf: NewEvBuf(ClientEventBufSize),
 
@@ -95,12 +95,15 @@ loop:
 			}
 			break loop
 
-		case deadline = <-c.newDeadline:
+		case newDeadline := <-c.newDeadline:
 			c.room.logger.Debugf("new deadline: client=%v, deadline=%v", c.Id, deadline)
 			if !t.Stop() {
 				<-t.C
 			}
-			t.Reset(deadline)
+			// 突然短くされてもclientが把握できないので
+			// 変更直後だけ旧deadline分の猶予をもたせる.
+			t.Reset(deadline + newDeadline)
+			deadline = newDeadline
 
 		case peer := <-c.newPeer:
 			go c.drainMsg(peerMsgCh)
