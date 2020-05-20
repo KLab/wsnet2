@@ -13,3 +13,9 @@ pprof_addr = ":3000"
 
 default_deadline = 5
 default_loglevel = 4
+
+[Lobby]
+hostname = "localhost"
+net = "tcp"
+addr = ":8080"
+pprof_addr = ":3001"
