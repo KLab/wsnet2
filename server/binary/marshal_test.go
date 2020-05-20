@@ -16,7 +16,7 @@ func TestMarshalNull(t *testing.T) {
 	if diff := cmp.Diff(b, exp); diff != "" {
 		t.Fatalf("MarshalNull: (-got +want)\n%s", diff)
 	}
-	r, _, l, e := Unmarshal(b)
+	r, l, e := Unmarshal(b)
 	if e != nil {
 		t.Fatalf("Unmarshal error: %v", e)
 	}
@@ -38,7 +38,7 @@ func TestMarshalBool(t *testing.T) {
 		if !reflect.DeepEqual(b, test.buf) {
 			t.Fatalf("MarshalBool:\n%#v\n%#v", b, test.buf)
 		}
-		r, _, l, e := Unmarshal(b)
+		r, l, e := Unmarshal(b)
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
 		}
@@ -115,7 +115,7 @@ func TestMarshalInteger(t *testing.T) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%x):\n%#v\n%#v", fname, test.in, b, test.buf)
 		}
-		r, _, l, e := Unmarshal(b)
+		r, l, e := Unmarshal(b)
 		if e != nil {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%x): Unmarshal error: %v", fname, test.in, e)
@@ -144,7 +144,7 @@ func TestMarshalUInt64(t *testing.T) {
 		if !reflect.DeepEqual(b, test.buf) {
 			t.Fatalf("MarshalULong:\n%#v\n%#v", b, test.buf)
 		}
-		r, _, l, e := Unmarshal(b)
+		r, l, e := Unmarshal(b)
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
 		}
@@ -172,12 +172,9 @@ func TestMarshalStr8(t *testing.T) {
 		if !reflect.DeepEqual(b, test.buf) {
 			t.Fatalf("MarshalStr8:\n%#v\n%#v", b, test.buf)
 		}
-		r, ty, l, e := Unmarshal(b)
+		r, l, e := Unmarshal(b)
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
-		}
-		if ty != TypeStr8 {
-			t.Fatalf("Unmarshal type mismatch: %v wants %v", ty, TypeStr8)
 		}
 		exp := []byte(test.val)
 		if len(exp) > 255 {
@@ -212,12 +209,9 @@ func TestMarshalStr16(t *testing.T) {
 		if !reflect.DeepEqual(b, test.buf) {
 			t.Fatalf("MarshalStr16:\n%#v\n%#v", b, test.buf)
 		}
-		r, ty, l, e := Unmarshal(b)
+		r, l, e := Unmarshal(b)
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
-		}
-		if ty != TypeStr16 {
-			t.Fatalf("Unmarshal type mismatch: %v wants %v", ty, TypeStr16)
 		}
 		exp := []byte(test.val)
 		if len(exp) > math.MaxUint16 {
@@ -237,12 +231,9 @@ func TestMarshalObj(t *testing.T) {
 	if !reflect.DeepEqual(b, buf) {
 		t.Fatalf("MarshalObj:\n%#v\n%#v", b, buf)
 	}
-	r, ty, l, e := Unmarshal(b)
+	r, l, e := Unmarshal(b)
 	if e != nil {
 		t.Fatalf("Unmarshal error: %v", e)
-	}
-	if ty != TypeObj {
-		t.Fatalf("Unmarshal type mismatch: %v wants %v", ty, TypeObj)
 	}
 	if diff := cmp.Diff(r, obj); diff != "" {
 		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
@@ -268,12 +259,9 @@ func TestMarshalList(t *testing.T) {
 	if !reflect.DeepEqual(b, buf) {
 		t.Fatalf("MarshalList:\n%#v\n%#v", b, buf)
 	}
-	r, ty, l, e := Unmarshal(b)
+	r, l, e := Unmarshal(b)
 	if e != nil {
 		t.Fatalf("Unmarshal error: %v", e)
-	}
-	if ty != TypeList {
-		t.Fatalf("Unmarshal type mismatch: %v wants %v", ty, TypeList)
 	}
 	if diff := cmp.Diff(r, list); diff != "" {
 		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
@@ -295,12 +283,9 @@ func TestMarshalDict(t *testing.T) {
 	if !reflect.DeepEqual(b, buf) {
 		t.Fatalf("MarshalDict:\n%#v\n%#v", b, buf)
 	}
-	r, ty, l, e := Unmarshal(b)
+	r, l, e := Unmarshal(b)
 	if e != nil {
 		t.Fatalf("Unmarshal error: %v", e)
-	}
-	if ty != TypeDict {
-		t.Fatalf("Unmarshal type mismatch: %v wants %v", ty, TypeDict)
 	}
 	if diff := cmp.Diff(r, dict); diff != "" {
 		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
@@ -308,4 +293,5 @@ func TestMarshalDict(t *testing.T) {
 	if l != len(buf) {
 		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
 	}
+
 }

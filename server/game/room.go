@@ -49,14 +49,15 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	if len(props) == 0 {
 		props = binary.MarshalDict(nil)
 	}
-	d, t, _, err := binary.Unmarshal(props)
+	um, _, err := binary.Unmarshal(props)
 	if err != nil {
 		return nil, nil, err
 	}
-	if t != binary.TypeDict {
-		return nil, nil, xerrors.Errorf("type is not Dict: %v", t)
+	dict, ok := um.(binary.Dict)
+	if !ok {
+		return nil, nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
 	}
-	return d.(binary.Dict), props, nil
+	return dict, props, nil
 }
 
 func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo, error) {

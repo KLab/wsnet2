@@ -369,48 +369,45 @@ func unmarshalDict(src []byte) (Dict, int, error) {
 }
 
 // Unmarshal bytes
-func Unmarshal(src []byte) (d interface{}, t Type, l int, e error) {
+func Unmarshal(src []byte) (interface{}, int, error) {
 	if len(src) == 0 {
-		return nil, 0, 0, xerrors.Errorf("Unmarshal error: empty")
+		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
 	}
-	t = Type(src[0])
-	switch t {
+	switch Type(src[0]) {
 	case TypeNull:
-		d, l = nil, 1
+		return nil, 1, nil
 	case TypeFalse:
-		d, l = false, 1
+		return false, 1, nil
 	case TypeTrue:
-		d, l = true, 1
+		return true, 1, nil
 	case TypeByte:
-		d, l, e = unmarshalByte(src)
+		return unmarshalByte(src)
 	case TypeSByte:
-		d, l, e = unmarshalSByte(src)
+		return unmarshalSByte(src)
 	case TypeUShort:
-		d, l, e = unmarshalUShort(src)
+		return unmarshalUShort(src)
 	case TypeShort:
-		d, l, e = unmarshalShort(src)
+		return unmarshalShort(src)
 	case TypeUInt:
-		d, l, e = unmarshalUInt(src)
+		return unmarshalUInt(src)
 	case TypeInt:
-		d, l, e = unmarshalInt(src)
+		return unmarshalInt(src)
 	case TypeULong:
-		d, l, e = unmarshalULong(src)
+		return unmarshalULong(src)
 	case TypeLong:
-		d, l, e = unmarshalLong(src)
+		return unmarshalLong(src)
 	case TypeStr8:
-		d, l, e = unmarshalStr8(src)
+		return unmarshalStr8(src)
 	case TypeStr16:
-		d, l, e = unmarshalStr16(src)
+		return unmarshalStr16(src)
 	case TypeObj:
-		d, l, e = unmarshalObj(src)
+		return unmarshalObj(src)
 	case TypeList:
-		d, l, e = unmarshalList(src)
+		return unmarshalList(src)
 	case TypeDict:
-		d, l, e = unmarshalDict(src)
-	default:
-		e = xerrors.Errorf("Unknown type: %v", Type(src[0]))
+		return unmarshalDict(src)
 	}
-	return d, t, l, e
+	return nil, 0, xerrors.Errorf("Unknown type: %v", Type(src[0]))
 }
 
 func clamp(val, min, max int) int {
