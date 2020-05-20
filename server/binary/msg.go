@@ -76,7 +76,7 @@ func UnmarshalMsg(data []byte) (Msg, error) {
 	if len(data) < 3 {
 		return nil, xerrors.Errorf("data length not enough: %v", len(data))
 	}
-	seq := Int24(data)
+	seq := get24(data)
 	data = data[3:]
 
 	return &regularMsg{mt, seq, data}, nil
