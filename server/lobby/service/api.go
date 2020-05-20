@@ -50,7 +50,7 @@ func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("wsnet2 works"))
+	w.Write([]byte("wsnet2 works\n"))
 }
 
 func (sv *LobbyService) registerRoutes(r *mux.Router) {
@@ -61,5 +61,5 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 		r = r.Host(sv.conf.Hostname).Subrouter()
 	}
 
-	// TODO: Add more routes
+	sv.roomService.RegisterRoutes(r)
 }

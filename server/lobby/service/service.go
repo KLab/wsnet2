@@ -2,19 +2,41 @@ package service
 
 import (
 	"context"
+	"net"
+	"strconv"
 
 	"github.com/jmoiron/sqlx"
 
 	"wsnet2/config"
+	"wsnet2/lobby"
 )
 
 type LobbyService struct {
-	conf  *config.LobbyConf
+	conf        *config.LobbyConf
+	roomService *lobby.RoomService
 }
 
-func New(db *sqlx.DB, conf *config.LobbyConf) (*LobbyService, error) {
+func getPort(addr string) (int, error) {
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return -1, err
+	}
+	return strconv.Atoi(port)
+}
+
+func New(db *sqlx.DB, conf *config.Config) (*LobbyService, error) {
+	grpcPort, err := getPort(conf.Game.GRPCAddr)
+	if err != nil {
+		return nil, err
+	}
+	wsPort, err := getPort(conf.Game.WebsocketAddr)
+	if err != nil {
+		return nil, err
+	}
+	roomService := lobby.NewRoomService(db, grpcPort, wsPort)
 	return &LobbyService{
-		conf: conf,
+		conf:        &conf.Lobby,
+		roomService: roomService,
 	}, nil
 }
 

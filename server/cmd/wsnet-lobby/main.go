@@ -26,7 +26,7 @@ func main() {
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 
-	service, err := service.New(db, &conf.Lobby)
+	service, err := service.New(db, conf)
 	if err != nil {
 		panic(fmt.Errorf("%+v\n", err))
 	}
