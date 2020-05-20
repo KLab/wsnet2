@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package pb;
+
+import "roominfo.proto";
+
+message Room {
+	RoomInfo room_info = 1;
+	string hostname = 2;
+	string public_host = 3;
+	string url = 4;
+}
