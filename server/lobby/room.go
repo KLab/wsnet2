@@ -11,21 +11,14 @@ import (
 	"wsnet2/pb"
 )
 
-type Room struct {
-	*pb.RoomInfo
-	HostName   string
-	PublicHost string
-	URL        string
-}
-
 type RoomService struct {
 	db       *sqlx.DB
 	grpcPort int
 	wsPort   int
 }
 
-func NewRoom(info *pb.RoomInfo) *Room {
-	return &Room{
+func NewRoom(info *pb.RoomInfo) *pb.Room {
+	return &pb.Room{
 		RoomInfo: info,
 	}
 }
