@@ -8,8 +8,8 @@ import (
 	"math/rand"
 	"net/http"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/mux"
+	"github.com/vmihailenco/msgpack/v4"
 
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -28,7 +28,7 @@ func (rs *RoomService) HandleCreateRoom(w http.ResponseWriter, r *http.Request) 
 	appID := r.Header.Get("X-App-Id")
 	userID := r.Header.Get("X-User-Id")
 
-	_, err := ioutil.ReadAll(r.Body)
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Errorf("Failed to read request body: %w", err)
 		http.Error(w, "Failed to request body", http.StatusInternalServerError)
@@ -36,7 +36,10 @@ func (rs *RoomService) HandleCreateRoom(w http.ResponseWriter, r *http.Request) 
 	}
 	r.Body.Close()
 
-	// TODO: Unmarshal body and set RoomOption
+	params := make(map[string]interface{})
+	msgpack.Unmarshal(body, &params)
+
+	log.Debugf("%v", params)
 
 	roomOption := &pb.RoomOption{
 		Visible:   true,
@@ -52,12 +55,12 @@ func (rs *RoomService) HandleCreateRoom(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Failed to create room", http.StatusInternalServerError)
 		return
 	}
-	log.Debugf("%v", room)
-	res, err := proto.Marshal(room)
+	log.Debugf("%#v", room)
+	res, err := msgpack.Marshal(room)
 	if err != nil {
 		log.Errorf("Failed to marshal room: %w", err)
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
 	}
-	w.Header().Set("Content-Type", "application/protobuf; charset=utf-8")
+	w.Header().Set("Content-Type", "application/x-msgpack; charset=utf-8")
 	w.Write(res)
 }

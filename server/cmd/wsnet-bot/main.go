@@ -9,11 +9,16 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
+	"github.com/vmihailenco/msgpack/v4"
 
 	"wsnet2/binary"
-	"wsnet2/pb"
+	"wsnet2/lobby"
+)
+
+var (
+	appID = "testapp"
+	userID = "12345"
 )
 
 func main() {
@@ -23,24 +28,20 @@ func main() {
 	}
 	defer conn.Close()
 
-	roomOption := &pb.RoomOption{
-		MaxPlayers: 10,
-		WithNumber: true,
-	}
+	p := map[string]interface{}{"visible": true, "open": true, "mplayers": 4}
 
-	param, err := proto.Marshal(roomOption)
+	param, err := msgpack.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
 
 	req, err := http.NewRequest("POST", "http://localhost:8080/rooms", bytes.NewReader(param))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
-	req.Header.Add("X-App-Id", "testapp")
-	req.Header.Add("X-User-Id", "11111")
+	req.Header.Add("X-App-Id", appID)
+	req.Header.Add("X-User-Id", userID)
 
-	httpclient := &http.Client{}
-	res, err := httpclient.Do(req)
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Fatal("http client error:", err)
 	}
@@ -54,14 +55,17 @@ func main() {
 	if err != nil {
 		log.Fatal("read body error:", err)
 	}
-	room := &pb.Room{}
-	proto.Unmarshal(body, room)
 
-	fmt.Printf("%v\n\n\n", room)
+	room := &lobby.Room{}
+	err = msgpack.Unmarshal(body, &room)
+	if err != nil {
+		log.Fatal("Unmarshal error:", err)
+	}
+	fmt.Println("url:", room.URL)
 
 	hdr := http.Header{}
-	hdr.Add("X-Wsnet-App", "testapp")
-	hdr.Add("X-Wsnet-User", "11111")
+	hdr.Add("X-Wsnet-App", appID)
+	hdr.Add("X-Wsnet-User", userID)
 	hdr.Add("X-Wsnet-LastEventSeq", "0")
 
 	d := websocket.Dialer{
@@ -69,7 +73,7 @@ func main() {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	ws, res2, err := d.Dial(room.Url, hdr)
+	ws, res2, err := d.Dial(room.URL, hdr)
 	if err != nil {
 		fmt.Printf("dial error: %v, %v\n", res2, err)
 		return
@@ -101,7 +105,7 @@ func main() {
 
 	fmt.Println("reconnect test")
 	hdr.Set("X-Wsnet-LastEventSeq", "2")
-	ws, res2, err = d.Dial(room.Url, hdr)
+	ws, res2, err = d.Dial(room.URL, hdr)
 	if err != nil {
 		fmt.Printf("dial error: %v, %v\n", res2, err)
 		return
@@ -130,7 +134,7 @@ func main() {
 	time.Sleep(3 * time.Second)
 	fmt.Println("reconnect test after leave")
 	hdr.Set("X-Wsnet-LastEventSeq", "4")
-	ws, res2, err = d.Dial(room.Url, hdr)
+	ws, res2, err = d.Dial(room.URL, hdr)
 	if err != nil {
 		fmt.Printf("dial error: %v, %v\n", res2, err)
 		return

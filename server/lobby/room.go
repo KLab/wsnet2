@@ -11,14 +11,20 @@ import (
 	"wsnet2/pb"
 )
 
+type Room struct {
+	*pb.RoomInfo
+	Host       string
+	URL        string
+}
+
 type RoomService struct {
 	db       *sqlx.DB
 	grpcPort int
 	wsPort   int
 }
 
-func NewRoom(info *pb.RoomInfo) *pb.Room {
-	return &pb.Room{
+func NewRoom(info *pb.RoomInfo) *Room {
+	return &Room{
 		RoomInfo: info,
 	}
 }
@@ -46,7 +52,7 @@ type gameServer struct {
 	publicHost string
 }
 
-func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.Room, error) {
+func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*Room, error) {
 	// TODO: check App
 
 	// TODO: check Max Rooms
@@ -84,11 +90,11 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 
 	log.Infof("Created room: %v", res.RoomInfo)
 
-	room := &pb.Room{
+	room := &Room{
 		RoomInfo: res.RoomInfo,
 	}
-	room.Hostname = makeRoomHost(gs.publicHost, rs.wsPort)
-	room.Url = makeRoomURL(gs.publicHost, room.RoomInfo.Id, rs.wsPort)
+	room.Host = makeRoomHost(gs.publicHost, rs.wsPort)
+	room.URL = makeRoomURL(gs.publicHost, room.RoomInfo.Id, rs.wsPort)
 
 	return room, nil
 }
