@@ -4,6 +4,8 @@ CREATE TABLE `host` (
   `id`          INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
   `hostname`    VARCHAR(255) NOT NULL,
   `public_name` VARCHAR(255) NOT NULL,
+  `grpc_port`   INTEGER NOT NULL,
+  `ws_port`     INTEGER NOT NULL,
   `status`      TINYINT NOT NULL,
   `heartbeat`   TIMESTAMP,
   UNIQUE KEY `idx_hostname` (`hostname`)
