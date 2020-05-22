@@ -192,6 +192,16 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
 }
 
+func (repo *Repository) updateRoomInfo(room *Room) {
+	// DBへの反映は遅延して良い
+	ri := room.RoomInfo.Clone()
+	go func() {
+		if _, err := repo.db.NamedExec(roomUpdateQuery, ri); err != nil {
+			log.Errorf("Repository updateRoomInfo error: %v", err)
+		}
+	}()
+}
+
 func (repo *Repository) deleteRoom(id RoomID) {
 	var err error
 	// TODO: 部屋の履歴を残す必要あり？
