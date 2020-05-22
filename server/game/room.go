@@ -25,6 +25,9 @@ type Room struct {
 
 	deadline time.Duration
 
+	publicProps  binary.Dict
+	privateProps binary.Dict
+
 	msgCh    chan Msg
 	done     chan struct{}
 	wgClient sync.WaitGroup
@@ -42,11 +45,40 @@ type Room struct {
 	logger log.Logger
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf) (*Room, *Client, <-chan JoinedInfo) {
+func initProps(props []byte) (binary.Dict, []byte, error) {
+	if len(props) == 0 {
+		props = binary.MarshalDict(nil)
+	}
+	um, _, err := binary.Unmarshal(props)
+	if err != nil {
+		return nil, nil, err
+	}
+	dict, ok := um.(binary.Dict)
+	if !ok {
+		return nil, nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
+	}
+	return dict, props, nil
+}
+
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, *Client, <-chan JoinedInfo, error) {
+	pubProps, iProps, err := initProps(info.PublicProps)
+	if err != nil {
+		return nil, nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	info.PublicProps = iProps
+	privProps, iProps, err := initProps(info.PrivateProps)
+	if err != nil {
+		return nil, nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+	}
+	info.PrivateProps = iProps
+
 	r := &Room{
 		RoomInfo: info,
 		repo:     repo,
 		deadline: time.Duration(info.ClientDeadline) * time.Second,
+
+		publicProps:  pubProps,
+		privateProps: privProps,
 
 		msgCh: make(chan Msg, RoomMsgChSize),
 		done:  make(chan struct{}),
@@ -54,7 +86,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		clients: make(map[ClientID]*Client),
 		order:   []ClientID{},
 
-		logger: log.Get(log.CurrentLevel()),
+		logger: log.Get(loglevel),
 	}
 
 	r.wgClient.Add(1)
@@ -68,7 +100,9 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 	ch := make(chan JoinedInfo)
 	r.msgCh <- &MsgCreate{ch}
 
-	return r, master, ch
+	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
+
+	return r, master, ch, nil
 }
 
 func (r *Room) ID() RoomID {
@@ -86,7 +120,9 @@ Loop:
 			break Loop
 		case msg := <-r.msgCh:
 			r.logger.Debugf("Room msg: room=%v, %T %v", r.Id, msg, msg)
-			r.dispatch(msg)
+			if err := r.dispatch(msg); err != nil {
+				r.logger.Infof("Room msg error: %v", err)
+			}
 		}
 	}
 	r.repo.RemoveRoom(r)
@@ -157,6 +193,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgJoin(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
+	case *MsgRoomProp:
+		return r.msgRoomProp(m)
 	case *MsgBroadcast:
 		return r.msgBroadcast(m)
 	case *MsgClientError:
@@ -175,6 +213,14 @@ func (r *Room) broadcast(ev *binary.Event) {
 			// removeClient locks muClients so that must be called another goroutine.
 			go r.removeClient(c, err)
 		}
+	}
+}
+
+func (r *Room) notifyDeadline(deadline time.Duration) {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	for _, c := range r.clients {
+		c.newDeadline <- deadline
 	}
 }
 
@@ -208,6 +254,54 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
 	r.removeClient(msg.Sender, nil)
+	return nil
+}
+
+func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
+	if msg.Sender != r.master {
+		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+	}
+	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
+
+	deadlineUpdated := r.ClientDeadline != msg.ClientDeadline
+	r.RoomInfo.Visible = msg.Visible
+	r.RoomInfo.Joinable = msg.Joinable
+	r.RoomInfo.Watchable = msg.Watchable
+	r.RoomInfo.SearchGroup = msg.SearchGroup
+	r.RoomInfo.MaxPlayers = msg.MaxPlayer
+	r.RoomInfo.ClientDeadline = msg.ClientDeadline
+
+	if len(msg.PublicProps) > 0 {
+		for k, v := range msg.PublicProps {
+			if _, ok := r.publicProps[k]; ok && len(v) == 0 {
+				delete(r.publicProps, k)
+			} else {
+				r.publicProps[k] = v
+			}
+		}
+		r.RoomInfo.PublicProps = binary.MarshalDict(r.publicProps)
+		r.logger.Debugf("Room update PublicProps: room=%v %v", r.Id, r.publicProps)
+	}
+
+	if len(msg.PrivateProps) > 0 {
+		for k, v := range msg.PrivateProps {
+			if _, ok := r.privateProps[k]; ok && len(v) == 0 {
+				delete(r.privateProps, k)
+			} else {
+				r.privateProps[k] = v
+			}
+		}
+		r.RoomInfo.PrivateProps = binary.MarshalDict(r.privateProps)
+		r.logger.Debugf("Room update PrivateProps: room=%v %v", r.Id, r.privateProps)
+	}
+
+	if deadlineUpdated {
+		r.deadline = time.Duration(msg.ClientDeadline) * time.Second
+		r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, r.deadline)
+		r.notifyDeadline(r.deadline)
+	}
+
+	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
 

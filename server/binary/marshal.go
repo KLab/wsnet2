@@ -410,6 +410,17 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 	return nil, 0, xerrors.Errorf("Unknown type: %v", Type(src[0]))
 }
 
+// Unmarshal bytes as specified type
+func UnmarshalAs(src []byte, t Type) (interface{}, int, error) {
+	if len(src) == 0 {
+		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
+	}
+	if Type(src[0]) != t {
+		return nil, 0, xerrors.Errorf("Unmarshal type mismatch: %v != %v", Type(src[0]), t)
+	}
+	return Unmarshal(src)
+}
+
 func clamp(val, min, max int) int {
 	if val < min {
 		return min

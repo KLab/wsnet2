@@ -49,14 +49,29 @@ type MsgLeave struct {
 
 func (*MsgLeave) msg() {}
 
+func msgLeave(sender *Client) (Msg, error) {
+	return &MsgLeave{sender}, nil
+}
+
 // MsgRoomProp : 部屋情報の変更
+// MasterClientからのみ受け付ける.
 type MsgRoomProp struct {
-	Sender  *Client
-	Payload []byte
-	//todo: mapも必要
+	*binary.MsgRoomPropPayload
+	Sender *Client
 }
 
 func (*MsgRoomProp) msg() {}
+
+func msgRoomProp(sender *Client, payload []byte) (Msg, error) {
+	rpp, err := binary.UnmarshalRoomPropPayload(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &MsgRoomProp{
+		MsgRoomPropPayload: rpp,
+		Sender:             sender,
+	}, nil
+}
 
 // MsgBroadcast : 全員に送る
 type MsgBroadcast struct {
@@ -65,6 +80,13 @@ type MsgBroadcast struct {
 }
 
 func (*MsgBroadcast) msg() {}
+
+func msgBroadcast(sender *Client, payload []byte) (Msg, error) {
+	return &MsgBroadcast{
+		Sender:  sender,
+		Payload: payload,
+	}, nil
+}
 
 // MsgClientError : Client内部エラー（内部で発生）
 type MsgClientError struct {
@@ -77,14 +99,11 @@ func (*MsgClientError) msg() {}
 func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 	switch m.Type() {
 	case binary.MsgTypeLeave:
-		msg = &MsgLeave{cli}
+		return msgLeave(cli)
+	case binary.MsgTypeRoomProp:
+		return msgRoomProp(cli, m.Payload())
 	case binary.MsgTypeBroadcast:
-		msg = &MsgBroadcast{
-			Sender:  cli,
-			Payload: m.Payload(),
-		}
-	default:
-		err = xerrors.Errorf("unknown msg type: %T %v", m, m)
+		return msgBroadcast(cli, m.Payload())
 	}
-	return msg, err
+	return nil, xerrors.Errorf("unknown msg type: %T %v", m, m)
 }
