@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	registerSQL = "" +
+	registerQuery = "" +
 		"INSERT INTO `host` (`hostname`, `public_name`, status) VALUES (:hostname, :public_name, :status) " +
 		"ON DUPLICATE KEY UPDATE `public_name`=:public_name, `status`=:status, id=last_insert_id(id)"
-	heartbeatSQL = "" +
+	heartbeatQuery = "" +
 		"UPDATE `host` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
 
 	HostStatusStarting = 0
@@ -72,7 +72,7 @@ func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
 		"public_name": conf.PublicName,
 		"status":      HostStatusRunning,
 	}
-	res, err := sqlx.NamedExec(db, registerSQL, bind)
+	res, err := sqlx.NamedExec(db, registerQuery, bind)
 	if err != nil {
 		return 0, err
 	}
@@ -110,7 +110,7 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 			}
 
 			bind["now"] = time.Now()
-			if _, err := sqlx.NamedExec(s.db, heartbeatSQL, bind); err != nil {
+			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
 				return
 			}
