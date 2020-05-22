@@ -13,8 +13,8 @@ import (
 
 type Room struct {
 	*pb.RoomInfo
-	Host       string
-	URL        string
+	Host string `json:"host"`
+	URL  string `json:"url"`
 }
 
 type RoomService struct {

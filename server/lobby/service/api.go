@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"net"
@@ -67,31 +68,61 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
 }
 
+func parseRequest(r *http.Request) (map[string]interface{}, error) {
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	r.Body.Close()
+	params := make(map[string]interface{})
+	msgpack.Unmarshal(body, &params)
+	return params, nil
+}
+
+func renderResponse(w http.ResponseWriter, res interface{}) error {
+	var body bytes.Buffer
+	err := msgpack.NewEncoder(&body).UseJSONTag(true).Encode(res)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/x-msgpack")
+	w.Write(body.Bytes())
+	return nil
+}
+
+// 部屋を作成する
+// Method: POST
+// Path: /rooms
+// POST Params: {"max_player": 0, "with_room_number": true}
+// Response: 200 OK
 func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	appID := r.Header.Get("X-App-Id")
 	userID := r.Header.Get("X-User-Id")
 
-	body, err := ioutil.ReadAll(r.Body)
+	log.Infof("handleCreateRoom: appID=%s, userID=%s", appID, userID)
+
+	params, err := parseRequest(r)
 	if err != nil {
 		log.Errorf("Failed to read request body: %w", err)
 		http.Error(w, "Failed to request body", http.StatusInternalServerError)
 		return
 	}
-	r.Body.Close()
+	log.Debugf("params: %v", params)
 
-	params := make(map[string]interface{})
-	msgpack.Unmarshal(body, &params)
-
-	log.Debugf("%v", params)
+	maxPlayers, _ := params["max_player"].(int)
+	withNumber, _ := params["with_room_number"].(bool)
 
 	roomOption := &pb.RoomOption{
-		Visible:   true,
-		Watchable: true,
-		LogLevel:  4,
+		Visible:    true,
+		Watchable:  true,
+		WithNumber: withNumber,
+		MaxPlayers: uint32(maxPlayers),
+		LogLevel:   4,
 	}
 	clientInfo := &pb.ClientInfo{
 		Id: userID,
 	}
+
 	room, err := sv.roomService.Create(appID, roomOption, clientInfo)
 	if err != nil {
 		log.Errorf("Failed to create room: %w", err)
@@ -99,11 +130,11 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	log.Debugf("%#v", room)
-	res, err := msgpack.Marshal(room)
+
+	err = renderResponse(w, room)
 	if err != nil {
 		log.Errorf("Failed to marshal room: %w", err)
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		return
 	}
-	w.Header().Set("Content-Type", "application/x-msgpack; charset=utf-8")
-	w.Write(res)
 }

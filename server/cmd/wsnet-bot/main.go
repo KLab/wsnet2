@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -17,7 +16,7 @@ import (
 )
 
 var (
-	appID = "testapp"
+	appID  = "testapp"
 	userID = "12345"
 )
 
@@ -51,13 +50,8 @@ func main() {
 		log.Fatalf("failed to create room: lobby server returned status %v", res.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		log.Fatal("read body error:", err)
-	}
-
 	room := &lobby.Room{}
-	err = msgpack.Unmarshal(body, &room)
+	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(room)
 	if err != nil {
 		log.Fatal("Unmarshal error:", err)
 	}
