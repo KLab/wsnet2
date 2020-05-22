@@ -1,4 +1,14 @@
 
+DROP TABLE IF EXISTS `host`;
+CREATE TABLE `host` (
+  `id`          INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `hostname`    VARCHAR(255) NOT NULL,
+  `public_name` VARCHAR(255) NOT NULL,
+  `status`      TINYINT NOT NULL,
+  `heartbeat`   TIMESTAMP,
+  UNIQUE KEY `idx_hostname` (`hostname`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 DROP TABLE IF EXISTS `app`;
 CREATE TABLE app (
   `id`   VARCHAR(32) COLLATE ascii_bin PRIMARY KEY,

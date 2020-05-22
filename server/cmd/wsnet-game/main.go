@@ -30,6 +30,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("%+v\n", err))
 	}
+	log.Infof("HostID: %values", service.HostId)
 
 	ctx := context.Background()
 
