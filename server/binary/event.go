@@ -1,6 +1,8 @@
 package binary
 
-import "wsnet2/pb"
+import (
+	"wsnet2/pb"
+)
 
 //go:generate stringer -type=EvType
 type EvType byte
@@ -11,10 +13,31 @@ const (
 	EvTypePong
 )
 const (
+	// EvTypeJoined : クライアントが入室した
+	// payload:
+	//  - str8: client ID
+	//  - Dict: properties
 	EvTypeJoined EvType = regularEvType + iota
+
+	// EvTypeLeave : クライアントが退室した
+	// payload:
+	//  - str8: client ID
 	EvTypeLeave
+
+	// EvTypeRoomProp : 部屋情報の変更
+	// payload:
+	//  - UInt: client deadline
+	//  - Dict: public props
+	//  - Dict: private props
 	EvTypeRoomProp
+
+	// EvTypeClientProp : クライアント情報の変更
+	// payload:
+	//  - Dict: properties
 	EvTypeClientProp
+
+	// EvTypeMessage : その他の通常メッセージ
+	// payload: (any)
 	EvTypeMessage
 )
 
@@ -78,6 +101,10 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 
 func NewEvLeave(cliId string) *Event {
 	return &Event{EvTypeLeave, MarshalStr8(cliId)}
+}
+
+func NewEvRoomProp(cliId string, rpp *MsgRoomPropPayload) *Event {
+	return &Event{EvTypeRoomProp, rpp.EventPayload}
 }
 
 func NewEvMessage(cliId string, body []byte) *Event {
