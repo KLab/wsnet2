@@ -45,6 +45,8 @@ type GameConf struct {
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
+
+	HeartBeatInterval int `toml:"heart_beat_interval"`
 }
 
 type LobbyConf struct {
@@ -60,6 +62,8 @@ func Load(conffile string) (*Config, error) {
 			DefaultMaxPlayers: 10,
 			DefaultDeadline:   5,
 			DefaultLoglevel:   2,
+
+			HeartBeatInterval: 5,
 		},
 		Lobby: LobbyConf{},
 	}

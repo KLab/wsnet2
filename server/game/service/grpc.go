@@ -16,6 +16,7 @@ import (
 func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 	errCh := make(chan error)
 
+	sv.preparation.Add(1)
 	go func() {
 		laddr := sv.conf.GRPCAddr
 		log.Infof("game grpc: %#v", laddr)
@@ -33,6 +34,7 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 		go func() {
 			c <- server.Serve(listenPort)
 		}()
+		sv.preparation.Done()
 		select {
 		case <-ctx.Done():
 			server.Stop()
