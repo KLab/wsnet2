@@ -3,10 +3,13 @@ package lobby
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/grpc"
+	"golang.org/x/xerrors"
 
+	"wsnet2/cachedquery"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -18,9 +21,11 @@ type Room struct {
 }
 
 type RoomService struct {
-	db       *sqlx.DB
-	grpcPort int
-	wsPort   int
+	db             *sqlx.DB
+	grpcPort       int
+	wsPort         int
+	maxRooms       int
+	appQuery       *cachedquery.Query
 }
 
 func NewRoom(info *pb.RoomInfo) *Room {
@@ -29,13 +34,24 @@ func NewRoom(info *pb.RoomInfo) *Room {
 	}
 }
 
-func NewRoomService(db *sqlx.DB, grpcPort, wsPort int) *RoomService {
+func NewRoomService(db *sqlx.DB, grpcPort, wsPort, maxRooms int) *RoomService {
 	rs := &RoomService{
 		db:       db,
 		grpcPort: grpcPort,
 		wsPort:   wsPort,
+		maxRooms: maxRooms,
 	}
+	rs.appQuery = cachedquery.New(db, time.Second*5, scanApp, appQueryString)
 	return rs
+}
+
+func scanRoomCount(rows *sqlx.Rows) (interface{}, error) {
+	if !rows.Next() {
+		panic("failed to fetch room count")
+	}
+	var roomCount int
+	err := rows.Scan(&roomCount)
+	return roomCount, err
 }
 
 func makeRoomURL(host, roomID string, port int) string {
@@ -53,9 +69,20 @@ type gameServer struct {
 }
 
 func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*Room, error) {
-	// TODO: check App
-
-	// TODO: check Max Rooms
+	apps, err := rs.appQuery.Query()
+	if err != nil {
+		return nil, err
+	}
+	appExists := false
+	for _, app := range apps.([]pb.App) {
+		if app.Id == appID {
+			appExists = true
+			break
+		}
+	}
+	if !appExists {
+		return nil, xerrors.Errorf("Unknown appID: %v", appID)
+	}
 
 	// TODO: select game server
 
@@ -68,7 +95,7 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 
 	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
 	if err != nil {
-		log.Errorf("client connection error:", err)
+		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
 	defer conn.Close()
@@ -84,6 +111,7 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 	res, err := client.Create(context.TODO(), req)
 	if err != nil {
 		fmt.Printf("create room error: %v", err)
+		return nil, err
 	}
 
 	// TODO: check response

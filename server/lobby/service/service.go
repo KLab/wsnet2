@@ -33,7 +33,7 @@ func New(db *sqlx.DB, conf *config.Config) (*LobbyService, error) {
 	if err != nil {
 		return nil, err
 	}
-	roomService := lobby.NewRoomService(db, grpcPort, wsPort)
+	roomService := lobby.NewRoomService(db, grpcPort, wsPort, conf.Lobby.MaxRooms)
 	return &LobbyService{
 		conf:        &conf.Lobby,
 		roomService: roomService,

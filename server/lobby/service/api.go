@@ -103,7 +103,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	params, err := parseRequest(r)
 	if err != nil {
-		log.Errorf("Failed to read request body: %w", err)
+		log.Errorf("Failed to read request body: %v", err)
 		http.Error(w, "Failed to request body", http.StatusInternalServerError)
 		return
 	}
@@ -125,7 +125,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	room, err := sv.roomService.Create(appID, roomOption, clientInfo)
 	if err != nil {
-		log.Errorf("Failed to create room: %w", err)
+		log.Errorf("Failed to create room: %v", err)
 		http.Error(w, "Failed to create room", http.StatusInternalServerError)
 		return
 	}
@@ -133,7 +133,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	err = renderResponse(w, room)
 	if err != nil {
-		log.Errorf("Failed to marshal room: %w", err)
+		log.Errorf("Failed to marshal room: %v", err)
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
 		return
 	}
