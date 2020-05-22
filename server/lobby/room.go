@@ -6,12 +6,16 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"google.golang.org/grpc"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc"
 
 	"wsnet2/cachedquery"
 	"wsnet2/log"
 	"wsnet2/pb"
+)
+
+const (
+	roomCountQueryString = "SELECT COUNT(*) FROM `room` INNER JOIN `host` USING (`host_id`)"
 )
 
 type Room struct {
@@ -26,6 +30,7 @@ type RoomService struct {
 	wsPort         int
 	maxRooms       int
 	appQuery       *cachedquery.Query
+	roomCountQuery *cachedquery.Query
 }
 
 func NewRoom(info *pb.RoomInfo) *Room {
@@ -42,7 +47,16 @@ func NewRoomService(db *sqlx.DB, grpcPort, wsPort, maxRooms int) *RoomService {
 		maxRooms: maxRooms,
 	}
 	rs.appQuery = cachedquery.New(db, time.Second*5, scanApp, appQueryString)
+	rs.roomCountQuery = cachedquery.New(db, time.Millisecond, scanRoomCount, roomCountQueryString)
 	return rs
+}
+
+func (rs *RoomService) getTotalRooms() (int, error) {
+	ir, err := rs.roomCountQuery.Query()
+	if err != nil {
+		return 0, err
+	}
+	return ir.(int), nil
 }
 
 func scanRoomCount(rows *sqlx.Rows) (interface{}, error) {
@@ -83,6 +97,16 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 	if !appExists {
 		return nil, xerrors.Errorf("Unknown appID: %v", appID)
 	}
+
+	/* まだhostテーブルが無くて動かない
+	nRooms, err := rs.getTotalRooms()
+	if err != nil {
+		return nil, xerrors.Errorf("failed to fetch room count: %w", err)
+	}
+	if nRooms >= rs.maxRooms {
+		return nil, xerrors.Errorf("maximum number of rooms has been exceeded")
+	}
+	*/
 
 	// TODO: select game server
 
