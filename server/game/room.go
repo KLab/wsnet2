@@ -295,6 +295,8 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 		r.logger.Debugf("Room update PrivateProps: room=%v %v", r.Id, r.privateProps)
 	}
 
+	r.repo.updateRoomInfo(r)
+
 	if deadlineUpdated {
 		r.deadline = time.Duration(msg.ClientDeadline) * time.Second
 		r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, r.deadline)
