@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -26,7 +27,10 @@ type DbConf struct {
 }
 
 type GameConf struct {
+	// Hostname : Lobbyなどからのアクセス名. see GameConf.SetHost()
 	Hostname string
+	// Hostname : クライアントからのアクセス名. see GameConf.SetHost()
+	PublicName string `toml:"public_name"`
 
 	GRPCAddr      string `toml:"grpc_addr"`
 	WebsocketAddr string `toml:"websocket_addr"`
@@ -41,6 +45,8 @@ type GameConf struct {
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
+
+	HeartBeatInterval int `toml:"heart_beat_interval"`
 }
 
 type LobbyConf struct {
@@ -61,6 +67,8 @@ func Load(conffile string) (*Config, error) {
 			DefaultMaxPlayers: 10,
 			DefaultDeadline:   5,
 			DefaultLoglevel:   2,
+
+			HeartBeatInterval: 5,
 		},
 		Lobby: LobbyConf{},
 	}
@@ -74,6 +82,8 @@ func Load(conffile string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	c.Game.SetHost()
 
 	return c, nil
 }
@@ -106,4 +116,34 @@ func (db *DbConf) DSN() string {
 		user = fmt.Sprintf("%s:%s", db.User, db.Password)
 	}
 	return fmt.Sprintf("%s@tcp(%s:%d)/%s", user, db.Host, db.Port, db.DBName)
+}
+
+// SetHost : Hostname/PublicNameを設定する
+// 優先順位
+//  1: Configファイル
+//  2: 環境変数
+//     - WSNET_GAME_HOSTNAME
+//     - WSNET_GAME_PUBLICNAME
+//  3: os.Hostname()
+//  4: "localhost"
+//
+func (game *GameConf) SetHost() {
+	if game.Hostname == "" {
+		if h := os.Getenv("WSNET_GAME_HOSTNAME"); h != "" {
+			game.Hostname = h
+		} else if h, err := os.Hostname(); err == nil {
+			game.Hostname = h
+		} else {
+			game.Hostname = ""
+		}
+	}
+	if game.PublicName == "" {
+		if h := os.Getenv("WSNET_GAME_PUBLICNAME"); h != "" {
+			game.PublicName = h
+		} else if h, err := os.Hostname(); err == nil {
+			game.PublicName = h
+		} else {
+			game.PublicName = ""
+		}
+	}
 }

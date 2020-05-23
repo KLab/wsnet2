@@ -6,7 +6,6 @@ password = "wsnetpass"
 dbname = "wsnet2"
 
 [Game]
-hostname = "localhost"
 grpc_addr = ":19000"
 websocket_addr = ":8000"
 pprof_addr = ":3000"

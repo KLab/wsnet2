@@ -158,7 +158,7 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (max players): %w", e)
 	}
-	rpp.SearchGroup = uint32(d.(int))
+	rpp.MaxPlayer = uint32(d.(int))
 	payload = payload[l:]
 
 	// ここから先はclientに伝える

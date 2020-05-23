@@ -19,6 +19,9 @@ services:
       - db
     build: .
     image: wsnet2-arelo
+    environment:
+      WSNET_GAME_HOSTNAME: wsnet2-game
+      WSNET_GAME_PUBLICNAME: localhost
     volumes:
       - ./:/work
     working_dir: /work

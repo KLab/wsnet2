@@ -77,9 +77,7 @@ type Repository struct {
 	clients map[ClientID]map[RoomID]*Client
 }
 
-func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, error) {
-	hostId := uint32(1) // TODO: ちゃんとした値を取得
-
+func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*Repository, error) {
 	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)
@@ -190,6 +188,16 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	}
 
 	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
+}
+
+func (repo *Repository) updateRoomInfo(room *Room) {
+	// DBへの反映は遅延して良い
+	ri := room.RoomInfo.Clone()
+	go func() {
+		if _, err := repo.db.NamedExec(roomUpdateQuery, ri); err != nil {
+			log.Errorf("Repository updateRoomInfo error: %v", err)
+		}
+	}()
 }
 
 func (repo *Repository) deleteRoom(id RoomID) {
