@@ -2,7 +2,11 @@ package lobby
 
 import (
 	"context"
+	crand "crypto/rand"
 	"fmt"
+	"math"
+	"math/big"
+	"math/rand"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -15,8 +19,13 @@ import (
 )
 
 const (
-	roomCountQueryString = "SELECT COUNT(*) FROM `room` INNER JOIN `host` USING (`host_id`)"
+	roomCountQueryString = "SELECT COUNT(*) FROM room INNER JOIN host ON room.host_id = host.id"
 )
+
+func init() {
+	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
+	rand.Seed(seed.Int64())
+}
 
 type Room struct {
 	*pb.RoomInfo
@@ -26,8 +35,6 @@ type Room struct {
 
 type RoomService struct {
 	db             *sqlx.DB
-	grpcPort       int
-	wsPort         int
 	maxRooms       int
 	appQuery       *cachedquery.Query
 	roomCountQuery *cachedquery.Query
@@ -39,11 +46,9 @@ func NewRoom(info *pb.RoomInfo) *Room {
 	}
 }
 
-func NewRoomService(db *sqlx.DB, grpcPort, wsPort, maxRooms int) *RoomService {
+func NewRoomService(db *sqlx.DB, maxRooms int) *RoomService {
 	rs := &RoomService{
 		db:       db,
-		grpcPort: grpcPort,
-		wsPort:   wsPort,
 		maxRooms: maxRooms,
 	}
 	rs.appQuery = cachedquery.New(db, time.Second*5, scanApp, appQueryString)
@@ -77,9 +82,21 @@ func makeRoomHost(host string, port int) string {
 }
 
 type gameServer struct {
-	id         int
-	hostName   string
-	publicHost string
+	Hostname      string
+	PublicName    string `db:"public_name"`
+	GRPCPort      int    `db:"grpc_port"`
+	WebSocketPort int    `db:"ws_port"`
+}
+
+func (rs *RoomService) getGameServers() ([]gameServer, error) {
+	var gameServers []gameServer
+	// 5秒以内に更新通知がないサーバーは除外する
+	err := rs.db.Select(&gameServers, "SELECT hostname, public_name, grpc_port, ws_port FROM host WHERE status = 1 AND heartbeat > unix_timestamp(now()) - ?", 5)
+	if err != nil {
+		return nil, err
+	}
+	log.Infof("Alive game servers: %+v", gameServers)
+	return gameServers, nil
 }
 
 func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*Room, error) {
@@ -98,7 +115,6 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 		return nil, xerrors.Errorf("Unknown appID: %v", appID)
 	}
 
-	/* まだhostテーブルが無くて動かない
 	nRooms, err := rs.getTotalRooms()
 	if err != nil {
 		return nil, xerrors.Errorf("failed to fetch room count: %w", err)
@@ -106,17 +122,17 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 	if nRooms >= rs.maxRooms {
 		return nil, xerrors.Errorf("maximum number of rooms has been exceeded")
 	}
-	*/
 
-	// TODO: select game server
-
-	gs := &gameServer{
-		id:         1,
-		hostName:   "localhost",
-		publicHost: "localhost",
+	gameServers, err := rs.getGameServers()
+	if err != nil {
+		return nil, xerrors.Errorf("failed to get game servers: %w", err)
 	}
-	grpcAddr := fmt.Sprintf("%s:%d", gs.hostName, rs.grpcPort)
+	if len(gameServers) == 0 {
+		return nil, xerrors.Errorf("no game server")
+	}
+	game := gameServers[rand.Intn(len(gameServers))]
 
+	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
 	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
@@ -145,8 +161,8 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 	room := &Room{
 		RoomInfo: res.RoomInfo,
 	}
-	room.Host = makeRoomHost(gs.publicHost, rs.wsPort)
-	room.URL = makeRoomURL(gs.publicHost, room.RoomInfo.Id, rs.wsPort)
+	room.Host = makeRoomHost(game.PublicName, game.WebSocketPort)
+	room.URL = makeRoomURL(game.PublicName, room.RoomInfo.Id, game.WebSocketPort)
 
 	return room, nil
 }

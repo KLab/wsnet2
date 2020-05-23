@@ -24,18 +24,10 @@ func getPort(addr string) (int, error) {
 	return strconv.Atoi(port)
 }
 
-func New(db *sqlx.DB, conf *config.Config) (*LobbyService, error) {
-	grpcPort, err := getPort(conf.Game.GRPCAddr)
-	if err != nil {
-		return nil, err
-	}
-	wsPort, err := getPort(conf.Game.WebsocketAddr)
-	if err != nil {
-		return nil, err
-	}
-	roomService := lobby.NewRoomService(db, grpcPort, wsPort, conf.Lobby.MaxRooms)
+func New(db *sqlx.DB, conf *config.LobbyConf) (*LobbyService, error) {
+	roomService := lobby.NewRoomService(db, conf.MaxRooms)
 	return &LobbyService{
-		conf:        &conf.Lobby,
+		conf:        conf,
 		roomService: roomService,
 	}, nil
 }
