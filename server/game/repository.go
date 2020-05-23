@@ -77,9 +77,7 @@ type Repository struct {
 	clients map[ClientID]map[RoomID]*Client
 }
 
-func NewRepos(db *sqlx.DB, conf *config.GameConf) (map[pb.AppId]*Repository, error) {
-	hostId := uint32(1) // TODO: ちゃんとした値を取得
-
+func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*Repository, error) {
 	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)

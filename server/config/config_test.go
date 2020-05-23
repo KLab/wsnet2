@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -26,14 +27,18 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("c.Db differs: (-got +want)\n%s", diff)
 	}
 
+	hostname, _ := os.Hostname()
 	game := GameConf{
 		Hostname:   "wsnetgame.localhost",
+		PublicName: hostname,
 		RetryCount: 3,
 		MaxRoomNum: 999999,
 
 		DefaultMaxPlayers: 10,
 		DefaultDeadline:   5,
 		DefaultLoglevel:   2,
+
+		HeartBeatInterval: 10,
 	}
 	if diff := cmp.Diff(c.Game, game); diff != "" {
 		t.Fatalf("c.Db differs: (-got +want)\n%s", diff)

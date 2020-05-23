@@ -37,6 +37,7 @@ type WSHandler struct {
 func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 	errCh := make(chan error)
 
+	sv.preparation.Add(1)
 	go func() {
 		laddr := sv.conf.WebsocketAddr
 		log.Infof("game websocket: %#v", laddr)
@@ -70,6 +71,7 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 			ReadTimeout:  WebsocketRWTimeout,
 			WriteTimeout: WebsocketRWTimeout,
 		}
+		sv.preparation.Done()
 		errCh <- svr.Serve(listener)
 	}()
 

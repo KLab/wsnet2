@@ -15,10 +15,12 @@ func (sv *GameService) servePprof(ctx context.Context) <-chan error {
 
 	errCh := make(chan error)
 
+	sv.preparation.Add(1)
 	go func() {
 		laddr := sv.conf.PprofAddr
 		log.Infof("game pprof: %#v", laddr)
 
+		sv.preparation.Done()
 		errCh <- http.ListenAndServe(laddr, nil)
 	}()
 
