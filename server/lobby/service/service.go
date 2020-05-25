@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/xerrors"
 
 	"wsnet2/config"
 	"wsnet2/lobby"
@@ -15,7 +16,10 @@ type LobbyService struct {
 }
 
 func New(db *sqlx.DB, conf *config.LobbyConf) (*LobbyService, error) {
-	roomService := lobby.NewRoomService(db)
+	roomService, err := lobby.NewRoomService(db)
+	if err != nil {
+		return nil, xerrors.Errorf("NewRoomService failure: %w", err)
+	}
 	return &LobbyService{
 		conf:        conf,
 		roomService: roomService,

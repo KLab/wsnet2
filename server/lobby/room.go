@@ -7,13 +7,11 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"wsnet2/cachedquery"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -30,8 +28,8 @@ type Room struct {
 }
 
 type RoomService struct {
-	db             *sqlx.DB
-	appQuery       *cachedquery.Query
+	db   *sqlx.DB
+	apps []pb.App
 }
 
 func NewRoom(info *pb.RoomInfo) *Room {
@@ -40,12 +38,18 @@ func NewRoom(info *pb.RoomInfo) *Room {
 	}
 }
 
-func NewRoomService(db *sqlx.DB) *RoomService {
-	rs := &RoomService{
-		db:       db,
+func NewRoomService(db *sqlx.DB) (*RoomService, error) {
+	query := "SELECT id, `key` FROM app"
+	var apps []pb.App
+	err := db.Select(&apps, query)
+	if err != nil {
+		return nil, xerrors.Errorf("select apps error: %w", err)
 	}
-	rs.appQuery = cachedquery.New(db, time.Second*5, scanApp, appQueryString)
-	return rs
+	rs := &RoomService{
+		db:   db,
+		apps: apps,
+	}
+	return rs, nil
 }
 
 func makeRoomURL(host, roomID string, port int) string {
@@ -75,12 +79,8 @@ func (rs *RoomService) getGameServers() ([]gameServer, error) {
 }
 
 func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*Room, error) {
-	apps, err := rs.appQuery.Query()
-	if err != nil {
-		return nil, err
-	}
 	appExists := false
-	for _, app := range apps.([]pb.App) {
+	for _, app := range rs.apps {
 		if app.Id == appID {
 			appExists = true
 			break
