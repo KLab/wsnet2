@@ -54,7 +54,6 @@ type LobbyConf struct {
 	Net       string
 	Addr      string
 	PprofAddr string `toml:"pprof_addr"`
-	MaxRooms  int    `toml:"max_rooms"`
 }
 
 func Load(conffile string) (*Config, error) {

@@ -18,10 +18,6 @@ import (
 	"wsnet2/pb"
 )
 
-const (
-	roomCountQueryString = "SELECT COUNT(*) FROM room INNER JOIN host ON room.host_id = host.id"
-)
-
 func init() {
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	rand.Seed(seed.Int64())
@@ -35,9 +31,7 @@ type Room struct {
 
 type RoomService struct {
 	db             *sqlx.DB
-	maxRooms       int
 	appQuery       *cachedquery.Query
-	roomCountQuery *cachedquery.Query
 }
 
 func NewRoom(info *pb.RoomInfo) *Room {
@@ -46,31 +40,12 @@ func NewRoom(info *pb.RoomInfo) *Room {
 	}
 }
 
-func NewRoomService(db *sqlx.DB, maxRooms int) *RoomService {
+func NewRoomService(db *sqlx.DB) *RoomService {
 	rs := &RoomService{
 		db:       db,
-		maxRooms: maxRooms,
 	}
 	rs.appQuery = cachedquery.New(db, time.Second*5, scanApp, appQueryString)
-	rs.roomCountQuery = cachedquery.New(db, time.Millisecond, scanRoomCount, roomCountQueryString)
 	return rs
-}
-
-func (rs *RoomService) getTotalRooms() (int, error) {
-	ir, err := rs.roomCountQuery.Query()
-	if err != nil {
-		return 0, err
-	}
-	return ir.(int), nil
-}
-
-func scanRoomCount(rows *sqlx.Rows) (interface{}, error) {
-	if !rows.Next() {
-		panic("failed to fetch room count")
-	}
-	var roomCount int
-	err := rows.Scan(&roomCount)
-	return roomCount, err
 }
 
 func makeRoomURL(host, roomID string, port int) string {
@@ -113,14 +88,6 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 	}
 	if !appExists {
 		return nil, xerrors.Errorf("Unknown appID: %v", appID)
-	}
-
-	nRooms, err := rs.getTotalRooms()
-	if err != nil {
-		return nil, xerrors.Errorf("failed to fetch room count: %w", err)
-	}
-	if nRooms >= rs.maxRooms {
-		return nil, xerrors.Errorf("maximum number of rooms has been exceeded")
 	}
 
 	gameServers, err := rs.getGameServers()

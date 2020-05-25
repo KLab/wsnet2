@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"net"
-	"strconv"
 
 	"github.com/jmoiron/sqlx"
 
@@ -16,16 +14,8 @@ type LobbyService struct {
 	roomService *lobby.RoomService
 }
 
-func getPort(addr string) (int, error) {
-	_, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return -1, err
-	}
-	return strconv.Atoi(port)
-}
-
 func New(db *sqlx.DB, conf *config.LobbyConf) (*LobbyService, error) {
-	roomService := lobby.NewRoomService(db, conf.MaxRooms)
+	roomService := lobby.NewRoomService(db)
 	return &LobbyService{
 		conf:        conf,
 		roomService: roomService,
