@@ -90,6 +90,11 @@ func renderResponse(w http.ResponseWriter, res interface{}) error {
 	return nil
 }
 
+type CreateParam struct {
+	RoomOption pb.RoomOption
+	ClientInfo pb.ClientInfo
+}
+
 // 部屋を作成する
 // Method: POST
 // Path: /rooms
@@ -101,29 +106,17 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("handleCreateRoom: appID=%s, userID=%s", appID, userID)
 
-	params, err := parseRequest(r)
+	var param CreateParam
+	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
 		log.Errorf("Failed to read request body: %v", err)
 		http.Error(w, "Failed to request body", http.StatusInternalServerError)
 		return
 	}
-	log.Debugf("params: %v", params)
 
-	maxPlayers, _ := params["max_player"].(int)
-	withNumber, _ := params["with_room_number"].(bool)
+	// TODO: 必要に応じて一部のパラメータを上書き？
 
-	roomOption := &pb.RoomOption{
-		Visible:    true,
-		Watchable:  true,
-		WithNumber: withNumber,
-		MaxPlayers: uint32(maxPlayers),
-		LogLevel:   4,
-	}
-	clientInfo := &pb.ClientInfo{
-		Id: userID,
-	}
-
-	room, err := sv.roomService.Create(appID, roomOption, clientInfo)
+	room, err := sv.roomService.Create(appID, &param.RoomOption, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to create room: %v", err)
 		http.Error(w, "Failed to create room", http.StatusInternalServerError)

@@ -13,6 +13,8 @@ import (
 
 	"wsnet2/binary"
 	"wsnet2/lobby"
+	"wsnet2/lobby/service"
+	"wsnet2/pb"
 )
 
 var (
@@ -27,14 +29,24 @@ func main() {
 	}
 	defer conn.Close()
 
-	p := map[string]interface{}{"visible": true, "open": true, "mplayers": 4}
-
-	param, err := msgpack.Marshal(p)
-	if err != nil {
-		panic(err)
+	p := &service.CreateParam{
+		RoomOption: pb.RoomOption{
+			Visible:    true,
+			Watchable:  false,
+			MaxPlayers: 4,
+		},
+		ClientInfo: pb.ClientInfo{
+			Id: userID,
+		},
 	}
 
-	req, err := http.NewRequest("POST", "http://localhost:8080/rooms", bytes.NewReader(param))
+	var param bytes.Buffer
+	err = msgpack.NewEncoder(&param).UseJSONTag(true).Encode(p)
+	if err != nil {
+		log.Fatal("msgpack encode failure:", err)
+	}
+
+	req, err := http.NewRequest("POST", "http://localhost:8080/rooms", &param)
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
 	req.Header.Add("X-App-Id", appID)
