@@ -50,6 +50,10 @@ type GameConf struct {
 }
 
 type LobbyConf struct {
+	Hostname  string
+	Net       string
+	Addr      string
+	PprofAddr string `toml:"pprof_addr"`
 }
 
 func Load(conffile string) (*Config, error) {

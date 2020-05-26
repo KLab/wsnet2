@@ -12,7 +12,8 @@ require (
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/jmoiron/sqlx v1.2.0
-	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+	github.com/vmihailenco/msgpack/v4 v4.3.11
 	golang.org/x/tools v0.0.0-20190524140312-2c0ae7006135
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/grpc v1.28.0
 )
