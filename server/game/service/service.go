@@ -16,10 +16,10 @@ import (
 
 const (
 	registerQuery = "" +
-		"INSERT INTO `host` (`hostname`, `public_name`, `grpc_port`, `ws_port`, `status`) VALUES (:hostname, :public_name, :grpc_port, :ws_port, :status) " +
+		"INSERT INTO `game_server` (`hostname`, `public_name`, `grpc_port`, `ws_port`, `status`) VALUES (:hostname, :public_name, :grpc_port, :ws_port, :status) " +
 		"ON DUPLICATE KEY UPDATE `public_name`=:public_name, `grpc_port`=:grpc_port, `ws_port`=:ws_port, `status`=:status, id=last_insert_id(id)"
 	heartbeatQuery = "" +
-		"UPDATE `host` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
+		"UPDATE `game_server` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
 
 	HostStatusStarting = 0
 	HostStatusRunning  = 1
@@ -121,7 +121,7 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 			case <-t.C:
 			}
 
-			bind["now"] = time.Now()
+			bind["now"] = time.Now().Unix()
 			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
 				return

@@ -46,7 +46,7 @@ type GameConf struct {
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
 
-	HeartBeatInterval int `toml:"heart_beat_interval"`
+	HeartBeatInterval int `toml:"heartbeat_interval"`
 }
 
 type LobbyConf struct {
@@ -67,7 +67,7 @@ func Load(conffile string) (*Config, error) {
 			DefaultDeadline:   5,
 			DefaultLoglevel:   2,
 
-			HeartBeatInterval: 5,
+			HeartBeatInterval: 2,
 		},
 		Lobby: LobbyConf{},
 	}
@@ -114,7 +114,7 @@ func (db *DbConf) DSN() string {
 	if db.Password != "" {
 		user = fmt.Sprintf("%s:%s", db.User, db.Password)
 	}
-	return fmt.Sprintf("%s@tcp(%s:%d)/%s", user, db.Host, db.Port, db.DBName)
+	return fmt.Sprintf("%s@tcp(%s:%d)/%s?parseTime=true", user, db.Host, db.Port, db.DBName)
 }
 
 // SetHost : Hostname/PublicNameを設定する

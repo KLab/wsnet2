@@ -1,13 +1,13 @@
 
-DROP TABLE IF EXISTS `host`;
-CREATE TABLE `host` (
+DROP TABLE IF EXISTS `game_server`;
+CREATE TABLE `game_server` (
   `id`          INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
   `hostname`    VARCHAR(255) NOT NULL,
   `public_name` VARCHAR(255) NOT NULL,
   `grpc_port`   INTEGER NOT NULL,
   `ws_port`     INTEGER NOT NULL,
   `status`      TINYINT NOT NULL,
-  `heartbeat`   TIMESTAMP,
+  `heartbeat`   BIGINT,
   UNIQUE KEY `idx_hostname` (`hostname`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -30,6 +30,6 @@ CREATE TABLE room (
   `search_group` INTEGER UNSIGNED NOT NULL,
   `max_players` INTEGER UNSIGNED NOT NULL,
   `props` BLOB,
-  `created` TIMESTAMP,
+  `created` DATETIME,
   KEY `idx_search_group` (`app_id`, `search_group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

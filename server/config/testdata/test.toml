@@ -7,4 +7,4 @@ dbname = "wsnet2"
 [Game]
 hostname = "wsnetgame.localhost"
 retry_count = 3
-heart_beat_interval = 10
+heartbeat_interval = 10
