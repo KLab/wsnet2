@@ -56,6 +56,9 @@ type LobbyConf struct {
 	Net       string
 	Addr      string
 	PprofAddr string `toml:"pprof_addr"`
+
+	// ValidHeartBeat : HeartBeatの有効期間
+	ValidHeartBeat int64 `toml:"valid_heartbeat"`
 }
 
 func Load(conffile string) (*Config, error) {
@@ -71,7 +74,9 @@ func Load(conffile string) (*Config, error) {
 
 			HeartBeatInterval: 2,
 		},
-		Lobby: LobbyConf{},
+		Lobby: LobbyConf{
+			ValidHeartBeat: 5,
+		},
 	}
 
 	_, err := toml.DecodeFile(conffile, c)

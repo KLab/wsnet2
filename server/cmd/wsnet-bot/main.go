@@ -62,7 +62,7 @@ func main() {
 		log.Fatalf("failed to create room: lobby server returned status %v", res.StatusCode)
 	}
 
-	room := &lobby.Room{}
+	room := &lobby.JoinedResponse{}
 	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(room)
 	if err != nil {
 		log.Fatal("Unmarshal error:", err)
