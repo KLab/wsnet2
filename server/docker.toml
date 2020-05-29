@@ -18,4 +18,3 @@ hostname = "localhost"
 net = "tcp"
 addr = ":8080"
 pprof_addr = ":3001"
-max_rooms = 100

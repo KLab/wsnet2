@@ -42,6 +42,8 @@ type GameConf struct {
 	RetryCount int `toml:"retry_count"`
 	MaxRoomNum int `toml:"max_room_num"`
 
+	// TODO: MaxRooms 最大部屋数
+
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
