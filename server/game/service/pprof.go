@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func (sv *GameService) servePprof(ctx context.Context) <-chan error {
-	if sv.conf.PprofAddr == "" {
+	if sv.conf.PprofPort == 0 {
 		return nil
 	}
 
@@ -17,7 +18,7 @@ func (sv *GameService) servePprof(ctx context.Context) <-chan error {
 
 	sv.preparation.Add(1)
 	go func() {
-		laddr := sv.conf.PprofAddr
+		laddr := fmt.Sprintf(":%d", sv.conf.PprofPort)
 		log.Infof("game pprof: %#v", laddr)
 
 		sv.preparation.Done()

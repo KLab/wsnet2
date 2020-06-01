@@ -32,9 +32,9 @@ type GameConf struct {
 	// Hostname : クライアントからのアクセス名. see GameConf.SetHost()
 	PublicName string `toml:"public_name"`
 
-	GRPCAddr      string `toml:"grpc_addr"`
-	WebsocketPort int    `toml:"websocket_port"`
-	PprofAddr     string `toml:"pprof_addr"`
+	GRPCPort      int `toml:"grpc_port"`
+	WebsocketPort int `toml:"websocket_port"`
+	PprofPort     int `toml:"pprof_port"`
 
 	TLSCert string `toml:"tls_cert"`
 	TLSKey  string `toml:"tls_key"`
@@ -54,8 +54,8 @@ type GameConf struct {
 type LobbyConf struct {
 	Hostname  string
 	Net       string
-	Addr      string
-	PprofAddr string `toml:"pprof_addr"`
+	Port      int
+	PprofPort int `toml:"pprof_port"`
 
 	// ValidHeartBeat : HeartBeatの有効期間
 	ValidHeartBeat int64 `toml:"valid_heartbeat"`

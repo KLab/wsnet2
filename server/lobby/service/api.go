@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -21,7 +22,7 @@ func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 
 	go func() {
 		network := sv.conf.Net
-		laddr := sv.conf.Addr
+		laddr := fmt.Sprintf(":%d", sv.conf.Port)
 		log.Infof("lobby api: %#v %#v", network, laddr)
 
 		listener, err := net.Listen(network, laddr)

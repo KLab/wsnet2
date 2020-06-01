@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"net"
 	"sync"
 	"time"
 
@@ -70,15 +69,10 @@ func (s *GameService) Serve(ctx context.Context) error {
 }
 
 func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
-	_, grpcPort, err := net.SplitHostPort(conf.GRPCAddr)
-	if err != nil {
-		return 0, err
-	}
-
 	bind := map[string]interface{}{
 		"hostname":    conf.Hostname,
 		"public_name": conf.PublicName,
-		"grpc_port":   grpcPort,
+		"grpc_port":   conf.GRPCPort,
 		"ws_port":     conf.WebsocketPort,
 		"status":      HostStatusRunning,
 	}

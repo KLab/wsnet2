@@ -19,7 +19,7 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 
 	sv.preparation.Add(1)
 	go func() {
-		laddr := sv.conf.GRPCAddr
+		laddr := fmt.Sprintf(":%d", sv.conf.GRPCPort)
 		log.Infof("game grpc: %#v", laddr)
 
 		listenPort, err := net.Listen("tcp", laddr)
