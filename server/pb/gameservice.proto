@@ -7,7 +7,7 @@ import "roominfo.proto";
 import "roomoption.proto";
 
 service Game {
-	rpc Create (CreateRoomReq) returns (CreateRoomRes);
+	rpc Create (CreateRoomReq) returns (JoinedRoomRes);
 }
 
 message CreateRoomReq {
@@ -16,7 +16,8 @@ message CreateRoomReq {
 	ClientInfo master_info = 3;
 }
 
-message CreateRoomRes {
+message JoinedRoomRes {
 	RoomInfo room_info = 1;
-	ClientInfo master_info = 2;
+	repeated ClientInfo players = 2;
+	string url = 3;
 }

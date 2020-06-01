@@ -7,7 +7,7 @@ dbname = "wsnet2"
 
 [Game]
 grpc_addr = ":19000"
-websocket_addr = ":8000"
+websocket_port = 8000
 pprof_addr = ":3000"
 
 default_deadline = 5

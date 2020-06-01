@@ -23,21 +23,6 @@ func init() {
 	rand.Seed(seed.Int64())
 }
 
-type JoinedResponse struct {
-	Room    *pb.RoomInfo
-	Players []*pb.ClientInfo
-	URL     string
-}
-
-func NewJoinedResponse(game *gameServer, room *pb.RoomInfo, players []*pb.ClientInfo) *JoinedResponse {
-	url := fmt.Sprintf("ws://%s:%d/room/%s", game.PublicName, game.WebSocketPort, room.Id)
-	return &JoinedResponse{
-		Room:    room,
-		Players: players,
-		URL:     url,
-	}
-}
-
 type RoomService struct {
 	db   *sqlx.DB
 	conf *config.LobbyConf
@@ -82,7 +67,7 @@ func (rs *RoomService) getGameServers() ([]gameServer, error) {
 	return gameServers, nil
 }
 
-func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*JoinedResponse, error) {
+func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	appExists := false
 	for _, app := range rs.apps {
 		if app.Id == appID {
@@ -124,5 +109,5 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 
 	log.Infof("Created room: %v", res.RoomInfo)
 
-	return NewJoinedResponse(&game, res.RoomInfo, []*pb.ClientInfo{res.MasterInfo}), nil
+	return res, nil
 }

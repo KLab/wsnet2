@@ -33,7 +33,7 @@ type GameConf struct {
 	PublicName string `toml:"public_name"`
 
 	GRPCAddr      string `toml:"grpc_addr"`
-	WebsocketAddr string `toml:"websocket_addr"`
+	WebsocketPort int    `toml:"websocket_port"`
 	PprofAddr     string `toml:"pprof_addr"`
 
 	TLSCert string `toml:"tls_cert"`

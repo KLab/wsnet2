@@ -33,6 +33,8 @@ type GameService struct {
 
 	db          *sqlx.DB
 	preparation sync.WaitGroup
+
+	wsURLFormat string
 }
 
 func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
@@ -72,16 +74,12 @@ func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	_, wsPort, err := net.SplitHostPort(conf.WebsocketAddr)
-	if err != nil {
-		return 0, err
-	}
 
 	bind := map[string]interface{}{
 		"hostname":    conf.Hostname,
 		"public_name": conf.PublicName,
 		"grpc_port":   grpcPort,
-		"ws_port":     wsPort,
+		"ws_port":     conf.WebsocketPort,
 		"status":      HostStatusRunning,
 	}
 	res, err := sqlx.NamedExec(db, registerQuery, bind)
