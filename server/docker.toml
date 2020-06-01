@@ -17,4 +17,4 @@ default_loglevel = 4
 hostname = "localhost"
 net = "tcp"
 port = 8080
-pprof_addr = 3001
+pprof_port = 3001
