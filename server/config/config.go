@@ -27,9 +27,9 @@ type DbConf struct {
 }
 
 type GameConf struct {
-	// Hostname : Lobbyなどからのアクセス名. see GameConf.SetHost()
+	// Hostname : Lobbyなどからのアクセス名. see GameConf.setHost()
 	Hostname string
-	// Hostname : クライアントからのアクセス名. see GameConf.SetHost()
+	// Hostname : クライアントからのアクセス名. see GameConf.setHost()
 	PublicName string `toml:"public_name"`
 
 	GRPCAddr      string `toml:"grpc_addr"`
@@ -82,7 +82,7 @@ func Load(conffile string) (*Config, error) {
 		return nil, err
 	}
 
-	c.Game.SetHost()
+	c.Game.setHost()
 
 	return c, nil
 }
@@ -117,7 +117,7 @@ func (db *DbConf) DSN() string {
 	return fmt.Sprintf("%s@tcp(%s:%d)/%s", user, db.Host, db.Port, db.DBName)
 }
 
-// SetHost : Hostname/PublicNameを設定する
+// setHost : Hostname/PublicNameを設定する
 // 優先順位
 //  1: Configファイル
 //  2: 環境変数
@@ -126,7 +126,7 @@ func (db *DbConf) DSN() string {
 //  3: os.Hostname()
 //  4: "localhost"
 //
-func (game *GameConf) SetHost() {
+func (game *GameConf) setHost() {
 	if game.Hostname == "" {
 		if h := os.Getenv("WSNET_GAME_HOSTNAME"); h != "" {
 			game.Hostname = h
