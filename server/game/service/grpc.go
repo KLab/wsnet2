@@ -61,7 +61,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, players, master, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	room, players, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
@@ -73,7 +73,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		Players:  players,
 	}
 
-	log.Infof("New room: room=%v, master=%v", room.Id, master.Id)
+	log.Infof("New room: room=%v, master=%v", room.Id, in.MasterInfo.Id)
 
 	return res, nil
 }
@@ -101,8 +101,7 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	// とりあえず RoomId を前提に
-	room, players, client, err := repo.JoinRoom(ctx, in.ClientInfo, in.GetRoomId())
+	room, players, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
@@ -114,7 +113,7 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		Players: players,
 	}
 
-	log.Infof("Join room: room=%v, client=%v", room.Id, client.Id)
+	log.Infof("Join room: room=%v, client=%v", room.Id, in.ClientInfo.Id)
 
 	return res, nil
 }
