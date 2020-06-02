@@ -54,7 +54,7 @@ func TestDbConf_DSN(t *testing.T) {
 		User:     "wsnetuser",
 		Password: "wsnetpass",
 	}
-	want := "wsnetuser:wsnetpass@tcp(localhost:3306)/wsnet2"
+	want := "wsnetuser:wsnetpass@tcp(localhost:3306)/wsnet2?parseTime=true"
 	if dsn := db.DSN(); dsn != want {
 		t.Fatalf("DSN = %s, wants %s", dsn, want)
 	}

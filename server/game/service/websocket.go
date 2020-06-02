@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -39,7 +40,7 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 
 	sv.preparation.Add(1)
 	go func() {
-		laddr := sv.conf.WebsocketAddr
+		laddr := fmt.Sprintf(":%d", sv.conf.WebsocketPort)
 		log.Infof("game websocket: %#v", laddr)
 
 		lc := net.ListenConfig{}
@@ -49,7 +50,9 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 			return
 		}
 
+		scheme := "ws"
 		if cert, key := sv.conf.TLSCert, sv.conf.TLSKey; cert != "" {
+			scheme = "wss"
 			log.Infof("loading tls key: %#v", cert)
 			cert, err := tls.LoadX509KeyPair(cert, key)
 			if err != nil {
@@ -65,6 +68,9 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 		ws := &WSHandler{sv}
 		r := mux.NewRouter()
 		r.HandleFunc("/room/{id:[0-9a-f]+}", ws.HandleRoom).Methods("GET")
+
+		sv.wsURLFormat = fmt.Sprintf("%s://%s:%d/room/%%s",
+			scheme, sv.conf.PublicName, sv.conf.WebsocketPort)
 
 		svr := &http.Server{
 			Handler:      r,

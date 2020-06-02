@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"golang.org/x/xerrors"
@@ -18,7 +19,7 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 
 	sv.preparation.Add(1)
 	go func() {
-		laddr := sv.conf.GRPCAddr
+		laddr := fmt.Sprintf(":%d", sv.conf.GRPCPort)
 		log.Infof("game grpc: %#v", laddr)
 
 		listenPort, err := net.Listen("tcp", laddr)
@@ -48,7 +49,7 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 	return errCh
 }
 
-func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.CreateRoomRes, error) {
+func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.JoinedRoomRes, error) {
 	log.Infof("Create request: %v, master=%v", in.AppId, in.MasterInfo.Id)
 	sv.fillRoomOption(in.RoomOption)
 	log.Debugf("option: %v", in.RoomOption)
@@ -66,9 +67,10 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Cr
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
 	}
 
-	res := &pb.CreateRoomRes{
-		RoomInfo:   room,
-		MasterInfo: master,
+	res := &pb.JoinedRoomRes{
+		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
+		RoomInfo: room,
+		Players:  []*pb.ClientInfo{master},
 	}
 
 	log.Infof("New room: room=%v, master=%v", room.Id, master.Id)

@@ -12,7 +12,6 @@ import (
 	"github.com/vmihailenco/msgpack/v4"
 
 	"wsnet2/binary"
-	"wsnet2/lobby"
 	"wsnet2/lobby/service"
 	"wsnet2/pb"
 )
@@ -62,12 +61,12 @@ func main() {
 		log.Fatalf("failed to create room: lobby server returned status %v", res.StatusCode)
 	}
 
-	room := &lobby.Room{}
+	room := &pb.JoinedRoomRes{}
 	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(room)
 	if err != nil {
 		log.Fatal("Unmarshal error:", err)
 	}
-	fmt.Println("url:", room.URL)
+	fmt.Println("url:", room.Url)
 
 	hdr := http.Header{}
 	hdr.Add("X-Wsnet-App", appID)
@@ -79,7 +78,7 @@ func main() {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	ws, res2, err := d.Dial(room.URL, hdr)
+	ws, res2, err := d.Dial(room.Url, hdr)
 	if err != nil {
 		fmt.Printf("dial error: %v, %v\n", res2, err)
 		return
@@ -111,7 +110,7 @@ func main() {
 
 	fmt.Println("reconnect test")
 	hdr.Set("X-Wsnet-LastEventSeq", "2")
-	ws, res2, err = d.Dial(room.URL, hdr)
+	ws, res2, err = d.Dial(room.Url, hdr)
 	if err != nil {
 		fmt.Printf("dial error: %v, %v\n", res2, err)
 		return
@@ -140,7 +139,7 @@ func main() {
 	time.Sleep(3 * time.Second)
 	fmt.Println("reconnect test after leave")
 	hdr.Set("X-Wsnet-LastEventSeq", "4")
-	ws, res2, err = d.Dial(room.URL, hdr)
+	ws, res2, err = d.Dial(room.Url, hdr)
 	if err != nil {
 		fmt.Printf("dial error: %v, %v\n", res2, err)
 		return

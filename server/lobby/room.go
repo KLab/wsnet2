@@ -7,11 +7,13 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
+	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -21,24 +23,13 @@ func init() {
 	rand.Seed(seed.Int64())
 }
 
-type Room struct {
-	*pb.RoomInfo
-	Host string `json:"host"`
-	URL  string `json:"url"`
-}
-
 type RoomService struct {
 	db   *sqlx.DB
+	conf *config.LobbyConf
 	apps []pb.App
 }
 
-func NewRoom(info *pb.RoomInfo) *Room {
-	return &Room{
-		RoomInfo: info,
-	}
-}
-
-func NewRoomService(db *sqlx.DB) (*RoomService, error) {
+func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)
@@ -47,17 +38,10 @@ func NewRoomService(db *sqlx.DB) (*RoomService, error) {
 	}
 	rs := &RoomService{
 		db:   db,
+		conf: conf,
 		apps: apps,
 	}
 	return rs, nil
-}
-
-func makeRoomURL(host, roomID string, port int) string {
-	return fmt.Sprintf("ws://%s:%d/room/%s", host, port, roomID)
-}
-
-func makeRoomHost(host string, port int) string {
-	return fmt.Sprintf("%s:%d", host, port)
 }
 
 type gameServer struct {
@@ -68,17 +52,22 @@ type gameServer struct {
 }
 
 func (rs *RoomService) getGameServers() ([]gameServer, error) {
+	query := "SELECT hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
+	lastbeat := time.Now().Unix() - rs.conf.ValidHeartBeat
+
 	var gameServers []gameServer
-	// 5秒以内に更新通知がないサーバーは除外する
-	err := rs.db.Select(&gameServers, "SELECT hostname, public_name, grpc_port, ws_port FROM host WHERE status = 1 AND heartbeat > unix_timestamp(now()) - ?", 5)
+	err := rs.db.Select(&gameServers, query, lastbeat)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("getGameServers: %w", err)
 	}
-	log.Infof("Alive game servers: %+v", gameServers)
+	if len(gameServers) == 0 {
+		return nil, xerrors.New("getGameServers: No game server available")
+	}
+	log.Debugf("Alive game servers: %+v", gameServers)
 	return gameServers, nil
 }
 
-func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*Room, error) {
+func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	appExists := false
 	for _, app := range rs.apps {
 		if app.Id == appID {
@@ -92,10 +81,7 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 
 	gameServers, err := rs.getGameServers()
 	if err != nil {
-		return nil, xerrors.Errorf("failed to get game servers: %w", err)
-	}
-	if len(gameServers) == 0 {
-		return nil, xerrors.Errorf("no game server")
+		return nil, xerrors.Errorf("Create: failed to get game servers: %w", err)
 	}
 	game := gameServers[rand.Intn(len(gameServers))]
 
@@ -121,15 +107,7 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 		return nil, err
 	}
 
-	// TODO: check response
-
 	log.Infof("Created room: %v", res.RoomInfo)
 
-	room := &Room{
-		RoomInfo: res.RoomInfo,
-	}
-	room.Host = makeRoomHost(game.PublicName, game.WebSocketPort)
-	room.URL = makeRoomURL(game.PublicName, room.RoomInfo.Id, game.WebSocketPort)
-
-	return room, nil
+	return res, nil
 }

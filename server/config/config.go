@@ -32,9 +32,9 @@ type GameConf struct {
 	// Hostname : クライアントからのアクセス名. see GameConf.setHost()
 	PublicName string `toml:"public_name"`
 
-	GRPCAddr      string `toml:"grpc_addr"`
-	WebsocketAddr string `toml:"websocket_addr"`
-	PprofAddr     string `toml:"pprof_addr"`
+	GRPCPort      int `toml:"grpc_port"`
+	WebsocketPort int `toml:"websocket_port"`
+	PprofPort     int `toml:"pprof_port"`
 
 	TLSCert string `toml:"tls_cert"`
 	TLSKey  string `toml:"tls_key"`
@@ -42,18 +42,23 @@ type GameConf struct {
 	RetryCount int `toml:"retry_count"`
 	MaxRoomNum int `toml:"max_room_num"`
 
+	// TODO: MaxRooms 最大部屋数
+
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
 
-	HeartBeatInterval int `toml:"heart_beat_interval"`
+	HeartBeatInterval int `toml:"heartbeat_interval"`
 }
 
 type LobbyConf struct {
 	Hostname  string
 	Net       string
-	Addr      string
-	PprofAddr string `toml:"pprof_addr"`
+	Port      int
+	PprofPort int `toml:"pprof_port"`
+
+	// ValidHeartBeat : HeartBeatの有効期間
+	ValidHeartBeat int64 `toml:"valid_heartbeat"`
 }
 
 func Load(conffile string) (*Config, error) {
@@ -67,9 +72,11 @@ func Load(conffile string) (*Config, error) {
 			DefaultDeadline:   5,
 			DefaultLoglevel:   2,
 
-			HeartBeatInterval: 5,
+			HeartBeatInterval: 2,
 		},
-		Lobby: LobbyConf{},
+		Lobby: LobbyConf{
+			ValidHeartBeat: 5,
+		},
 	}
 
 	_, err := toml.DecodeFile(conffile, c)
@@ -114,7 +121,7 @@ func (db *DbConf) DSN() string {
 	if db.Password != "" {
 		user = fmt.Sprintf("%s:%s", db.User, db.Password)
 	}
-	return fmt.Sprintf("%s@tcp(%s:%d)/%s", user, db.Host, db.Port, db.DBName)
+	return fmt.Sprintf("%s@tcp(%s:%d)/%s?parseTime=true", user, db.Host, db.Port, db.DBName)
 }
 
 // setHost : Hostname/PublicNameを設定する

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"net"
 	"sync"
 	"time"
 
@@ -16,10 +15,10 @@ import (
 
 const (
 	registerQuery = "" +
-		"INSERT INTO `host` (`hostname`, `public_name`, `grpc_port`, `ws_port`, `status`) VALUES (:hostname, :public_name, :grpc_port, :ws_port, :status) " +
+		"INSERT INTO `game_server` (`hostname`, `public_name`, `grpc_port`, `ws_port`, `status`) VALUES (:hostname, :public_name, :grpc_port, :ws_port, :status) " +
 		"ON DUPLICATE KEY UPDATE `public_name`=:public_name, `grpc_port`=:grpc_port, `ws_port`=:ws_port, `status`=:status, id=last_insert_id(id)"
 	heartbeatQuery = "" +
-		"UPDATE `host` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
+		"UPDATE `game_server` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
 
 	HostStatusStarting = 0
 	HostStatusRunning  = 1
@@ -33,6 +32,8 @@ type GameService struct {
 
 	db          *sqlx.DB
 	preparation sync.WaitGroup
+
+	wsURLFormat string
 }
 
 func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
@@ -68,20 +69,11 @@ func (s *GameService) Serve(ctx context.Context) error {
 }
 
 func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
-	_, grpcPort, err := net.SplitHostPort(conf.GRPCAddr)
-	if err != nil {
-		return 0, err
-	}
-	_, wsPort, err := net.SplitHostPort(conf.WebsocketAddr)
-	if err != nil {
-		return 0, err
-	}
-
 	bind := map[string]interface{}{
 		"hostname":    conf.Hostname,
 		"public_name": conf.PublicName,
-		"grpc_port":   grpcPort,
-		"ws_port":     wsPort,
+		"grpc_port":   conf.GRPCPort,
+		"ws_port":     conf.WebsocketPort,
 		"status":      HostStatusRunning,
 	}
 	res, err := sqlx.NamedExec(db, registerQuery, bind)
@@ -121,7 +113,7 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 			case <-t.C:
 			}
 
-			bind["now"] = time.Now()
+			bind["now"] = time.Now().Unix()
 			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
 				return
