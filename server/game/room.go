@@ -326,3 +326,13 @@ func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.Err)
 	return nil
 }
+
+func (r *Room) getClient(id ClientID) (*Client, error) {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+	cli, ok := r.clients[id]
+	if !ok {
+		return nil, xerrors.Errorf("client not found: client=%v", id)
+	}
+	return cli, nil
+}

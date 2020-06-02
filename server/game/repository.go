@@ -153,6 +153,40 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	return joined.Room, joined.Players, joined.Client, nil
 }
 
+func (repo *Repository) JoinRoom(ctx context.Context, client *pb.ClientInfo, roomId string) (*pb.RoomInfo, []*pb.ClientInfo, *Client, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
+	room, err := repo.GetRoom(roomId)
+	if err != nil {
+		return nil, nil, nil, xerrors.Errorf("JoinRoom: %w", err)
+	}
+	ch := make(chan JoinedInfo)
+	room.msgCh <- &MsgJoin{client, ch}
+
+	var joined JoinedInfo
+	select {
+	case j, ok := <-ch:
+		if !ok {
+			return nil, nil, nil, xerrors.Errorf("JoinRoom joind chan closed: room=%v", room.ID())
+		}
+		joined = j
+	case <-ctx.Done():
+		return nil, nil, nil, xerrors.Errorf("JoinRoom timeout or context done: room=%v", room.ID())
+	}
+
+	cli := joined.Client
+
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	if _, ok := repo.clients[cli.ID()]; !ok {
+		repo.clients[cli.ID()] = make(map[RoomID]*Client)
+	}
+	repo.clients[cli.ID()][room.ID()] = cli
+
+	return joined.Room, joined.Players, joined.Client, nil
+}
+
 func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
 	ri := &pb.RoomInfo{
 		AppId:          repo.app.Id,
@@ -232,6 +266,16 @@ func (repo *Repository) RemoveClient(cli *Client) {
 		}
 	}
 	log.Debugf("client removed from repository: room=%v, client=%v", rid, cid)
+}
+
+func (repo *Repository) GetRoom(roomId string) (*Room, error) {
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+	room, ok := repo.rooms[RoomID(roomId)]
+	if !ok {
+		return nil, xerrors.Errorf("room not found: room=%v", roomId)
+	}
+	return room, nil
 }
 
 func (repo *Repository) GetClient(roomId, userId string) (*Client, error) {

@@ -89,3 +89,32 @@ func (sv *GameService) fillRoomOption(op *pb.RoomOption) {
 		op.LogLevel = sv.conf.DefaultLoglevel
 	}
 }
+
+func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
+	log.Infof("Join request: %v, client=%v", in.AppId, in.ClientInfo.Id)
+        log.Debugf("client: %v", in.ClientInfo)
+        log.Debugf("key: %v", in.Key)
+
+	repo, ok := sv.repos[in.AppId]
+	if !ok {
+		log.Infof("invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
+	}
+
+	// とりあえず RoomId を前提に
+	room, players, client, err := repo.JoinRoom(ctx, in.ClientInfo, in.GetRoomId())
+	if err != nil {
+		log.Infof("create room error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
+	}
+
+	res := &pb.JoinedRoomRes{
+		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
+		RoomInfo: room,
+		Players: players,
+	}
+
+	log.Infof("Join room: room=%v, client=%v", room.Id, client.Id)
+
+	return res, nil
+}
