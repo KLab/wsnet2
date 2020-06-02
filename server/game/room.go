@@ -198,10 +198,8 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
+// muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.Event) {
-	r.muClients.RLock()
-	defer r.muClients.RUnlock()
-
 	for _, c := range r.clients {
 		if err := c.Send(ev); err != nil {
 			// removeClient locks muClients so that must be called another goroutine.
@@ -219,8 +217,8 @@ func (r *Room) notifyDeadline(deadline time.Duration) {
 }
 
 func (r *Room) msgCreate(msg *MsgCreate) error {
-	//r.muClients.Lock()
-	//defer r.muClients.Unlock()
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 
 	r.wgClient.Add(1)
 	master := NewClient(msg.Info, r)
@@ -311,11 +309,15 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 		r.notifyDeadline(r.deadline)
 	}
 
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
 
 func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Payload))
 	return nil
 }
