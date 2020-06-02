@@ -92,8 +92,8 @@ func (sv *GameService) fillRoomOption(op *pb.RoomOption) {
 
 func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
 	log.Infof("Join request: %v, client=%v", in.AppId, in.ClientInfo.Id)
+        log.Debugf("room: %v", in.RoomId)
         log.Debugf("client: %v", in.ClientInfo)
-        log.Debugf("key: %v", in.Key)
 
 	repo, ok := sv.repos[in.AppId]
 	if !ok {

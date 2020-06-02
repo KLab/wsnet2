@@ -19,11 +19,8 @@ message CreateRoomReq {
 
 message JoinRoomReq {
 	string app_id = 1;
-	ClientInfo client_info = 2;
-	oneof key {
-		string room_id = 3;
-		int32 room_number = 4;
-	}
+	string room_id = 2;
+	ClientInfo client_info = 3;
 }
 
 message JoinedRoomRes {
