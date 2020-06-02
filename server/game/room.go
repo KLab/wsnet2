@@ -60,15 +60,15 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, *Client, <-chan JoinedInfo, error) {
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 	}
 	info.PublicProps = iProps
 	privProps, iProps, err := initProps(info.PrivateProps)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+		return nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
 	}
 	info.PrivateProps = iProps
 
@@ -89,20 +89,14 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		logger: log.Get(loglevel),
 	}
 
-	r.wgClient.Add(1)
-	master := NewClient(masterInfo, r)
-	r.master = master
-	r.clients[ClientID(master.Id)] = master
-	r.order = append(r.order, master.ID())
-
 	go r.MsgLoop()
 
 	ch := make(chan JoinedInfo)
-	r.msgCh <- &MsgCreate{ch}
+	r.msgCh <- &MsgCreate{masterInfo, ch}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
 
-	return r, master, ch, nil
+	return r, ch, nil
 }
 
 func (r *Room) ID() RoomID {
@@ -225,9 +219,19 @@ func (r *Room) notifyDeadline(deadline time.Duration) {
 }
 
 func (r *Room) msgCreate(msg *MsgCreate) error {
+	//r.muClients.Lock()
+	//defer r.muClients.Unlock()
+
+	r.wgClient.Add(1)
+	master := NewClient(msg.Info, r)
+	r.master = master
+	r.clients[ClientID(master.Id)] = master
+	r.order = append(r.order, master.ID())
+
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
-	msg.Joined <- JoinedInfo{rinfo, cinfo}
+	players := []*pb.ClientInfo{cinfo}
+	msg.Joined <- JoinedInfo{rinfo, players, master}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }
@@ -242,12 +246,16 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 
 	r.wgClient.Add(1)
-	c := NewClient(msg.Info, r)
-	r.clients[ClientID(c.Id)] = c
+	client := NewClient(msg.Info, r)
+	r.clients[ClientID(client.Id)] = client
 
 	rinfo := r.RoomInfo.Clone()
-	cinfo := c.ClientInfo.Clone()
-	msg.Joined <- JoinedInfo{rinfo, cinfo}
+	cinfo := client.ClientInfo.Clone()
+	players := make([]*pb.ClientInfo, len(r.clients))
+	for _, c := range r.clients {
+		players = append(players, c.ClientInfo.Clone())
+	}
+	msg.Joined <- JoinedInfo{rinfo, players, client}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }

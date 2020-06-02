@@ -61,7 +61,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, master, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	room, players, master, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
@@ -70,7 +70,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 	res := &pb.JoinedRoomRes{
 		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
 		RoomInfo: room,
-		Players:  []*pb.ClientInfo{master},
+		Players:  players,
 	}
 
 	log.Infof("New room: room=%v, master=%v", room.Id, master.Id)
