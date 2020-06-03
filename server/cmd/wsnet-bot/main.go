@@ -56,7 +56,7 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 		return nil, err
 	}
 
-	fmt.Println("url:", room.Url)
+	fmt.Printf("[bot:%v] Create success, WebSocket=%s\n", b.userId, room.Url)
 
 	return room, nil
 }
@@ -76,7 +76,7 @@ func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 		return nil, err
 	}
 
-	fmt.Println("url:", room.Url)
+	fmt.Printf("[bot:%v] Join success, WebSocket=%s\n", b.userId, room.Url)
 
 	return room, nil
 }
@@ -101,7 +101,7 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return err
+		return fmt.Errorf("failed to lobby request: lobby server returned status %v", res.StatusCode)
 	}
 
 	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(dst)
@@ -120,10 +120,10 @@ func (b *bot) DialGame(url string, seq int) (*websocket.Conn, error) {
 
 	ws, res, err := b.ws.Dial(url, hdr)
 	if err != nil {
-		fmt.Printf("dial error: %v, %v\n", res, err)
+		fmt.Printf("[bot:%v] dial error: %v, %v\n", b.userId, res, err)
 		return nil, err
 	}
-	fmt.Println("response:", res)
+	fmt.Printf("[bot:%v] response: %v\n", b.userId, res)
 
 	return ws, nil
 }
@@ -147,6 +147,8 @@ func main() {
 
 	go spawnPlayer(room.RoomInfo.Id, "23456")
 	go spawnPlayer(room.RoomInfo.Id, "34567")
+	go spawnPlayer(room.RoomInfo.Id, "45678")
+	go spawnPlayer(room.RoomInfo.Id, "56789")
 
 	go func() {
 		time.Sleep(time.Second * 2)
@@ -211,13 +213,13 @@ func spawnPlayer(roomId, userId string) {
 	bot := NewBot(appID, userId)
 	room, err := bot.JoinRoom(roomId)
 	if err != nil {
-		fmt.Printf("create room error: %v\n", err)
+		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
 		return
 	}
 
 	ws, err := bot.DialGame(room.Url, 0)
 	if err != nil {
-		fmt.Printf("dial game error: %v\n", err)
+		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
 		return
 	}
 
@@ -230,7 +232,7 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 	for {
 		_, b, err := ws.ReadMessage()
 		if err != nil {
-			fmt.Printf("[bot:%s] ReadMessage error: %v\n", userId, err)
+			fmt.Printf("[bot:%v] ReadMessage error: %v\n", userId, err)
 			return
 		}
 
@@ -240,9 +242,9 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 			namelen := int(b[6])
 			name := string(b[7 : 7+namelen])
 			props := b[7+namelen:]
-			fmt.Printf("[bot:%s] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
+			fmt.Printf("[bot:%v] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
 		default:
-			fmt.Printf("[bot:%s] ReadMessage: %v, %v\n", userId, ty, b)
+			fmt.Printf("[bot:%v] ReadMessage: %v, %v\n", userId, ty, b)
 		}
 	}
 }
