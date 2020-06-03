@@ -3,9 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
-	"net"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,76 +16,137 @@ import (
 )
 
 var (
-	appID  = "testapp"
-	userID = "12345"
+	appID = "testapp"
 )
 
-func main() {
-	conn, err := net.Dial("tcp", "127.0.0.1:8080")
-	if err != nil {
-		log.Fatal("client connection error:", err)
-	}
-	defer conn.Close()
+type bot struct {
+	appId  string
+	userId string
+	ws     *websocket.Dialer
+}
 
-	p := &service.CreateParam{
+func NewBot(appId, userId string) *bot {
+	return &bot{
+		appId:  appId,
+		userId: userId,
+		ws: &websocket.Dialer{
+			Subprotocols:    []string{},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+	}
+}
+
+func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
+	param := &service.CreateParam{
 		RoomOption: pb.RoomOption{
 			Visible:    true,
 			Watchable:  false,
 			MaxPlayers: 4,
 		},
 		ClientInfo: pb.ClientInfo{
-			Id: userID,
+			Id: b.userId,
 		},
 	}
 
-	var param bytes.Buffer
-	err = msgpack.NewEncoder(&param).UseJSONTag(true).Encode(p)
+	room := &pb.JoinedRoomRes{}
+
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms", param, room)
 	if err != nil {
-		log.Fatal("msgpack encode failure:", err)
+		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", "http://localhost:8080/rooms", &param)
+	fmt.Println("url:", room.Url)
+
+	return room, nil
+}
+
+func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
+	param := &service.JoinParam{
+		RoomId: roomId,
+		ClientInfo: pb.ClientInfo{
+			Id: b.userId,
+		},
+	}
+
+	room := &pb.JoinedRoomRes{}
+
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/join", param, room)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("url:", room.Url)
+
+	return room, nil
+}
+
+func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
+	var p bytes.Buffer
+	err := msgpack.NewEncoder(&p).UseJSONTag(true).Encode(param)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest(method, url, &p)
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
-	req.Header.Add("X-App-Id", appID)
-	req.Header.Add("X-User-Id", userID)
+	req.Header.Add("X-App-Id", b.appId)
+	req.Header.Add("X-User-Id", b.userId)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal("http client error:", err)
+		return err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		log.Fatalf("failed to create room: lobby server returned status %v", res.StatusCode)
+		return err
 	}
 
-	room := &pb.JoinedRoomRes{}
-	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(room)
+	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(dst)
 	if err != nil {
-		log.Fatal("Unmarshal error:", err)
+		return err
 	}
-	fmt.Println("url:", room.Url)
 
+	return nil
+}
+
+func (b *bot) DialGame(url string, seq int) (*websocket.Conn, error) {
 	hdr := http.Header{}
-	hdr.Add("X-Wsnet-App", appID)
-	hdr.Add("X-Wsnet-User", userID)
-	hdr.Add("X-Wsnet-LastEventSeq", "0")
+	hdr.Add("X-Wsnet-App", b.appId)
+	hdr.Add("X-Wsnet-User", b.userId)
+	hdr.Add("X-Wsnet-LastEventSeq", strconv.Itoa(seq))
 
-	d := websocket.Dialer{
-		Subprotocols:    []string{},
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-	ws, res2, err := d.Dial(room.Url, hdr)
+	ws, res, err := b.ws.Dial(url, hdr)
 	if err != nil {
-		fmt.Printf("dial error: %v, %v\n", res2, err)
+		fmt.Printf("dial error: %v, %v\n", res, err)
+		return nil, err
+	}
+	fmt.Println("response:", res)
+
+	return ws, nil
+}
+
+func main() {
+	bot := NewBot(appID, "12345")
+	room, err := bot.CreateRoom()
+	if err != nil {
+		fmt.Printf("create room error: %v\n", err)
 		return
 	}
-	fmt.Println("response:", res2)
+
+	ws, err := bot.DialGame(room.Url, 0)
+	if err != nil {
+		fmt.Printf("dial game error: %v\n", err)
+		return
+	}
 
 	done := make(chan bool)
-	go eventloop(ws, done)
+	go eventloop(ws, bot.userId, done)
+
+	go spawnPlayer(room.RoomInfo.Id, "23456")
+	go spawnPlayer(room.RoomInfo.Id, "34567")
 
 	go func() {
 		time.Sleep(time.Second * 2)
@@ -109,16 +169,14 @@ func main() {
 	time.Sleep(6 * time.Second)
 
 	fmt.Println("reconnect test")
-	hdr.Set("X-Wsnet-LastEventSeq", "2")
-	ws, res2, err = d.Dial(room.Url, hdr)
+	ws, err = bot.DialGame(room.Url, 2)
 	if err != nil {
-		fmt.Printf("dial error: %v, %v\n", res2, err)
+		fmt.Printf("dial game error: %v\n", err)
 		return
 	}
-	fmt.Println("response:", res2)
 
 	done = make(chan bool)
-	go eventloop(ws, done)
+	go eventloop(ws, bot.userId, done)
 
 	go func() {
 		time.Sleep(time.Second * 3)
@@ -138,25 +196,41 @@ func main() {
 
 	time.Sleep(3 * time.Second)
 	fmt.Println("reconnect test after leave")
-	hdr.Set("X-Wsnet-LastEventSeq", "4")
-	ws, res2, err = d.Dial(room.Url, hdr)
+	ws, err = bot.DialGame(room.Url, 4)
 	if err != nil {
-		fmt.Printf("dial error: %v, %v\n", res2, err)
+		fmt.Printf("dial game error: %v\n", err)
 		return
 	}
-	fmt.Println("response:", res2)
 
 	done = make(chan bool)
-	go eventloop(ws, done)
+	go eventloop(ws, bot.userId, done)
 	<-done
 }
 
-func eventloop(ws *websocket.Conn, done chan bool) {
+func spawnPlayer(roomId, userId string) {
+	bot := NewBot(appID, userId)
+	room, err := bot.JoinRoom(roomId)
+	if err != nil {
+		fmt.Printf("create room error: %v\n", err)
+		return
+	}
+
+	ws, err := bot.DialGame(room.Url, 0)
+	if err != nil {
+		fmt.Printf("dial game error: %v\n", err)
+		return
+	}
+
+	done := make(chan bool)
+	go eventloop(ws, userId, done)
+}
+
+func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 	defer close(done)
 	for {
 		_, b, err := ws.ReadMessage()
 		if err != nil {
-			fmt.Printf("ReadMessage error: %v\n", err)
+			fmt.Printf("[bot:%s] ReadMessage error: %v\n", userId, err)
 			return
 		}
 
@@ -166,9 +240,9 @@ func eventloop(ws *websocket.Conn, done chan bool) {
 			namelen := int(b[6])
 			name := string(b[7 : 7+namelen])
 			props := b[7+namelen:]
-			fmt.Printf("%s: %v %#v, %v, %v\n", ty, seqnum, name, props, b)
+			fmt.Printf("[bot:%s] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
 		default:
-			fmt.Printf("ReadMessage: %v, %v\n", ty, b)
+			fmt.Printf("[bot:%s] ReadMessage: %v, %v\n", userId, ty, b)
 		}
 	}
 }
