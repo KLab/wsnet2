@@ -103,8 +103,8 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 
 	room, players, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
-		log.Infof("create room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
+		log.Infof("join room error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
 	}
 
 	res := &pb.JoinedRoomRes{
