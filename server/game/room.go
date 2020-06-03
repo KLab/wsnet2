@@ -246,6 +246,8 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	r.wgClient.Add(1)
 	client := NewClient(msg.Info, r)
 	r.clients[ClientID(client.Id)] = client
+	r.RoomInfo.Players = uint32(len(r.clients))
+	r.repo.updateRoomInfo(r)
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := client.ClientInfo.Clone()
