@@ -67,16 +67,16 @@ func (rs *RoomService) getGameServers() ([]gameServer, error) {
 	return gameServers, nil
 }
 
-func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	appExists := false
 	for _, app := range rs.apps {
-		if app.Id == appID {
+		if app.Id == appId {
 			appExists = true
 			break
 		}
 	}
 	if !appExists {
-		return nil, xerrors.Errorf("Unknown appID: %v", appID)
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
 
 	gameServers, err := rs.getGameServers()
@@ -96,7 +96,7 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 	client := pb.NewGameClient(conn)
 
 	req := &pb.CreateRoomReq{
-		AppId:      appID,
+		AppId:      appId,
 		RoomOption: roomOption,
 		MasterInfo: clientInfo,
 	}
@@ -107,7 +107,55 @@ func (rs *RoomService) Create(appID string, roomOption *pb.RoomOption, clientInf
 		return nil, err
 	}
 
-	log.Infof("Created room: %v", res.RoomInfo)
+	log.Infof("Created room: %v", res)
+
+	return res, nil
+}
+
+func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	appExists := false
+	for _, app := range rs.apps {
+		if app.Id == appId {
+			appExists = true
+			break
+		}
+	}
+	if !appExists {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+	query := "SELECT hostname, public_name, grpc_port, ws_port FROM game_server INNER JOIN room ON game_server.id = room.host_id WHERE status=1 AND heartbeat >= ? AND room.id = ?"
+	lastbeat := time.Now().Unix() - rs.conf.ValidHeartBeat
+
+	var game gameServer
+	err := rs.db.Get(&game, query, lastbeat, roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
+	}
+	log.Debugf("game: %v", game)
+
+	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
+	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	if err != nil {
+		log.Errorf("client connection error: %v", err)
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := pb.NewGameClient(conn)
+
+	req := &pb.JoinRoomReq{
+		AppId:      appId,
+		RoomId:     roomId,
+		ClientInfo: clientInfo,
+	}
+
+	res, err := client.Join(context.TODO(), req)
+	if err != nil {
+		fmt.Printf("join room error: %v", err)
+		return nil, err
+	}
+
+	log.Infof("Joined room: %v", res)
 
 	return res, nil
 }

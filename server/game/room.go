@@ -249,7 +249,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := client.ClientInfo.Clone()
-	players := make([]*pb.ClientInfo, len(r.clients))
+	players := make([]*pb.ClientInfo, 0, len(r.clients))
 	for _, c := range r.clients {
 		players = append(players, c.ClientInfo.Clone())
 	}
