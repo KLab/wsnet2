@@ -29,6 +29,8 @@ CREATE TABLE room (
   `number` INTEGER NOT NULL,
   `search_group` INTEGER UNSIGNED NOT NULL,
   `max_players` INTEGER UNSIGNED NOT NULL,
+  `players` INTEGER UNSIGNED NOT NULL,
+  `watchers` INTEGER UNSIGNED NOT NULL,
   `props` BLOB,
   `created` DATETIME,
   KEY `idx_search_group` (`app_id`, `search_group`)
