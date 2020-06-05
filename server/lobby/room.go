@@ -2,11 +2,7 @@ package lobby
 
 import (
 	"context"
-	crand "crypto/rand"
 	"fmt"
-	"math"
-	"math/big"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -24,11 +20,6 @@ const (
 	roomSelectQuery = "SELECT * FROM room WHERE app_id = ? ORDER BY created DESC LIMIT 10000"
 )
 
-func init() {
-	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	rand.Seed(seed.Int64())
-}
-
 type AppID string
 
 type RoomService struct {
@@ -38,6 +29,8 @@ type RoomService struct {
 
 	muRoomQueries sync.Mutex
 	roomQueries   map[AppID]*CachedQuery // by appid
+
+	gameQuery *GameQuery
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -52,48 +45,12 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		conf:        conf,
 		apps:        apps,
 		roomQueries: make(map[AppID]*CachedQuery),
+		gameQuery:   NewGameQuery(db, conf.ValidHeartBeat),
 	}
 	return rs, nil
 }
 
-type gameServer struct {
-	Id            uint32
-	Hostname      string
-	PublicName    string `db:"public_name"`
-	GRPCPort      int    `db:"grpc_port"`
-	WebSocketPort int    `db:"ws_port"`
-}
-
-func (rs *RoomService) getGameServers() ([]gameServer, error) {
-	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
-	lastbeat := time.Now().Unix() - rs.conf.ValidHeartBeat
-
-	var gameServers []gameServer
-	err := rs.db.Select(&gameServers, query, lastbeat)
-	if err != nil {
-		return nil, xerrors.Errorf("getGameServers: %w", err)
-	}
-	if len(gameServers) == 0 {
-		return nil, xerrors.New("getGameServers: No game server available")
-	}
-	log.Debugf("Alive game servers: %+v", gameServers)
-	return gameServers, nil
-}
-
-func (rs *RoomService) getGameServer(id uint32) (*gameServer, error) {
-	gameServers, err := rs.getGameServers()
-	if err != nil {
-		return nil, err
-	}
-	for _, game := range gameServers {
-		if game.Id == id {
-			return &game, nil
-		}
-	}
-	return nil, xerrors.Errorf("getGameServer: game server not found, id=%v", id)
-}
-
-func (rs *RoomService) scanRooms(rows *sqlx.Rows) (interface{}, error) {
+func scanRooms(rows *sqlx.Rows) (interface{}, error) {
 	defer rows.Close()
 
 	rooms := map[string]*pb.RoomInfo{}
@@ -114,7 +71,7 @@ func (rs *RoomService) getRooms(appId string) (map[string]*pb.RoomInfo, error) {
 	q := rs.roomQueries[AppID(appId)]
 	if q == nil {
 		// TODO: どのくらいキャッシュしておく？
-		q = NewCachedQuery(rs.db, time.Millisecond*10, rs.scanRooms, roomSelectQuery, appId)
+		q = NewCachedQuery(rs.db, time.Millisecond*10, scanRooms, roomSelectQuery, appId)
 		rs.roomQueries[AppID(appId)] = q
 	}
 	rooms, err := q.Query()
@@ -148,12 +105,10 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
 
-	gameServers, err := rs.getGameServers()
+	game, err := rs.gameQuery.Rand()
 	if err != nil {
 		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
 	}
-
-	game := gameServers[rand.Intn(len(gameServers))]
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
 	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
@@ -199,7 +154,7 @@ func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*p
 		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
 	}
 
-	game, err := rs.getGameServer(room.HostId)
+	game, err := rs.gameQuery.Get(room.HostId)
 	if err != nil {
 		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
 	}

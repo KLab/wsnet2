@@ -149,6 +149,10 @@ func main() {
 	go spawnPlayer(room.RoomInfo.Id, "34567")
 	go spawnPlayer(room.RoomInfo.Id, "45678")
 	go spawnPlayer(room.RoomInfo.Id, "56789")
+	go func() {
+		time.Sleep(time.Second * 1)
+		spawnPlayer(room.RoomInfo.Id, "67890")
+	}()
 
 	go func() {
 		time.Sleep(time.Second * 2)
