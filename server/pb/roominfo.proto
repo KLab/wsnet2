@@ -40,8 +40,10 @@ message RoomInfo {
 	// @inject_tag: db:"max_players"
 	uint32 max_players = 10;
 
+	// @inject_tag: db:"players"
 	uint32 players = 11;
 
+	// @inject_tag: db:"watchers"
 	uint32 watchers = 12;
 
 	// @inject_tag: db:"props"

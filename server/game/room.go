@@ -60,15 +60,15 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, *Client, <-chan JoinedInfo, error) {
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 	}
 	info.PublicProps = iProps
 	privProps, iProps, err := initProps(info.PrivateProps)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+		return nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
 	}
 	info.PrivateProps = iProps
 
@@ -89,20 +89,14 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		logger: log.Get(loglevel),
 	}
 
-	r.wgClient.Add(1)
-	master := NewClient(masterInfo, r)
-	r.master = master
-	r.clients[ClientID(master.Id)] = master
-	r.order = append(r.order, master.ID())
-
 	go r.MsgLoop()
 
 	ch := make(chan JoinedInfo)
-	r.msgCh <- &MsgCreate{ch}
+	r.msgCh <- &MsgCreate{masterInfo, ch}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
 
-	return r, master, ch, nil
+	return r, ch, nil
 }
 
 func (r *Room) ID() RoomID {
@@ -204,10 +198,8 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
+// muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.Event) {
-	r.muClients.RLock()
-	defer r.muClients.RUnlock()
-
 	for _, c := range r.clients {
 		if err := c.Send(ev); err != nil {
 			// removeClient locks muClients so that must be called another goroutine.
@@ -225,9 +217,19 @@ func (r *Room) notifyDeadline(deadline time.Duration) {
 }
 
 func (r *Room) msgCreate(msg *MsgCreate) error {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+
+	r.wgClient.Add(1)
+	master := NewClient(msg.Info, r)
+	r.master = master
+	r.clients[ClientID(master.Id)] = master
+	r.order = append(r.order, master.ID())
+
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
-	msg.Joined <- JoinedInfo{rinfo, cinfo}
+	players := []*pb.ClientInfo{cinfo}
+	msg.Joined <- JoinedInfo{rinfo, players, master}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }
@@ -242,12 +244,18 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 
 	r.wgClient.Add(1)
-	c := NewClient(msg.Info, r)
-	r.clients[ClientID(c.Id)] = c
+	client := NewClient(msg.Info, r)
+	r.clients[ClientID(client.Id)] = client
+	r.RoomInfo.Players = uint32(len(r.clients))
+	r.repo.updateRoomInfo(r)
 
 	rinfo := r.RoomInfo.Clone()
-	cinfo := c.ClientInfo.Clone()
-	msg.Joined <- JoinedInfo{rinfo, cinfo}
+	cinfo := client.ClientInfo.Clone()
+	players := make([]*pb.ClientInfo, 0, len(r.clients))
+	for _, c := range r.clients {
+		players = append(players, c.ClientInfo.Clone())
+	}
+	msg.Joined <- JoinedInfo{rinfo, players, client}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }
@@ -303,11 +311,15 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 		r.notifyDeadline(r.deadline)
 	}
 
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
 
 func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Payload))
 	return nil
 }
@@ -315,4 +327,14 @@ func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.Err)
 	return nil
+}
+
+func (r *Room) getClient(id ClientID) (*Client, error) {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+	cli, ok := r.clients[id]
+	if !ok {
+		return nil, xerrors.Errorf("client not found: client=%v", id)
+	}
+	return cli, nil
 }

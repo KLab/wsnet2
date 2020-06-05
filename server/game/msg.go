@@ -20,13 +20,15 @@ var _ Msg = &MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
 type JoinedInfo struct {
-	Room   *pb.RoomInfo
-	Client *pb.ClientInfo
+	Room    *pb.RoomInfo
+	Players []*pb.ClientInfo
+	Client  *Client
 }
 
 // MsgCreate : 部屋作成メッセージ
 // gRPCリクエストよりwsnet内で発生
 type MsgCreate struct {
+	Info   *pb.ClientInfo
 	Joined chan<- JoinedInfo
 }
 
