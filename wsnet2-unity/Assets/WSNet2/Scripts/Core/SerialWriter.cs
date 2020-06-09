@@ -9,14 +9,14 @@ namespace WSNet2.Core
         const int MINSIZE = 1024;
 
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<System.Type, byte> typeCodes;
+        Dictionary<System.Type, byte> typeIDs;
         int pos;
         byte[] buf;
 
         /// <summary>
         /// コンストラクタ
         /// </summary>
-        public SerialWriter(int size, Dictionary<System.Type, byte> typeCodes)
+        public SerialWriter(int size, Dictionary<System.Type, byte> typeIDs)
         {
             var s = MINSIZE;
             while (s < size)
@@ -26,7 +26,7 @@ namespace WSNet2.Core
 
             this.pos = 0;
             this.buf = new byte[s];
-            this.typeCodes = typeCodes;
+            this.typeIDs = typeIDs;
         }
 
         public void Reset()
@@ -198,7 +198,7 @@ namespace WSNet2.Core
         public void Write<T>(T v) where T : IWSNetSerializable, new()
         {
             var t = typeof(T);
-            if (!typeCodes.ContainsKey(t))
+            if (!typeIDs.ContainsKey(t))
             {
                 var msg = string.Format("Type {0} is not registered", t);
                 throw new SerializationException(msg);
@@ -206,7 +206,7 @@ namespace WSNet2.Core
 
             expand(4);
             buf[pos] = (byte)Type.Obj;
-            buf[pos+1] = typeCodes[t];
+            buf[pos+1] = typeIDs[t];
             pos += 4;
 
             var start = pos;

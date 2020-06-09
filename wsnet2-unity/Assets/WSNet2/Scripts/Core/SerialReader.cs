@@ -7,15 +7,15 @@ namespace WSNet2.Core
     public class SerialReader
     {
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<byte, System.Type> codeTypes;
+        Dictionary<byte, System.Type> classTypes;
         ArraySegment<byte> buf;
         int pos;
 
-        public SerialReader(ArraySegment<byte> buf, Dictionary<byte, System.Type> codeTypes)
+        public SerialReader(ArraySegment<byte> buf, Dictionary<byte, System.Type> classTypes)
         {
             this.buf = buf;
             this.pos = 0;
-            this.codeTypes = codeTypes;
+            this.classTypes = classTypes;
         }
 
         public bool ReadBool()
@@ -88,13 +88,13 @@ namespace WSNet2.Core
         {
             checkType(Type.Obj);
             var code = buf[pos];
-            if (!codeTypes.ContainsKey(code))
+            if (!classTypes.ContainsKey(code))
             {
                 var msg = string.Format("code 0x{0:X2} is not registered", code);
                 throw new SerializationException(msg);
             }
 
-            var t = codeTypes[code];
+            var t = classTypes[code];
             if (t != typeof(T))
             {
                 var msg = string.Format("Type mismatch {0} wants {1}", typeof(T), t);

@@ -8,41 +8,41 @@ namespace WSNet2.Core
     {
         const int WRITER_BUFSIZE = 1024;
 
-        static Dictionary<byte, System.Type> codeTypes = new Dictionary<byte, System.Type>();
-        static Dictionary<System.Type, byte> typeCodes = new Dictionary<System.Type, byte>();
+        static Dictionary<byte, System.Type> registeredTypes = new Dictionary<byte, System.Type>();
+        static Dictionary<System.Type, byte> registeredIDs = new Dictionary<System.Type, byte>();
 
         public static SerialWriter NewWriter(int size = WRITER_BUFSIZE)
         {
-            return new SerialWriter(size, typeCodes);
+            return new SerialWriter(size, registeredIDs);
         }
 
         public static SerialReader NewReader(ArraySegment<byte> buf)
         {
-            return new SerialReader(buf, codeTypes);
+            return new SerialReader(buf, registeredTypes);
         }
 
         /// <summary>
         /// カスタム型を登録する
         /// </summary>
         /// <typeparam name="T">型</typeparam>
-        /// <param name="code">識別子</param>
-        public static void Register<T>(byte code) where T : IWSNetSerializable, new()
+        /// <param name="classID">クラス識別子</param>
+        public static void Register<T>(byte classID) where T : IWSNetSerializable, new()
         {
-            if (codeTypes.ContainsKey(code))
+            if (registeredTypes.ContainsKey(classID))
             {
-                var msg = string.Format("Code '{0}' is aleady used for {1}", code, typeof(T));
+                var msg = string.Format("ClassID '{0}' is aleady used for {1}", classID, typeof(T));
                 throw new ArgumentException(msg);
             }
 
             var t = typeof(T);
-            if (typeCodes.ContainsKey(t))
+            if (registeredIDs.ContainsKey(t))
             {
-                var msg = string.Format("Code '{0}' is aleady used for {1}", code, typeof(T));
+                var msg = string.Format("Type '{0}' is aleady registered as {1}", typeof(T), classID);
                 throw new ArgumentException(msg);
             }
 
-            typeCodes[t] = code;
-            codeTypes[code] = t;
+            registeredIDs[t] = classID;
+            registeredTypes[classID] = t;
         }
     }
 
