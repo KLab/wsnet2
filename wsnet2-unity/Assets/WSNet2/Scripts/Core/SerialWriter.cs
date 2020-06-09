@@ -1,4 +1,6 @@
 using System;
+using System.Text;
+using System.Collections.Generic;
 
 namespace WSNet2.Core
 {
@@ -6,22 +8,25 @@ namespace WSNet2.Core
     {
         const int MINSIZE = 1024;
 
+        UTF8Encoding utf8 = new UTF8Encoding();
+        Dictionary<System.Type, byte> typeCodes;
         int pos;
         byte[] buf;
 
         /// <summary>
         /// コンストラクタ
         /// </summary>
-        public SerialWriter(int size = MINSIZE)
+        public SerialWriter(int size, Dictionary<System.Type, byte> typeCodes)
         {
-            int s = MINSIZE;
+            var s = MINSIZE;
             while (s < size)
             {
                 s *= 2;
             }
 
-            pos = 0;
-            buf = new byte[s];
+            this.pos = 0;
+            this.buf = new byte[s];
+            this.typeCodes = typeCodes;
         }
 
         public void Reset()
@@ -154,6 +159,69 @@ namespace WSNet2.Core
             Put64(v);
         }
 
+        /// <summary>
+        ///   文字列を書き込む
+        /// </summary>
+        /// <param name="v">値</param>
+        public void Write(string v)
+        {
+            var len = utf8.GetByteCount(v);
+            if (len <= byte.MaxValue)
+            {
+                expand(len+2);
+                buf[pos] = (byte)Type.Str8;
+                pos++;
+                Put8(len);
+            }
+            else if (len <= ushort.MaxValue)
+            {
+                expand(len+3);
+                buf[pos] = (byte)Type.Str16;
+                pos++;
+                Put16(len);
+            }
+            else
+            {
+                var msg = string.Format("string too long: {0}", len);
+                throw new SerializationException(msg);
+            }
+
+            utf8.GetBytes(v, 0, v.Length, buf, pos);
+            pos += len;
+        }
+
+        /// <summary>
+        ///   登録された型のオブジェクトを書き込む
+        /// </summary>
+        /// <typeparam name="T">型</param>
+        /// <param name="v">値</param>
+        public void Write<T>(T v) where T : IWSNetSerializable, new()
+        {
+            var t = typeof(T);
+            if (!typeCodes.ContainsKey(t))
+            {
+                var msg = string.Format("Type {0} is not registered", t);
+                throw new SerializationException(msg);
+            }
+
+            expand(4);
+            buf[pos] = (byte)Type.Obj;
+            buf[pos+1] = typeCodes[t];
+            pos += 4;
+
+            var start = pos;
+            v.Serialize(this);
+
+            var size = pos - start;
+            if (size > ushort.MaxValue) {
+                var msg = string.Format("Serialized data is too big: {0}", size);
+                throw new SerializationException(msg);
+            }
+
+            buf[start-2] = (byte)((size & 0xff00) >> 8);
+            buf[start-1] = (byte)(size & 0xff);
+        }
+
         public void Put8(int v)
         {
             buf[pos] = (byte)(v & 0xff);
@@ -165,6 +233,14 @@ namespace WSNet2.Core
             buf[pos] = (byte)((v & 0xff00) >> 8);
             buf[pos+1] = (byte)(v & 0xff);
             pos += 2;
+        }
+
+        public void Put24(int v)
+        {
+            buf[pos] = (byte)((v & 0xff0000) >> 16);
+            buf[pos+1] = (byte)((v & 0xff00) >> 8);
+            buf[pos+2] = (byte)(v & 0xff);
+            pos += 3;
         }
 
         public void Put32(long v)
