@@ -32,7 +32,7 @@ func (q *PropQuery) test(val []byte) bool {
 	case ">=":
 		return ret >= 0
 	}
-	log.Debugf("unsupported operator: %v", q.Op)
+	log.Errorf("unsupported operator: %v", q.Op)
 	return false
 }
 
