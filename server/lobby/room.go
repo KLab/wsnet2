@@ -21,7 +21,7 @@ type RoomService struct {
 	apps []pb.App
 
 	roomCache *RoomCache
-	gameQuery *GameQuery
+	gameCache *GameCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -36,7 +36,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		conf:      conf,
 		apps:      apps,
 		roomCache: NewRoomCache(db, time.Millisecond*10),
-		gameQuery: NewGameQuery(db, conf.ValidHeartBeat),
+		gameCache: NewGameCache(db, time.Second*1, conf.ValidHeartBeat),
 	}
 	return rs, nil
 }
@@ -53,7 +53,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
 
-	game, err := rs.gameQuery.Rand()
+	game, err := rs.gameCache.Rand()
 	if err != nil {
 		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
 	}
@@ -103,7 +103,7 @@ func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*p
 		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
 	}
 
-	game, err := rs.gameQuery.Get(room.HostId)
+	game, err := rs.gameCache.Get(room.HostId)
 	if err != nil {
 		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
 	}
