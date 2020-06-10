@@ -1,19 +1,22 @@
 using NUnit.Framework;
 using System;
-
 using System.Collections.Generic;
-using System.Collections;
 
 namespace WSNet2.Core.Test
 {
+    /// <summary>
+    ///   シリアライズ可能なオブジェクトの例
+    /// </summary>
     class Obj1 : IWSNetSerializable, IEquatable<Obj1>
     {
+        public static int NewCount = 0;
+
         public int Num;
         public string Str;
 
         public Obj1()
         {
-            Console.WriteLine("new Obj1!!");
+            NewCount++;
         }
 
         public Obj1(int n, string s)
@@ -45,6 +48,9 @@ namespace WSNet2.Core.Test
         }
     }
 
+    /// <summary>
+    ///   ネストしたシリアライズ可能なオブジェクト
+    /// </summary>
     class Obj2 : IWSNetSerializable, IEquatable<Obj2>
     {
         public short S;
@@ -69,6 +75,8 @@ namespace WSNet2.Core.Test
         public void Deserialize(SerialReader reader, int size)
         {
             S = reader.ReadShort();
+            // this.Objを使い回すことでnewされるのを抑制可能
+            // nullでも大丈夫
             Obj = reader.ReadObject(Obj);
         }
 
@@ -93,12 +101,13 @@ namespace WSNet2.Core.Test
         {
             Serialization.Register<Obj1>((byte)'A');
             Serialization.Register<Obj2>((byte)'B');
+            writer = Serialization.NewWriter();
         }
 
         [SetUp]
         public void Setup()
         {
-            writer = Serialization.NewWriter();
+            writer.Reset();
         }
 
         [Test]
@@ -275,9 +284,11 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(expect, writer.ArraySegment());
 
             var reader = Serialization.NewReader(writer.ArraySegment());
+            Obj1.NewCount = 0;
             var r = reader.ReadObject<Obj1>();
 
             Assert.AreEqual(v, r);
+            Assert.AreEqual(1, Obj1.NewCount);
 
             var v2 = new Obj2(2, v);
             expect = new byte[]{
@@ -292,10 +303,11 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(expect, writer.ArraySegment());
 
             reader = Serialization.NewReader(writer.ArraySegment());
-            var r2 = new Obj2();
+            var r2 = new Obj2(0, new Obj1());
+            Obj1.NewCount = 0;
             r2 = reader.ReadObject(r2);
-
             Assert.AreEqual(v2, r2);
+            Assert.AreEqual(0, Obj1.NewCount);
         }
 
         [Test]
@@ -304,7 +316,7 @@ namespace WSNet2.Core.Test
             var v = new object[]{
                 (byte) 10,
                 new Obj1(11,"abc"),
-                new List<object>(){
+                new List<object>(){ // ネストも可能
                     (byte)20,
                     new Obj2(21, new Obj1(21, "def")),
                 },
@@ -344,11 +356,53 @@ namespace WSNet2.Core.Test
             var reader = Serialization.NewReader(writer.ArraySegment());
             var recycle = new List<object>(){
                 null,
-                new Obj1(0,""),
+                new Obj1(0,""), // 同じindex位置に同じ型のObjectがあると使い回す
             };
+            Obj1.NewCount = 0;
             var r = reader.ReadList(recycle);
 
             Assert.AreEqual(v, r);
+            Assert.AreEqual(2, Obj1.NewCount);
+        }
+
+        [Test]
+        public void TestDict()
+        {
+            var v = new Dictionary<string, object>(){
+                {"abc", 123},
+                {"def", "ghi"},
+                {"jkl", new Obj1(10, "mno")},
+            };
+            var expect = new byte[]{
+                (byte)Type.Dict,
+                (byte)v.Count,
+
+                // "abc": 123
+                3, 0x61, 0x62, 0x63,
+                0, 5, (byte)Type.Int, 0x80, 0, 0, 123,
+
+                // "def": "ghi"
+                3, 0x64, 0x65, 0x66,
+                0, 5, (byte)Type.Str8, 3, 0x67, 0x68, 0x69,
+
+                // "jkl": Obj1(10, "mno")
+                3, 0x6a, 0x6b, 0x6c,
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,10, (byte)Type.Str8, 3, 0x6d, 0x6e, 0x6f,
+            };
+
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var recycle = new Dictionary<string, object>(){
+                {"jkl", new Obj1()},
+            };
+            Obj1.NewCount = 0;
+            var r = reader.ReadDict(recycle);
+
+            Assert.AreEqual(v, r);
+            Assert.AreEqual(0, Obj1.NewCount);
         }
 
     }

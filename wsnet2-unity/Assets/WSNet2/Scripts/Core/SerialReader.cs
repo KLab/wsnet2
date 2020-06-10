@@ -132,7 +132,7 @@ namespace WSNet2.Core
             return obj;
         }
 
-        public List<object> ReadList(IReadOnlyList<object> recycle)
+        public List<object> ReadList(IReadOnlyList<object> recycle = null)
         {
             checkType(Type.List);
             var list = new List<object>();
@@ -146,6 +146,27 @@ namespace WSNet2.Core
             }
 
             return list;
+        }
+
+        public Dictionary<string, object> ReadDict(IDictionary<string, object> recycle = null)
+        {
+            checkType(Type.Dict);
+            var dict = new Dictionary<string, object>();
+            var count = Get8();
+
+            for (var i = 0; i < count; i++)
+            {
+                var klen = Get8();
+                var key = utf8.GetString(buf.Slice(pos, klen));
+                pos += klen;
+
+                var val = readElement(
+                    (recycle != null && recycle.ContainsKey(key)) ? recycle[key] : null);
+
+                dict[key] = val;
+            }
+
+            return dict;
         }
 
         public int Get8()
@@ -295,14 +316,20 @@ namespace WSNet2.Core
                     var cid = buf[pos+1];
                     if (!readFuncs.ContainsKey(cid))
                     {
-                        var msg = string.Format("ClassID {0} is not registered", cid);
-                        throw new SerializationException(msg);
+                        throw new SerializationException(
+                            string.Format("ClassID {0} is not registered", cid));
                     }
                     elem = readFuncs[cid](this, recycle);
                     break;
                 case Type.List:
                     elem = ReadList(recycle as IReadOnlyList<object>);
                     break;
+                case Type.Dict:
+                    elem = ReadDict(recycle as IDictionary<string, object>);
+                    break;
+                default:
+                    throw new SerializationException(
+                        string.Format("Type {0} is not implemented", t));
             }
 
             pos = st + len;

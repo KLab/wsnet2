@@ -6,9 +6,9 @@ namespace WSNet2.Core
 {
     public class Serialization
     {
-        const int WRITER_BUFSIZE = 1024;
-
         public delegate object ReadFunc(SerialReader reader, object recycle);
+
+        const int WRITER_BUFSIZE = 1024;
 
         static Dictionary<System.Type, byte> registeredTypes = new Dictionary<System.Type, byte>();
         static Dictionary<byte, ReadFunc> readFuncs = new Dictionary<byte, ReadFunc>();

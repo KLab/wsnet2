@@ -258,7 +258,7 @@ namespace WSNet2.Core
                 count++;
                 if (count > byte.MaxValue)
                 {
-                    throw new Exception("Too many list content");
+                    throw new SerializationException("Too many list content");
                 }
 
                 writeElement(elem);
@@ -274,7 +274,33 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(IDictionary<string, object> v)
         {
-            throw new NotImplementedException();
+            expand(2);
+            buf[pos] = (byte)Type.Dict;
+            pos++;
+
+            var count = v.Count;
+            if (count > byte.MaxValue)
+            {
+                var msg = string.Format("Too many dictionary content: {0}", count);
+                throw new SerializationException(msg);
+            }
+            Put8(count);
+
+            foreach (var kv in v)
+            {
+                var klen = utf8.GetByteCount(kv.Key);
+                if (klen > byte.MaxValue)
+                {
+                    var msg = string.Format("Too long key: \"{0}\"", kv.Key);
+                    throw new SerializationException(msg);
+                }
+                expand(klen + 1);
+                Put8(klen);
+                utf8.GetBytes(kv.Key, 0, kv.Key.Length, buf, pos);
+                pos += klen;
+
+                writeElement(kv.Value);
+            }
         }
 
         public void Put8(int v)
