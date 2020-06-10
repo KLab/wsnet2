@@ -3,23 +3,24 @@ package lobby
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
+	"wsnet2/binary"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
-
-type AppID string
 
 type RoomService struct {
 	db   *sqlx.DB
 	conf *config.LobbyConf
 	apps []pb.App
 
+	roomCache *RoomCache
 	gameQuery *GameQuery
 }
 
@@ -34,6 +35,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		db:        db,
 		conf:      conf,
 		apps:      apps,
+		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameQuery: NewGameQuery(db, conf.ValidHeartBeat),
 	}
 	return rs, nil
@@ -131,4 +133,38 @@ func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*p
 	log.Infof("Joined room: %v", res)
 
 	return res, nil
+}
+
+func unmarshalProps(props []byte) (binary.Dict, error) {
+	um, _, err := binary.Unmarshal(props)
+	if err != nil {
+		return nil, err
+	}
+	dict, ok := um.(binary.Dict)
+	if !ok {
+		return nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
+	}
+	return dict, nil
+}
+
+func (rs *RoomService) Search(appId string, searchGroup uint32, queries PropQueries) ([]pb.RoomInfo, error) {
+	rooms, err := rs.roomCache.GetRooms(appId, searchGroup)
+	if err != nil {
+		return nil, xerrors.Errorf("RoomCache error: %w", err)
+	}
+
+	filtered := make([]pb.RoomInfo, 0, len(rooms))
+	for _, r := range rooms {
+		props, err := unmarshalProps(r.PublicProps)
+		if err != nil {
+			log.Errorf("props unmarshal error: %v", err)
+			continue
+		}
+		if !queries.test(props) {
+			continue
+		}
+		filtered = append(filtered, r)
+	}
+
+	return filtered, nil
 }

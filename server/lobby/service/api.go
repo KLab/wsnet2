@@ -13,6 +13,7 @@ import (
 	"github.com/vmihailenco/msgpack/v4"
 	"golang.org/x/xerrors"
 
+	"wsnet2/lobby"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -68,6 +69,7 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 
 	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
 	r.HandleFunc("/rooms/join", sv.handleJoinRoom).Methods("POST")
+	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
 }
 
 func parseRequest(r *http.Request) (map[string]interface{}, error) {
@@ -162,6 +164,43 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("%#v", room)
 
 	err = renderResponse(w, room)
+	if err != nil {
+		log.Errorf("Failed to marshal room: %v", err)
+		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		return
+	}
+}
+
+type SearchParam struct {
+	SearchGroup uint32
+	Queries     lobby.PropQueries
+}
+
+func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
+	appID := r.Header.Get("X-App-Id")
+	userID := r.Header.Get("X-User-Id")
+
+	log.Infof("handleSearchRoom: appID=%s, userID=%s", appID, userID)
+
+	var param SearchParam
+	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	if err != nil {
+		log.Errorf("Failed to read request body: %v", err)
+		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		return
+	}
+
+	log.Debugf("%#v", param)
+
+	rooms, err := sv.roomService.Search(appID, param.SearchGroup, param.Queries)
+	if err != nil {
+		log.Errorf("Failed to search room: %v", err)
+		http.Error(w, "Failed to search room", http.StatusInternalServerError)
+		return
+	}
+	log.Debugf("%#v", rooms)
+
+	err = renderResponse(w, rooms)
 	if err != nil {
 		log.Errorf("Failed to marshal room: %v", err)
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
