@@ -9,7 +9,8 @@ namespace WSNet2.Core
         UTF8Encoding utf8 = new UTF8Encoding();
         Dictionary<System.Type, byte> typeIDs;
         Dictionary<byte, Serialization.ReadFunc> readFuncs;
-        ArraySegment<byte> buf;
+        ArraySegment<byte> arrSeg;
+        IList<byte> buf;
         int pos;
 
         public SerialReader(
@@ -17,7 +18,8 @@ namespace WSNet2.Core
             Dictionary<System.Type, byte> typeIDs,
             Dictionary<byte, Serialization.ReadFunc> readFuncs)
         {
-            this.buf = buf;
+            this.arrSeg = buf;
+            this.buf = (IList<byte>)buf;
             this.pos = 0;
             this.typeIDs = typeIDs;
             this.readFuncs = readFuncs;
@@ -95,7 +97,7 @@ namespace WSNet2.Core
         {
             var t = checkType(Type.Str8, Type.Str16);
             var len = (t == Type.Str8) ? Get8() : Get16();
-            var str = utf8.GetString(buf.Slice(pos, len));
+            var str = utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, len);
             pos += len;
             return str;
         }
@@ -157,7 +159,7 @@ namespace WSNet2.Core
             for (var i = 0; i < count; i++)
             {
                 var klen = Get8();
-                var key = utf8.GetString(buf.Slice(pos, klen));
+                var key = utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, klen);
                 pos += klen;
 
                 var val = readElement(
