@@ -8,17 +8,19 @@ namespace WSNet2.Core
     {
         const int WRITER_BUFSIZE = 1024;
 
-        static Dictionary<byte, System.Type> registeredTypes = new Dictionary<byte, System.Type>();
-        static Dictionary<System.Type, byte> registeredIDs = new Dictionary<System.Type, byte>();
+        public delegate object ReadFunc(SerialReader reader, object recycle);
+
+        static Dictionary<System.Type, byte> registeredTypes = new Dictionary<System.Type, byte>();
+        static Dictionary<byte, ReadFunc> readFuncs = new Dictionary<byte, ReadFunc>();
 
         public static SerialWriter NewWriter(int size = WRITER_BUFSIZE)
         {
-            return new SerialWriter(size, registeredIDs);
+            return new SerialWriter(size, registeredTypes);
         }
 
         public static SerialReader NewReader(ArraySegment<byte> buf)
         {
-            return new SerialReader(buf, registeredTypes);
+            return new SerialReader(buf, registeredTypes, readFuncs);
         }
 
         /// <summary>
@@ -26,23 +28,23 @@ namespace WSNet2.Core
         /// </summary>
         /// <typeparam name="T">型</typeparam>
         /// <param name="classID">クラス識別子</param>
-        public static void Register<T>(byte classID) where T : IWSNetSerializable, new()
+        public static void Register<T>(byte classID) where T : class, IWSNetSerializable, new()
         {
-            if (registeredTypes.ContainsKey(classID))
-            {
-                var msg = string.Format("ClassID '{0}' is aleady used for {1}", classID, typeof(T));
-                throw new ArgumentException(msg);
-            }
-
             var t = typeof(T);
-            if (registeredIDs.ContainsKey(t))
+            if (registeredTypes.ContainsKey(t))
             {
-                var msg = string.Format("Type '{0}' is aleady registered as {1}", typeof(T), classID);
+                var msg = string.Format("Type '{0}' is aleady registered as {1}", t, classID);
                 throw new ArgumentException(msg);
             }
 
-            registeredIDs[t] = classID;
-            registeredTypes[classID] = t;
+            if (readFuncs.ContainsKey(classID))
+            {
+                var msg = string.Format("ClassID '{0}' is aleady used for {1}", classID, t);
+                throw new ArgumentException(msg);
+            }
+
+            registeredTypes[t] = classID;
+            readFuncs[classID] = (reader, obj) => reader.ReadObject<T>(obj as T);
         }
     }
 

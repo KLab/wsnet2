@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace WSNet2.Core
@@ -9,14 +10,14 @@ namespace WSNet2.Core
         const int MINSIZE = 1024;
 
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<System.Type, byte> typeIDs;
+        Dictionary<System.Type, byte> types;
         int pos;
         byte[] buf;
 
         /// <summary>
         /// コンストラクタ
         /// </summary>
-        public SerialWriter(int size, Dictionary<System.Type, byte> typeIDs)
+        public SerialWriter(int size, Dictionary<System.Type, byte> types)
         {
             var s = MINSIZE;
             while (s < size)
@@ -26,7 +27,7 @@ namespace WSNet2.Core
 
             this.pos = 0;
             this.buf = new byte[s];
-            this.typeIDs = typeIDs;
+            this.types = types;
         }
 
         public void Reset()
@@ -160,6 +161,24 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Float値を書き込む
+        /// </summary>
+        /// <param name="v">値</param>
+        public void Write(float v)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        ///   Double値を書き込む
+        /// </summary>
+        /// <param name="v">値</param>
+        public void Write(double v)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
         ///   文字列を書き込む
         /// </summary>
         /// <param name="v">値</param>
@@ -193,12 +212,12 @@ namespace WSNet2.Core
         /// <summary>
         ///   登録された型のオブジェクトを書き込む
         /// </summary>
-        /// <typeparam name="T">型</param>
+        /// <Typeparam name="T">型</param>
         /// <param name="v">値</param>
-        public void Write<T>(T v) where T : IWSNetSerializable, new()
+        public void Write<T>(T v) where T : IWSNetSerializable
         {
-            var t = typeof(T);
-            if (!typeIDs.ContainsKey(t))
+            var t = v.GetType();
+            if (!types.ContainsKey(t))
             {
                 var msg = string.Format("Type {0} is not registered", t);
                 throw new SerializationException(msg);
@@ -206,7 +225,7 @@ namespace WSNet2.Core
 
             expand(4);
             buf[pos] = (byte)Type.Obj;
-            buf[pos+1] = typeIDs[t];
+            buf[pos+1] = types[t];
             pos += 4;
 
             var start = pos;
@@ -220,6 +239,42 @@ namespace WSNet2.Core
 
             buf[start-2] = (byte)((size & 0xff00) >> 8);
             buf[start-1] = (byte)(size & 0xff);
+        }
+
+        /// <summary>
+        /// シリアライズ可能な値のリストを書き込む
+        /// </summary>
+        /// <param name="v">値</param>
+        public void Write(IEnumerable v)
+        {
+            expand(2);
+            buf[pos] = (byte)Type.List;
+            var countpos = pos + 1;
+            pos += 2;
+
+            var count = 0;
+            foreach (var elem in v)
+            {
+                count++;
+                if (count > byte.MaxValue)
+                {
+                    throw new Exception("Too many list content");
+                }
+
+                writeElement(elem);
+            }
+
+            buf[countpos] = (byte)count;
+        }
+
+        /// <summary>
+        ///   辞書型の値を書き込む
+        /// </summary>
+        /// <typeparam name="T">型</param>
+        /// <param name="v">値</param>
+        public void Write(IDictionary<string, object> v)
+        {
+            throw new NotImplementedException();
         }
 
         public void Put8(int v)
@@ -275,6 +330,66 @@ namespace WSNet2.Core
                 }
                 Array.Resize(ref buf, len);
             }
+        }
+
+        private void writeElement(object elem)
+        {
+            expand(2);
+            pos += 2;
+            var start = pos;
+
+            switch (elem)
+            {
+                case bool e:
+                    Write(e);
+                    break;
+                case sbyte e:
+                    Write(e);
+                    break;
+                case byte e:
+                    Write(e);
+                    break;
+                case short e:
+                    Write(e);
+                    break;
+                case ushort e:
+                    Write(e);
+                    break;
+                case int e:
+                    Write(e);
+                    break;
+                case uint e:
+                    Write(e);
+                    break;
+                case long e:
+                    Write(e);
+                    break;
+                case ulong e:
+                    Write(e);
+                    break;
+                case float e:
+                    Write(e);
+                    break;
+                case double e:
+                    Write(e);
+                    break;
+                case string e:
+                    Write(e);
+                    break;
+                case IWSNetSerializable e:
+                    Write(e);
+                    break;
+                case IDictionary<string, object> e:
+                    Write(e);
+                    break;
+                case IEnumerable e:
+                    Write(e);
+                    break;
+            }
+
+            var size = pos - start;
+            buf[start-2] = (byte)((size & 0xff00) >> 8);
+            buf[start-1] = (byte)(size & 0xff);
         }
 
     }

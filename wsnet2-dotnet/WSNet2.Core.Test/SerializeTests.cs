@@ -1,6 +1,9 @@
 using NUnit.Framework;
 using System;
 
+using System.Collections.Generic;
+using System.Collections;
+
 namespace WSNet2.Core.Test
 {
     class Obj1 : IWSNetSerializable, IEquatable<Obj1>
@@ -10,6 +13,7 @@ namespace WSNet2.Core.Test
 
         public Obj1()
         {
+            Console.WriteLine("new Obj1!!");
         }
 
         public Obj1(int n, string s)
@@ -292,6 +296,59 @@ namespace WSNet2.Core.Test
             r2 = reader.ReadObject(r2);
 
             Assert.AreEqual(v2, r2);
+        }
+
+        [Test]
+        public void TestList()
+        {
+            var v = new object[]{
+                (byte) 10,
+                new Obj1(11,"abc"),
+                new List<object>(){
+                    (byte)20,
+                    new Obj2(21, new Obj1(21, "def")),
+                },
+                new Obj1(12,"ghi"),
+            };
+            var expect = new byte[]{
+                (byte)Type.List,
+                (byte)v.Length,
+
+                // byte(10)
+                0, 2, (byte)Type.Byte, 10,
+
+                // Obj1(11,"abc")
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,11, (byte)Type.Str8, 3, 0x61, 0x62,0x63,
+
+                // List<object>
+                0, 29, (byte)Type.List, 2,
+                // byte(20)
+                0, 2, (byte)Type.Byte, 20,
+                // Obj2(21, Obj1)
+                0, 21, (byte)Type.Obj, (byte)'B', 0, 17,
+                // short(21)
+                (byte)Type.Short, 0x80, 21,
+                // Obj1(21, "def")
+                (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,21, (byte)Type.Str8, 3, 0x64,0x65,0x66,
+
+                // Obj1(11,"abc")
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,12, (byte)Type.Str8, 3, 0x67, 0x68,0x69,
+            };
+
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var recycle = new List<object>(){
+                null,
+                new Obj1(0,""),
+            };
+            var r = reader.ReadList(recycle);
+
+            Assert.AreEqual(v, r);
         }
 
     }

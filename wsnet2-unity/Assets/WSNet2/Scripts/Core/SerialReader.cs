@@ -7,15 +7,20 @@ namespace WSNet2.Core
     public class SerialReader
     {
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<byte, System.Type> classTypes;
+        Dictionary<System.Type, byte> typeIDs;
+        Dictionary<byte, Serialization.ReadFunc> readFuncs;
         ArraySegment<byte> buf;
         int pos;
 
-        public SerialReader(ArraySegment<byte> buf, Dictionary<byte, System.Type> classTypes)
+        public SerialReader(
+            ArraySegment<byte> buf,
+            Dictionary<System.Type, byte> typeIDs,
+            Dictionary<byte, Serialization.ReadFunc> readFuncs)
         {
             this.buf = buf;
             this.pos = 0;
-            this.classTypes = classTypes;
+            this.typeIDs = typeIDs;
+            this.readFuncs = readFuncs;
         }
 
         public bool ReadBool()
@@ -68,11 +73,22 @@ namespace WSNet2.Core
             return (long)Get64() + long.MinValue;
         }
 
-
         public ulong ReadULong()
         {
             checkType(Type.ULong);
             return Get64();
+        }
+
+        public float ReadFloat()
+        {
+            checkType(Type.Float);
+            throw new NotImplementedException();
+        }
+
+        public float ReadDouble()
+        {
+            checkType(Type.Double);
+            throw new NotImplementedException();
         }
 
         public string ReadString()
@@ -87,27 +103,24 @@ namespace WSNet2.Core
         public T ReadObject<T>(T recycle = default) where T : IWSNetSerializable, new()
         {
             checkType(Type.Obj);
-            var code = buf[pos];
-            if (!classTypes.ContainsKey(code))
+            var t = typeof(T);
+            if (!typeIDs.ContainsKey(t))
             {
-                var msg = string.Format("code 0x{0:X2} is not registered", code);
+                var msg = string.Format("Type {0} is not registered", t);
                 throw new SerializationException(msg);
             }
 
-            var t = classTypes[code];
-            if (t != typeof(T))
+            var id = Get8();
+            if (id != typeIDs[t])
             {
-                var msg = string.Format("Type mismatch {0} wants {1}", typeof(T), t);
+                var msg = string.Format("Type mismatch {0} wants {1}", typeIDs[t], id);
                 throw new SerializationException(msg);
             }
 
-            pos++;
-            checkLength(2);
             var size = Get16();
-
             checkLength(size);
 
-            var obj = recycle; 
+            var obj = recycle;
             if (obj == null) {
                 obj = new T();
             }
@@ -119,6 +132,21 @@ namespace WSNet2.Core
             return obj;
         }
 
+        public List<object> ReadList(IReadOnlyList<object> recycle)
+        {
+            checkType(Type.List);
+            var list = new List<object>();
+            var count = Get8();
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var elem = readElement((i < recycleCount) ? recycle[i] : null);
+                list.Add(elem);
+            }
+
+            return list;
+        }
 
         public int Get8()
         {
@@ -209,5 +237,77 @@ namespace WSNet2.Core
             pos++;
             return t;
         }
+
+        object readElement(object recycle)
+        {
+            var len = Get16();
+            var st = pos;
+            checkLength(len);
+
+            object elem = null;
+
+            var t = (Type)Enum.ToObject(typeof(Type), buf[pos]);
+            switch(t)
+            {
+                case Type.Null:
+                    break;
+                case Type.True:
+                    elem = true;
+                    break;
+                case Type.False:
+                    elem = false;
+                    break;
+                case Type.SByte:
+                    elem = ReadSByte();
+                    break;
+                case Type.Byte:
+                    elem = ReadByte();
+                    break;
+                case Type.Short:
+                    elem = ReadShort();
+                    break;
+                case Type.UShort:
+                    elem = ReadUShort();
+                    break;
+                case Type.Int:
+                    elem = ReadInt();
+                    break;
+                case Type.UInt:
+                    elem = ReadUInt();
+                    break;
+                case Type.Long:
+                    elem = ReadLong();
+                    break;
+                case Type.ULong:
+                    elem = ReadULong();
+                    break;
+                case Type.Float:
+                    elem = ReadFloat();
+                    break;
+                case Type.Double:
+                    elem = ReadDouble();
+                    break;
+                case Type.Str8:
+                case Type.Str16:
+                    elem = ReadString();
+                    break;
+                case Type.Obj:
+                    var cid = buf[pos+1];
+                    if (!readFuncs.ContainsKey(cid))
+                    {
+                        var msg = string.Format("ClassID {0} is not registered", cid);
+                        throw new SerializationException(msg);
+                    }
+                    elem = readFuncs[cid](this, recycle);
+                    break;
+                case Type.List:
+                    elem = ReadList(recycle as IReadOnlyList<object>);
+                    break;
+            }
+
+            pos = st + len;
+            return elem;
+        }
+
     }
 }
