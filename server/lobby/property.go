@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"wsnet2/binary"
+	"wsnet2/log"
 )
 
 type PropQuery struct {
@@ -31,6 +32,7 @@ func (q *PropQuery) test(val []byte) bool {
 	case ">=":
 		return ret >= 0
 	}
+	log.Debugf("unsupported operator: %v", q.Op)
 	return false
 }
 
