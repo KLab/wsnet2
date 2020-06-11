@@ -12,10 +12,27 @@ namespace WSNet2.Core
 
         static Dictionary<System.Type, byte> registeredTypes = new Dictionary<System.Type, byte>();
         static Dictionary<byte, ReadFunc> readFuncs = new Dictionary<byte, ReadFunc>();
+        static SerialWriter writer;
 
         public static SerialWriter NewWriter(int size = WRITER_BUFSIZE)
         {
-            return new SerialWriter(size, registeredTypes);
+            var w = new SerialWriter(size, registeredTypes);
+            if (writer == null)
+            {
+                writer = w;
+            }
+
+            return w;
+        }
+
+        public static SerialWriter GetWriter()
+        {
+            if (writer == null)
+            {
+                writer = new SerialWriter(WRITER_BUFSIZE, registeredTypes);
+            }
+
+            return writer;
         }
 
         public static SerialReader NewReader(ArraySegment<byte> buf)
