@@ -67,6 +67,7 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	}
 
 	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
+	r.HandleFunc("/rooms/join", sv.handleJoinRoom).Methods("POST")
 }
 
 func parseRequest(r *http.Request) (map[string]interface{}, error) {
@@ -121,6 +122,41 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.Errorf("Failed to create room: %v", err)
 		http.Error(w, "Failed to create room", http.StatusInternalServerError)
+		return
+	}
+	log.Debugf("%#v", room)
+
+	err = renderResponse(w, room)
+	if err != nil {
+		log.Errorf("Failed to marshal room: %v", err)
+		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		return
+	}
+}
+
+type JoinParam struct {
+	RoomId     string
+	ClientInfo pb.ClientInfo
+}
+
+func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
+	appID := r.Header.Get("X-App-Id")
+	userID := r.Header.Get("X-User-Id")
+
+	log.Infof("handleJoinRoom: appID=%s, userID=%s", appID, userID)
+
+	var param JoinParam
+	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	if err != nil {
+		log.Errorf("Failed to read request body: %v", err)
+		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		return
+	}
+
+	room, err := sv.roomService.Join(appID, param.RoomId, &param.ClientInfo)
+	if err != nil {
+		log.Errorf("Failed to join room: %v", err)
+		http.Error(w, "Failed to join room", http.StatusInternalServerError)
 		return
 	}
 	log.Debugf("%#v", room)
