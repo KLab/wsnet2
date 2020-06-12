@@ -20,7 +20,7 @@ namespace WSNet2.Core
         public uint  searchGroup;
 
         [Key("client_deadline")]
-        public uint cleintDeadline;
+        public uint clientDeadline;
 
         [Key("max_players")]
         public uint maxPlayers;
@@ -75,6 +75,12 @@ namespace WSNet2.Core
         public RoomOption WithNumber(bool val)
         {
             this.withNumber = val;
+            return this;
+        }
+
+        public RoomOption WithClientDeadline(uint sec)
+        {
+            this.clientDeadline = sec;
             return this;
         }
 
