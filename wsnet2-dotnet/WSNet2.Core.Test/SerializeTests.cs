@@ -366,6 +366,40 @@ namespace WSNet2.Core.Test
         }
 
         [Test]
+        public void TestReadListT()
+        {
+            var bin = new byte[]{
+                (byte)Type.List, 3,
+
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,1, (byte)Type.Str8, 3, 0x61, 0x62, 0x63,
+
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,2, (byte)Type.Str8, 3, 0x64, 0x65, 0x66,
+
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 9,
+                (byte)Type.Int, 0x80,0,0,3, (byte)Type.Str8, 2, 0x67, 0x68,
+            };
+            var expect = new List<Obj1>(){
+                new Obj1(1, "abc"),
+                new Obj1(2, "def"),
+                new Obj1(3, "gh"),
+            };
+
+            var reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            var recycle = new List<Obj1>(){
+                new Obj1(),
+                new Obj1(),
+            };
+            Obj1.NewCount = 0;
+            var r = reader.ReadList<Obj1>(recycle);
+
+            Assert.AreEqual(typeof(List<Obj1>), r.GetType());
+            Assert.AreEqual(expect, r);
+            Assert.AreEqual(1, Obj1.NewCount);
+        }
+
+        [Test]
         public void TestDict()
         {
             var v = new Dictionary<string, object>(){

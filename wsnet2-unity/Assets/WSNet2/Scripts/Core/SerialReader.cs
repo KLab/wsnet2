@@ -150,6 +150,25 @@ namespace WSNet2.Core
             return list;
         }
 
+        public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
+        {
+            checkType(Type.List);
+            var list = new List<T>();
+            var count = Get8();
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var len = Get16();
+                var st = pos;
+                var elem = ReadObject<T>((i < recycleCount) ? recycle[i] : null);
+                list.Add(elem);
+                pos = st + len;
+            }
+
+            return list;
+        }
+
         public Dictionary<string, object> ReadDict(IDictionary<string, object> recycle = null)
         {
             checkType(Type.Dict);
