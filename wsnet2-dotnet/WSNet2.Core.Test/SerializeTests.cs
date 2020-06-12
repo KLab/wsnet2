@@ -360,9 +360,13 @@ namespace WSNet2.Core.Test
             };
             Obj1.NewCount = 0;
             var r = reader.ReadList(recycle);
-
             Assert.AreEqual(v, r);
             Assert.AreEqual(2, Obj1.NewCount);
+
+            reader = Serialization.NewReader(writer.ArraySegment());
+            var r2 = reader.ReadArray(recycle);
+            Assert.AreEqual(typeof(object[]), r2.GetType());
+            Assert.AreEqual(v, r2);
         }
 
         [Test]
@@ -393,10 +397,14 @@ namespace WSNet2.Core.Test
             };
             Obj1.NewCount = 0;
             var r = reader.ReadList<Obj1>(recycle);
-
             Assert.AreEqual(typeof(List<Obj1>), r.GetType());
             Assert.AreEqual(expect, r);
             Assert.AreEqual(1, Obj1.NewCount);
+
+            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            var r2 = reader.ReadArray<Obj1>(recycle);
+            Assert.AreEqual(typeof(Obj1[]), r2.GetType());
+            Assert.AreEqual(expect, r2);
         }
 
         [Test]

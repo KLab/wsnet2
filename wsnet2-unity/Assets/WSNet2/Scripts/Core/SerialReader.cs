@@ -150,6 +150,22 @@ namespace WSNet2.Core
             return list;
         }
 
+        public object[] ReadArray(IReadOnlyList<object> recycle = null)
+        {
+            checkType(Type.List);
+            var count = Get8();
+            var list = new object[count];
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var elem = readElement((i < recycleCount) ? recycle[i] : null);
+                list[i] = elem;
+            }
+
+            return list;
+        }
+
         public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
         {
             checkType(Type.List);
@@ -163,6 +179,25 @@ namespace WSNet2.Core
                 var st = pos;
                 var elem = ReadObject<T>((i < recycleCount) ? recycle[i] : null);
                 list.Add(elem);
+                pos = st + len;
+            }
+
+            return list;
+        }
+
+        public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
+        {
+            checkType(Type.List);
+            var count = Get8();
+            var list = new T[count];
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var len = Get16();
+                var st = pos;
+                var elem = ReadObject<T>((i < recycleCount) ? recycle[i] : null);
+                list[i] = elem;
                 pos = st + len;
             }
 
