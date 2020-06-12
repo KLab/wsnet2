@@ -137,8 +137,8 @@ namespace WSNet2.Core
         public List<object> ReadList(IReadOnlyList<object> recycle = null)
         {
             checkType(Type.List);
-            var list = new List<object>();
             var count = Get8();
+            var list = new List<object>(count);
             var recycleCount = (recycle != null) ? recycle.Count : 0;
 
             for (var i = 0; i < count; i++)
@@ -153,8 +153,8 @@ namespace WSNet2.Core
         public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
         {
             checkType(Type.List);
-            var list = new List<T>();
             var count = Get8();
+            var list = new List<T>(count);
             var recycleCount = (recycle != null) ? recycle.Count : 0;
 
             for (var i = 0; i < count; i++)
