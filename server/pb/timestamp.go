@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	"github.com/vmihailenco/msgpack/v4"
 )
 
 func (ts *Timestamp) Scan(val interface{}) error {
@@ -26,6 +27,12 @@ func (ts Timestamp) Time() time.Time {
 	t, _ := ptypes.Timestamp(ts.Timestamp)
 	return t
 }
+
+func (ts *Timestamp) EncodeMsgpack(enc *msgpack.Encoder) error {
+	return enc.Encode(ts.Timestamp.Seconds)
+}
+
+var _ msgpack.CustomEncoder = (*Timestamp)(nil)
 
 func (r *RoomInfo) SetCreated(t time.Time) error {
 	var err error
