@@ -13,7 +13,7 @@ type PropQuery struct {
 	Val []byte
 }
 
-func (q *PropQuery) test(val []byte) bool {
+func (q *PropQuery) match(val []byte) bool {
 	if binary.Type(q.Val[0]) != binary.Type(val[0]) {
 		return false
 	}
@@ -38,9 +38,9 @@ func (q *PropQuery) test(val []byte) bool {
 
 type PropQueries []PropQuery
 
-func (pqs *PropQueries) test(props binary.Dict) bool {
+func (pqs *PropQueries) match(props binary.Dict) bool {
 	for _, q := range *pqs {
-		if !q.test(props[q.Key]) {
+		if !q.match(props[q.Key]) {
 			return false
 		}
 	}

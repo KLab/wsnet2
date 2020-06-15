@@ -142,7 +142,7 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries PropQuer
 
 	filtered := make([]pb.RoomInfo, 0, len(rooms))
 	for i, r := range rooms {
-		if !queries.test(props[i]) {
+		if !queries.match(props[i]) {
 			continue
 		}
 		filtered = append(filtered, r)
