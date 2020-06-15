@@ -82,6 +82,11 @@ namespace WSNet2.Core.Test
 
         public bool Equals(Obj2 o)
         {
+            if (Obj==null)
+            {
+                return S==o.S && o.Obj == null;
+            }
+
             return S==o.S && Obj.Equals(o.Obj);
         }
 
@@ -320,6 +325,20 @@ namespace WSNet2.Core.Test
             reader = Serialization.NewReader(writer.ArraySegment());
             var r3 = reader.ReadObject<Obj1>();
             Assert.AreEqual(v3, r3);
+
+            var v4 = new Obj2(4, null);
+            expect = new byte[]{
+                (byte)Type.Obj, (byte)'B', 0, 4,
+                (byte)Type.Short, 0x80, 4,
+                (byte)Type.Null,
+            };
+            writer.Reset();
+            writer.Write(v4);
+            Assert.AreEqual(expect, writer.ArraySegment());
+            reader = Serialization.NewReader(writer.ArraySegment());
+            var r4 = reader.ReadObject<Obj2>();
+            Console.WriteLine(r4);
+            Assert.AreEqual(v4, r4);
         }
 
         [Test]

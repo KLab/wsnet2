@@ -1,22 +1,22 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
 namespace WSNet2.Core
 {
+    using ReadFunc = Serialization.ReadFunc;
+
     public class SerialReader
     {
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<System.Type, byte> typeIDs;
-        Dictionary<byte, Serialization.ReadFunc> readFuncs;
+        Hashtable typeIDs;
+        ReadFunc[] readFuncs;
         ArraySegment<byte> arrSeg;
         IList<byte> buf;
         int pos;
 
-        public SerialReader(
-            ArraySegment<byte> buf,
-            Dictionary<System.Type, byte> typeIDs,
-            Dictionary<byte, Serialization.ReadFunc> readFuncs)
+        public SerialReader(ArraySegment<byte> buf, Hashtable typeIDs, ReadFunc[] readFuncs)
         {
             this.arrSeg = buf;
             this.buf = (IList<byte>)buf;
@@ -110,16 +110,17 @@ namespace WSNet2.Core
             }
 
             var t = typeof(T);
-            if (!typeIDs.ContainsKey(t))
+            var tid = typeIDs[t];
+            if (tid == null)
             {
                 var msg = string.Format("Type {0} is not registered", t);
                 throw new SerializationException(msg);
             }
 
-            var id = Get8();
-            if (id != typeIDs[t])
+            var id = (byte)Get8();
+            if (id != (byte)tid)
             {
-                var msg = string.Format("Type mismatch {0} wants {1}", typeIDs[t], id);
+                var msg = string.Format("Type mismatch {0} wants {1}", tid, id);
                 throw new SerializationException(msg);
             }
 
@@ -374,12 +375,13 @@ namespace WSNet2.Core
                     break;
                 case Type.Obj:
                     var cid = buf[pos+1];
-                    if (!readFuncs.ContainsKey(cid))
+                    var read = readFuncs[cid];
+                    if (read == null)
                     {
                         throw new SerializationException(
                             string.Format("ClassID {0} is not registered", cid));
                     }
-                    elem = readFuncs[cid](this, recycle);
+                    elem = read(this, recycle);
                     break;
                 case Type.List:
                     elem = ReadList(recycle as IReadOnlyList<object>);
