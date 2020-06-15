@@ -321,6 +321,7 @@ namespace WSNet2.Core.Test
                     new Obj2(21, new Obj1(21, "def")),
                 },
                 new Obj1(12,"ghi"),
+                null,
             };
             var expect = new byte[]{
                 (byte)Type.List,
@@ -348,6 +349,9 @@ namespace WSNet2.Core.Test
                 // Obj1(11,"abc")
                 0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
                 (byte)Type.Int, 0x80,0,0,12, (byte)Type.Str8, 3, 0x67, 0x68,0x69,
+
+                // null
+                0, 1, (byte)Type.Null,
             };
 
             writer.Write(v);

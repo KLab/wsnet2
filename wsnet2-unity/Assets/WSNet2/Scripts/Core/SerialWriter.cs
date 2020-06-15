@@ -366,6 +366,9 @@ namespace WSNet2.Core
 
             switch (elem)
             {
+                case null:
+                    Write();
+                    break;
                 case bool e:
                     Write(e);
                     break;
