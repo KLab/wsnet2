@@ -91,7 +91,7 @@ func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 func (b *bot) SearchRoom(queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
 	param := &service.SearchParam{
 		SearchGroup: 1,
-		Queries: queries,
+		Queries:     queries,
 	}
 
 	rooms := []pb.RoomInfo{}

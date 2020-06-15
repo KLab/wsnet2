@@ -9,7 +9,6 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"wsnet2/binary"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
