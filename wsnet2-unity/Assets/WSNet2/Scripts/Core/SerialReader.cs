@@ -102,9 +102,13 @@ namespace WSNet2.Core
             return str;
         }
 
-        public T ReadObject<T>(T recycle = default) where T : IWSNetSerializable, new()
+        public T ReadObject<T>(T recycle = default) where T : class, IWSNetSerializable, new()
         {
-            checkType(Type.Obj);
+            if (checkType(Type.Obj, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var t = typeof(T);
             if (!typeIDs.ContainsKey(t))
             {

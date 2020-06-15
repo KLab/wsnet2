@@ -214,8 +214,14 @@ namespace WSNet2.Core
         /// </summary>
         /// <Typeparam name="T">型</param>
         /// <param name="v">値</param>
-        public void Write<T>(T v) where T : IWSNetSerializable
+        public void Write<T>(T v) where T : class, IWSNetSerializable
         {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
             var t = v.GetType();
             if (!types.ContainsKey(t))
             {

@@ -308,6 +308,18 @@ namespace WSNet2.Core.Test
             r2 = reader.ReadObject(r2);
             Assert.AreEqual(v2, r2);
             Assert.AreEqual(0, Obj1.NewCount);
+
+            Obj1 v3 = null;
+            expect = new byte[]{
+                (byte)Type.Null,
+            };
+
+            writer.Reset();
+            writer.Write(v3);
+            Assert.AreEqual(expect, writer.ArraySegment());
+            reader = Serialization.NewReader(writer.ArraySegment());
+            var r3 = reader.ReadObject<Obj1>();
+            Assert.AreEqual(v3, r3);
         }
 
         [Test]
