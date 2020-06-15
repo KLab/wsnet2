@@ -135,32 +135,15 @@ func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*p
 	return res, nil
 }
 
-func unmarshalProps(props []byte) (binary.Dict, error) {
-	um, _, err := binary.Unmarshal(props)
-	if err != nil {
-		return nil, err
-	}
-	dict, ok := um.(binary.Dict)
-	if !ok {
-		return nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
-	}
-	return dict, nil
-}
-
 func (rs *RoomService) Search(appId string, searchGroup uint32, queries PropQueries) ([]pb.RoomInfo, error) {
-	rooms, err := rs.roomCache.GetRooms(appId, searchGroup)
+	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
 	}
 
 	filtered := make([]pb.RoomInfo, 0, len(rooms))
-	for _, r := range rooms {
-		props, err := unmarshalProps(r.PublicProps)
-		if err != nil {
-			log.Errorf("props unmarshal error: %v", err)
-			continue
-		}
-		if !queries.test(props) {
+	for i, r := range rooms {
+		if !queries.test(props[i]) {
 			continue
 		}
 		filtered = append(filtered, r)

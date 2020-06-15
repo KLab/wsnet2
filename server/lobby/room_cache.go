@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/xerrors"
 
+	"wsnet2/binary"
+	"wsnet2/log"
 	"wsnet2/pb"
 )
 
@@ -18,6 +21,7 @@ type roomCacheQuery struct {
 
 	lastUpdated time.Time
 	result      []pb.RoomInfo
+	props       []binary.Dict
 	lastError   error
 }
 
@@ -30,14 +34,26 @@ func newRoomCacheQuery(db *sqlx.DB, expire time.Duration, sql string, args ...in
 	}
 }
 
-func (q *roomCacheQuery) do() ([]pb.RoomInfo, error) {
+func unmarshalProps(props []byte) (binary.Dict, error) {
+	um, _, err := binary.Unmarshal(props)
+	if err != nil {
+		return nil, err
+	}
+	dict, ok := um.(binary.Dict)
+	if !ok {
+		return nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
+	}
+	return dict, nil
+}
+
+func (q *roomCacheQuery) do() ([]pb.RoomInfo, []binary.Dict, error) {
 	q.Lock()
 	defer q.Unlock()
 
 	now := time.Now()
 
 	if q.lastUpdated.Add(q.expire).After(now) {
-		return q.result, q.lastError
+		return q.result, q.props, q.lastError
 	}
 
 	rooms := []pb.RoomInfo{}
@@ -45,14 +61,26 @@ func (q *roomCacheQuery) do() ([]pb.RoomInfo, error) {
 	if err != nil {
 		q.result = nil
 		q.lastError = err
-		return nil, err
+		return nil, nil, err
+	}
+
+	props := []binary.Dict{}
+	for _, r := range rooms {
+		um, err := unmarshalProps(r.PublicProps)
+		if err != nil {
+			log.Errorf("props unmarshal error: %v", err)
+			props = append(props, binary.Dict{})
+			continue
+		}
+		props = append(props, um)
 	}
 
 	q.result = rooms
+	q.props = props
 	q.lastError = nil
 	q.lastUpdated = time.Now()
 
-	return q.result, q.lastError
+	return q.result, q.props, q.lastError
 }
 
 type RoomCache struct {
@@ -70,7 +98,7 @@ func NewRoomCache(db *sqlx.DB, expire time.Duration) *RoomCache {
 	}
 }
 
-func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]pb.RoomInfo, error) {
+func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]pb.RoomInfo, []binary.Dict, error) {
 	c.Lock()
 	q := c.queries[appId][searchGroup]
 	if q == nil {
