@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.Runtime.Serialization;
 
 namespace WSNet2.Core
@@ -10,8 +10,8 @@ namespace WSNet2.Core
 
         const int WRITER_BUFSIZE = 1024;
 
-        static Dictionary<System.Type, byte> registeredTypes = new Dictionary<System.Type, byte>();
-        static Dictionary<byte, ReadFunc> readFuncs = new Dictionary<byte, ReadFunc>();
+        static Hashtable registeredTypes = new Hashtable();
+        static ReadFunc[] readFuncs = new ReadFunc[256];
         static SerialWriter writer;
 
         public static SerialWriter NewWriter(int size = WRITER_BUFSIZE)
@@ -54,7 +54,7 @@ namespace WSNet2.Core
                 throw new ArgumentException(msg);
             }
 
-            if (readFuncs.ContainsKey(classID))
+            if (readFuncs[classID] != null)
             {
                 var msg = string.Format("ClassID '{0}' is aleady used for {1}", classID, t);
                 throw new ArgumentException(msg);

@@ -1,22 +1,22 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
 namespace WSNet2.Core
 {
+    using ReadFunc = Serialization.ReadFunc;
+
     public class SerialReader
     {
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<System.Type, byte> typeIDs;
-        Dictionary<byte, Serialization.ReadFunc> readFuncs;
+        Hashtable typeIDs;
+        ReadFunc[] readFuncs;
         ArraySegment<byte> arrSeg;
         IList<byte> buf;
         int pos;
 
-        public SerialReader(
-            ArraySegment<byte> buf,
-            Dictionary<System.Type, byte> typeIDs,
-            Dictionary<byte, Serialization.ReadFunc> readFuncs)
+        public SerialReader(ArraySegment<byte> buf, Hashtable typeIDs, ReadFunc[] readFuncs)
         {
             this.arrSeg = buf;
             this.buf = (IList<byte>)buf;
@@ -102,20 +102,25 @@ namespace WSNet2.Core
             return str;
         }
 
-        public T ReadObject<T>(T recycle = default) where T : IWSNetSerializable, new()
+        public T ReadObject<T>(T recycle = default) where T : class, IWSNetSerializable, new()
         {
-            checkType(Type.Obj);
+            if (checkType(Type.Obj, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var t = typeof(T);
-            if (!typeIDs.ContainsKey(t))
+            var tid = typeIDs[t];
+            if (tid == null)
             {
                 var msg = string.Format("Type {0} is not registered", t);
                 throw new SerializationException(msg);
             }
 
-            var id = Get8();
-            if (id != typeIDs[t])
+            var id = (byte)Get8();
+            if (id != (byte)tid)
             {
-                var msg = string.Format("Type mismatch {0} wants {1}", typeIDs[t], id);
+                var msg = string.Format("Type mismatch {0} wants {1}", tid, id);
                 throw new SerializationException(msg);
             }
 
@@ -137,14 +142,68 @@ namespace WSNet2.Core
         public List<object> ReadList(IReadOnlyList<object> recycle = null)
         {
             checkType(Type.List);
-            var list = new List<object>();
             var count = Get8();
+            var list = new List<object>(count);
             var recycleCount = (recycle != null) ? recycle.Count : 0;
 
             for (var i = 0; i < count; i++)
             {
                 var elem = readElement((i < recycleCount) ? recycle[i] : null);
                 list.Add(elem);
+            }
+
+            return list;
+        }
+
+        public object[] ReadArray(IReadOnlyList<object> recycle = null)
+        {
+            checkType(Type.List);
+            var count = Get8();
+            var list = new object[count];
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var elem = readElement((i < recycleCount) ? recycle[i] : null);
+                list[i] = elem;
+            }
+
+            return list;
+        }
+
+        public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
+        {
+            checkType(Type.List);
+            var count = Get8();
+            var list = new List<T>(count);
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var len = Get16();
+                var st = pos;
+                var elem = ReadObject<T>((i < recycleCount) ? recycle[i] : null);
+                list.Add(elem);
+                pos = st + len;
+            }
+
+            return list;
+        }
+
+        public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
+        {
+            checkType(Type.List);
+            var count = Get8();
+            var list = new T[count];
+            var recycleCount = (recycle != null) ? recycle.Count : 0;
+
+            for (var i = 0; i < count; i++)
+            {
+                var len = Get16();
+                var st = pos;
+                var elem = ReadObject<T>((i < recycleCount) ? recycle[i] : null);
+                list[i] = elem;
+                pos = st + len;
             }
 
             return list;
@@ -316,12 +375,13 @@ namespace WSNet2.Core
                     break;
                 case Type.Obj:
                     var cid = buf[pos+1];
-                    if (!readFuncs.ContainsKey(cid))
+                    var read = readFuncs[cid];
+                    if (read == null)
                     {
                         throw new SerializationException(
                             string.Format("ClassID {0} is not registered", cid));
                     }
-                    elem = readFuncs[cid](this, recycle);
+                    elem = read(this, recycle);
                     break;
                 case Type.List:
                     elem = ReadList(recycle as IReadOnlyList<object>);

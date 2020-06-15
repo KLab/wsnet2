@@ -10,14 +10,14 @@ namespace WSNet2.Core
         const int MINSIZE = 1024;
 
         UTF8Encoding utf8 = new UTF8Encoding();
-        Dictionary<System.Type, byte> types;
+        Hashtable types;
         int pos;
         byte[] buf;
 
         /// <summary>
         /// コンストラクタ
         /// </summary>
-        public SerialWriter(int size, Dictionary<System.Type, byte> types)
+        public SerialWriter(int size, Hashtable types)//Dictionary<System.Type, byte> types)
         {
             var s = MINSIZE;
             while (s < size)
@@ -214,10 +214,17 @@ namespace WSNet2.Core
         /// </summary>
         /// <Typeparam name="T">型</param>
         /// <param name="v">値</param>
-        public void Write<T>(T v) where T : IWSNetSerializable
+        public void Write<T>(T v) where T : class, IWSNetSerializable
         {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
             var t = v.GetType();
-            if (!types.ContainsKey(t))
+            var id = types[t];
+            if (id == null)
             {
                 var msg = string.Format("Type {0} is not registered", t);
                 throw new SerializationException(msg);
@@ -225,7 +232,7 @@ namespace WSNet2.Core
 
             expand(4);
             buf[pos] = (byte)Type.Obj;
-            buf[pos+1] = types[t];
+            buf[pos+1] = (byte)id;
             pos += 4;
 
             var start = pos;
@@ -366,6 +373,9 @@ namespace WSNet2.Core
 
             switch (elem)
             {
+                case null:
+                    Write();
+                    break;
                 case bool e:
                     Write(e);
                     break;

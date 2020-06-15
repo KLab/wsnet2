@@ -82,6 +82,11 @@ namespace WSNet2.Core.Test
 
         public bool Equals(Obj2 o)
         {
+            if (Obj==null)
+            {
+                return S==o.S && o.Obj == null;
+            }
+
             return S==o.S && Obj.Equals(o.Obj);
         }
 
@@ -308,6 +313,32 @@ namespace WSNet2.Core.Test
             r2 = reader.ReadObject(r2);
             Assert.AreEqual(v2, r2);
             Assert.AreEqual(0, Obj1.NewCount);
+
+            Obj1 v3 = null;
+            expect = new byte[]{
+                (byte)Type.Null,
+            };
+
+            writer.Reset();
+            writer.Write(v3);
+            Assert.AreEqual(expect, writer.ArraySegment());
+            reader = Serialization.NewReader(writer.ArraySegment());
+            var r3 = reader.ReadObject<Obj1>();
+            Assert.AreEqual(v3, r3);
+
+            var v4 = new Obj2(4, null);
+            expect = new byte[]{
+                (byte)Type.Obj, (byte)'B', 0, 4,
+                (byte)Type.Short, 0x80, 4,
+                (byte)Type.Null,
+            };
+            writer.Reset();
+            writer.Write(v4);
+            Assert.AreEqual(expect, writer.ArraySegment());
+            reader = Serialization.NewReader(writer.ArraySegment());
+            var r4 = reader.ReadObject<Obj2>();
+            Console.WriteLine(r4);
+            Assert.AreEqual(v4, r4);
         }
 
         [Test]
@@ -321,6 +352,7 @@ namespace WSNet2.Core.Test
                     new Obj2(21, new Obj1(21, "def")),
                 },
                 new Obj1(12,"ghi"),
+                null,
             };
             var expect = new byte[]{
                 (byte)Type.List,
@@ -348,6 +380,9 @@ namespace WSNet2.Core.Test
                 // Obj1(11,"abc")
                 0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
                 (byte)Type.Int, 0x80,0,0,12, (byte)Type.Str8, 3, 0x67, 0x68,0x69,
+
+                // null
+                0, 1, (byte)Type.Null,
             };
 
             writer.Write(v);
@@ -360,9 +395,51 @@ namespace WSNet2.Core.Test
             };
             Obj1.NewCount = 0;
             var r = reader.ReadList(recycle);
-
             Assert.AreEqual(v, r);
             Assert.AreEqual(2, Obj1.NewCount);
+
+            reader = Serialization.NewReader(writer.ArraySegment());
+            var r2 = reader.ReadArray(recycle);
+            Assert.AreEqual(typeof(object[]), r2.GetType());
+            Assert.AreEqual(v, r2);
+        }
+
+        [Test]
+        public void TestReadListT()
+        {
+            var bin = new byte[]{
+                (byte)Type.List, 3,
+
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,1, (byte)Type.Str8, 3, 0x61, 0x62, 0x63,
+
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 10,
+                (byte)Type.Int, 0x80,0,0,2, (byte)Type.Str8, 3, 0x64, 0x65, 0x66,
+
+                0, 14, (byte)Type.Obj, (byte)'A', 0, 9,
+                (byte)Type.Int, 0x80,0,0,3, (byte)Type.Str8, 2, 0x67, 0x68,
+            };
+            var expect = new List<Obj1>(){
+                new Obj1(1, "abc"),
+                new Obj1(2, "def"),
+                new Obj1(3, "gh"),
+            };
+
+            var reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            var recycle = new List<Obj1>(){
+                new Obj1(),
+                new Obj1(),
+            };
+            Obj1.NewCount = 0;
+            var r = reader.ReadList<Obj1>(recycle);
+            Assert.AreEqual(typeof(List<Obj1>), r.GetType());
+            Assert.AreEqual(expect, r);
+            Assert.AreEqual(1, Obj1.NewCount);
+
+            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            var r2 = reader.ReadArray<Obj1>(recycle);
+            Assert.AreEqual(typeof(Obj1[]), r2.GetType());
+            Assert.AreEqual(expect, r2);
         }
 
         [Test]
