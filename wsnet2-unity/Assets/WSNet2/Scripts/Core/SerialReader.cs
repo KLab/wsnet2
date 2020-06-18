@@ -218,7 +218,7 @@ namespace WSNet2.Core
             for (var i = 0; i < count; i++)
             {
                 var klen = Get8();
-                var key = utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, klen);
+                var key = string.Intern(utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, klen));
                 pos += klen;
 
                 var val = readElement(
