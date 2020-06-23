@@ -14,10 +14,7 @@ type PropQuery struct {
 }
 
 func (q *PropQuery) match(val []byte) bool {
-	if binary.Type(q.Val[0]) != binary.Type(val[0]) {
-		return false
-	}
-	ret := bytes.Compare(val[1:], q.Val[1:])
+	ret := bytes.Compare(val, q.Val)
 	switch q.Op {
 	case "=":
 		return ret == 0
