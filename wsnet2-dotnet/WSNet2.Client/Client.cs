@@ -11,18 +11,29 @@ namespace WSNet2.DotnetClient
     {
         class EventReceiver : IEventReceiver
         {
-            public void OnJoin(ClientInfo cinfo)
+            public void OnError(Exception e)
             {
-                Console.WriteLine("Join: "+cinfo.Id);
+                Console.WriteLine("OnError: "+e);
+            }
+
+            public void OnJoined(Player me)
+            {
+                Console.WriteLine("OnJoined: "+me.Id);
+            }
+
+            public void OnOtherPlayerJoined(Player player)
+            {
+                Console.WriteLine("OnOtherPlayerJoined: "+player.Id);
             }
         }
 
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
             while(true){
+                Console.WriteLine($"callbackrunner: {Thread.CurrentThread.ManagedThreadId}");
                 ct.ThrowIfCancellationRequested();
                 cli.ProcessCallback();
-                await Task.Delay(100);
+                await Task.Delay(1000);
             }
         }
 
@@ -50,17 +61,17 @@ namespace WSNet2.DotnetClient
 
             var receiver = new EventReceiver();
 
-            var created = new TaskCompletionSource<Room>();
+            var roomCreated = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             client.Create(
                 roomOpt,
                 cliProps,
                 receiver,
                 (room) => {
-                    created.TrySetResult(room);
+                    roomCreated.TrySetResult(room);
                     return true;
                 },
                 (e) => {
-                    created.TrySetException(e);
+                    roomCreated.TrySetException(e);
                 });
 
             var cts = new CancellationTokenSource();
@@ -68,15 +79,16 @@ namespace WSNet2.DotnetClient
 
             try
             {
-                var room = await created.Task;
+                var room = await roomCreated.Task;
                 Console.WriteLine("created room = "+room.Id);
-                cts.Cancel();
 
                 var utf8 = new UTF8Encoding();
 
                 while (true) {
-                    await Task.Delay(1000);
-                    client.ProcessCallback();
+                    await Task.Delay(1);
+                    Console.Write($"message? ({Thread.CurrentThread.ManagedThreadId}): ");
+                    var str = Console.ReadLine();
+                    Console.WriteLine("input:"+str);
                 }
             }
             catch (Exception e)

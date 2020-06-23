@@ -9,6 +9,9 @@ type EvType byte
 
 const regularEvType = 30
 const (
+	// NewEvPeerReady : Peer準備完了イベント
+	// payload:
+	// | 24bit-be msg sequence number |
 	EvTypePeerReady EvType = 1 + iota
 	EvTypePong
 )

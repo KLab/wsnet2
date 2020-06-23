@@ -4,19 +4,21 @@ namespace WSNet2.Core
 {
     public class Player
     {
-        public string Id { get { return info.Id; } }
+        public string Id { get; private set; }
 
-        ClientInfo info;
-        Dictionary<string, object> props;
+        public Dictionary<string, object> Props;
 
         public Player(ClientInfo info)
         {
-            this.info = info;
-
+            Id = info.Id;
             var reader = Serialization.NewReader(info.Props);
-            props = reader.ReadDict();
+            Props = reader.ReadDict();
         }
 
+        public Player(string id, Dictionary<string, object> props)
+        {
+            Id = id;
+            Props = props;
+        }
     }
-
 }

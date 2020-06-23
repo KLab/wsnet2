@@ -27,9 +27,12 @@ namespace WSNet2.Core
         public void ProcessCallback()
         {
             callbackPool.Process();
-            foreach (var room in rooms)
+            lock(rooms)
             {
-                room.ProcessCallback();
+                foreach (var room in rooms)
+                {
+                    room.ProcessCallback();
+                }
             }
         }
 
@@ -66,7 +69,7 @@ namespace WSNet2.Core
 
                 if (!res.IsSuccessStatusCode)
                 {
-                    throw new Exception("response code: "+res);
+                    throw new Exception($"Create failed: code={res}");
                 }
 
                 var body = await res.Content.ReadAsByteArrayAsync();
@@ -80,11 +83,12 @@ namespace WSNet2.Core
                     {
                         return;
                     }
-
-                    rooms.Add(room);
+                    lock(rooms)
+                    {
+                        rooms.Add(room);
+                    }
                     _ = room.Start();
                 });
-
             }
             catch (Exception e)
             {

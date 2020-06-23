@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.WebSockets;
 using System.Threading;
@@ -8,6 +9,10 @@ namespace WSNet2.Core
 {
     public class Room
     {
+        const int EvBufPoolSize = 16;
+        const int EvBufInitialSize = 256;
+        const int MsgPoolSize = 16;
+
         public string Id { get { return info.id; } }
         public bool Visible { get { return info.visible; } }
         public bool Joinable { get { return info.joinable; } }
@@ -23,6 +28,12 @@ namespace WSNet2.Core
         Dictionary<string, object> privateProps;
         List<Player> players;
 
+        BlockingCollection<byte[]> evBufPool;
+        uint evSeqNum;
+
+        //MessagePool
+
+
         CallbackPool callbackPool = new CallbackPool();
 
         public Room(JoinedResponse joined, string myId, IEventReceiver receiver)
@@ -31,6 +42,14 @@ namespace WSNet2.Core
             this.uri = new Uri(joined.url);
             this.receiver = receiver;
             this.Running = true;
+            this.evSeqNum = 0;
+
+            evBufPool = new BlockingCollection<byte[]>(
+                new ConcurrentStack<byte[]>(), EvBufPoolSize);
+            for (var i = 0; i<EvBufPoolSize; i++)
+            {
+                evBufPool.Add(new byte[EvBufInitialSize]);
+            }
 
             var reader = Serialization.NewReader(info.publicProps);
             publicProps = reader.ReadDict();
@@ -60,17 +79,20 @@ namespace WSNet2.Core
 
         public async Task Start()
         {
+            Console.WriteLine("room.start");
+
             var cts = new CancellationTokenSource();
 
             // todo: leave前に切断したら再接続
             try
             {
                 await Connect(cts.Token);
+
             }
             catch(Exception e)
             {
                 callbackPool.Add(()=>{
-                    throw e;
+                    receiver.OnError(e);
                 });
             }
         }
@@ -80,33 +102,21 @@ namespace WSNet2.Core
             var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("X-Wsnet-App", info.appId);
             ws.Options.SetRequestHeader("X-Wsnet-User", Me.Id);
-            ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", "0");
+            ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
 
             await ws.ConnectAsync(uri, ct);
-
-            // 最初にEvPeerReadyが来る
-            var ev = await ReceiveEvent(ws, ct);
-
-            // todo: send required msgs
-            // todo: start sender task
 
             while(true)
             {
                 ct.ThrowIfCancellationRequested();
-
-                ev = await ReceiveEvent(ws, ct);
-
-                callbackPool.Add(() => {
-                    _ = Console.Out.WriteLineAsync("msg: " + BitConverter.ToString(ev.ToArray()));
-                });
+                var ev = await ReceiveEvent(ws, ct);
+                Dispatch(ev, ct);
             }
         }
 
-        byte[] buf = new byte[8];
-
-        // TODO: return Event
-        private async Task<ArraySegment<byte>> ReceiveEvent(WebSocket ws, CancellationToken ct)
+        private async Task<Event> ReceiveEvent(WebSocket ws, CancellationToken ct)
         {
+            var buf = evBufPool.Take(ct);
             var pos = 0;
             while(true){
                 var seg = new ArraySegment<byte>(buf, pos, buf.Length-pos);
@@ -125,7 +135,61 @@ namespace WSNet2.Core
                 Array.Resize(ref buf, buf.Length*2);
             }
 
-            return new ArraySegment<byte>(buf, 0, pos);
+            return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
         }
+
+        private void Dispatch(Event ev, CancellationToken ct)
+        {
+            if (ev.IsRegular)
+            {
+                if (ev.SequenceNum != evSeqNum+1)
+                {
+                    throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
+                }
+
+                evSeqNum = ev.SequenceNum;
+            }
+
+            switch (ev)
+            {
+                case EvPeerReady evPeerReady:
+                    OnEvPeerReady(evPeerReady, ct);
+                    break;
+                case EvJoined evJoined:
+                    OnEvJoined(evJoined);
+                    break;
+
+
+                default:
+                    throw new Exception($"unknown event: {ev}");
+            }
+
+            // Event受信に使ったバッファはcallbackで参照されるので
+            // callbackが呼ばれて使い終わってから返却
+            callbackPool.Add(() => evBufPool.Add(ev.BufferArray));
+        }
+
+        private void OnEvPeerReady(EvPeerReady ev, CancellationToken ct)
+        {
+            
+        }
+
+        private void OnEvJoined(EvJoined ev)
+        {
+            if (ev.ClientID == Me.Id)
+            {
+                Me.Props = ev.GetProps(Me.Props);
+                callbackPool.Add(() => receiver.OnJoined(Me));
+                return;
+            }
+
+            callbackPool.Add(()=>
+            {
+                var player = new Player(ev.ClientID, ev.GetProps());
+                players.Add(player);
+                callbackPool.Add(() => receiver.OnOtherPlayerJoined(player));
+            });
+        }
+
     }
 }

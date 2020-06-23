@@ -4,6 +4,10 @@ namespace WSNet2.Core
 {
     public interface IEventReceiver
     {
-        public void OnJoin(ClientInfo cinfo);
+        public void OnError(Exception e);
+
+        public void OnJoined(Player me);
+
+        public void OnOtherPlayerJoined(Player player);
     }
 }
