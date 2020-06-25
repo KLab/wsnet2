@@ -174,6 +174,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 type SearchParam struct {
 	SearchGroup uint32
 	Queries     []lobby.PropQueries
+	Limit       uint32
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +193,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Debugf("%#v", param)
 
-	rooms, err := sv.roomService.Search(appID, param.SearchGroup, param.Queries)
+	rooms, err := sv.roomService.Search(appID, param.SearchGroup, param.Queries, int(param.Limit))
 	if err != nil {
 		log.Errorf("Failed to search room: %v", err)
 		http.Error(w, "Failed to search room", http.StatusInternalServerError)
