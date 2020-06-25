@@ -7,26 +7,38 @@ import (
 	"wsnet2/log"
 )
 
+//go:generate stringer -type=OpType
+type OpType byte
+
+const (
+	OpEqual OpType = iota
+	OpNot
+	OpLessThan
+	OpLessThanOrEqual
+	OpGreaterThan
+	OpGreaterThanOrEqual
+)
+
 type PropQuery struct {
 	Key string
-	Op  string
+	Op  OpType
 	Val []byte
 }
 
 func (q *PropQuery) match(val []byte) bool {
 	ret := bytes.Compare(val, q.Val)
 	switch q.Op {
-	case "=":
+	case OpEqual:
 		return ret == 0
-	case "!":
+	case OpNot:
 		return ret != 0
-	case "<":
+	case OpLessThan:
 		return ret < 0
-	case "<=":
+	case OpLessThanOrEqual:
 		return ret <= 0
-	case ">":
+	case OpGreaterThan:
 		return ret > 0
-	case ">=":
+	case OpGreaterThanOrEqual:
 		return ret >= 0
 	}
 	log.Errorf("unsupported operator: %v", q.Op)
