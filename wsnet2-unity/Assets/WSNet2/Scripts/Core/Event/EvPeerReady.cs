@@ -2,11 +2,11 @@ namespace WSNet2.Core
 {
     public class EvPeerReady : Event
     {
-        public int MsgSeqNum { get; private set; }
+        public int LastSeqNum { get; private set; }
 
-        public EvPeerReady(EvType type, SerialReader reader) : base(type, reader)
+        public EvPeerReady(SerialReader reader) : base(EvType.PeerReady, reader)
         {
-            MsgSeqNum = reader.Get24();
+            LastSeqNum = reader.Get24();
         }
     }
 }

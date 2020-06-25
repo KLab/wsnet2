@@ -32,6 +32,7 @@ namespace WSNet2.Core
                 foreach (var room in rooms)
                 {
                     room.ProcessCallback();
+                    // todo: 終わったroomを削除
                 }
             }
         }
@@ -43,21 +44,22 @@ namespace WSNet2.Core
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new CreateParam();
-            param.roomOption = roomOption;
-            param.clientInfo = new ClientInfo(userId, clientProps);
-
-            var _ = create(param, receiver, onSuccess, onFailed);
+            var _ = create(roomOption, clientProps, receiver, onSuccess, onFailed);
         }
 
         private async Task create(
-            CreateParam param,
+            RoomOption roomOption,
+            IDictionary<string, object> clientProps,
             IEventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
             try
             {
+                var param = new CreateParam();
+                param.roomOption = roomOption;
+                param.clientInfo = new ClientInfo(userId, clientProps);
+
                 var opt = MessagePackSerializer.Serialize(param);
                 var content = new ByteArrayContent(opt);
 
@@ -66,13 +68,13 @@ namespace WSNet2.Core
                 cli.DefaultRequestHeaders.Add("X-User-Id", userId);
 
                 var res = await cli.PostAsync(baseUri + "/rooms", content);
-
+                var body = await res.Content.ReadAsByteArrayAsync();
                 if (!res.IsSuccessStatusCode)
                 {
-                    throw new Exception($"Create failed: code={res}");
+                    var msg = System.Text.Encoding.UTF8.GetString(body);
+                    throw new Exception($"Create failed: code={res} {msg}");
                 }
 
-                var body = await res.Content.ReadAsByteArrayAsync();
                 var joined = MessagePackSerializer.Deserialize<JoinedResponse>(body);
                 var room = new Room(joined, userId, receiver);
 
@@ -87,7 +89,7 @@ namespace WSNet2.Core
                     {
                         rooms.Add(room);
                     }
-                    _ = room.Start();
+                    _ = Task.Run(room.Start);
                 });
             }
             catch (Exception e)

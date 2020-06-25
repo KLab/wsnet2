@@ -9,5 +9,7 @@ namespace WSNet2.Core
         public void OnJoined(Player me);
 
         public void OnOtherPlayerJoined(Player player);
+
+        public void OnMessage(EvMessage ev);
     }
 }

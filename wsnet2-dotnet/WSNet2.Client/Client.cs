@@ -1,19 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WSNet2.Core;
 
 namespace WSNet2.DotnetClient
 {
+    public class StrMessage : IWSNetSerializable
+    {
+        string str;
+
+        public StrMessage(){}
+        public StrMessage(string str)
+        {
+            this.str = str;
+        }
+
+        public void Serialize(SerialWriter writer)
+        {
+            writer.Write(str);
+        }
+
+        public void Deserialize(SerialReader reader, int len)
+        {
+            str = reader.ReadString();
+        }
+
+        public override string ToString()
+        {
+            return str;
+        }
+    }
+
+
     public class DotnetClient
     {
         class EventReceiver : IEventReceiver
         {
+            CancellationTokenSource cts;
+
+            public EventReceiver(CancellationTokenSource cts)
+            {
+                this.cts = cts;
+            }
+
             public void OnError(Exception e)
             {
                 Console.WriteLine("OnError: "+e);
+                cts.Cancel();
             }
 
             public void OnJoined(Player me)
@@ -25,12 +59,17 @@ namespace WSNet2.DotnetClient
             {
                 Console.WriteLine("OnOtherPlayerJoined: "+player.Id);
             }
+
+            public void OnMessage(EvMessage ev)
+            {
+                var msg = ev.Body<StrMessage>();
+                Console.WriteLine($"OnMessage[{ev.SenderID}]: {msg}");
+            }
         }
 
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
             while(true){
-                Console.WriteLine($"callbackrunner: {Thread.CurrentThread.ManagedThreadId}");
                 ct.ThrowIfCancellationRequested();
                 cli.ProcessCallback();
                 await Task.Delay(1000);
@@ -39,6 +78,8 @@ namespace WSNet2.DotnetClient
 
         static async Task Main(string[] args)
         {
+            Serialization.Register<StrMessage>(0);
+
             var client = new WSNet2Client(
                 "http://localhost:8080",
                 "testapp",
@@ -59,7 +100,8 @@ namespace WSNet2.DotnetClient
 
             var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(10);
 
-            var receiver = new EventReceiver();
+            var cts = new CancellationTokenSource();
+            var receiver = new EventReceiver(cts);
 
             var roomCreated = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             client.Create(
@@ -74,7 +116,6 @@ namespace WSNet2.DotnetClient
                     roomCreated.TrySetException(e);
                 });
 
-            var cts = new CancellationTokenSource();
             _ = callbackrunner(client, cts.Token);
 
             try
@@ -82,13 +123,15 @@ namespace WSNet2.DotnetClient
                 var room = await roomCreated.Task;
                 Console.WriteLine("created room = "+room.Id);
 
-                var utf8 = new UTF8Encoding();
-
                 while (true) {
-                    await Task.Delay(1);
-                    Console.Write($"message? ({Thread.CurrentThread.ManagedThreadId}): ");
+                    cts.Token.ThrowIfCancellationRequested();
                     var str = Console.ReadLine();
-                    Console.WriteLine("input:"+str);
+
+                    cts.Token.ThrowIfCancellationRequested();
+                    Console.WriteLine($"input ({Thread.CurrentThread.ManagedThreadId}): {str}");
+
+                    var msg = new StrMessage(str);
+                    room.Broadcast(msg);
                 }
             }
             catch (Exception e)
@@ -97,34 +140,5 @@ namespace WSNet2.DotnetClient
                 cts.Cancel();
             }
         }
-/*
-        static async Task Sender(ClientWebSocket ws, CancellationToken ct)
-        {
-            var seqnum = 1;
-                if (ws.State != WebSocketState.Open) {
-                    await Console.Out.WriteLineAsync("sender: state != open"+ws.State);
-                    break;
-                }
-
-                Console.Write("message?: ");
-                var msg = Console.ReadLine();
-
-                ct.ThrowIfCancellationRequested();
-
-                var len = utf8.GetByteCount(msg);
-                var buf = new byte[len+4];
-                buf[0] = 34; // MsgTypeBroadcast
-                buf[1] = (byte)((seqnum & 0xff0000) >> 16);
-                buf[2] = (byte)((seqnum & 0xff00) >> 8);
-                buf[3] = (byte)(seqnum & 0xff);
-                utf8.GetBytes(msg, 0, msg.Length, buf, 4);
-                seqnum++;
-
-                await ws.SendAsync(buf, WebSocketMessageType.Binary, true, ct);
-                await Task.Delay(100);
-            }
-            await Console.Out.WriteLineAsync("sender finish");
-        }
-*/
     }
 }

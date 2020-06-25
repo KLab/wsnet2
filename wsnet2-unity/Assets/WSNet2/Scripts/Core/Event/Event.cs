@@ -34,10 +34,13 @@ namespace WSNet2.Core
             switch (type)
             {
                 case EvType.PeerReady:
-                    ev = new EvPeerReady(type, reader);
+                    ev = new EvPeerReady(reader);
                     break;
                 case EvType.Joined:
-                    ev = new EvJoined(type, reader);
+                    ev = new EvJoined(reader);
+                    break;
+                case EvType.Message:
+                    ev = new EvMessage(reader);
                     break;
 
                 default:

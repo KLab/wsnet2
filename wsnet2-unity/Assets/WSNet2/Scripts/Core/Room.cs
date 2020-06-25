@@ -11,7 +11,8 @@ namespace WSNet2.Core
     {
         const int EvBufPoolSize = 16;
         const int EvBufInitialSize = 256;
-        const int MsgPoolSize = 16;
+        const int MsgPoolSize = 8;
+        const int MsgBufInitialSize = 512;
 
         public string Id { get { return info.id; } }
         public bool Visible { get { return info.visible; } }
@@ -23,16 +24,19 @@ namespace WSNet2.Core
 
         RoomInfo info;
         Uri uri;
-        IEventReceiver receiver;
+        IEventReceiver eventReceiver;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
         List<Player> players;
 
+        ClientWebSocket ws;
+        TaskCompletionSource<Task> senderTaskSource;
+
         BlockingCollection<byte[]> evBufPool;
         uint evSeqNum;
 
-        //MessagePool
-
+        MsgPool msgPool;
+        BlockingCollection<bool> hasMsg;
 
         CallbackPool callbackPool = new CallbackPool();
 
@@ -40,16 +44,19 @@ namespace WSNet2.Core
         {
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
-            this.receiver = receiver;
+            this.eventReceiver = receiver;
             this.Running = true;
-            this.evSeqNum = 0;
 
-            evBufPool = new BlockingCollection<byte[]>(
+            this.evSeqNum = 0;
+            this.evBufPool = new BlockingCollection<byte[]>(
                 new ConcurrentStack<byte[]>(), EvBufPoolSize);
             for (var i = 0; i<EvBufPoolSize; i++)
             {
                 evBufPool.Add(new byte[EvBufInitialSize]);
             }
+
+            this.msgPool = new MsgPool(MsgPoolSize, MsgBufInitialSize);
+            this.hasMsg = new BlockingCollection<bool>(1);
 
             var reader = Serialization.NewReader(info.publicProps);
             publicProps = reader.ReadDict();
@@ -71,6 +78,7 @@ namespace WSNet2.Core
 
         public void ProcessCallback()
         {
+            // todo: 終わった部屋をどうにかする
             if (Running)
             {
                 callbackPool.Process();
@@ -79,25 +87,42 @@ namespace WSNet2.Core
 
         public async Task Start()
         {
-            Console.WriteLine("room.start");
+            // todo: leave前に切断したら再接続
 
             var cts = new CancellationTokenSource();
 
-            // todo: leave前に切断したら再接続
             try
             {
-                await Connect(cts.Token);
+                ws = await Connect(cts.Token);
+                senderTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+                var tasks = new Task[]
+                {
+                    Task.Run(async() => await Receiver(cts.Token)),
+                    Task.Run(async() => await await senderTaskSource.Task),
+                };
+
+                await tasks[Task.WaitAny(tasks)];
             }
             catch(Exception e)
             {
+                cts.Cancel();
+
+                // todo: 再接続。とりあえずOnErrorに流す
                 callbackPool.Add(()=>{
-                    receiver.OnError(e);
+                    eventReceiver.OnError(e);
                 });
             }
         }
 
-        private async Task Connect(CancellationToken ct)
+        public void Broadcast(IWSNetSerializable data)
+        {
+            msgPool.AddBroadcast(data);
+            hasMsg.TryAdd(true);
+        }
+
+
+        private async Task<ClientWebSocket> Connect(CancellationToken ct)
         {
             var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("X-Wsnet-App", info.appId);
@@ -105,7 +130,11 @@ namespace WSNet2.Core
             ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
 
             await ws.ConnectAsync(uri, ct);
+            return ws;
+        }
 
+        private async Task Receiver(CancellationToken ct)
+        {
             while(true)
             {
                 ct.ThrowIfCancellationRequested();
@@ -144,10 +173,11 @@ namespace WSNet2.Core
             {
                 if (ev.SequenceNum != evSeqNum+1)
                 {
+                    // todo: reconnectable?
                     throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
                 }
 
-                evSeqNum = ev.SequenceNum;
+                evSeqNum++;
             }
 
             switch (ev)
@@ -158,7 +188,9 @@ namespace WSNet2.Core
                 case EvJoined evJoined:
                     OnEvJoined(evJoined);
                     break;
-
+                case EvMessage evMessage:
+                    OnEvMessage(evMessage);
+                    break;
 
                 default:
                     throw new Exception($"unknown event: {ev}");
@@ -171,7 +203,8 @@ namespace WSNet2.Core
 
         private void OnEvPeerReady(EvPeerReady ev, CancellationToken ct)
         {
-            
+            var task = Task.Run(() => Sender(ev.LastSeqNum+1, ct));
+            senderTaskSource.TrySetResult(task);
         }
 
         private void OnEvJoined(EvJoined ev)
@@ -179,7 +212,7 @@ namespace WSNet2.Core
             if (ev.ClientID == Me.Id)
             {
                 Me.Props = ev.GetProps(Me.Props);
-                callbackPool.Add(() => receiver.OnJoined(Me));
+                callbackPool.Add(() => eventReceiver.OnJoined(Me));
                 return;
             }
 
@@ -187,9 +220,28 @@ namespace WSNet2.Core
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
                 players.Add(player);
-                callbackPool.Add(() => receiver.OnOtherPlayerJoined(player));
+                callbackPool.Add(() => eventReceiver.OnOtherPlayerJoined(player));
             });
         }
 
+        private void OnEvMessage(EvMessage ev)
+        {
+            callbackPool.Add(() => eventReceiver.OnMessage(ev));
+        }
+
+        private async Task Sender(int seqNum, CancellationToken ct)
+        {
+            do
+            {
+                ArraySegment<byte> msg;
+                while ((msg = msgPool.Take(seqNum)) != null)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+                    seqNum++;
+                }
+            }
+            while (hasMsg.Take(ct));
+        }
     }
 }

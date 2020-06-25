@@ -8,7 +8,7 @@ namespace WSNet2.Core
 
         Dictionary<string, object> props;
 
-        public EvJoined(EvType type, SerialReader reader) : base(type, reader)
+        public EvJoined(SerialReader reader) : base(EvType.Joined, reader)
         {
             ClientID = reader.ReadString();
             props = null;
