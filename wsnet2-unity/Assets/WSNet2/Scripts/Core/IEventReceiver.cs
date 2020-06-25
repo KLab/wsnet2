@@ -4,12 +4,12 @@ namespace WSNet2.Core
 {
     public interface IEventReceiver
     {
-        public void OnError(Exception e);
+        void OnError(Exception e);
 
-        public void OnJoined(Player me);
+        void OnJoined(Player me);
 
-        public void OnOtherPlayerJoined(Player player);
+        void OnOtherPlayerJoined(Player player);
 
-        public void OnMessage(EvMessage ev);
+        void OnMessage(EvMessage ev);
     }
 }

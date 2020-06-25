@@ -58,10 +58,10 @@ namespace WSNet2.Core
             this.msgPool = new MsgPool(MsgPoolSize, MsgBufInitialSize);
             this.hasMsg = new BlockingCollection<bool>(1);
 
-            var reader = Serialization.NewReader(info.publicProps);
+            var reader = Serialization.NewReader(new ArraySegment<byte>(info.publicProps));
             publicProps = reader.ReadDict();
 
-            reader = Serialization.NewReader(info.privateProps);
+            reader = Serialization.NewReader(new ArraySegment<byte>(info.privateProps));
             privateProps = reader.ReadDict();
 
             players = new List<Player>(joined.players.Length);
@@ -233,11 +233,11 @@ namespace WSNet2.Core
         {
             do
             {
-                ArraySegment<byte> msg;
-                while ((msg = msgPool.Take(seqNum)) != null)
+                ArraySegment<byte>? msg;
+                while ((msg = msgPool.Take(seqNum)).HasValue)
                 {
                     ct.ThrowIfCancellationRequested();
-                    await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+                    await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                     seqNum++;
                 }
             }

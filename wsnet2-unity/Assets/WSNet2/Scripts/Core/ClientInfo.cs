@@ -25,7 +25,9 @@ namespace WSNet2.Core
             {
                 writer.Reset();
                 writer.Write(props);
-                this.Props = writer.ArraySegment().ToArray();
+                var arr = (IList<byte>)writer.ArraySegment();
+                this.Props = new byte[arr.Count];
+                arr.CopyTo(this.Props, 0);
             }
         }
     }

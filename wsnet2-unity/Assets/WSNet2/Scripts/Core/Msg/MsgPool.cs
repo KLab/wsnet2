@@ -33,7 +33,7 @@ namespace WSNet2.Core
             }
         }
 
-        public ArraySegment<byte> Take(int seqNum)
+        public ArraySegment<byte>? Take(int seqNum)
         {
             lock(this)
             {

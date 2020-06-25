@@ -52,11 +52,15 @@ namespace WSNet2.Core
             {
                 writer.Reset();
                 writer.Write(publicProps);
-                this.publicProps = writer.ArraySegment().ToArray();
+                var arr = (IList<byte>)writer.ArraySegment();
+                this.publicProps = new byte[arr.Count];
+                arr.CopyTo(this.publicProps, 0);
 
                 writer.Reset();
                 writer.Write(privateProps);
-                this.privateProps = writer.ArraySegment().ToArray();
+                arr = (IList<byte>)writer.ArraySegment();
+                this.privateProps = new byte[arr.Count];
+                arr.CopyTo(this.privateProps, 0);
             }
         }
 
