@@ -173,7 +173,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 
 type SearchParam struct {
 	SearchGroup uint32
-	Queries     lobby.PropQueries
+	Queries     []lobby.PropQueries
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {

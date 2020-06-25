@@ -134,7 +134,7 @@ func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*p
 	return res, nil
 }
 
-func (rs *RoomService) Search(appId string, searchGroup uint32, queries PropQueries) ([]pb.RoomInfo, error) {
+func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries) ([]pb.RoomInfo, error) {
 	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
@@ -142,10 +142,12 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries PropQuer
 
 	filtered := make([]pb.RoomInfo, 0, len(rooms))
 	for i, r := range rooms {
-		if !queries.match(props[i]) {
-			continue
+		for _, q := range queries {
+			if q.match(props[i]) {
+				filtered = append(filtered, r)
+				break
+			}
 		}
-		filtered = append(filtered, r)
 	}
 
 	return filtered, nil
