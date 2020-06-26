@@ -11,6 +11,7 @@ import (
 	"github.com/vmihailenco/msgpack/v4"
 
 	"wsnet2/binary"
+	"wsnet2/lobby"
 	"wsnet2/lobby/service"
 	"wsnet2/pb"
 )
@@ -38,11 +39,17 @@ func NewBot(appId, userId string) *bot {
 }
 
 func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
+	props := binary.Dict{}
+	props["key1"] = binary.MarshalInt(1024)
+	props["key2"] = binary.MarshalStr16("hoge")
+
 	param := &service.CreateParam{
 		RoomOption: pb.RoomOption{
-			Visible:    true,
-			Watchable:  false,
-			MaxPlayers: 4,
+			Visible:     true,
+			Watchable:   false,
+			MaxPlayers:  4,
+			SearchGroup: 1,
+			PublicProps: binary.MarshalDict(props),
 		},
 		ClientInfo: pb.ClientInfo{
 			Id: b.userId,
@@ -79,6 +86,24 @@ func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 	fmt.Printf("[bot:%v] Join success, WebSocket=%s\n", b.userId, room.Url)
 
 	return room, nil
+}
+
+func (b *bot) SearchRoom(queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
+	param := &service.SearchParam{
+		SearchGroup: 1,
+		Queries:     []lobby.PropQueries{queries},
+	}
+
+	rooms := []pb.RoomInfo{}
+
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/search", param, &rooms)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return nil, err
+	}
+
+	fmt.Printf("[bot:%v] Search success, rooms=%v\n", b.userId, rooms)
+	return nil, nil
 }
 
 func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
@@ -130,11 +155,32 @@ func (b *bot) DialGame(url string, seq int) (*websocket.Conn, error) {
 
 func main() {
 	bot := NewBot(appID, "12345")
+
 	room, err := bot.CreateRoom()
 	if err != nil {
 		fmt.Printf("create room error: %v\n", err)
 		return
 	}
+
+	var queries []lobby.PropQuery
+	fmt.Println("key1 =")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpEqual, Val: binary.MarshalInt(1024)}}
+	bot.SearchRoom(queries)
+	fmt.Println("key1 !")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpNot, Val: binary.MarshalInt(1024)}}
+	bot.SearchRoom(queries)
+	fmt.Println("key1 <")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpLessThan, Val: binary.MarshalInt(1024)}}
+	bot.SearchRoom(queries)
+	fmt.Println("key1 <=")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpLessThanOrEqual, Val: binary.MarshalInt(1024)}}
+	bot.SearchRoom(queries)
+	fmt.Println("key1 >")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpGreaterThan, Val: binary.MarshalInt(1024)}}
+	bot.SearchRoom(queries)
+	fmt.Println("key1 >=")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpGreaterThanOrEqual, Val: binary.MarshalInt(1024)}}
+	bot.SearchRoom(queries)
 
 	ws, err := bot.DialGame(room.Url, 0)
 	if err != nil {

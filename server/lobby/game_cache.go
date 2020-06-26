@@ -29,76 +29,78 @@ type GameServer struct {
 	WebSocketPort int    `db:"ws_port"`
 }
 
-type GameQuery struct {
-	db    *sqlx.DB
-	valid int64
+type GameCache struct {
+	sync.Mutex
+	db     *sqlx.DB
+	expire time.Duration
+	valid  int64
 
-	muServers   sync.Mutex
 	servers     map[GameServerID]*GameServer
 	order       []GameServerID
 	lastUpdated time.Time
 }
 
-func NewGameQuery(db *sqlx.DB, valid int64) *GameQuery {
-	return &GameQuery{
+func NewGameCache(db *sqlx.DB, expire time.Duration, valid int64) *GameCache {
+	return &GameCache{
 		db:      db,
+		expire:  expire,
 		valid:   valid,
 		servers: make(map[GameServerID]*GameServer),
 		order:   []GameServerID{},
 	}
 }
 
-func (q *GameQuery) update() error {
+func (c *GameCache) update() error {
 	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
 
 	var servers []GameServer
-	err := q.db.Select(&servers, query, time.Now().Unix()-q.valid)
+	err := c.db.Select(&servers, query, time.Now().Unix()-c.valid)
 	if err != nil {
 		return err
 	}
 
 	log.Debugf("Now alive game servers: %+v", servers)
 
-	q.servers = make(map[GameServerID]*GameServer, len(servers))
+	c.servers = make(map[GameServerID]*GameServer, len(servers))
 	for _, s := range servers {
-		q.servers[GameServerID(s.Id)] = &s
-		q.order = append(q.order, GameServerID(s.Id))
+		c.servers[GameServerID(s.Id)] = &s
+		c.order = append(c.order, GameServerID(s.Id))
 	}
-	q.lastUpdated = time.Now()
+	c.lastUpdated = time.Now()
 	return nil
 }
 
-func (q *GameQuery) Get(id uint32) (*GameServer, error) {
-	q.muServers.Lock()
-	defer q.muServers.Unlock()
-	if q.lastUpdated.Add(time.Second * 1).Before(time.Now()) {
-		err := q.update()
+func (c *GameCache) Get(id uint32) (*GameServer, error) {
+	c.Lock()
+	defer c.Unlock()
+	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
+		err := c.update()
 		if err != nil {
 			return nil, err
 		}
 	}
-	if len(q.servers) == 0 {
+	if len(c.servers) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
-	game := q.servers[GameServerID(id)]
+	game := c.servers[GameServerID(id)]
 	if game == nil {
 		return nil, xerrors.Errorf("game server not found (id=%v)", id)
 	}
 	return game, nil
 }
 
-func (q *GameQuery) Rand() (*GameServer, error) {
-	q.muServers.Lock()
-	defer q.muServers.Unlock()
-	if q.lastUpdated.Add(time.Second * 1).Before(time.Now()) {
-		err := q.update()
+func (c *GameCache) Rand() (*GameServer, error) {
+	c.Lock()
+	defer c.Unlock()
+	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
+		err := c.update()
 		if err != nil {
 			return nil, err
 		}
 	}
-	if len(q.order) == 0 {
+	if len(c.order) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
-	id := q.order[rand.Intn(len(q.order))]
-	return q.servers[id], nil
+	id := c.order[rand.Intn(len(c.order))]
+	return c.servers[id], nil
 }
