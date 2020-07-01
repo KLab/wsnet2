@@ -6,6 +6,9 @@ using MessagePack;
 
 namespace WSNet2.Core
 {
+    /// <summary>
+    ///   WSNet2に接続するためのClient
+    /// </summary>
     public class WSNet2Client
     {
         string baseUri;
@@ -16,6 +19,13 @@ namespace WSNet2.Core
         List<Room> rooms = new List<Room>();
         CallbackPool callbackPool = new CallbackPool();
 
+        /// <summary>
+        ///   コンストラクタ
+        /// </summary>
+        /// <param name="baseUri">LobbyのURI</param>
+        /// <param name="appId">Wsnetに登録してあるApplication ID</param>
+        /// <param name="userId">プレイヤーIDとなるID</param>
+        /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
         public WSNet2Client(string baseUri, string appId, string userId, byte[] authData)
         {
             this.baseUri = baseUri;
@@ -24,6 +34,16 @@ namespace WSNet2.Core
             this.authData = authData;
         }
 
+        /// <summary>
+        ///   蓄積されたCallbackを処理する。
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     Unityではcallbackをメインスレッドで動かしたいので溜めておいて
+        ///     このメソッド経由で実行する。Update()などで呼び出せば良い。
+        ///     DotNetの場合は適当なスレッドでループを回す。
+        ///   </para>
+        /// </remarks>
         public void ProcessCallback()
         {
             callbackPool.Process();
@@ -37,6 +57,23 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>
+        ///   部屋を作成して入室
+        /// </summary>
+        /// <param name="roomOption">部屋オプション</param>
+        /// <param name="clientProps">自身のカスタムプロパティ</param>
+        /// <param name="receiver">イベントレシーバ</param>
+        /// <param name="onSuccess">成功時callback</param>
+        /// <param name="onFailed">失敗時callback</param>
+        /// <remarks>
+        ///   <para>callbackはProcessCallback経由で呼ばれる</para>
+        ///   <para>
+        ///     onSuccessが呼ばれた時点ではまだwebsocket接続していない。
+        ///     ここでRoom.Running=falseすることで、イベントが処理されるのを止めておける。
+        ///     ProcessCallback()は呼び続けて良い。
+        ///     シーン遷移後にRoom.Running=trueにするとイベントが処理されレシーバに届くようになる。
+        ///   </para>
+        /// </remarks>
         public void Create(
             RoomOption roomOption,
             IDictionary<string, object> clientProps,
@@ -44,6 +81,8 @@ namespace WSNet2.Core
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
+            // asyncの警告を回避するためメソッドを分けてTaskを潰す。
+            // create()の中では全体をtry-catchして例外はonFailedに流す。
             var _ = create(roomOption, clientProps, receiver, onSuccess, onFailed);
         }
 
@@ -63,6 +102,7 @@ namespace WSNet2.Core
                 var opt = MessagePackSerializer.Serialize(param);
                 var content = new ByteArrayContent(opt);
 
+                // todo: 認証
                 var cli = new HttpClient();
                 cli.DefaultRequestHeaders.Add("X-App-Id", appId);
                 cli.DefaultRequestHeaders.Add("X-User-Id", userId);

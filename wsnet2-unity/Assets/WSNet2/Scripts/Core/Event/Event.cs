@@ -2,10 +2,16 @@ using System;
 
 namespace WSNet2.Core
 {
+    /// <summary>
+    ///   Gameサーバから送られてくるイベント
+    /// </summary>
     public class Event
     {
         const int regularEvType = 30;
 
+        /// <summary>
+        ///   イベント種別
+        /// </summary>
         public enum EvType
         {
             PeerReady = 1,
@@ -18,13 +24,25 @@ namespace WSNet2.Core
             Message,
         }
 
+        /// <summary>
+        ///   受信に使ったArraySegmentの中身（使い終わったらバッファプールに返却する用）
+        /// </summary>
         public byte[] BufferArray { get; private set; }
+
+        /// <summary>イベント種別</summary>
         public EvType Type { get; private set; }
+
+        /// <summary>通常メッセージか</summary>
         public bool IsRegular { get{ return (int)Type >= regularEvType; } }
+
+        /// <summary>通し番号</summary>
         public uint SequenceNum { get; private set; }
 
         protected SerialReader reader;
 
+        /// <summary>
+        ///   受信バイト列からEventを構築
+        /// </summary>
         public static Event Parse(ArraySegment<byte> buf)
         {
             var reader = Serialization.NewReader(buf);
@@ -51,7 +69,10 @@ namespace WSNet2.Core
             return ev;
         }
 
-        public Event(EvType type, SerialReader reader)
+        /// <summary>
+        ///   コンストラクタ
+        /// </summary>
+        protected Event(EvType type, SerialReader reader)
         {
             this.Type = type;
             this.reader = reader;

@@ -7,6 +7,9 @@ namespace WSNet2.Core
 {
     using ReadFunc = Serialization.ReadFunc;
 
+    /// <summary>
+    ///   型を保存するデシリアライザ
+    /// </summary>
     public class SerialReader
     {
         UTF8Encoding utf8 = new UTF8Encoding();

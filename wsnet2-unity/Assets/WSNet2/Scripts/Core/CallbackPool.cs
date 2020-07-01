@@ -10,6 +10,9 @@ namespace WSNet2.Core
     ///     Unityではcallbackをメインスレッドで動かしたいので溜めておいて、
     ///     メインスレッドでProcess()を呼び出すようにする。
     ///   </para>
+    ///   <para>
+    ///     DotNetの場合にも適当なスレッドで定期的にProcess()を呼び出す必要がある。
+    ///   </para>
     /// </remarks>
     public class CallbackPool
     {
@@ -18,6 +21,9 @@ namespace WSNet2.Core
         Action next;
         object processLock = new object();
 
+        /// <summary>
+        ///   callbackをpoolに追加
+        /// </summary>
         public void Add(Action callback)
         {
             lock(this)
@@ -26,19 +32,15 @@ namespace WSNet2.Core
             }
         }
 
-        public void Clear()
-        {
-            lock(this)
-            {
-                current = null;
-            }
-        }
-
+        /// <summary>
+        ///   Callbackを追加された順に実行する
+        /// </summary>
         public void Process()
         {
             lock(processLock){
                 lock(this)
                 {
+                    // 実行中も別スレッドからAddできるようにプールを入れ替える
                     var tmp = current;
                     current = next;
                     next = tmp;

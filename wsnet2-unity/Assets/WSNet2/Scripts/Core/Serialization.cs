@@ -4,6 +4,14 @@ using System.Runtime.Serialization;
 
 namespace WSNet2.Core
 {
+    /// <summary>
+    ///   型を保存するシリアライザ/デシリアライザ
+    /// </summary>
+    /// <remarks>
+    ///   <para>
+    ///     独自型の登録はこのクラスのstaticメソッドで行う。
+    ///   </para>
+    /// </remarks>
     public class Serialization
     {
         public delegate object ReadFunc(SerialReader reader, object recycle);
@@ -14,17 +22,27 @@ namespace WSNet2.Core
         static ReadFunc[] readFuncs = new ReadFunc[256];
         static SerialWriter writer;
 
+        /// <summary>
+        ///   SerialWriter新規作成
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     使い回されることはない。
+        ///   </para>
+        /// </remarks>
         public static SerialWriter NewWriter(int size = WRITER_BUFSIZE)
         {
-            var w = new SerialWriter(size, registeredTypes);
-            if (writer == null)
-            {
-                writer = w;
-            }
-
-            return w;
+            return new SerialWriter(size, registeredTypes);
         }
 
+        /// <summary>
+        ///   使い回し用のSerialWriterを取得
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     lockを取って使うこと。
+        ///   </para>
+        /// </remarks>
         public static SerialWriter GetWriter()
         {
             if (writer == null)
@@ -35,6 +53,9 @@ namespace WSNet2.Core
             return writer;
         }
 
+        /// <summary>
+        ///   SerialReader
+        /// </summary>
         public static SerialReader NewReader(ArraySegment<byte> buf)
         {
             return new SerialReader(buf, registeredTypes, readFuncs);
