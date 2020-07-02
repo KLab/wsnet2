@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace WSNet2.Core
 {
+    /// <summary>
+    ///   方を保存するシリアライザ
+    /// </summary>
     public class SerialWriter
     {
         const int MINSIZE = 1024;

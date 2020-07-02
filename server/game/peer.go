@@ -13,8 +13,8 @@ import (
 // Peer : websocketの接続
 //
 // CloseCodeが次の場合はクライアントは再接続を試行しない
-//  - CloseNormalClosure
-//  - CloseGoingAway
+//  - (1000) CloseNormalClosure (C#: WebsocketCloseStatus.NormalClosure)
+//  - (1001) CloseGoingAway (C#: WebsocketCloseStatus.EndpointUnavailable)
 //
 type Peer struct {
 	client *Client
@@ -177,7 +177,7 @@ loop:
 
 		msg, err := binary.UnmarshalMsg(data)
 		if err != nil {
-			p.client.room.logger.Errorf("Peer UnmarshalMsg error: client=%v peer=%p %v", p.client.Id, p, err)
+			p.client.room.logger.Errorf("Peer UnmarshalMsg error: client=%v peer=%p %v: %v", p.client.Id, p, err, data)
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())
 			break loop
 		}
