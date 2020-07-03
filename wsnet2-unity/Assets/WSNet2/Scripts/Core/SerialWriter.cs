@@ -280,7 +280,6 @@ namespace WSNet2.Core
         /// <summary>
         ///   辞書型の値を書き込む
         /// </summary>
-        /// <typeparam name="T">型</param>
         /// <param name="v">値</param>
         public void Write(IDictionary<string, object> v)
         {
@@ -310,6 +309,228 @@ namespace WSNet2.Core
                 pos += klen;
 
                 writeElement(kv.Value);
+            }
+        }
+
+        /// <summary>
+        ///   bool配列を書き込む
+        /// </summary>
+        /// <param name="vals">値</param>
+        public void Write(bool[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            var len = (count+7) / 8;
+            expand(3 + len);
+            buf[pos] = (byte)Type.Bools;
+            pos++;
+            Put16(count);
+
+            for (var i=0; i<count; i++)
+            {
+                if (i % 8 == 0)
+                {
+                    buf[pos + i/8] = 0;
+                }
+
+                if (vals[i])
+                {
+                    buf[pos + i/8] += (byte)(1 << ( 7 - (i % 8)));
+                }
+            }
+
+            pos += len;
+        }
+
+        /// <summary>
+        ///   sbyte配列を書き込む
+        /// </summary>
+        public void Write(sbyte[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count);
+            buf[pos] = (byte)Type.SBytes;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                var v = (int)val - sbyte.MinValue;
+                Put8(v);
+            }
+        }
+
+        /// <summary>
+        ///   byte配列を書き込む
+        /// </summary>
+        public void Write(byte[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count);
+            buf[pos] = (byte)Type.Bytes;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                Put8(val);
+            }
+        }
+
+        /// <summary>
+        ///   short配列を書き込む
+        /// </summary>
+        public void Write(short[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*2);
+            buf[pos] = (byte)Type.Shorts;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                var v = (int)val - short.MinValue;
+                Put16(v);
+            }
+        }
+
+        /// <summary>
+        ///   ushort配列を書き込む
+        /// </summary>
+        public void Write(ushort[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*2);
+            buf[pos] = (byte)Type.UShorts;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                Put16(val);
+            }
+        }
+
+        /// <summary>
+        ///   int配列を書き込む
+        /// </summary>
+        public void Write(int[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*4);
+            buf[pos] = (byte)Type.Ints;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                var v = (long)val - int.MinValue;
+                Put32(v);
+            }
+        }
+
+        /// <summary>
+        ///   uint配列を書き込む
+        /// </summary>
+        public void Write(uint[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*4);
+            buf[pos] = (byte)Type.UInts;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                Put32(val);
+            }
+        }
+
+        /// <summary>
+        ///   long配列を書き込む
+        /// </summary>
+        public void Write(long[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*8);
+            buf[pos] = (byte)Type.Longs;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                Put64((ulong)(val - long.MinValue));
+            }
+        }
+
+        /// <summary>
+        ///   ulong配列を書き込む
+        /// </summary>
+        public void Write(ulong[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*8);
+            buf[pos] = (byte)Type.ULongs;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                Put64(val);
             }
         }
 

@@ -482,5 +482,127 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(0, Obj1.NewCount);
         }
 
+        [TestCase(new bool[]{}, new byte[]{(byte)Type.Bools, 0x00, 0x00})]
+        [TestCase(new bool[]{true, false, true}, new byte[]{(byte)Type.Bools, 0, 3, 0b10100000})]
+        [TestCase(new bool[]{false, false, true, false, true, true, false, true}, new byte[]{(byte)Type.Bools, 0, 8, 0b00101101})]
+        [TestCase(new bool[]{true, true, false, true, false, false, true, false, true}, new byte[]{(byte)Type.Bools, 0, 9, 0b11010010, 0b10000000})]
+        public void TestBools(bool[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadBools();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new sbyte[]{}, new byte[]{(byte)Type.SBytes, 0x00, 0x00})]
+        [TestCase(new sbyte[]{0, 1, -128, 127}, new byte[]{(byte)Type.SBytes, 0, 4, 0x80, 0x81, 0x00, 0xff})]
+        public void TestSBytes(sbyte[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadSBytes();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new byte[]{}, new byte[]{(byte)Type.Bytes, 0x00, 0x00})]
+        [TestCase(new byte[]{0, 1, 127, 255}, new byte[]{(byte)Type.Bytes, 0, 4, 0, 1, 127, 255})]
+        public void TestBytes(byte[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadBytes();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new short[]{}, new byte[]{(byte)Type.Shorts, 0x00, 0x00})]
+        [TestCase(new short[]{0, 1, short.MinValue, short.MaxValue},
+                  new byte[]{(byte)Type.Shorts, 0, 4, 0x80, 0x00, 0x80, 0x01, 0x00, 0x00, 0xff, 0xff})]
+        public void TestShorts(short[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadShorts();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new ushort[]{}, new byte[]{(byte)Type.UShorts, 0x00, 0x00})]
+        [TestCase(new ushort[]{0, 1, ushort.MaxValue},
+                  new byte[]{(byte)Type.UShorts, 0, 3, 0x00, 0x00, 0x00, 0x01, 0xff, 0xff})]
+        public void TestUShorts(ushort[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadUShorts();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new int[]{}, new byte[]{(byte)Type.Ints, 0x00, 0x00})]
+        [TestCase(new int[]{0, 1, int.MinValue, int.MaxValue},
+                  new byte[]{(byte)Type.Ints, 0, 4, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff})]
+        public void TestInts(int[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadInts();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new uint[]{}, new byte[]{(byte)Type.UInts, 0x00, 0x00})]
+        [TestCase(new uint[]{0, 1, uint.MaxValue},
+                  new byte[]{(byte)Type.UInts, 0, 3, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x01, 0xff,0xff,0xff,0xff})]
+        public void TestUInts(uint[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadUInts();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new long[]{}, new byte[]{(byte)Type.Longs, 0x00, 0x00})]
+        [TestCase(new long[]{0, 1, long.MinValue, long.MaxValue},
+                  new byte[]{(byte)Type.Longs, 0, 4,
+                             0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})]
+        public void TestLongs(long[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadLongs();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new ulong[]{}, new byte[]{(byte)Type.ULongs, 0x00, 0x00})]
+        [TestCase(new ulong[]{0, 1, ulong.MaxValue},
+                  new byte[]{(byte)Type.ULongs, 0, 3,
+                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+                             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})]
+        public void TestULongs(ulong[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadULongs();
+            Assert.AreEqual(v, r);
+        }
     }
 }
