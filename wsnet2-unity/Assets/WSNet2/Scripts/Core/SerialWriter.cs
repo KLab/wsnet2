@@ -642,6 +642,33 @@ namespace WSNet2.Core
                 case IDictionary<string, object> e:
                     Write(e);
                     break;
+                case bool[] e:
+                    Write(e);
+                    break;
+                case sbyte[] e:
+                    Write(e);
+                    break;
+                case byte[] e:
+                    Write(e);
+                    break;
+                case short[] e:
+                    Write(e);
+                    break;
+                case ushort[] e:
+                    Write(e);
+                    break;
+                case int[] e:
+                    Write(e);
+                    break;
+                case uint[] e:
+                    Write(e);
+                    break;
+                case long[] e:
+                    Write(e);
+                    break;
+                case ulong[] e:
+                    Write(e);
+                    break;
                 case IEnumerable e:
                     Write(e);
                     break;

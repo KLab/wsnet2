@@ -560,6 +560,33 @@ namespace WSNet2.Core
                 case Type.Dict:
                     elem = ReadDict(recycle as IDictionary<string, object>);
                     break;
+                case Type.Bools:
+                    elem = ReadBools(recycle as bool[]);
+                    break;
+                case Type.SBytes:
+                    elem = ReadSBytes(recycle as sbyte[]);
+                    break;
+                case Type.Bytes:
+                    elem = ReadBytes(recycle as byte[]);
+                    break;
+                case Type.Shorts:
+                    elem = ReadShorts(recycle as short[]);
+                    break;
+                case Type.UShorts:
+                    elem = ReadUShorts(recycle as ushort[]);
+                    break;
+                case Type.Ints:
+                    elem = ReadInts(recycle as int[]);
+                    break;
+                case Type.UInts:
+                    elem = ReadUInts(recycle as uint[]);
+                    break;
+                case Type.Longs:
+                    elem = ReadLongs(recycle as long[]);
+                    break;
+                case Type.ULongs:
+                    elem = ReadULongs(recycle as ulong[]);
+                    break;
                 default:
                     throw new SerializationException(
                         string.Format("Type {0} is not implemented", t));

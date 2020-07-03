@@ -353,6 +353,7 @@ namespace WSNet2.Core.Test
                 },
                 new Obj1(12,"ghi"),
                 null,
+                new bool[]{ true, false, true },
             };
             var expect = new byte[]{
                 (byte)Type.List,
@@ -383,6 +384,9 @@ namespace WSNet2.Core.Test
 
                 // null
                 0, 1, (byte)Type.Null,
+
+                // bool(t, f, t)
+                0, 4, (byte)Type.Bools, 0, 3, 0b10100000,
             };
 
             writer.Write(v);
