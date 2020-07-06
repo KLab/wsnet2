@@ -4,32 +4,36 @@ import (
 	"crypto/sha256"
 	"strconv"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
-type Auth struct {
-	psk string
-}
+const expirationTime = 30
 
-func NewAuth(psk string) *Auth {
-	return &Auth{psk}
-}
-
-func (a *Auth) ValidateHash(userId, nonce, hash string) bool {
-	now := time.Now().Unix()
-	for offset := 0; offset < 30; offset++ {
-		h := a.GenerateHash(userId, now-int64(offset), nonce)
-		if h == hash {
-			return true
-		}
+func ValidateHash(userId, timestamp, psk, nonce, hash string) error {
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return xerrors.Errorf("invalid timestamp: %w", err)
 	}
-	return false
+	now := time.Now().Unix()
+	if now < ts {
+		return xerrors.Errorf("invalid timestamp: now=%v, ts=%v", now, ts)
+	}
+	if now-ts > expirationTime {
+		return xerrors.Errorf("expired timestamp: now=%v, ts=%v", now, ts)
+	}
+	h := GenerateHash(userId, timestamp, psk, nonce)
+	if h != hash {
+		return xerrors.New("invalid hash")
+	}
+	return nil
 }
 
-func (a *Auth) GenerateHash(userId string, timestamp int64, nonce string) string {
+func GenerateHash(userId, timestamp, psk, nonce string) string {
 	s := sha256.New()
 	s.Write([]byte(userId))
-	s.Write([]byte(strconv.FormatInt(timestamp, 10)))
-	s.Write([]byte(a.psk))
+	s.Write([]byte(timestamp))
+	s.Write([]byte(psk))
 	s.Write([]byte(nonce))
 	return string(s.Sum(nil))
 }

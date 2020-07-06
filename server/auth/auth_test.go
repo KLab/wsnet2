@@ -1,40 +1,39 @@
 package auth
 
 import (
+	"strconv"
 	"testing"
 	"time"
 )
 
-const psk = "hoge"
-
 func TestAuth(t *testing.T) {
 	userId := "alice"
-	timestamp := time.Now().Unix()
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	psk := "hoge"
 	nonce := "1234"
 
-	auth := NewAuth(psk)
-	hash := auth.GenerateHash(userId, timestamp, nonce)
-	if !auth.ValidateHash(userId, nonce, hash) {
+	hash := GenerateHash(userId, timestamp, psk, nonce)
+	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err != nil {
 		t.Fatalf("invalid hash: ")
 	}
 
-	timestamp = time.Now().Unix() - 5
-	hash = auth.GenerateHash(userId, timestamp, nonce)
-	if !auth.ValidateHash(userId, nonce, hash) {
+	timestamp = strconv.FormatInt(time.Now().Unix()-5, 10)
+	hash = GenerateHash(userId, timestamp, psk, nonce)
+	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err != nil {
 		t.Fatalf("invalid hash: userId=%v, timestamp=%v, nonce=%v, hash=%v", userId, timestamp, nonce, hash)
 	}
 
 	// タイムスタンプ有効範囲外
-	timestamp = time.Now().Unix() - 31
-	hash = auth.GenerateHash(userId, timestamp, nonce)
-	if auth.ValidateHash(userId, nonce, hash) {
+	timestamp = strconv.FormatInt(time.Now().Unix()-(expirationTime+1), 10)
+	hash = GenerateHash(userId, timestamp, psk, nonce)
+	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err == nil {
 		t.Fatalf("Unexpected results: userId=%v, timestamp=%v, nonce=%v, hash=%v", userId, timestamp, nonce, hash)
 	}
 
 	// 未来のタイムスタンプ
-	timestamp = time.Now().Unix() + 2
-	hash = auth.GenerateHash(userId, timestamp, nonce)
-	if auth.ValidateHash(userId, nonce, hash) {
+	timestamp = strconv.FormatInt(time.Now().Unix()+2, 10)
+	hash = GenerateHash(userId, timestamp, psk, nonce)
+	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err == nil {
 		t.Fatalf("Unexpected results: userId=%v, timestamp=%v, nonce=%v, hash=%v", userId, timestamp, nonce, hash)
 	}
 }
