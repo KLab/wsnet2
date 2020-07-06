@@ -58,11 +58,15 @@ const (
 	// MsgTypeTarget : 特定のクライアントへ送信
 	// payload:
 	//  - List: user ids
-	//  - Bytes: data
+	//  - Bytes: marshaled data
 	MsgTypeTarget
 
+	// MsgToMaster : 部屋のMasterクライアントへ送信
+	MsgToMaster
+	// payload: marshaled data...
+
 	// MsgTypeBroadcast : 全員に送信する
-	// payload: (any)
+	// payload: marshaled data...
 	MsgTypeBroadcast
 
 	// MsgTypeKick

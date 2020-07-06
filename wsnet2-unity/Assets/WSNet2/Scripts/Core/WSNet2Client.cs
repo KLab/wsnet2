@@ -49,10 +49,13 @@ namespace WSNet2.Core
             callbackPool.Process();
             lock(rooms)
             {
-                foreach (var room in rooms)
+                for (var i = rooms.Count-1; i >= 0; i--)
                 {
-                    room.ProcessCallback();
-                    // todo: 終わったroomを削除
+                    rooms[i].ProcessCallback();
+                    if (rooms[i].Closed)
+                    {
+                        rooms.RemoveAt(i);
+                    }
                 }
             }
         }

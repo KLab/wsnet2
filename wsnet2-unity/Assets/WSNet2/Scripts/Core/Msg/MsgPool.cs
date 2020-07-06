@@ -25,6 +25,7 @@ namespace WSNet2.Core
             RoomProp,
             ClientProp,
             Target,
+            ToMaster,
             Broadcast,
             Kick,
         }
