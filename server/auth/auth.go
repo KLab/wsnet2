@@ -2,6 +2,8 @@ package auth
 
 import (
 	"crypto/sha256"
+	"crypto/rand"
+	"encoding/hex"
 	"strconv"
 	"time"
 
@@ -35,5 +37,14 @@ func GenerateHash(userId, timestamp, psk, nonce string) string {
 	s.Write([]byte(timestamp))
 	s.Write([]byte(psk))
 	s.Write([]byte(nonce))
-	return string(s.Sum(nil))
+	return hex.EncodeToString(s.Sum(nil))
+}
+
+func GenerateNonce() (string, error) {
+	buf := make([]byte, 8)
+	n, err := rand.Read(buf)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf[:n]), nil
 }

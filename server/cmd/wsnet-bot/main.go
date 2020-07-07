@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vmihailenco/msgpack/v4"
 
+	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/lobby"
 	"wsnet2/lobby/service"
@@ -18,17 +19,20 @@ import (
 
 var (
 	appID = "testapp"
+	appKey = "testapppkey"
 )
 
 type bot struct {
 	appId  string
+	appKey string
 	userId string
 	ws     *websocket.Dialer
 }
 
-func NewBot(appId, userId string) *bot {
+func NewBot(appId, appKey, userId string) *bot {
 	return &bot{
 		appId:  appId,
+		appKey: appKey,
 		userId: userId,
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
@@ -119,6 +123,17 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	req.Header.Add("X-App-Id", b.appId)
 	req.Header.Add("X-User-Id", b.userId)
 
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	nonce, err := auth.GenerateNonce()
+	if err != nil {
+		return err
+	}
+	req.Header.Add("X-Auth-Timestamp", timestamp)
+	req.Header.Add("X-Auth-Nonce", nonce)
+	hash := auth.GenerateHash(b.userId, timestamp, b.appKey, nonce)
+	fmt.Printf("[bot:%v] hash: %v\n", b.userId, hash)
+	req.Header.Add("X-Auth-Hash", hash)
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -154,7 +169,7 @@ func (b *bot) DialGame(url string, seq int) (*websocket.Conn, error) {
 }
 
 func main() {
-	bot := NewBot(appID, "12345")
+	bot := NewBot(appID, appKey, "12345")
 
 	room, err := bot.CreateRoom()
 	if err != nil {
@@ -260,7 +275,7 @@ func main() {
 }
 
 func spawnPlayer(roomId, userId string) {
-	bot := NewBot(appID, userId)
+	bot := NewBot(appID, appKey, userId)
 	room, err := bot.JoinRoom(roomId)
 	if err != nil {
 		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
