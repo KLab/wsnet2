@@ -13,6 +13,7 @@ import (
 	"github.com/vmihailenco/msgpack/v4"
 	"golang.org/x/xerrors"
 
+	"wsnet2/auth"
 	"wsnet2/lobby"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -94,6 +95,17 @@ func renderResponse(w http.ResponseWriter, res interface{}) error {
 	return nil
 }
 
+func (sv *LobbyService) authUser(appId, userId, timestamp, nonce, hash string) error {
+	appKey, found := sv.roomService.GetAppKey(appId)
+	if !found {
+		return xerrors.New("Invalid appId")
+	}
+	if err := auth.ValidateHash(userId, timestamp, appKey, nonce, hash); err != nil {
+		return xerrors.Errorf("Failed to user auth: %w", err)
+	}
+	return nil
+}
+
 type CreateParam struct {
 	RoomOption pb.RoomOption
 	ClientInfo pb.ClientInfo
@@ -109,6 +121,12 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	userID := r.Header.Get("X-User-Id")
 
 	log.Infof("handleCreateRoom: appID=%s, userID=%s", appID, userID)
+
+	if err := sv.authUser(appID, userID, r.Header.Get("X-Auth-Timestamp"), r.Header.Get("X-Auth-Nonce"), r.Header.Get("X-Auth-Hash")); err != nil {
+		log.Errorf("Failed to user auth: %v", err)
+		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		return
+	}
 
 	var param CreateParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
@@ -147,6 +165,12 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("handleJoinRoom: appID=%s, userID=%s", appID, userID)
 
+	if err := sv.authUser(appID, userID, r.Header.Get("X-Auth-Timestamp"), r.Header.Get("X-Auth-Nonce"), r.Header.Get("X-Auth-Hash")); err != nil {
+		log.Errorf("Failed to user auth: %v", err)
+		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		return
+	}
+
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
@@ -182,6 +206,12 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 	userID := r.Header.Get("X-User-Id")
 
 	log.Infof("handleSearchRoom: appID=%s, userID=%s", appID, userID)
+
+	if err := sv.authUser(appID, userID, r.Header.Get("X-Auth-Timestamp"), r.Header.Get("X-Auth-Nonce"), r.Header.Get("X-Auth-Hash")); err != nil {
+		log.Errorf("Failed to user auth: %v", err)
+		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		return
+	}
 
 	var param SearchParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)

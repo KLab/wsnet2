@@ -17,7 +17,7 @@ import (
 type RoomService struct {
 	db   *sqlx.DB
 	conf *config.LobbyConf
-	apps []pb.App
+	apps map[string]*pb.App
 
 	roomCache *RoomCache
 	gameCache *GameCache
@@ -33,22 +33,26 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 	rs := &RoomService{
 		db:        db,
 		conf:      conf,
-		apps:      apps,
+		apps:      make(map[string]*pb.App),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: NewGameCache(db, time.Second*1, conf.ValidHeartBeat),
+	}
+	for _, app := range apps {
+		rs.apps[app.Id] = &app
 	}
 	return rs, nil
 }
 
-func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
-	appExists := false
-	for _, app := range rs.apps {
-		if app.Id == appId {
-			appExists = true
-			break
-		}
+func (rs *RoomService) GetAppKey(appId string) (string, bool) {
+	app, found := rs.apps[appId]
+	if !found {
+		return "", false
 	}
-	if !appExists {
+	return app.Key, true
+}
+
+func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
 
@@ -85,14 +89,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 }
 
 func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
-	appExists := false
-	for _, app := range rs.apps {
-		if app.Id == appId {
-			appExists = true
-			break
-		}
-	}
-	if !appExists {
+	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
 
