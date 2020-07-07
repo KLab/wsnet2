@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/vmihailenco/msgpack/v4"
 )
 
@@ -32,7 +33,13 @@ func (ts *Timestamp) EncodeMsgpack(enc *msgpack.Encoder) error {
 	return enc.Encode(ts.Timestamp.Seconds)
 }
 
+func (ts *Timestamp) DecodeMsgpack(dec *msgpack.Decoder) error {
+	ts.Timestamp = &timestamp.Timestamp{}
+	return dec.Decode(&ts.Timestamp.Seconds)
+}
+
 var _ msgpack.CustomEncoder = (*Timestamp)(nil)
+var _ msgpack.CustomDecoder = (*Timestamp)(nil)
 
 func (r *RoomInfo) SetCreated(t time.Time) error {
 	var err error
