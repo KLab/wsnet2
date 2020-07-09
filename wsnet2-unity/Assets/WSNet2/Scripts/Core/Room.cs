@@ -30,6 +30,9 @@ namespace WSNet2.Core
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
+        /// <summary>RoomのMasterをRPCの対象に指定</summary
+        public const string[] RPCToMaster = null;
+
         /// <summary>RoomID</summary>
         public string Id { get { return info.id; } }
 
@@ -57,7 +60,7 @@ namespace WSNet2.Core
 
         RoomInfo info;
         Uri uri;
-        IEventReceiver eventReceiver;
+        EventReceiver eventReceiver;
 
         ClientWebSocket ws;
         TaskCompletionSource<Task> senderTaskSource;
@@ -85,7 +88,7 @@ namespace WSNet2.Core
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
         /// <param name="receiver">イベントレシーバ</param>
-        public Room(JoinedResponse joined, string myId, IEventReceiver receiver)
+        public Room(JoinedResponse joined, string myId, EventReceiver receiver)
         {
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
@@ -186,6 +189,7 @@ namespace WSNet2.Core
                             callbackPool.Add(() => {
                                 Closed = true;
                                 eventReceiver.OnError(e);
+                                eventReceiver.OnClosed(e.Message);
                             });
                             return;
                     }
@@ -209,7 +213,9 @@ namespace WSNet2.Core
                     callbackPool.Add(() => {
                         Closed = true;
                         var msg = $"MaxReconnection: {lastException.Message}";
-                        eventReceiver.OnError(new Exception(msg, lastException));
+                        var e = new Exception(msg, lastException);
+                        eventReceiver.OnError(e);
+                        eventReceiver.OnClosed(e.Message);
                     });
                     return;
                 }
@@ -218,15 +224,29 @@ namespace WSNet2.Core
             }
         }
 
-        /// <summary>
-        ///   MsgBroadcastを送信
-        /// </summary>
-        public void Broadcast(IWSNetSerializable data)
+        public void RPC(Action<string, string> rpc, string param, params string[] targets)
         {
-            msgPool.AddBroadcast(data);
+            msgPool.PostRPC(getRpcId(rpc), param, targets);
             hasMsg.TryAdd(true);
         }
 
+        public void RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
+        {
+            msgPool.PostRPC(getRpcId(rpc), param, targets);
+            hasMsg.TryAdd(true);
+        }
+
+        private byte getRpcId(Delegate rpc)
+        {
+            byte rpcId;
+            if (!eventReceiver.RPCMap.TryGetValue(rpc, out rpcId))
+            {
+                var msg = $"RPC target is not registered";
+                throw new Exception(msg);
+            }
+
+            return rpcId;
+        }
 
         /// <summary>
         ///   Websocketで接続する
@@ -275,8 +295,8 @@ namespace WSNet2.Core
                     case EvJoined evJoined:
                         OnEvJoined(evJoined);
                         break;
-                    case EvMessage evMessage:
-                        OnEvMessage(evMessage);
+                    case EvRPC evRpc:
+                        OnEvRPC(evRpc);
                         break;
 
                     default:
@@ -355,11 +375,19 @@ namespace WSNet2.Core
         }
 
         /// <summary>
-        ///   汎用メッセージイベント
+        ///   RPCイベント
         /// </summary>
-        private void OnEvMessage(EvMessage ev)
+        private void OnEvRPC(EvRPC ev)
         {
-            callbackPool.Add(() => eventReceiver.OnMessage(ev));
+            if (ev.RpcID >= eventReceiver.RPCActions.Count)
+            {
+                var e = new Exception($"RpcID({ev.RpcID}) is not registered");
+                callbackPool.Add(() => eventReceiver.OnError(e));
+                return;
+            }
+
+            var action = eventReceiver.RPCActions[ev.RpcID];
+            callbackPool.Add(() => action(ev.SenderID, ev.Reader));
         }
 
         /// <summary>

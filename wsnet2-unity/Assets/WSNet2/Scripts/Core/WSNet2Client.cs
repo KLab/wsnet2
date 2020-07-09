@@ -80,7 +80,7 @@ namespace WSNet2.Core
         public void Create(
             RoomOption roomOption,
             IDictionary<string, object> clientProps,
-            IEventReceiver receiver,
+            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
@@ -91,7 +91,7 @@ namespace WSNet2.Core
         private async Task create(
             RoomOption roomOption,
             IDictionary<string, object> clientProps,
-            IEventReceiver receiver,
+            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {

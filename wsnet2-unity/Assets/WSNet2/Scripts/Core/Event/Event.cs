@@ -61,7 +61,7 @@ namespace WSNet2.Core
                     ev = new EvJoined(reader);
                     break;
                 case EvType.Message:
-                    ev = new EvMessage(reader);
+                    ev = new EvRPC(reader);
                     break;
 
                 default:

@@ -83,21 +83,50 @@ namespace WSNet2.Core
             }
         }
 
-        /// <summary>
-        ///   MsgBroadcastを追加
-        /// </summary>
-        /// <param name="data">payloadになるdata</param>
-        public void AddBroadcast(IWSNetSerializable data)
+        public void PostRPC(byte id, string param, string[] targets)
         {
             lock(this)
             {
                 incrementSeqNum();
                 var writer = pool[sequenceNum % pool.Length];
-                writer.Reset();
+                writeRPCType(writer, id, targets);
+                writer.Write(param);
+            }
+        }
+
+        public void PostRPC<T>(byte id, T param, string[] targets) where T : class, IWSNetSerializable
+        {
+            lock(this)
+            {
+                incrementSeqNum();
+                var writer = pool[sequenceNum % pool.Length];
+                writeRPCType(writer, id, targets);
+                writer.Write(param);
+            }
+        }
+
+        private void writeRPCType(SerialWriter writer, byte id, string[] targets)
+        {
+            writer.Reset();
+
+            if (targets == Room.RPCToMaster)
+            {
+                writer.Put8((int)MsgType.ToMaster);
+                writer.Put24(sequenceNum);
+            }
+            else if (targets.Length == 0)
+            {
                 writer.Put8((int)MsgType.Broadcast);
                 writer.Put24(sequenceNum);
-                writer.Write(data);
             }
+            else
+            {
+                writer.Put8((int)MsgType.Target);
+                writer.Put24(sequenceNum);
+                writer.Write(targets);
+            }
+
+            writer.Write(id);
         }
 
         /// <summary>
