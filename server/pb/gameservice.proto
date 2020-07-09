@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package pb;
 
+import "auth.proto";
 import "clientinfo.proto";
 import "roominfo.proto";
 import "roomoption.proto";
@@ -27,4 +28,5 @@ message JoinedRoomRes {
 	RoomInfo room_info = 1;
 	repeated ClientInfo players = 2;
 	string url = 3;
+	AuthToken token = 4;
 }

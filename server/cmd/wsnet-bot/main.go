@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	appID = "testapp"
+	appID  = "testapp"
 	appKey = "testapppkey"
 )
 

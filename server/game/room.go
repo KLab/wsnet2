@@ -23,6 +23,8 @@ type Room struct {
 	*pb.RoomInfo
 	repo *Repository
 
+	key string
+
 	deadline time.Duration
 
 	publicProps  binary.Dict
@@ -101,6 +103,10 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 
 func (r *Room) ID() RoomID {
 	return RoomID(r.Id)
+}
+
+func (r *Room) Key() string {
+	return r.key
 }
 
 // MsgLoop goroutine dispatch messages.

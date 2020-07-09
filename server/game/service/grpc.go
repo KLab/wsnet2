@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"wsnet2/auth"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -49,6 +50,17 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 	return errCh
 }
 
+func issueAuthToken(userId, key string) (*pb.AuthToken, error) {
+	nonce, err := auth.GenerateNonce()
+	if err != nil {
+		return nil, err
+	}
+	return &pb.AuthToken{
+		Nonce: nonce,
+		Hash:  auth.GenerateHash(userId, "", key, nonce),
+	}, nil
+}
+
 func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.JoinedRoomRes, error) {
 	log.Infof("Create request: %v, master=%v", in.AppId, in.MasterInfo.Id)
 	sv.fillRoomOption(in.RoomOption)
@@ -61,19 +73,28 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, players, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	ri, players, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
 	}
 
-	res := &pb.JoinedRoomRes{
-		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
-		RoomInfo: room,
-		Players:  players,
+	room, _ := repo.GetRoom(ri.Id)
+
+	token, err := issueAuthToken(in.MasterInfo.Id, room.Key())
+	if err != nil {
+		log.Infof("issue auth token error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "issueAuthToken failed: %s", err)
 	}
 
-	log.Infof("New room: room=%v, master=%v", room.Id, in.MasterInfo.Id)
+	res := &pb.JoinedRoomRes{
+		RoomInfo: ri,
+		Players:  players,
+		Url:      fmt.Sprintf(sv.wsURLFormat, ri.Id),
+		Token:    token,
+	}
+
+	log.Infof("New room: room=%v, master=%v", ri.Id, in.MasterInfo.Id)
 
 	return res, nil
 }
@@ -101,19 +122,28 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, players, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
+	ri, players, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
 		log.Infof("join room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
 	}
 
-	res := &pb.JoinedRoomRes{
-		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
-		RoomInfo: room,
-		Players:  players,
+	room, _ := repo.GetRoom(ri.Id)
+
+	token, err := issueAuthToken(in.ClientInfo.Id, room.Key())
+	if err != nil {
+		log.Infof("issue auth token error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "issueAuthToken failed: %s", err)
 	}
 
-	log.Infof("Join room: room=%v, client=%v", room.Id, in.ClientInfo.Id)
+	res := &pb.JoinedRoomRes{
+		RoomInfo: ri,
+		Players:  players,
+		Url:      fmt.Sprintf(sv.wsURLFormat, ri.Id),
+		Token:    token,
+	}
+
+	log.Infof("Join room: room=%v, client=%v", ri.Id, in.ClientInfo.Id)
 
 	return res, nil
 }

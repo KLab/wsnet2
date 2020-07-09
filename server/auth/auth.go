@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"crypto/sha256"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"strconv"
 	"time"
