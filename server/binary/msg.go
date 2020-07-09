@@ -61,8 +61,8 @@ const (
 	//  - Bytes: marshaled data
 	MsgTypeTarget
 
-	// MsgToMaster : 部屋のMasterクライアントへ送信
-	MsgToMaster
+	// MsgTypeToMaster : 部屋のMasterクライアントへ送信
+	MsgTypeToMaster
 	// payload: marshaled data...
 
 	// MsgTypeBroadcast : 全員に送信する
