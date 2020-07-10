@@ -234,6 +234,85 @@ func TestMarshalFloat(t *testing.T) {
 	}
 }
 
+func TestMarshalDouble(t *testing.T) {
+	var cmpf float64
+	var cmpb []byte
+
+	tests := []struct {
+		val float64
+		buf []byte
+	}{ // sorted by val.
+		{ // -Inf (sign=1, exp=7ff, frac=0 0000 0000 0000) 0xfff0 0000 0000 0000
+			math.Inf(-1),
+			[]byte{byte(TypeDouble), 0x00, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		{ // min (sign=1, exp=7fe, flac=f ffff ffff ffff) 0xffef ffff ffff ffff
+			-math.MaxFloat64,
+			[]byte{byte(TypeDouble), 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		{ // negative normal border (sign=1, exp=1, flac=0 0000 0000 0000) 0x8010 0000 0000 0000
+			math.Float64frombits(0x8010000000000000),
+			[]byte{byte(TypeDouble), 0x7f, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		{ // subnormal border (sign=1, exp=0, flac=f ffff ffff ffff) 0x800f ffff ffff ffff
+			math.Float64frombits(0x800fffffffffffff),
+			[]byte{byte(TypeDouble), 0x7f, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		{ // subnormal border (sign=1, exp=0, flac=0 0000 0000 0001) 0x8000 0000 0000 0001
+			math.Float64frombits(0x8000000000000001),
+			[]byte{byte(TypeDouble), 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe},
+		},
+		{ // -0 (sign=1, exp=0, flac=0 0000 0000 0000) 0x8000 0000 0000 0000
+			math.Copysign(0, -1),
+			[]byte{byte(TypeDouble), 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		{ // +0 (sign=0, exp=0, flac=0 0000 0000 0000) 0x0000 0000 0000 0000
+			0,
+			[]byte{byte(TypeDouble), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		{ // subnormal border (sign=0, exp=0, flac=0 0000 0000 0001) 0x0000 0000 0000 0001
+			math.Float64frombits(0x0000000000000001),
+			[]byte{byte(TypeDouble), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
+		},
+		{ // subnormal border (sign=0, exp=0, flac=f ffff ffff ffff) 0x000f ffff ffff ffff
+			math.Float64frombits(0x000fffffffffffff),
+			[]byte{byte(TypeDouble), 0x80, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		{ // normal border (sign=0, exp=1, flac=0 0000 0000 0000) 0x0010 0000 0000 0000
+			math.Float64frombits(0x0010000000000000),
+			[]byte{byte(TypeDouble), 0x80, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+		{ // max (sign=0, exp=7fe, flac=f ffff ffff ffff) 0x7fef ffff ffff ffff
+			math.MaxFloat64,
+			[]byte{byte(TypeDouble), 0xff, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+		{ // +Inf (sign=0, exp=7ff, flac=0 0000 0000 0000) 0x7ff0 0000 0000 0000
+			math.Inf(1),
+			[]byte{byte(TypeDouble), 0xff, 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		},
+	}
+	for _, test := range tests {
+		b := MarshalDouble(test.val)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalDouble(%v):\n%#v\n%#v", test.val, b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		if r != test.val || l != len(test.buf) {
+			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, test.val, len(test.buf))
+		}
+		if cmpb != nil {
+			if bytes.Compare(cmpb, b) >= 0 {
+				t.Fatalf("compare %f (%x) >= %f (%x)", cmpf, cmpb, test.val, b)
+			}
+		}
+		cmpf = test.val
+		cmpb = b
+	}
+}
+
 func TestMarshalStr8(t *testing.T) {
 	s := "0123456789abcdef0123456789abcdef" // len=32
 	s = s + s + s + s + s + s + s + s       // len=256

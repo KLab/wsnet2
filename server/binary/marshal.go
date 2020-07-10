@@ -232,6 +232,33 @@ func unmarshalFloat(src []byte) (float32, int, error) {
 	return math.Float32frombits(v), 5, nil
 }
 
+// MarshalFloat marshals IEEE 754 double value as comparably.
+func MarshalDouble(val float64) []byte {
+	v := math.Float64bits(val)
+	buf := make([]byte, 9)
+	buf[0] = byte(TypeDouble)
+	if v&(1<<63) == 0 {
+		v ^= 1 << 63
+	} else {
+		v = ^v
+	}
+	put64(buf[1:], v)
+	return buf
+}
+
+func unmarshalDouble(src []byte) (float64, int, error) {
+	if len(src) < 9 {
+		return 0, 0, xerrors.Errorf("Unmarshal Double error: not enough data (%v)", len(src))
+	}
+	v := get64(src[1:])
+	if v&(1<<63) != 0 {
+		v ^= 1 << 63
+	} else {
+		v = ^v
+	}
+	return math.Float64frombits(v), 9, nil
+}
+
 // MarshalStr8 marshals short string (len <= 255)
 func MarshalStr8(str string) []byte {
 	len := len(str)
@@ -792,6 +819,8 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalLong(src)
 	case TypeFloat:
 		return unmarshalFloat(src)
+	case TypeDouble:
+		return unmarshalDouble(src)
 	case TypeStr8:
 		return unmarshalStr8(src)
 	case TypeStr16:
