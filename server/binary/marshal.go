@@ -21,8 +21,8 @@ const (
 	TypeUInt               // C#:uint
 	TypeLong               // C#:long (64bit)
 	TypeULong              // C#:ulong
-	TypeFloat              // C#:float -- not implemented yet
-	TypeDouble             // C#:double -- not implemented yet
+	TypeFloat              // C#:float
+	TypeDouble             // C#:double
 	TypeStr8               // C#:string; lenght < 256
 	TypeStr16              // C#:string; lenght >= 256
 	TypeObj                // C#:object
@@ -38,8 +38,8 @@ const (
 	TypeUInts   // C#:uint[]
 	TypeLongs   // C#:long[]
 	TypeULongs  // C#:ulong[]
-	TypeFloats  // C#:float[] -- not implemented yet
-	TypeDoubles // C#:double[] -- not implemented yet
+	TypeFloats  // C#:float[]
+	TypeDoubles // C#:double[]
 )
 
 type Obj struct {
@@ -201,6 +201,35 @@ func unmarshalLong(src []byte) (int, int, error) {
 		return int(v - -math.MinInt64), 9, nil
 	}
 	return int(v) + math.MinInt64, 9, nil
+}
+
+// MarshalFloat marshals IEEE 754 single value as comparably.
+// The sign-bit (MSB) is inverted to make the positive value greater than the negative value.
+// All exponent and fraction bits on the negative value are inverted to make it natural order.
+func MarshalFloat(val float32) []byte {
+	v := math.Float32bits(val)
+	buf := make([]byte, 5)
+	buf[0] = byte(TypeFloat)
+	if v&(1<<31) == 0 {
+		v ^= 1 << 31
+	} else {
+		v = ^v
+	}
+	put32(buf[1:], int(v))
+	return buf
+}
+
+func unmarshalFloat(src []byte) (float32, int, error) {
+	if len(src) < 5 {
+		return 0, 0, xerrors.Errorf("Unmarshal Float error: not enough data (%v)", len(src))
+	}
+	v := uint32(get32(src[1:]))
+	if v&(1<<31) != 0 {
+		v ^= 1 << 31
+	} else {
+		v = ^v
+	}
+	return math.Float32frombits(v), 5, nil
 }
 
 // MarshalStr8 marshals short string (len <= 255)
@@ -761,6 +790,8 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalULong(src)
 	case TypeLong:
 		return unmarshalLong(src)
+	case TypeFloat:
+		return unmarshalFloat(src)
 	case TypeStr8:
 		return unmarshalStr8(src)
 	case TypeStr16:
