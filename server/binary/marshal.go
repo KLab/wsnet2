@@ -789,6 +789,96 @@ func unmarshalULongs(src []byte) ([]uint64, int, error) {
 	return vals, l, nil
 }
 
+// MarshalFloats marshals IEEE754 single array
+func MarshalFloats(vals []float32) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*4)
+	buf[0] = byte(TypeFloats)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := math.Float32bits(vals[i])
+		if v&(1<<31) == 0 {
+			v ^= 1 << 31
+		} else {
+			v = ^v
+		}
+		put32(buf[3+i*4:], int(v))
+	}
+
+	return buf
+}
+
+func unmarshalFloats(src []byte) ([]float32, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Floats error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*4
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Floats error: not enough data (%v)", len(src))
+	}
+	vals := make([]float32, count)
+	for i := 0; i < count; i++ {
+		v := uint32(get32(src[3+i*4:]))
+		if v&(1<<31) != 0 {
+			v ^= 1 << 31
+		} else {
+			v = ^v
+		}
+		vals[i] = math.Float32frombits(v)
+	}
+	return vals, l, nil
+}
+
+// MarshalDoubles marshals IEEE754 single array
+func MarshalDoubles(vals []float64) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*8)
+	buf[0] = byte(TypeDoubles)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := math.Float64bits(vals[i])
+		if v&(1<<63) == 0 {
+			v ^= 1 << 63
+		} else {
+			v = ^v
+		}
+		put64(buf[3+i*8:], v)
+	}
+
+	return buf
+}
+
+func unmarshalDoubles(src []byte) ([]float64, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Doubles error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*8
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Doubles error: not enough data (%v)", len(src))
+	}
+	vals := make([]float64, count)
+	for i := 0; i < count; i++ {
+		v := get64(src[3+i*8:])
+		if v&(1<<63) != 0 {
+			v ^= 1 << 63
+		} else {
+			v = ^v
+		}
+		vals[i] = math.Float64frombits(v)
+	}
+	return vals, l, nil
+}
+
 // Unmarshal serialized bytes
 func Unmarshal(src []byte) (interface{}, int, error) {
 	if len(src) == 0 {
@@ -849,6 +939,10 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalLongs(src)
 	case TypeULongs:
 		return unmarshalULongs(src)
+	case TypeFloats:
+		return unmarshalFloats(src)
+	case TypeDoubles:
+		return unmarshalDoubles(src)
 	}
 	return nil, 0, xerrors.Errorf("Unknown type: %v", Type(src[0]))
 }
