@@ -15,6 +15,8 @@ import (
 const (
 	// RoomMsgChSize : Msgチャネルのバッファサイズ
 	RoomMsgChSize = 10
+	// roomKeyLen : Roomキーの文字列長
+	roomKeyLen = 16
 )
 
 type RoomID string
@@ -77,6 +79,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 	r := &Room{
 		RoomInfo: info,
 		repo:     repo,
+		key:      RandomHex(roomKeyLen),
 		deadline: time.Duration(info.ClientDeadline) * time.Second,
 
 		publicProps:  pubProps,
