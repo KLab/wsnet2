@@ -233,6 +233,174 @@ namespace WSNet2.Core
             return dict;
         }
 
+        public bool[] ReadBools(bool[] recycle = null)
+        {
+            checkType(Type.Bools);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new bool[count];
+            }
+
+            int b = 0;
+            for (var i=0; i<count; i++)
+            {
+                if (i % 8 == 0)
+                {
+                    b = Get8();
+                }
+
+                vals[i] = (b & (1 << (7-i%8))) != 0;
+            }
+
+            return vals;
+        }
+
+        public sbyte[] ReadSBytes(sbyte[] recycle = null)
+        {
+            checkType(Type.SBytes);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new sbyte[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (sbyte)(Get8() + sbyte.MinValue);
+            }
+
+            return vals;
+        }
+
+        public byte[] ReadBytes(byte[] recycle = null)
+        {
+            checkType(Type.Bytes);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new byte[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (byte)Get8();
+            }
+
+            return vals;
+        }
+
+        public short[] ReadShorts(short[] recycle = null)
+        {
+            checkType(Type.Shorts);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new short[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (short)(Get16() + short.MinValue);
+            }
+
+            return vals;
+        }
+
+        public ushort[] ReadUShorts(ushort[] recycle = null)
+        {
+            checkType(Type.UShorts);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new ushort[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (ushort)Get16();
+            }
+
+            return vals;
+        }
+
+        public int[] ReadInts(int[] recycle = null)
+        {
+            checkType(Type.Ints);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new int[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (int)((long)Get32() + int.MinValue);
+            }
+
+            return vals;
+        }
+
+        public uint[] ReadUInts(uint[] recycle = null)
+        {
+            checkType(Type.UInts);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new uint[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = Get32();
+            }
+
+            return vals;
+        }
+
+        public long[] ReadLongs(long[] recycle = null)
+        {
+            checkType(Type.Longs);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new long[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (long)Get64() + long.MinValue;
+            }
+
+            return vals;
+        }
+
+        public ulong[] ReadULongs(ulong[] recycle = null)
+        {
+            checkType(Type.ULongs);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new ulong[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = Get64();
+            }
+
+            return vals;
+        }
+
         public int Get8()
         {
             checkLength(1);
@@ -391,6 +559,33 @@ namespace WSNet2.Core
                     break;
                 case Type.Dict:
                     elem = ReadDict(recycle as IDictionary<string, object>);
+                    break;
+                case Type.Bools:
+                    elem = ReadBools(recycle as bool[]);
+                    break;
+                case Type.SBytes:
+                    elem = ReadSBytes(recycle as sbyte[]);
+                    break;
+                case Type.Bytes:
+                    elem = ReadBytes(recycle as byte[]);
+                    break;
+                case Type.Shorts:
+                    elem = ReadShorts(recycle as short[]);
+                    break;
+                case Type.UShorts:
+                    elem = ReadUShorts(recycle as ushort[]);
+                    break;
+                case Type.Ints:
+                    elem = ReadInts(recycle as int[]);
+                    break;
+                case Type.UInts:
+                    elem = ReadUInts(recycle as uint[]);
+                    break;
+                case Type.Longs:
+                    elem = ReadLongs(recycle as long[]);
+                    break;
+                case Type.ULongs:
+                    elem = ReadULongs(recycle as ulong[]);
                     break;
                 default:
                     throw new SerializationException(

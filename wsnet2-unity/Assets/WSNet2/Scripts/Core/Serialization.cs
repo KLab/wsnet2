@@ -125,7 +125,18 @@ namespace WSNet2.Core
         Obj,
         List,
         Dict,
+
+        Bools,
+        SBytes,
         Bytes,
+        Shorts,
+        UShorts,
+        Ints,
+        UInts,
+        Longs,
+        ULongs,
+        Floats,
+        Doubles,
     }
 
     [Serializable()]
