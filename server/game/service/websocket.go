@@ -112,8 +112,8 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	nonce := r.Header.Get("X-Wsnet-Nonce")
 	hash := r.Header.Get("X-Wsnet-Hash")
-	if hash != auth.GenerateHash(clientId, "", room.Key(), nonce) {
-		log.Debugf("WSHandler.HandleRoom: Authenticate error: %v", err)
+	if !auth.ValidHexHMAC(hash, []byte(room.Key()), clientId, nonce) {
+		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, nonce=%v, hash=%v", roomId, clientId, nonce, hash)
 		http.Error(w, "Unauthorized", 401)
 		return
 	}

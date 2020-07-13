@@ -130,7 +130,7 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	}
 	req.Header.Add("X-Auth-Timestamp", timestamp)
 	req.Header.Add("X-Auth-Nonce", nonce)
-	hash := auth.GenerateHash(b.userId, timestamp, b.appKey, nonce)
+	hash := auth.CalculateHexHMAC([]byte(b.appKey), b.userId, timestamp, nonce)
 	fmt.Printf("[bot:%v] hash: %v\n", b.userId, hash)
 	req.Header.Add("X-Auth-Hash", hash)
 

@@ -1,43 +1,35 @@
 package auth
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"strconv"
-	"time"
-
-	"golang.org/x/xerrors"
 )
 
-const expirationTime = 30
-
-func ValidateHash(userId, timestamp, psk, nonce, hash string) error {
-	ts, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return xerrors.Errorf("invalid timestamp: %w", err)
-	}
-	now := time.Now().Unix()
-	if now < ts {
-		return xerrors.Errorf("invalid timestamp: now=%v, ts=%v", now, ts)
-	}
-	if now-ts > expirationTime {
-		return xerrors.Errorf("expired timestamp: now=%v, ts=%v", now, ts)
-	}
-	h := GenerateHash(userId, timestamp, psk, nonce)
-	if h != hash {
-		return xerrors.New("invalid hash")
-	}
-	return nil
+func ValidHMAC(mac, key []byte, args ...string) bool {
+	mac2 := CalculateHMAC(key, args...)
+	return hmac.Equal(mac, mac2)
 }
 
-func GenerateHash(userId, timestamp, psk, nonce string) string {
-	s := sha256.New()
-	s.Write([]byte(userId))
-	s.Write([]byte(timestamp))
-	s.Write([]byte(psk))
-	s.Write([]byte(nonce))
-	return hex.EncodeToString(s.Sum(nil))
+func ValidHexHMAC(hm string, key []byte, args ...string) bool {
+	mac, err := hex.DecodeString(hm)
+	if err != nil {
+		return false
+	}
+	return ValidHMAC(mac, key, args...)
+}
+
+func CalculateHMAC(key []byte, args ...string) []byte {
+	mac := hmac.New(sha256.New, []byte(key))
+	for _, arg := range args {
+		mac.Write([]byte(arg))
+	}
+	return mac.Sum(nil)
+}
+
+func CalculateHexHMAC(key []byte, args ...string) string {
+	return hex.EncodeToString(CalculateHMAC(key, args...))
 }
 
 func GenerateNonce() (string, error) {

@@ -9,31 +9,47 @@ import (
 func TestAuth(t *testing.T) {
 	userId := "alice"
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	psk := "hoge"
-	nonce := "1234"
+	key := "hoge"
+	nonce, _ := GenerateNonce()
 
-	hash := GenerateHash(userId, timestamp, psk, nonce)
-	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err != nil {
-		t.Fatalf("invalid hash: ")
+	mac := CalculateHMAC([]byte(key), userId, timestamp, nonce)
+	if !ValidHMAC(mac, []byte(key), userId, timestamp, nonce) {
+		t.Fatalf("invalid hmac")
+	}
+	hm := CalculateHexHMAC([]byte(key), userId, timestamp, nonce)
+	if !ValidHexHMAC(hm, []byte(key), userId, timestamp, nonce) {
+		t.Fatalf("invalid hex hmac")
 	}
 
-	timestamp = strconv.FormatInt(time.Now().Unix()-5, 10)
-	hash = GenerateHash(userId, timestamp, psk, nonce)
-	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err != nil {
-		t.Fatalf("invalid hash: userId=%v, timestamp=%v, nonce=%v, hash=%v", userId, timestamp, nonce, hash)
+	invalidKey := "fuga"
+	if ValidHMAC(mac, []byte(invalidKey), userId, timestamp, nonce) {
+		t.Fatalf("invalid result")
+	}
+	if ValidHexHMAC(hm, []byte(invalidKey), userId, timestamp, nonce) {
+		t.Fatalf("invalid result")
 	}
 
-	// タイムスタンプ有効範囲外
-	timestamp = strconv.FormatInt(time.Now().Unix()-(expirationTime+1), 10)
-	hash = GenerateHash(userId, timestamp, psk, nonce)
-	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err == nil {
-		t.Fatalf("Unexpected results: userId=%v, timestamp=%v, nonce=%v, hash=%v", userId, timestamp, nonce, hash)
+	invalidUserId := "bob"
+	if ValidHMAC(mac, []byte(key), invalidUserId, timestamp, nonce) {
+		t.Fatalf("invalid result")
+	}
+	if ValidHexHMAC(hm, []byte(key), invalidUserId, timestamp, nonce) {
+		t.Fatalf("invalid result")
 	}
 
-	// 未来のタイムスタンプ
-	timestamp = strconv.FormatInt(time.Now().Unix()+2, 10)
-	hash = GenerateHash(userId, timestamp, psk, nonce)
-	if err := ValidateHash(userId, timestamp, psk, nonce, hash); err == nil {
-		t.Fatalf("Unexpected results: userId=%v, timestamp=%v, nonce=%v, hash=%v", userId, timestamp, nonce, hash)
+	invalidTimestamp := strconv.FormatInt(time.Now().Unix()+30, 10)
+	if ValidHMAC(mac, []byte(key), userId, invalidTimestamp, nonce) {
+		t.Fatalf("invalid result")
+	}
+	if ValidHexHMAC(hm, []byte(key), userId, invalidTimestamp, nonce) {
+		t.Fatalf("invalid result")
+	}
+
+	invalidNonce, _ := GenerateNonce()
+	if ValidHMAC(mac, []byte(key), userId, timestamp, invalidNonce) {
+		t.Fatalf("invalid result")
+	}
+	if ValidHexHMAC(hm, []byte(key), userId, timestamp, invalidNonce) {
+		t.Fatalf("invalid result")
 	}
 }

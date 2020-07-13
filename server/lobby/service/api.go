@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/vmihailenco/msgpack/v4"
@@ -18,6 +20,8 @@ import (
 	"wsnet2/log"
 	"wsnet2/pb"
 )
+
+const expirationTime = 30
 
 func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 	errCh := make(chan error)
@@ -98,10 +102,22 @@ func renderResponse(w http.ResponseWriter, res interface{}) error {
 func (sv *LobbyService) authUser(appId, userId, timestamp, nonce, hash string) error {
 	appKey, found := sv.roomService.GetAppKey(appId)
 	if !found {
-		return xerrors.New("Invalid appId")
+		return xerrors.Errorf("Invalid appId: %v", appId)
 	}
-	if err := auth.ValidateHash(userId, timestamp, appKey, nonce, hash); err != nil {
-		return xerrors.Errorf("Failed to user auth: %w", err)
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return xerrors.Errorf("Invalid timestamp: %w", err)
+	}
+	now := time.Now().Unix()
+	if now < ts {
+		return xerrors.Errorf("Invalid timestamp: now=%v, ts=%v", now, ts)
+	}
+	// TODO: expirationTimeはコンフィグに定義？
+	if now-ts > expirationTime {
+		return xerrors.Errorf("Expired timestamp: now=%v, ts=%v, expirationTime=%v", now, ts, expirationTime)
+	}
+	if !auth.ValidHexHMAC(hash, []byte(appKey), userId, timestamp, nonce) {
+		return xerrors.Errorf("Invalid HMAC: appId=%v, userId=%v, timestamp=%v, nonce=%v, hash=%v", appId, userId, timestamp, nonce, hash)
 	}
 	return nil
 }

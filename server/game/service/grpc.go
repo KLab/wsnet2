@@ -57,7 +57,7 @@ func issueAuthToken(userId, key string) (*pb.AuthToken, error) {
 	}
 	return &pb.AuthToken{
 		Nonce: nonce,
-		Hash:  auth.GenerateHash(userId, "", key, nonce),
+		Hash:  auth.CalculateHexHMAC([]byte(key), userId, nonce),
 	}, nil
 }
 
