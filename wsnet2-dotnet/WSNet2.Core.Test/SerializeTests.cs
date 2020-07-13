@@ -634,5 +634,39 @@ namespace WSNet2.Core.Test
             var r = reader.ReadULongs();
             Assert.AreEqual(v, r);
         }
+
+        [TestCase(new float[]{}, new byte[]{(byte)Type.Floats, 0, 0})]
+        [TestCase(new float[]{0f, float.NegativeInfinity, float.MaxValue, 1.25f},
+                  new byte[]{(byte)Type.Floats, 0, 4,
+                             0x80, 0x00, 0x00, 0x00,
+                             0x00, 0x7f, 0xff, 0xff,
+                             0xff, 0x7f, 0xff, 0xff,
+                             0xbf, 0xa0, 0x00, 0x00})]
+        public void TestFloats(float[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadFloats();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new double[]{}, new byte[]{(byte)Type.Doubles, 0, 0})]
+        [TestCase(new double[]{0d, double.NegativeInfinity, double.MaxValue, 1.25d},
+                  new byte[]{(byte)Type.Doubles, 0, 4,
+                             0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                             0xff, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                             0xbf, 0xf4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})]
+        public void TestDoubles(double[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadDoubles();
+            Assert.AreEqual(v, r);
+        }
     }
 }
