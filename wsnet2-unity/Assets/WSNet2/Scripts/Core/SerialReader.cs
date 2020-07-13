@@ -87,13 +87,33 @@ namespace WSNet2.Core
         public float ReadFloat()
         {
             checkType(Type.Float);
-            throw new NotImplementedException();
+            var b = (int)Get32();
+            if ((b & (1<<31)) != 0)
+            {
+                b ^= 1<<31;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            return BitConverter.Int32BitsToSingle(b);
         }
 
-        public float ReadDouble()
+        public double ReadDouble()
         {
             checkType(Type.Double);
-            throw new NotImplementedException();
+            var b = (long)Get64();
+            if ((b & ((long)1<<63)) != 0)
+            {
+                b ^= (long)1<<63;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            return BitConverter.Int64BitsToDouble(b);
         }
 
         public string ReadString()

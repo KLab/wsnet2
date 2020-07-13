@@ -169,7 +169,20 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(float v)
         {
-            throw new NotImplementedException();
+            expand(5);
+            buf[pos] = (byte)Type.Float;
+            pos++;
+            var b = BitConverter.SingleToInt32Bits(v);
+            if ((b & (1 << 31)) == 0)
+            {
+                b ^= 1 << 31;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            Put32(b);
         }
 
         /// <summary>
@@ -178,7 +191,20 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(double v)
         {
-            throw new NotImplementedException();
+            expand(9);
+            buf[pos] = (byte)Type.Double;
+            pos++;
+            var b = BitConverter.DoubleToInt64Bits(v);
+            if ((b & (1L << 63)) == 0)
+            {
+                b ^= 1L << 63;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            Put64((ulong)b);
         }
 
         /// <summary>
