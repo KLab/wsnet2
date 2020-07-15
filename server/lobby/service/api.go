@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -93,17 +92,6 @@ func parseSpecificHeader(r *http.Request) *header {
 		nonce:     r.Header.Get("X-Wsnet-Nonce"),
 		hash:      r.Header.Get("X-Wsnet-Hash"),
 	}
-}
-
-func parseRequest(r *http.Request) (map[string]interface{}, error) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	r.Body.Close()
-	params := make(map[string]interface{})
-	msgpack.Unmarshal(body, &params)
-	return params, nil
 }
 
 func renderResponse(w http.ResponseWriter, res interface{}) error {

@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"wsnet2/auth"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -48,17 +47,6 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 	}()
 
 	return errCh
-}
-
-func issueAuthToken(userId, key string) (*pb.AuthToken, error) {
-	nonce, err := auth.GenerateNonce()
-	if err != nil {
-		return nil, err
-	}
-	return &pb.AuthToken{
-		Nonce: nonce,
-		Hash:  auth.CalculateHexHMAC([]byte(key), userId, nonce),
-	}, nil
 }
 
 func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.JoinedRoomRes, error) {
