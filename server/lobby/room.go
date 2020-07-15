@@ -37,8 +37,8 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: NewGameCache(db, time.Second*1, conf.ValidHeartBeat),
 	}
-	for _, app := range apps {
-		rs.apps[app.Id] = &app
+	for i, app := range apps {
+		rs.apps[app.Id] = &apps[i]
 	}
 	return rs, nil
 }
