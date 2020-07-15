@@ -189,6 +189,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgLeave(m)
 	case *MsgRoomProp:
 		return r.msgRoomProp(m)
+	case *MsgTargets:
+		return r.msgTargets(m)
 	case *MsgBroadcast:
 		return r.msgBroadcast(m)
 	case *MsgClientError:
@@ -314,6 +316,27 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
+	return nil
+}
+
+func (r *Room) msgTargets(msg *MsgTargets) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+
+	ev := binary.NewEvMessage(msg.Sender.Id, msg.Payload)
+
+	// todo: 失敗した人を通知
+
+	for _, t := range msg.Targets {
+		c, ok := r.clients[ClientID(t)]
+		if !ok {
+			continue
+		}
+		if err := c.Send(ev); err != nil {
+			continue
+		}
+	}
+
 	return nil
 }
 

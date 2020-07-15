@@ -154,7 +154,7 @@ namespace WSNet2.DotnetClient
                             room.RPC(RPCMessage, msg); //, Room.RPCToMaster);
                             break;
                         case 1:
-                            room.RPC(receiver.RPCString, str); //, "id0001"); // target
+                            room.RPC(receiver.RPCString, str, "id0001"); // target
                             break;
                         case 2:
                             room.RPC(receiver.RPCString, str); // broadcast

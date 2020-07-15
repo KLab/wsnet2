@@ -55,11 +55,11 @@ const (
 	// - Dict: properties (modified keys only)
 	MsgTypeClientProp
 
-	// MsgTypeTarget : 特定のクライアントへ送信
+	// MsgTypeTargets : 特定のクライアントへ送信
 	// payload:
 	//  - List: user ids
 	//  - Bytes: marshaled data
-	MsgTypeTarget
+	MsgTypeTargets
 
 	// MsgTypeToMaster : 部屋のMasterクライアントへ送信
 	MsgTypeToMaster
@@ -135,6 +135,7 @@ const (
 	roomPropFlagsWatchable = 4
 )
 
+// UnmarshalRoomPropPayload parses payload of MsgTypeRoomProp.
 func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	rpp := MsgRoomPropPayload{}
 
@@ -190,7 +191,29 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (private props): %w", e)
 	}
 	rpp.PrivateProps = d.(Dict)
-	payload = payload[l:]
 
 	return &rpp, nil
+}
+
+// UnmarshalTargetsAndPayload parses payload of MsgTypeTargets
+func UnmarshalTargetsAndPayload(payload []byte) ([]string, []byte, error) {
+	t, l, e := UnmarshalAs(payload, TypeList)
+	if e != nil {
+		return nil, nil, xerrors.Errorf("Invalid MsgTargets payload (targets): %w", e)
+	}
+	ls := t.(List)
+	targets := make([]string, len(ls))
+	for i, p := range t.(List) {
+		t, _, e := Unmarshal(p)
+		if e != nil {
+			return nil, nil, xerrors.Errorf("Invalid MsgTargets payload (target[%v]): %w", i, e)
+		}
+		var ok bool
+		targets[i], ok = t.(string)
+		if !ok {
+			return nil, nil, xerrors.Errorf("Invalid MsgTargets payload (target[%v]): %T %v", i, t, t)
+		}
+	}
+
+	return targets, payload[l:], nil
 }

@@ -75,6 +75,27 @@ func msgRoomProp(sender *Client, payload []byte) (Msg, error) {
 	}, nil
 }
 
+// MsgTargets : 特定プレイヤーに送る
+type MsgTargets struct {
+	Sender  *Client
+	Targets []string
+	Payload []byte
+}
+
+func (*MsgTargets) msg() {}
+
+func msgTargets(sender *Client, payload []byte) (Msg, error) {
+	targets, payload, err := binary.UnmarshalTargetsAndPayload(payload)
+	if err != nil {
+		return nil, err
+	}
+	return &MsgTargets{
+		Sender:  sender,
+		Targets: targets,
+		Payload: payload,
+	}, nil
+}
+
 // MsgBroadcast : 全員に送る
 type MsgBroadcast struct {
 	Sender  *Client
@@ -104,6 +125,8 @@ func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 		return msgLeave(cli)
 	case binary.MsgTypeRoomProp:
 		return msgRoomProp(cli, m.Payload())
+	case binary.MsgTypeTargets:
+		return msgTargets(cli, m.Payload())
 	case binary.MsgTypeBroadcast:
 		return msgBroadcast(cli, m.Payload())
 	}
