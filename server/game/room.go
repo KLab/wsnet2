@@ -108,10 +108,6 @@ func (r *Room) ID() RoomID {
 	return RoomID(r.Id)
 }
 
-func (r *Room) Key() string {
-	return r.key
-}
-
 // MsgLoop goroutine dispatch messages.
 func (r *Room) MsgLoop() {
 	r.logger.Debugf("Room.MsgLoop() start: room=%v", r.Id)

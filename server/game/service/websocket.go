@@ -14,9 +14,9 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/xerrors"
 
-	"wsnet2/auth"
 	"wsnet2/game"
 	"wsnet2/log"
+	"wsnet2/pb"
 )
 
 const (
@@ -104,16 +104,12 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := repo.GetRoom(roomId)
-	if err != nil {
-		log.Debugf("WSHandler.HandleRoom: GetRoom error: %v", err)
-		http.Error(w, "Bad Request", 400)
-		return
+	token := &pb.AuthToken{
+		Nonce: r.Header.Get("X-Wsnet-Nonce"),
+		Hash:  r.Header.Get("X-Wsnet-Hash"),
 	}
-	nonce := r.Header.Get("X-Wsnet-Nonce")
-	hash := r.Header.Get("X-Wsnet-Hash")
-	if !auth.ValidHexHMAC(hash, []byte(room.Key()), clientId, nonce) {
-		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, nonce=%v, hash=%v", roomId, clientId, nonce, hash)
+	if !repo.ValidAuthToken(roomId, clientId, token) {
+		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, nonce=%v, hash=%v", roomId, clientId, token.Nonce, token.Hash)
 		http.Error(w, "Unauthorized", 401)
 		return
 	}

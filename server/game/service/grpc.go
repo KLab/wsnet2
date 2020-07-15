@@ -73,28 +73,20 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	ri, players, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	room, players, token, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
 	}
 
-	room, _ := repo.GetRoom(ri.Id)
-
-	token, err := issueAuthToken(in.MasterInfo.Id, room.Key())
-	if err != nil {
-		log.Infof("issue auth token error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "issueAuthToken failed: %s", err)
-	}
-
 	res := &pb.JoinedRoomRes{
-		RoomInfo: ri,
+		RoomInfo: room,
 		Players:  players,
-		Url:      fmt.Sprintf(sv.wsURLFormat, ri.Id),
+		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
 		Token:    token,
 	}
 
-	log.Infof("New room: room=%v, master=%v", ri.Id, in.MasterInfo.Id)
+	log.Infof("New room: room=%v, master=%v", room.Id, in.MasterInfo.Id)
 
 	return res, nil
 }
@@ -122,28 +114,20 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	ri, players, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
+	room, players, token, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
 		log.Infof("join room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
 	}
 
-	room, _ := repo.GetRoom(ri.Id)
-
-	token, err := issueAuthToken(in.ClientInfo.Id, room.Key())
-	if err != nil {
-		log.Infof("issue auth token error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "issueAuthToken failed: %s", err)
-	}
-
 	res := &pb.JoinedRoomRes{
-		RoomInfo: ri,
+		RoomInfo: room,
 		Players:  players,
-		Url:      fmt.Sprintf(sv.wsURLFormat, ri.Id),
+		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
 		Token:    token,
 	}
 
-	log.Infof("Join room: room=%v, client=%v", ri.Id, in.ClientInfo.Id)
+	log.Infof("Join room: room=%v, client=%v", room.Id, in.ClientInfo.Id)
 
 	return res, nil
 }
