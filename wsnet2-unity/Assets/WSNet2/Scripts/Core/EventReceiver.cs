@@ -34,7 +34,6 @@ namespace WSNet2.Core
                 return registerRPC(
                     rpc,
                     (senderId, reader) => rpc(senderId, reader.ReadObject<T>()));
-
             }
 
             T obj = new T();
