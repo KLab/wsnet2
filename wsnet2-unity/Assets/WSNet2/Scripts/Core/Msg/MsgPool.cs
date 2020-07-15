@@ -71,7 +71,7 @@ namespace WSNet2.Core
             {
                 if (sequenceNum - pool.Length >= seqNum)
                 {
-                    throw new Exception($"Msg tool old: {seqNum}, {sequenceNum-pool.Length}");
+                    throw new Exception($"Msg too old: {seqNum}, {sequenceNum-pool.Length}");
                 }
                 if (seqNum > sequenceNum)
                 {

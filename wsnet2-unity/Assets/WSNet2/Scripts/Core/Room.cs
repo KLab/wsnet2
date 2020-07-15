@@ -25,7 +25,7 @@ namespace WSNet2.Core
         const int MsgBufInitialSize = 512;
 
         /// <summary>最大再接続試行回数</summary>
-        const int MaxReconnection = 100;
+        const int MaxReconnection = 30;
 
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
@@ -208,14 +208,16 @@ namespace WSNet2.Core
                     cts.Cancel();
                 }
 
+                callbackPool.Add(()=>{
+                    eventReceiver.OnError(lastException);
+                });
+
                 if (++reconnection > MaxReconnection)
                 {
                     callbackPool.Add(() => {
                         Closed = true;
                         var msg = $"MaxReconnection: {lastException.Message}";
-                        var e = new Exception(msg, lastException);
-                        eventReceiver.OnError(e);
-                        eventReceiver.OnClosed(e.Message);
+                        eventReceiver.OnClosed(msg);
                     });
                     return;
                 }
@@ -277,6 +279,7 @@ namespace WSNet2.Core
                     if (ev.SequenceNum != evSeqNum+1)
                     {
                         // todo: reconnectable?
+                        evBufPool.Add(ev.BufferArray);
                         throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
                     }
 
@@ -300,6 +303,7 @@ namespace WSNet2.Core
                         break;
 
                     default:
+                        evBufPool.Add(ev.BufferArray);
                         throw new Exception($"unknown event: {ev}");
                 }
 
@@ -322,6 +326,7 @@ namespace WSNet2.Core
 
                 if (ret.CloseStatus.HasValue)
                 {
+                    evBufPool.Add(buf);
                     switch (ret.CloseStatus.Value)
                     {
                         case WebSocketCloseStatus.NormalClosure:
@@ -342,7 +347,15 @@ namespace WSNet2.Core
                 Array.Resize(ref buf, buf.Length*2);
             }
 
-            return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
+            try
+            {
+                return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
+            }
+            catch(Exception e)
+            {
+                evBufPool.Add(buf);
+                throw e;
+            }
         }
 
         /// <summary>

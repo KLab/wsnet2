@@ -114,12 +114,9 @@ loop:
 				continue
 			}
 			c.room.logger.Infof("New peer attached: client=%v, peer=%p", c.Id, peer)
-			if !t.Stop() {
-				<-t.C
-			}
 			peerMsgCh = peer.MsgCh()
 			curPeer = peer
-			t.Reset(deadline)
+			// つなげて切るだけのクライアントをタイムアウトさせるため、t.Resetしない
 
 		case m, ok := <-peerMsgCh:
 			if !ok {
@@ -133,11 +130,12 @@ loop:
 			c.room.logger.Debugf("peer message: client=%v %v %v", c.Id, m.Type(), m)
 			msg, err := ConstructMsg(c, m)
 			if err != nil {
-				// データ破損? 再送に期待して良い?
-				// todo: peerのみの破棄かclientを破棄か決める
-				// 一旦peerのみ破棄で.
-				c.DetachAndClosePeer(curPeer, err)
-				continue
+				// おかしなデータを送ってくるクライアントは遮断する
+				c.room.msgCh <- &MsgClientError{
+					Sender: c,
+					Err:    err,
+				}
+				break loop
 			}
 			if regmsg, ok := m.(binary.RegularMsg); ok {
 				seq := regmsg.SequenceNum()
