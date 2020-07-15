@@ -120,19 +120,19 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	req, err := http.NewRequest(method, url, &p)
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
-	req.Header.Add("X-App-Id", b.appId)
-	req.Header.Add("X-User-Id", b.userId)
+	req.Header.Add("X-Wsnet-App", b.appId)
+	req.Header.Add("X-Wsnet-User", b.userId)
 
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
 	nonce, err := auth.GenerateNonce()
 	if err != nil {
 		return err
 	}
-	req.Header.Add("X-Auth-Timestamp", timestamp)
-	req.Header.Add("X-Auth-Nonce", nonce)
+	req.Header.Add("X-Wsnet-Timestamp", timestamp)
+	req.Header.Add("X-Wsnet-Nonce", nonce)
 	hash := auth.CalculateHexHMAC([]byte(b.appKey), b.userId, timestamp, nonce)
 	fmt.Printf("[bot:%v] hash: %v\n", b.userId, hash)
-	req.Header.Add("X-Auth-Hash", hash)
+	req.Header.Add("X-Wsnet-Hash", hash)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

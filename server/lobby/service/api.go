@@ -77,6 +77,24 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
 }
 
+type header struct {
+	appId     string
+	userId    string
+	timestamp string
+	nonce     string
+	hash      string
+}
+
+func parseSpecificHeader(r *http.Request) *header {
+	return &header{
+		appId:     r.Header.Get("X-Wsnet-App"),
+		userId:    r.Header.Get("X-Wsnet-User"),
+		timestamp: r.Header.Get("X-Wsnet-Timestamp"),
+		nonce:     r.Header.Get("X-Wsnet-Nonce"),
+		hash:      r.Header.Get("X-Wsnet-Hash"),
+	}
+}
+
 func parseRequest(r *http.Request) (map[string]interface{}, error) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -99,12 +117,12 @@ func renderResponse(w http.ResponseWriter, res interface{}) error {
 	return nil
 }
 
-func (sv *LobbyService) authUser(appId, userId, timestamp, nonce, hash string) error {
-	appKey, found := sv.roomService.GetAppKey(appId)
+func (sv *LobbyService) authUser(h *header) error {
+	appKey, found := sv.roomService.GetAppKey(h.appId)
 	if !found {
-		return xerrors.Errorf("Invalid appId: %v", appId)
+		return xerrors.Errorf("Invalid appId: %v", h.appId)
 	}
-	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	ts, err := strconv.ParseInt(h.timestamp, 10, 64)
 	if err != nil {
 		return xerrors.Errorf("Invalid timestamp: %w", err)
 	}
@@ -116,8 +134,8 @@ func (sv *LobbyService) authUser(appId, userId, timestamp, nonce, hash string) e
 	if now-ts > expirationTime {
 		return xerrors.Errorf("Expired timestamp: now=%v, ts=%v, expirationTime=%v", now, ts, expirationTime)
 	}
-	if !auth.ValidHexHMAC(hash, []byte(appKey), userId, timestamp, nonce) {
-		return xerrors.Errorf("Invalid HMAC: appId=%v, userId=%v, timestamp=%v, nonce=%v, hash=%v", appId, userId, timestamp, nonce, hash)
+	if !auth.ValidHexHMAC(h.hash, []byte(appKey), h.userId, h.timestamp, h.nonce) {
+		return xerrors.Errorf("Invalid HMAC: appId=%v, userId=%v, timestamp=%v, nonce=%v, hash=%v", h.appId, h.userId, h.timestamp, h.nonce, h.hash)
 	}
 	return nil
 }
@@ -133,12 +151,11 @@ type CreateParam struct {
 // POST Params: {"max_player": 0, "with_room_number": true}
 // Response: 200 OK
 func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
-	appID := r.Header.Get("X-App-Id")
-	userID := r.Header.Get("X-User-Id")
+	h := parseSpecificHeader(r)
 
-	log.Infof("handleCreateRoom: appID=%s, userID=%s", appID, userID)
+	log.Infof("handleCreateRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(appID, userID, r.Header.Get("X-Auth-Timestamp"), r.Header.Get("X-Auth-Nonce"), r.Header.Get("X-Auth-Hash")); err != nil {
+	if err := sv.authUser(h); err != nil {
 		log.Errorf("Failed to user auth: %v", err)
 		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
 		return
@@ -154,7 +171,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	// TODO: 必要に応じて一部のパラメータを上書き？
 
-	room, err := sv.roomService.Create(appID, &param.RoomOption, &param.ClientInfo)
+	room, err := sv.roomService.Create(h.appId, &param.RoomOption, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to create room: %v", err)
 		http.Error(w, "Failed to create room", http.StatusInternalServerError)
@@ -176,12 +193,11 @@ type JoinParam struct {
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
-	appID := r.Header.Get("X-App-Id")
-	userID := r.Header.Get("X-User-Id")
+	h := parseSpecificHeader(r)
 
-	log.Infof("handleJoinRoom: appID=%s, userID=%s", appID, userID)
+	log.Infof("handleJoinRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(appID, userID, r.Header.Get("X-Auth-Timestamp"), r.Header.Get("X-Auth-Nonce"), r.Header.Get("X-Auth-Hash")); err != nil {
+	if err := sv.authUser(h); err != nil {
 		log.Errorf("Failed to user auth: %v", err)
 		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
 		return
@@ -195,7 +211,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := sv.roomService.Join(appID, param.RoomId, &param.ClientInfo)
+	room, err := sv.roomService.Join(h.appId, param.RoomId, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
@@ -218,12 +234,11 @@ type SearchParam struct {
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
-	appID := r.Header.Get("X-App-Id")
-	userID := r.Header.Get("X-User-Id")
+	h := parseSpecificHeader(r)
 
-	log.Infof("handleSearchRoom: appID=%s, userID=%s", appID, userID)
+	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(appID, userID, r.Header.Get("X-Auth-Timestamp"), r.Header.Get("X-Auth-Nonce"), r.Header.Get("X-Auth-Hash")); err != nil {
+	if err := sv.authUser(h); err != nil {
 		log.Errorf("Failed to user auth: %v", err)
 		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
 		return
@@ -239,7 +254,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Debugf("%#v", param)
 
-	rooms, err := sv.roomService.Search(appID, param.SearchGroup, param.Queries, int(param.Limit))
+	rooms, err := sv.roomService.Search(h.appId, param.SearchGroup, param.Queries, int(param.Limit))
 	if err != nil {
 		log.Errorf("Failed to search room: %v", err)
 		http.Error(w, "Failed to search room", http.StatusInternalServerError)
