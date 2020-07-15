@@ -62,8 +62,8 @@ func (c *GameCache) update() error {
 	log.Debugf("Now alive game servers: %+v", servers)
 
 	c.servers = make(map[GameServerID]*GameServer, len(servers))
-	for _, s := range servers {
-		c.servers[GameServerID(s.Id)] = &s
+	for i, s := range servers {
+		c.servers[GameServerID(s.Id)] = &servers[i]
 		c.order = append(c.order, GameServerID(s.Id))
 	}
 	c.lastUpdated = time.Now()
