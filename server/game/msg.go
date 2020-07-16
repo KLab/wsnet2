@@ -46,30 +46,36 @@ func (*MsgJoin) msg() {}
 // MsgLeave : 退室メッセージ
 // クライアントの自発的な退室リクエスト
 type MsgLeave struct {
+	binary.RegularMsg
 	Sender *Client
 }
 
 func (*MsgLeave) msg() {}
 
-func msgLeave(sender *Client) (Msg, error) {
-	return &MsgLeave{sender}, nil
+func msgLeave(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	return &MsgLeave{
+		RegularMsg: msg,
+		Sender:     sender,
+	}, nil
 }
 
 // MsgRoomProp : 部屋情報の変更
 // MasterClientからのみ受け付ける.
 type MsgRoomProp struct {
+	binary.RegularMsg
 	*binary.MsgRoomPropPayload
 	Sender *Client
 }
 
 func (*MsgRoomProp) msg() {}
 
-func msgRoomProp(sender *Client, payload []byte) (Msg, error) {
-	rpp, err := binary.UnmarshalRoomPropPayload(payload)
+func msgRoomProp(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	rpp, err := binary.UnmarshalRoomPropPayload(msg.Payload())
 	if err != nil {
 		return nil, err
 	}
 	return &MsgRoomProp{
+		RegularMsg:         msg,
 		MsgRoomPropPayload: rpp,
 		Sender:             sender,
 	}, nil
@@ -77,37 +83,58 @@ func msgRoomProp(sender *Client, payload []byte) (Msg, error) {
 
 // MsgTargets : 特定プレイヤーに送る
 type MsgTargets struct {
+	binary.RegularMsg
 	Sender  *Client
 	Targets []string
-	Payload []byte
+	Data    []byte
 }
 
 func (*MsgTargets) msg() {}
 
-func msgTargets(sender *Client, payload []byte) (Msg, error) {
-	targets, payload, err := binary.UnmarshalTargetsAndPayload(payload)
+func msgTargets(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	targets, data, err := binary.UnmarshalTargetsAndData(msg.Payload())
 	if err != nil {
 		return nil, err
 	}
 	return &MsgTargets{
-		Sender:  sender,
-		Targets: targets,
-		Payload: payload,
+		RegularMsg: msg,
+		Sender:     sender,
+		Targets:    targets,
+		Data:       data,
+	}, nil
+}
+
+// MsgToMaster : MasterClientに送る
+type MsgToMaster struct {
+	binary.RegularMsg
+	Sender *Client
+	Data   []byte
+}
+
+func (*MsgToMaster) msg() {}
+
+func msgToMaster(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	return &MsgToMaster{
+		RegularMsg: msg,
+		Sender:     sender,
+		Data:       msg.Payload(),
 	}, nil
 }
 
 // MsgBroadcast : 全員に送る
 type MsgBroadcast struct {
-	Sender  *Client
-	Payload []byte
+	binary.RegularMsg
+	Sender *Client
+	Data   []byte
 }
 
 func (*MsgBroadcast) msg() {}
 
-func msgBroadcast(sender *Client, payload []byte) (Msg, error) {
+func msgBroadcast(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	return &MsgBroadcast{
-		Sender:  sender,
-		Payload: payload,
+		RegularMsg: msg,
+		Sender:     sender,
+		Data:       msg.Payload(),
 	}, nil
 }
 
@@ -122,13 +149,15 @@ func (*MsgClientError) msg() {}
 func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 	switch m.Type() {
 	case binary.MsgTypeLeave:
-		return msgLeave(cli)
+		return msgLeave(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeRoomProp:
-		return msgRoomProp(cli, m.Payload())
+		return msgRoomProp(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeTargets:
-		return msgTargets(cli, m.Payload())
+		return msgTargets(cli, m.(binary.RegularMsg))
+	case binary.MsgTypeToMaster:
+		return msgToMaster(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeBroadcast:
-		return msgBroadcast(cli, m.Payload())
+		return msgBroadcast(cli, m.(binary.RegularMsg))
 	}
 	return nil, xerrors.Errorf("unknown msg type: %T %v", m, m)
 }

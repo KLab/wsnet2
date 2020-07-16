@@ -30,6 +30,9 @@ type MsgType byte
 const regularMsgType = 30
 const (
 	// nonregular msg
+
+	// MsgTypePing : 定期通信.
+	// タイムアウトしないように
 	MsgTypePing MsgType = 1 + iota
 )
 const (
@@ -58,12 +61,12 @@ const (
 	// MsgTypeTargets : 特定のクライアントへ送信
 	// payload:
 	//  - List: user ids
-	//  - Bytes: marshaled data
+	//  - marshaled data...
 	MsgTypeTargets
 
 	// MsgTypeToMaster : 部屋のMasterクライアントへ送信
-	MsgTypeToMaster
 	// payload: marshaled data...
+	MsgTypeToMaster
 
 	// MsgTypeBroadcast : 全員に送信する
 	// payload: marshaled data...
@@ -195,8 +198,8 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	return &rpp, nil
 }
 
-// UnmarshalTargetsAndPayload parses payload of MsgTypeTargets
-func UnmarshalTargetsAndPayload(payload []byte) ([]string, []byte, error) {
+// UnmarshalTargetsAndData parses payload of MsgTypeTargets
+func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 	t, l, e := UnmarshalAs(payload, TypeList)
 	if e != nil {
 		return nil, nil, xerrors.Errorf("Invalid MsgTargets payload (targets): %w", e)
