@@ -87,13 +87,33 @@ namespace WSNet2.Core
         public float ReadFloat()
         {
             checkType(Type.Float);
-            throw new NotImplementedException();
+            var b = (int)Get32();
+            if ((b & (1<<31)) != 0)
+            {
+                b ^= 1<<31;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            return BitConverter.Int32BitsToSingle(b);
         }
 
-        public float ReadDouble()
+        public double ReadDouble()
         {
             checkType(Type.Double);
-            throw new NotImplementedException();
+            var b = (long)Get64();
+            if ((b & ((long)1<<63)) != 0)
+            {
+                b ^= (long)1<<63;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            return BitConverter.Int64BitsToDouble(b);
         }
 
         public string ReadString()
@@ -401,6 +421,62 @@ namespace WSNet2.Core
             return vals;
         }
 
+        public float[] ReadFloats(float[] recycle = null)
+        {
+            checkType(Type.Floats);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new float[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var b = (int)Get32();
+                if ((b & (1<<31)) != 0)
+                {
+                    b ^= 1<<31;
+                }
+                else
+                {
+                    b = ~b;
+                }
+
+                vals[i] = BitConverter.Int32BitsToSingle(b);
+            }
+
+            return vals;
+        }
+
+        public double[] ReadDoubles(double[] recycle = null)
+        {
+            checkType(Type.Doubles);
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new double[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var b = (long)Get64();
+                if ((b & ((long)1<<63)) != 0)
+                {
+                    b ^= (long)1<<63;
+                }
+                else
+                {
+                    b = ~b;
+                }
+
+                vals[i] = BitConverter.Int64BitsToDouble(b);
+            }
+
+            return vals;
+        }
+
         public int Get8()
         {
             checkLength(1);
@@ -586,6 +662,12 @@ namespace WSNet2.Core
                     break;
                 case Type.ULongs:
                     elem = ReadULongs(recycle as ulong[]);
+                    break;
+                case Type.Floats:
+                    elem = ReadFloats(recycle as float[]);
+                    break;
+                case Type.Doubles:
+                    elem = ReadDoubles(recycle as double[]);
                     break;
                 default:
                     throw new SerializationException(

@@ -169,7 +169,20 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(float v)
         {
-            throw new NotImplementedException();
+            expand(5);
+            buf[pos] = (byte)Type.Float;
+            pos++;
+            var b = BitConverter.SingleToInt32Bits(v);
+            if ((b & (1 << 31)) == 0)
+            {
+                b ^= 1 << 31;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            Put32(b);
         }
 
         /// <summary>
@@ -178,7 +191,20 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(double v)
         {
-            throw new NotImplementedException();
+            expand(9);
+            buf[pos] = (byte)Type.Double;
+            pos++;
+            var b = BitConverter.DoubleToInt64Bits(v);
+            if ((b & (1L << 63)) == 0)
+            {
+                b ^= 1L << 63;
+            }
+            else
+            {
+                b = ~b;
+            }
+
+            Put64((ulong)b);
         }
 
         /// <summary>
@@ -534,6 +560,72 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>
+        ///   float配列を書き込む
+        /// </summary>
+        public void Write(float[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*4);
+            buf[pos] = (byte)Type.Floats;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                var b = BitConverter.SingleToInt32Bits(val);
+                if ((b & (1 << 31)) == 0)
+                {
+                    b ^= 1 << 31;
+                }
+                else
+                {
+                    b = ~b;
+                }
+
+                Put32(b);
+            }
+        }
+
+        /// <summary>
+        ///   double配列を書き込む
+        /// </summary>
+        public void Write(double[] vals)
+        {
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*4);
+            buf[pos] = (byte)Type.Doubles;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                var b = BitConverter.DoubleToInt64Bits(val);
+                if ((b & (1L << 63)) == 0)
+                {
+                    b ^= 1L << 63;
+                }
+                else
+                {
+                    b = ~b;
+                }
+
+                Put64((ulong)b);
+            }
+        }
+
         public void Put8(int v)
         {
             buf[pos] = (byte)(v & 0xff);
@@ -667,6 +759,12 @@ namespace WSNet2.Core
                     Write(e);
                     break;
                 case ulong[] e:
+                    Write(e);
+                    break;
+                case float[] e:
+                    Write(e);
+                    break;
+                case double[] e:
                     Write(e);
                     break;
                 case IEnumerable e:

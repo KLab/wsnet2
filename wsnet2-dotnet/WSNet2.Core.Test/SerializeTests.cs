@@ -237,6 +237,32 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(v, r);
         }
 
+        [TestCase(float.NegativeInfinity, new byte[]{(byte)Type.Float, 0x00, 0x7f, 0xff, 0xff})]
+        [TestCase(1.25f, new byte[]{(byte)Type.Float, 0xbf, 0xa0, 0x00, 0x00})]
+        [TestCase(-1.25f, new byte[]{(byte)Type.Float, 0x40, 0x5f, 0xff, 0xff})]
+        public void TestFloat(float v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadFloat();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(double.MaxValue, new byte[]{(byte)Type.Double, 0xff, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})]
+        [TestCase(1.25f, new byte[]{(byte)Type.Double, 0xbf, 0xf4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})]
+        [TestCase(-1.25f, new byte[]{(byte)Type.Double, 0x40, 0x0b, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})]
+        public void TestDouble(double v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadDouble();
+            Assert.AreEqual(v, r);
+        }
+
         [TestCase("", new byte[]{(byte)Type.Str8, 0})]
         [TestCase("abc", new byte[]{(byte)Type.Str8, 3, 0x61, 0x62, 0x63})]
         [TestCase("あ", new byte[]{(byte)Type.Str8, 3, 0xe3, 0x81, 0x82})]
@@ -606,6 +632,40 @@ namespace WSNet2.Core.Test
 
             var reader = Serialization.NewReader(writer.ArraySegment());
             var r = reader.ReadULongs();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new float[]{}, new byte[]{(byte)Type.Floats, 0, 0})]
+        [TestCase(new float[]{0f, float.NegativeInfinity, float.MaxValue, 1.25f},
+                  new byte[]{(byte)Type.Floats, 0, 4,
+                             0x80, 0x00, 0x00, 0x00,
+                             0x00, 0x7f, 0xff, 0xff,
+                             0xff, 0x7f, 0xff, 0xff,
+                             0xbf, 0xa0, 0x00, 0x00})]
+        public void TestFloats(float[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadFloats();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new double[]{}, new byte[]{(byte)Type.Doubles, 0, 0})]
+        [TestCase(new double[]{0d, double.NegativeInfinity, double.MaxValue, 1.25d},
+                  new byte[]{(byte)Type.Doubles, 0, 4,
+                             0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                             0x00, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                             0xff, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                             0xbf, 0xf4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})]
+        public void TestDoubles(double[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadDoubles();
             Assert.AreEqual(v, r);
         }
     }
