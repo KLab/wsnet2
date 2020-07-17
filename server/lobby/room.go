@@ -167,6 +167,7 @@ func (rs *RoomService) JoinByQuery(appId string, searchGroup uint32, queries []P
 		if err == nil {
 			return res, nil
 		}
+		log.Debugf("JoinByQuery: failed to join room: %w", err)
 	}
 
 	return nil, xerrors.Errorf("JoinByQuery: Failed to join all rooms")
