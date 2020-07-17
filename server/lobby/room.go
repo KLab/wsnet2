@@ -3,6 +3,7 @@ package lobby
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -88,20 +89,10 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 	return res, nil
 }
 
-func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
-	if _, found := rs.apps[appId]; !found {
-		return nil, xerrors.Errorf("Unknown appId: %v", appId)
-	}
-
-	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
+	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
-		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
-	}
-
-	game, err := rs.gameCache.Get(room.HostId)
-	if err != nil {
-		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
+		return nil, xerrors.Errorf("join: failed to get game server: %w", err)
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
@@ -129,6 +120,57 @@ func (rs *RoomService) Join(appId, roomId string, clientInfo *pb.ClientInfo) (*p
 	log.Infof("Joined room: %v", res)
 
 	return res, nil
+}
+
+func (rs *RoomService) JoinById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
+	}
+
+	return rs.join(appId, roomId, clientInfo, room.HostId)
+
+}
+
+func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+	if roomNumber == 0 {
+		return nil, xerrors.Errorf("Invalid room number: %v", roomNumber)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinByNumber: Failed to get room: %w", err)
+	}
+
+	return rs.join(appId, room.Id, clientInfo, room.HostId)
+}
+
+func (rs *RoomService) JoinByQuery(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	rooms, err := rs.Search(appId, searchGroup, queries, 1000)
+	if err != nil {
+		return nil, err
+	}
+
+	rand.Shuffle(len(rooms), func(i, j int) { rooms[i], rooms[j] = rooms[j], rooms[i] })
+
+	for _, room := range rooms {
+		res, err := rs.join(appId, room.Id, clientInfo, room.HostId)
+		if err == nil {
+			return res, nil
+		}
+		log.Debugf("JoinByQuery: failed to join room: %v", err)
+	}
+
+	return nil, xerrors.Errorf("JoinByQuery: Failed to join all rooms")
 }
 
 func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int) ([]pb.RoomInfo, error) {

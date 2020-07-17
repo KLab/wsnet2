@@ -73,6 +73,8 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 
 	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
 	r.HandleFunc("/rooms/join", sv.handleJoinRoom).Methods("POST")
+	r.HandleFunc("/rooms/join/number", sv.handleJoinRoomByNumber).Methods("POST")
+	r.HandleFunc("/rooms/join/query", sv.handleJoinRoomByQuery).Methods("POST")
 	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
 }
 
@@ -199,7 +201,88 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := sv.roomService.Join(h.appId, param.RoomId, &param.ClientInfo)
+	room, err := sv.roomService.JoinById(h.appId, param.RoomId, &param.ClientInfo)
+	if err != nil {
+		log.Errorf("Failed to join room: %v", err)
+		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		return
+	}
+	log.Debugf("%#v", room)
+
+	err = renderResponse(w, room)
+	if err != nil {
+		log.Errorf("Failed to marshal room: %v", err)
+		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		return
+	}
+}
+
+type JoinByNumberParam struct {
+	RoomNumber int32
+	ClientInfo pb.ClientInfo
+}
+
+func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
+	h := parseSpecificHeader(r)
+
+	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
+
+	if err := sv.authUser(h); err != nil {
+		log.Errorf("Failed to user auth: %v", err)
+		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		return
+	}
+
+	var param JoinByNumberParam
+	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	if err != nil {
+		log.Errorf("Failed to read request body: %v", err)
+		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		return
+	}
+
+	room, err := sv.roomService.JoinByNumber(h.appId, param.RoomNumber, &param.ClientInfo)
+	if err != nil {
+		log.Errorf("Failed to join room: %v", err)
+		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		return
+	}
+	log.Debugf("%#v", room)
+
+	err = renderResponse(w, room)
+	if err != nil {
+		log.Errorf("Failed to marshal room: %v", err)
+		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		return
+	}
+}
+
+type JoinByQueryParam struct {
+	SearchGroup uint32
+	Queries     []lobby.PropQueries
+	ClientInfo  pb.ClientInfo
+}
+
+func (sv *LobbyService) handleJoinRoomByQuery(w http.ResponseWriter, r *http.Request) {
+	h := parseSpecificHeader(r)
+
+	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
+
+	if err := sv.authUser(h); err != nil {
+		log.Errorf("Failed to user auth: %v", err)
+		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		return
+	}
+
+	var param JoinByQueryParam
+	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	if err != nil {
+		log.Errorf("Failed to read request body: %v", err)
+		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		return
+	}
+
+	room, err := sv.roomService.JoinByQuery(h.appId, param.SearchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
