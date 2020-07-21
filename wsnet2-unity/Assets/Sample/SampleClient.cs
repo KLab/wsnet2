@@ -6,35 +6,29 @@ using WSNet2.Core;
 
 public class SampleClient : MonoBehaviour
 {
-    class EventReceiver : IEventReceiver
+    class EventReceiver : WSNet2.Core.EventReceiver
     {
-        public void OnError(Exception e)
+        public override void OnError(Exception e)
         {
             Debug.Log("OnError: "+e);
         }
 
-        public void OnJoined(Player me)
+        public override void OnJoined(Player me)
         {
             Debug.Log("OnJoined: "+me.Id);
         }
 
-        public void OnOtherPlayerJoined(Player player)
+        public override void OnOtherPlayerJoined(Player player)
         {
             Debug.Log("OnOtherPlayerJoined: "+player.Id);
         }
 
-        public void OnMessage(EvMessage ev)
-        {
-            var msg = ev.Body<StrMessage>();
-            Debug.Log($"OnMessage[{ev.SenderID}]: {msg}");
-        }
-
-        public void OnLeave(Player player)
+        public override void OnLeave(Player player)
         {
             Debug.Log("OnLeave: "+player.Id);
         }
 
-        public void OnClosed(string description)
+        public override void OnClosed(string description)
         {
             Debug.Log("OnClose: "+description);
         }
@@ -68,7 +62,10 @@ public class SampleClient : MonoBehaviour
 
     WSNet2Client cli;
 
-
+    void OnStrMsgRPC(string sender, StrMessage msg)
+    {
+        Debug.Log("OnStrMsgRPC["+sender+"]: "+msg);
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -95,6 +92,7 @@ public class SampleClient : MonoBehaviour
         var roomOpt = new RoomOption(10, 100, pubProps, privProps);
 
         var receiver = new EventReceiver();
+        receiver.RegisterRPC<StrMessage>(OnStrMsgRPC);
 
         cli.Create(
             roomOpt,
@@ -119,7 +117,8 @@ public class SampleClient : MonoBehaviour
         for(var i = 0; i < 100; i++)
         {
             yield return new WaitForSeconds(1);
-            room.Broadcast(new StrMessage("abcdefg" + i));
+            var msg = new StrMessage("strmsg "+i);
+            room.RPC(OnStrMsgRPC, msg);
         }
     }
 }

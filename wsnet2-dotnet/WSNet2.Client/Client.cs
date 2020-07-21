@@ -32,10 +32,9 @@ namespace WSNet2.DotnetClient
         }
     }
 
-
     public class DotnetClient
     {
-        class EventReceiver : IEventReceiver
+        class EventReceiver : WSNet2.Core.EventReceiver
         {
             CancellationTokenSource cts;
 
@@ -44,37 +43,35 @@ namespace WSNet2.DotnetClient
                 this.cts = cts;
             }
 
-            public void OnError(Exception e)
+            public override void OnError(Exception e)
             {
                 Console.WriteLine("OnError: "+e);
-                cts.Cancel();
             }
 
-            public void OnJoined(Player me)
+            public override void OnJoined(Player me)
             {
                 Console.WriteLine("OnJoined: "+me.Id);
             }
 
-            public void OnOtherPlayerJoined(Player player)
+            public override void OnOtherPlayerJoined(Player player)
             {
                 Console.WriteLine("OnOtherPlayerJoined: "+player.Id);
             }
 
-            public void OnMessage(EvMessage ev)
-            {
-                var msg = ev.Body<StrMessage>();
-                Console.WriteLine($"OnMessage[{ev.SenderID}]: {msg}");
-            }
-
-            public void OnLeave(Player player)
+            public override void OnLeave(Player player)
             {
                 Console.WriteLine("OnLeave: "+player.Id);
             }
 
-            public void OnClosed(string description)
+            public override void OnClosed(string description)
             {
                 Console.WriteLine("OnClose: "+description);
                 cts.Cancel();
+            }
+
+            public void RPCString(string senderId, string str)
+            {
+                Console.WriteLine($"OnRPCString [{senderId}]: {str}");
             }
         }
 
@@ -85,6 +82,11 @@ namespace WSNet2.DotnetClient
                 cli.ProcessCallback();
                 await Task.Delay(1000);
             }
+        }
+
+        static void RPCMessage(string senderId, StrMessage msg)
+        {
+            Console.WriteLine($"OnRPCMessage [{senderId}]: {msg}");
         }
 
         static async Task Main(string[] args)
@@ -109,10 +111,13 @@ namespace WSNet2.DotnetClient
                 {"name", "FooBar"},
             };
 
-            var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30);
+            var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(10);
 
             var cts = new CancellationTokenSource();
             var receiver = new EventReceiver(cts);
+            receiver.RegisterRPC<StrMessage>(RPCMessage);
+            receiver.RegisterRPC(receiver.RPCString);
+
 
             var roomCreated = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             client.Create(
@@ -134,6 +139,8 @@ namespace WSNet2.DotnetClient
                 var room = await roomCreated.Task;
                 Console.WriteLine("created room = "+room.Id);
 
+                int i = 0;
+
                 while (true) {
                     cts.Token.ThrowIfCancellationRequested();
                     var str = Console.ReadLine();
@@ -141,8 +148,19 @@ namespace WSNet2.DotnetClient
                     cts.Token.ThrowIfCancellationRequested();
                     Console.WriteLine($"input ({Thread.CurrentThread.ManagedThreadId}): {str}");
 
-                    var msg = new StrMessage(str);
-                    room.Broadcast(msg);
+                    switch(i%3){
+                        case 0:
+                            var msg = new StrMessage(str);
+                            room.RPC(RPCMessage, msg); //, Room.RPCToMaster);
+                            break;
+                        case 1:
+                            room.RPC(receiver.RPCString, str); //, "id0001"); // target
+                            break;
+                        case 2:
+                            room.RPC(receiver.RPCString, str); // broadcast
+                            break;
+                    }
+                    i++;
                 }
             }
             catch (Exception e)

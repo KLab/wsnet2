@@ -25,10 +25,13 @@ namespace WSNet2.Core
         const int MsgBufInitialSize = 512;
 
         /// <summary>最大再接続試行回数</summary>
-        const int MaxReconnection = 100;
+        const int MaxReconnection = 30;
 
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
+
+        /// <summary>RoomのMasterをRPCの対象に指定</summary
+        public const string[] RPCToMaster = null;
 
         /// <summary>RoomID</summary>
         public string Id { get { return info.id; } }
@@ -57,7 +60,7 @@ namespace WSNet2.Core
 
         RoomInfo info;
         Uri uri;
-        IEventReceiver eventReceiver;
+        EventReceiver eventReceiver;
 
         ClientWebSocket ws;
         TaskCompletionSource<Task> senderTaskSource;
@@ -85,7 +88,7 @@ namespace WSNet2.Core
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
         /// <param name="receiver">イベントレシーバ</param>
-        public Room(JoinedResponse joined, string myId, IEventReceiver receiver)
+        public Room(JoinedResponse joined, string myId, EventReceiver receiver)
         {
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
@@ -186,6 +189,7 @@ namespace WSNet2.Core
                             callbackPool.Add(() => {
                                 Closed = true;
                                 eventReceiver.OnError(e);
+                                eventReceiver.OnClosed(e.Message);
                             });
                             return;
                     }
@@ -204,12 +208,16 @@ namespace WSNet2.Core
                     cts.Cancel();
                 }
 
+                callbackPool.Add(()=>{
+                    eventReceiver.OnError(lastException);
+                });
+
                 if (++reconnection > MaxReconnection)
                 {
                     callbackPool.Add(() => {
                         Closed = true;
                         var msg = $"MaxReconnection: {lastException.Message}";
-                        eventReceiver.OnError(new Exception(msg, lastException));
+                        eventReceiver.OnClosed(msg);
                     });
                     return;
                 }
@@ -218,15 +226,29 @@ namespace WSNet2.Core
             }
         }
 
-        /// <summary>
-        ///   MsgBroadcastを送信
-        /// </summary>
-        public void Broadcast(IWSNetSerializable data)
+        public void RPC(Action<string, string> rpc, string param, params string[] targets)
         {
-            msgPool.AddBroadcast(data);
+            msgPool.PostRPC(getRpcId(rpc), param, targets);
             hasMsg.TryAdd(true);
         }
 
+        public void RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
+        {
+            msgPool.PostRPC(getRpcId(rpc), param, targets);
+            hasMsg.TryAdd(true);
+        }
+
+        private byte getRpcId(Delegate rpc)
+        {
+            byte rpcId;
+            if (!eventReceiver.RPCMap.TryGetValue(rpc, out rpcId))
+            {
+                var msg = $"RPC target is not registered";
+                throw new Exception(msg);
+            }
+
+            return rpcId;
+        }
 
         /// <summary>
         ///   Websocketで接続する
@@ -257,6 +279,7 @@ namespace WSNet2.Core
                     if (ev.SequenceNum != evSeqNum+1)
                     {
                         // todo: reconnectable?
+                        evBufPool.Add(ev.BufferArray);
                         throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
                     }
 
@@ -275,11 +298,12 @@ namespace WSNet2.Core
                     case EvJoined evJoined:
                         OnEvJoined(evJoined);
                         break;
-                    case EvMessage evMessage:
-                        OnEvMessage(evMessage);
+                    case EvRPC evRpc:
+                        OnEvRPC(evRpc);
                         break;
 
                     default:
+                        evBufPool.Add(ev.BufferArray);
                         throw new Exception($"unknown event: {ev}");
                 }
 
@@ -302,6 +326,7 @@ namespace WSNet2.Core
 
                 if (ret.CloseStatus.HasValue)
                 {
+                    evBufPool.Add(buf);
                     switch (ret.CloseStatus.Value)
                     {
                         case WebSocketCloseStatus.NormalClosure:
@@ -322,7 +347,15 @@ namespace WSNet2.Core
                 Array.Resize(ref buf, buf.Length*2);
             }
 
-            return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
+            try
+            {
+                return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
+            }
+            catch(Exception e)
+            {
+                evBufPool.Add(buf);
+                throw e;
+            }
         }
 
         /// <summary>
@@ -355,11 +388,19 @@ namespace WSNet2.Core
         }
 
         /// <summary>
-        ///   汎用メッセージイベント
+        ///   RPCイベント
         /// </summary>
-        private void OnEvMessage(EvMessage ev)
+        private void OnEvRPC(EvRPC ev)
         {
-            callbackPool.Add(() => eventReceiver.OnMessage(ev));
+            if (ev.RpcID >= eventReceiver.RPCActions.Count)
+            {
+                var e = new Exception($"RpcID({ev.RpcID}) is not registered");
+                callbackPool.Add(() => eventReceiver.OnError(e));
+                return;
+            }
+
+            var action = eventReceiver.RPCActions[ev.RpcID];
+            callbackPool.Add(() => action(ev.SenderID, ev.Reader));
         }
 
         /// <summary>
