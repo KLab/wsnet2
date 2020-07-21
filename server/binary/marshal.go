@@ -21,14 +21,25 @@ const (
 	TypeUInt               // C#:uint
 	TypeLong               // C#:long (64bit)
 	TypeULong              // C#:ulong
-	TypeFloat              // C#:float -- not implemented yet
-	TypeDouble             // C#:double -- not implemented yet
+	TypeFloat              // C#:float
+	TypeDouble             // C#:double
 	TypeStr8               // C#:string; lenght < 256
 	TypeStr16              // C#:string; lenght >= 256
 	TypeObj                // C#:object
 	TypeList               // C#:List<object>; count < 256
 	TypeDict               // C#:Dictionary<string, object>; count < 256; key length < 256
-	TypeBytes              // C#:byte array -- not implemented yet
+
+	TypeBools   // C#:bool[]
+	TypeSBytes  // C#:sbyte[]
+	TypeBytes   // C#:byte[]
+	TypeShorts  // C#:short[]
+	TypeUShorts // C#:ushort[]
+	TypeInts    // C#:int[]
+	TypeUInts   // C#:uint[]
+	TypeLongs   // C#:long[]
+	TypeULongs  // C#:ulong[]
+	TypeFloats  // C#:float[]
+	TypeDoubles // C#:double[]
 )
 
 type Obj struct {
@@ -190,6 +201,62 @@ func unmarshalLong(src []byte) (int, int, error) {
 		return int(v - -math.MinInt64), 9, nil
 	}
 	return int(v) + math.MinInt64, 9, nil
+}
+
+// MarshalFloat marshals IEEE 754 single value as comparably.
+// The sign-bit (MSB) is inverted to make the positive value greater than the negative value.
+// All exponent and fraction bits on the negative value are inverted to make it natural order.
+func MarshalFloat(val float32) []byte {
+	v := math.Float32bits(val)
+	buf := make([]byte, 5)
+	buf[0] = byte(TypeFloat)
+	if v&(1<<31) == 0 {
+		v ^= 1 << 31
+	} else {
+		v = ^v
+	}
+	put32(buf[1:], int(v))
+	return buf
+}
+
+func unmarshalFloat(src []byte) (float32, int, error) {
+	if len(src) < 5 {
+		return 0, 0, xerrors.Errorf("Unmarshal Float error: not enough data (%v)", len(src))
+	}
+	v := uint32(get32(src[1:]))
+	if v&(1<<31) != 0 {
+		v ^= 1 << 31
+	} else {
+		v = ^v
+	}
+	return math.Float32frombits(v), 5, nil
+}
+
+// MarshalFloat marshals IEEE 754 double value as comparably.
+func MarshalDouble(val float64) []byte {
+	v := math.Float64bits(val)
+	buf := make([]byte, 9)
+	buf[0] = byte(TypeDouble)
+	if v&(1<<63) == 0 {
+		v ^= 1 << 63
+	} else {
+		v = ^v
+	}
+	put64(buf[1:], v)
+	return buf
+}
+
+func unmarshalDouble(src []byte) (float64, int, error) {
+	if len(src) < 9 {
+		return 0, 0, xerrors.Errorf("Unmarshal Double error: not enough data (%v)", len(src))
+	}
+	v := get64(src[1:])
+	if v&(1<<63) != 0 {
+		v ^= 1 << 63
+	} else {
+		v = ^v
+	}
+	return math.Float64frombits(v), 9, nil
 }
 
 // MarshalStr8 marshals short string (len <= 255)
@@ -368,7 +435,451 @@ func unmarshalDict(src []byte) (Dict, int, error) {
 	return dict, l, nil
 }
 
-// Unmarshal bytes
+// MarshalBools marshals bool array
+// format:
+//  - TypeBools
+//  - 16bit count
+//  - repeat: bits...
+func MarshalBools(bs []bool) []byte {
+	count := len(bs)
+	if count > math.MaxInt16 {
+		count = math.MaxInt16
+	}
+
+	l := (len(bs) + 7) / 8
+	buf := make([]byte, l+3)
+	buf[0] = byte(TypeBools)
+	put16(buf[1:], len(bs))
+
+	for i, b := range bs {
+		if b {
+			buf[2+(i+8)/8] += 1 << (7 - byte(i%8))
+		}
+	}
+
+	return buf
+}
+
+func unmarshalBools(src []byte) ([]bool, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Bools error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + (count+7)/8
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Bools error: not enough data (%v) wants %v", len(src), l)
+	}
+
+	bs := make([]bool, count)
+	for i := range bs {
+		bs[i] = src[2+(i+8)/8]&(1<<(7-i%8)) != 0
+	}
+
+	return bs, l, nil
+}
+
+// MarshalSBytes marshals sbytes array
+// format:
+//  - TypeSBytes
+//  - 16bit count
+//  - repeat: sbyte...
+func MarshalSBytes(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count)
+	buf[0] = byte(TypeSBytes)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		buf[3+i] = byte(clamp(vals[i], math.MinInt8, math.MaxInt8) - math.MinInt8)
+	}
+
+	return buf
+}
+
+func unmarshalSBytes(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal SBytes error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal SBytes error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get8(src[3+i:]) + math.MinInt8
+	}
+	return vals, l, nil
+}
+
+// MarshalBytes marshals bytes array
+// format:
+//  - TypeBytes
+//  - 16bit count
+//  - repeat: byte...
+func MarshalBytes(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count)
+	buf[0] = byte(TypeBytes)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		buf[3+i] = byte(clamp(vals[i], 0, math.MaxUint8))
+	}
+
+	return buf
+}
+
+func unmarshalBytes(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Bytes error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Bytes error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get8(src[3+i:])
+	}
+	return vals, l, nil
+}
+
+// MarshalShorts marshals signed 16bit integer array
+// format:
+//  - TypeShorts
+//  - 16bit count
+//  - repeat: 16bit BE integer...
+func MarshalShorts(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*2)
+	buf[0] = byte(TypeShorts)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := clamp(vals[i], math.MinInt16, math.MaxInt16) - math.MinInt16
+		put16(buf[3+i*2:], v)
+	}
+
+	return buf
+}
+
+func unmarshalShorts(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Shorts error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*2
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Shorts error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get16(src[3+i*2:]) + math.MinInt16
+	}
+	return vals, l, nil
+}
+
+// MarshalUShort marshals unsigned 16bit integer array
+// format:
+//  - TypeUShort
+//  - 16bit count
+//  - repeat: 16bit BE integer...
+func MarshalUShorts(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+(count*2))
+	buf[0] = byte(TypeUShorts)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := clamp(vals[i], 0, math.MaxUint16)
+		put16(buf[3+i*2:], v)
+	}
+
+	return buf
+}
+
+func unmarshalUShorts(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal UShorts error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*2
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal UShorts error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get16(src[3+i*2:])
+	}
+	return vals, l, nil
+}
+
+// MarshalInts marshals signed 32bit integer array
+// format:
+//  - TypeInts
+//  - 16bit count
+//  - repeat: 32bit BE integer...
+func MarshalInts(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*4)
+	buf[0] = byte(TypeInts)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := clamp(vals[i], math.MinInt32, math.MaxInt32) - math.MinInt32
+		put32(buf[3+i*4:], v)
+	}
+
+	return buf
+}
+
+func unmarshalInts(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Intts error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*4
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Ints error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get32(src[3+i*4:]) + math.MinInt32
+	}
+	return vals, l, nil
+}
+
+// MarshalInts marshals unsigned 32bit integer array
+// format:
+//  - TypeUInts
+//  - 16bit count
+//  - repeat: 32bit BE integer...
+func MarshalUInts(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+(count*4))
+	buf[0] = byte(TypeUInts)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := clamp(vals[i], 0, math.MaxUint32)
+		put32(buf[3+i*4:], v)
+	}
+
+	return buf
+}
+
+func unmarshalUInts(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal UInts error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*4
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal UInts error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get32(src[3+i*4:])
+	}
+	return vals, l, nil
+}
+
+// MarshalLongs marshals signed 64bit integer array
+// format:
+//  - TypeInts
+//  - 16bit count
+//  - repeat: 64bit BE integer...
+func MarshalLongs(vals []int) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*8)
+	buf[0] = byte(TypeLongs)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		var v uint64
+		if vals[i] >= 0 {
+			v = uint64(vals[i]) + -math.MinInt64
+		} else {
+			v = uint64(vals[i] - math.MinInt64)
+		}
+		put64(buf[3+i*8:], v)
+	}
+
+	return buf
+}
+
+func unmarshalLongs(src []byte) ([]int, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Longs error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*8
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Longs error: not enough data (%v)", len(src))
+	}
+	vals := make([]int, count)
+	for i := 0; i < count; i++ {
+		v := get64(src[3+i*8:])
+		if v >= -math.MinInt64 {
+			vals[i] = int(v - -math.MinInt64)
+		} else {
+			vals[i] = int(v) + math.MinInt64
+		}
+	}
+	return vals, l, nil
+}
+
+// MarshalULongs marshals unsigned 64bit integer array
+// format:
+//  - TypeInts
+//  - 16bit count
+//  - repeat: 64bit BE integer...
+func MarshalULongs(vals []uint64) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*8)
+	buf[0] = byte(TypeULongs)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		put64(buf[3+i*8:], vals[i])
+	}
+
+	return buf
+}
+
+func unmarshalULongs(src []byte) ([]uint64, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal ULongs error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*8
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal ULongs error: not enough data (%v)", len(src))
+	}
+	vals := make([]uint64, count)
+	for i := 0; i < count; i++ {
+		vals[i] = get64(src[3+i*8:])
+	}
+	return vals, l, nil
+}
+
+// MarshalFloats marshals IEEE754 single array
+func MarshalFloats(vals []float32) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*4)
+	buf[0] = byte(TypeFloats)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := math.Float32bits(vals[i])
+		if v&(1<<31) == 0 {
+			v ^= 1 << 31
+		} else {
+			v = ^v
+		}
+		put32(buf[3+i*4:], int(v))
+	}
+
+	return buf
+}
+
+func unmarshalFloats(src []byte) ([]float32, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Floats error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*4
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Floats error: not enough data (%v)", len(src))
+	}
+	vals := make([]float32, count)
+	for i := 0; i < count; i++ {
+		v := uint32(get32(src[3+i*4:]))
+		if v&(1<<31) != 0 {
+			v ^= 1 << 31
+		} else {
+			v = ^v
+		}
+		vals[i] = math.Float32frombits(v)
+	}
+	return vals, l, nil
+}
+
+// MarshalDoubles marshals IEEE754 single array
+func MarshalDoubles(vals []float64) []byte {
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+count*8)
+	buf[0] = byte(TypeDoubles)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		v := math.Float64bits(vals[i])
+		if v&(1<<63) == 0 {
+			v ^= 1 << 63
+		} else {
+			v = ^v
+		}
+		put64(buf[3+i*8:], v)
+	}
+
+	return buf
+}
+
+func unmarshalDoubles(src []byte) ([]float64, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal Doubles error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*8
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal Doubles error: not enough data (%v)", len(src))
+	}
+	vals := make([]float64, count)
+	for i := 0; i < count; i++ {
+		v := get64(src[3+i*8:])
+		if v&(1<<63) != 0 {
+			v ^= 1 << 63
+		} else {
+			v = ^v
+		}
+		vals[i] = math.Float64frombits(v)
+	}
+	return vals, l, nil
+}
+
+// Unmarshal serialized bytes
 func Unmarshal(src []byte) (interface{}, int, error) {
 	if len(src) == 0 {
 		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
@@ -396,6 +907,10 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalULong(src)
 	case TypeLong:
 		return unmarshalLong(src)
+	case TypeFloat:
+		return unmarshalFloat(src)
+	case TypeDouble:
+		return unmarshalDouble(src)
 	case TypeStr8:
 		return unmarshalStr8(src)
 	case TypeStr16:
@@ -406,6 +921,28 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalList(src)
 	case TypeDict:
 		return unmarshalDict(src)
+	case TypeBools:
+		return unmarshalBools(src)
+	case TypeSBytes:
+		return unmarshalSBytes(src)
+	case TypeBytes:
+		return unmarshalBytes(src)
+	case TypeShorts:
+		return unmarshalShorts(src)
+	case TypeUShorts:
+		return unmarshalUShorts(src)
+	case TypeInts:
+		return unmarshalInts(src)
+	case TypeUInts:
+		return unmarshalUInts(src)
+	case TypeLongs:
+		return unmarshalLongs(src)
+	case TypeULongs:
+		return unmarshalULongs(src)
+	case TypeFloats:
+		return unmarshalFloats(src)
+	case TypeDoubles:
+		return unmarshalDoubles(src)
 	}
 	return nil, 0, xerrors.Errorf("Unknown type: %v", Type(src[0]))
 }

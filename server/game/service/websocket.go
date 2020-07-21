@@ -16,6 +16,7 @@ import (
 
 	"wsnet2/game"
 	"wsnet2/log"
+	"wsnet2/pb"
 )
 
 const (
@@ -102,7 +103,16 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", 400)
 		return
 	}
-	// TODO: authentication
+
+	token := &pb.AuthToken{
+		Nonce: r.Header.Get("X-Wsnet-Nonce"),
+		Hash:  r.Header.Get("X-Wsnet-Hash"),
+	}
+	if !repo.ValidAuthToken(roomId, clientId, token) {
+		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, nonce=%v, hash=%v", roomId, clientId, token.Nonce, token.Hash)
+		http.Error(w, "Unauthorized", 401)
+		return
+	}
 
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {

@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package pb;
+
+message AuthToken {
+	string nonce = 1;
+	string hash = 2;
+}

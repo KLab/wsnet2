@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/vmihailenco/msgpack/v4"
 
+	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/lobby"
 	"wsnet2/lobby/service"
@@ -17,18 +18,21 @@ import (
 )
 
 var (
-	appID = "testapp"
+	appID  = "testapp"
+	appKey = "testapppkey"
 )
 
 type bot struct {
 	appId  string
+	appKey string
 	userId string
 	ws     *websocket.Dialer
 }
 
-func NewBot(appId, userId string) *bot {
+func NewBot(appId, appKey, userId string) *bot {
 	return &bot{
 		appId:  appId,
+		appKey: appKey,
 		userId: userId,
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
@@ -47,6 +51,7 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 		RoomOption: pb.RoomOption{
 			Visible:     true,
 			Watchable:   false,
+			WithNumber:  true,
 			MaxPlayers:  4,
 			SearchGroup: 1,
 			PublicProps: binary.MarshalDict(props),
@@ -88,6 +93,47 @@ func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 	return room, nil
 }
 
+func (b *bot) JoinRoomByNumber(roomNumber int32) (*pb.JoinedRoomRes, error) {
+	param := &service.JoinByNumberParam{
+		RoomNumber: roomNumber,
+		ClientInfo: pb.ClientInfo{
+			Id: b.userId,
+		},
+	}
+
+	room := &pb.JoinedRoomRes{}
+
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/join/number", param, room)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("[bot:%v] Join by room number success, WebSocket=%s\n", b.userId, room.Url)
+
+	return room, nil
+}
+
+func (b *bot) JoinRoomByQuery(queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
+	param := &service.JoinByQueryParam{
+		SearchGroup: 1,
+		Queries:     []lobby.PropQueries{queries},
+		ClientInfo: pb.ClientInfo{
+			Id: b.userId,
+		},
+	}
+
+	room := &pb.JoinedRoomRes{}
+
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/join/query", param, room)
+	if err != nil {
+		fmt.Printf("error: %v\n", err)
+		return nil, err
+	}
+
+	fmt.Printf("[bot:%v] Join by query success, WebSocket=%s\n", b.userId, room.Url)
+	return room, nil
+}
+
 func (b *bot) SearchRoom(queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
 	param := &service.SearchParam{
 		SearchGroup: 1,
@@ -103,7 +149,7 @@ func (b *bot) SearchRoom(queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
 	}
 
 	fmt.Printf("[bot:%v] Search success, rooms=%v\n", b.userId, rooms)
-	return nil, nil
+	return rooms, nil
 }
 
 func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
@@ -116,8 +162,19 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	req, err := http.NewRequest(method, url, &p)
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
-	req.Header.Add("X-App-Id", b.appId)
-	req.Header.Add("X-User-Id", b.userId)
+	req.Header.Add("X-Wsnet-App", b.appId)
+	req.Header.Add("X-Wsnet-User", b.userId)
+
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	nonce, err := auth.GenerateNonce()
+	if err != nil {
+		return err
+	}
+	req.Header.Add("X-Wsnet-Timestamp", timestamp)
+	req.Header.Add("X-Wsnet-Nonce", nonce)
+	hash := auth.CalculateHexHMAC([]byte(b.appKey), b.userId, timestamp, nonce)
+	fmt.Printf("[bot:%v] hash: %v\n", b.userId, hash)
+	req.Header.Add("X-Wsnet-Hash", hash)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -137,10 +194,12 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	return nil
 }
 
-func (b *bot) DialGame(url string, seq int) (*websocket.Conn, error) {
+func (b *bot) DialGame(url, nonce, hash string, seq int) (*websocket.Conn, error) {
 	hdr := http.Header{}
 	hdr.Add("X-Wsnet-App", b.appId)
 	hdr.Add("X-Wsnet-User", b.userId)
+	hdr.Add("X-Wsnet-Nonce", nonce)
+	hdr.Add("X-Wsnet-Hash", hash)
 	hdr.Add("X-Wsnet-LastEventSeq", strconv.Itoa(seq))
 
 	ws, res, err := b.ws.Dial(url, hdr)
@@ -154,7 +213,7 @@ func (b *bot) DialGame(url string, seq int) (*websocket.Conn, error) {
 }
 
 func main() {
-	bot := NewBot(appID, "12345")
+	bot := NewBot(appID, appKey, "12345")
 
 	room, err := bot.CreateRoom()
 	if err != nil {
@@ -182,7 +241,7 @@ func main() {
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpGreaterThanOrEqual, Val: binary.MarshalInt(1024)}}
 	bot.SearchRoom(queries)
 
-	ws, err := bot.DialGame(room.Url, 0)
+	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
 	if err != nil {
 		fmt.Printf("dial game error: %v\n", err)
 		return
@@ -192,9 +251,14 @@ func main() {
 	go eventloop(ws, bot.userId, done)
 
 	go spawnPlayer(room.RoomInfo.Id, "23456")
-	go spawnPlayer(room.RoomInfo.Id, "34567")
-	go spawnPlayer(room.RoomInfo.Id, "45678")
-	go spawnPlayer(room.RoomInfo.Id, "56789")
+	go spawnPlayerByNumber(room.RoomInfo.Number, "34567")
+	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpEqual, Val: binary.MarshalInt(1024)}}
+	go spawnPlayerByQuery(queries, "45678")
+
+	go func() {
+		time.Sleep(time.Second * 1)
+		spawnPlayer(room.RoomInfo.Id, "56789")
+	}()
 	go func() {
 		time.Sleep(time.Second * 1)
 		spawnPlayer(room.RoomInfo.Id, "67890")
@@ -221,7 +285,7 @@ func main() {
 	time.Sleep(6 * time.Second)
 
 	fmt.Println("reconnect test")
-	ws, err = bot.DialGame(room.Url, 2)
+	ws, err = bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 2)
 	if err != nil {
 		fmt.Printf("dial game error: %v\n", err)
 		return
@@ -248,7 +312,7 @@ func main() {
 
 	time.Sleep(3 * time.Second)
 	fmt.Println("reconnect test after leave")
-	ws, err = bot.DialGame(room.Url, 4)
+	ws, err = bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 4)
 	if err != nil {
 		fmt.Printf("dial game error: %v\n", err)
 		return
@@ -260,14 +324,14 @@ func main() {
 }
 
 func spawnPlayer(roomId, userId string) {
-	bot := NewBot(appID, userId)
+	bot := NewBot(appID, appKey, userId)
 	room, err := bot.JoinRoom(roomId)
 	if err != nil {
 		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
 		return
 	}
 
-	ws, err := bot.DialGame(room.Url, 0)
+	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
 	if err != nil {
 		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
 		return
@@ -277,6 +341,41 @@ func spawnPlayer(roomId, userId string) {
 	go eventloop(ws, userId, done)
 }
 
+func spawnPlayerByNumber(roomNumber int32, userId string) {
+	bot := NewBot(appID, appKey, userId)
+	room, err := bot.JoinRoomByNumber(roomNumber)
+	if err != nil {
+		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
+		return
+	}
+
+	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
+	if err != nil {
+		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
+		return
+	}
+
+	done := make(chan bool)
+	go eventloop(ws, userId, done)
+}
+
+func spawnPlayerByQuery(queries []lobby.PropQuery, userId string) {
+	bot := NewBot(appID, appKey, userId)
+	room, err := bot.JoinRoomByQuery(queries)
+	if err != nil {
+		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
+		return
+	}
+
+	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
+	if err != nil {
+		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
+		return
+	}
+
+	done := make(chan bool)
+	go eventloop(ws, userId, done)
+}
 func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 	defer close(done)
 	for {

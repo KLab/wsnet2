@@ -13,5 +13,8 @@ namespace WSNet2.Core
 
         [Key("url")]
         public string url;
+
+        [Key("token")]
+        public AuthToken token;
     }
 }

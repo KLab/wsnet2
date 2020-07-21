@@ -61,16 +61,17 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, players, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	room, players, token, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
 	}
 
 	res := &pb.JoinedRoomRes{
-		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
 		RoomInfo: room,
 		Players:  players,
+		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
+		Token:    token,
 	}
 
 	log.Infof("New room: room=%v, master=%v", room.Id, in.MasterInfo.Id)
@@ -101,16 +102,17 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
 	}
 
-	room, players, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
+	room, players, token, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
 		log.Infof("join room error: %+v", err)
 		return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
 	}
 
 	res := &pb.JoinedRoomRes{
-		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
 		RoomInfo: room,
 		Players:  players,
+		Url:      fmt.Sprintf(sv.wsURLFormat, room.Id),
+		Token:    token,
 	}
 
 	log.Infof("Join room: room=%v, client=%v", room.Id, in.ClientInfo.Id)
