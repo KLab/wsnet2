@@ -97,7 +97,7 @@ namespace WSNet2.Core
                 b = ~b;
             }
 
-            return BitConverter.Int32BitsToSingle(b);
+            return BitConverter.ToSingle(BitConverter.GetBytes(b), 0);
         }
 
         public double ReadDouble()
@@ -443,7 +443,7 @@ namespace WSNet2.Core
                     b = ~b;
                 }
 
-                vals[i] = BitConverter.Int32BitsToSingle(b);
+                vals[i] = BitConverter.ToSingle(BitConverter.GetBytes(b), 0);
             }
 
             return vals;
