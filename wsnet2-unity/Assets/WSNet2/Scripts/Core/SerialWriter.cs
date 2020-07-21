@@ -172,7 +172,7 @@ namespace WSNet2.Core
             expand(5);
             buf[pos] = (byte)Type.Float;
             pos++;
-            var b = BitConverter.SingleToInt32Bits(v);
+            var b = BitConverter.ToInt32(BitConverter.GetBytes(v), 0);
             if ((b & (1 << 31)) == 0)
             {
                 b ^= 1 << 31;
@@ -579,7 +579,7 @@ namespace WSNet2.Core
 
             foreach (var val in vals)
             {
-                var b = BitConverter.SingleToInt32Bits(val);
+                var b = BitConverter.ToInt32(BitConverter.GetBytes(val), 0);
                 if ((b & (1 << 31)) == 0)
                 {
                     b ^= 1 << 31;
