@@ -60,6 +60,7 @@ namespace WSNet2.Core
 
         RoomInfo info;
         Uri uri;
+        AuthToken token;
         EventReceiver eventReceiver;
 
         ClientWebSocket ws;
@@ -92,6 +93,7 @@ namespace WSNet2.Core
         {
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
+            this.token = joined.token;
             this.eventReceiver = receiver;
             this.Running = true;
             this.Closed = false;
@@ -258,6 +260,8 @@ namespace WSNet2.Core
             var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("X-Wsnet-App", info.appId);
             ws.Options.SetRequestHeader("X-Wsnet-User", Me.Id);
+            ws.Options.SetRequestHeader("X-Wsnet-Nonce", token.nonce);
+            ws.Options.SetRequestHeader("X-Wsnet-Hash", token.hash);
             ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
 
             await ws.ConnectAsync(uri, ct);

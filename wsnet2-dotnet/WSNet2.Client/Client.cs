@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WSNet2.Core;
@@ -84,6 +86,26 @@ namespace WSNet2.DotnetClient
             }
         }
 
+        static AuthData genAuthData(string key, string userid)
+        {
+            var auth = new AuthData();
+
+            auth.Timestamp = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds().ToString();
+
+
+            var rng = new RNGCryptoServiceProvider();
+            var nbuf = new byte[8];
+            rng.GetBytes(nbuf);
+            auth.Nonce = BitConverter.ToString(nbuf).Replace("-", "").ToLower();
+
+            var str = userid + auth.Timestamp + auth.Nonce;
+            var hmac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
+            var hash = hmac.ComputeHash(Encoding.ASCII.GetBytes(str));
+            auth.Hash = BitConverter.ToString(hash).Replace("-", "").ToLower();
+
+            return auth;
+        }
+
         static void RPCMessage(string senderId, StrMessage msg)
         {
             Console.WriteLine($"OnRPCMessage [{senderId}]: {msg}");
@@ -91,13 +113,16 @@ namespace WSNet2.DotnetClient
 
         static async Task Main(string[] args)
         {
+            var userid = "id0001";
             Serialization.Register<StrMessage>(0);
+
+            var authData = genAuthData("testapppkey", userid);
 
             var client = new WSNet2Client(
                 "http://localhost:8080",
                 "testapp",
-                "id0001",
-                null);
+                userid,
+                authData);
 
             var pubProps = new Dictionary<string, object>(){
                 {"aaa", "public"},
