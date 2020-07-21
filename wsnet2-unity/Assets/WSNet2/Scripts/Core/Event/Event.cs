@@ -8,6 +8,7 @@ namespace WSNet2.Core
     public class Event
     {
         const int regularEvType = 30;
+        const int localEvType = 0x10000;
 
         /// <summary>
         ///   イベント種別
@@ -22,6 +23,8 @@ namespace WSNet2.Core
             RomProp,
             ClientProp,
             Message,
+
+            Closed = localEvType,
         }
 
         /// <summary>
@@ -33,7 +36,7 @@ namespace WSNet2.Core
         public EvType Type { get; private set; }
 
         /// <summary>通常メッセージか</summary>
-        public bool IsRegular { get{ return (int)Type >= regularEvType; } }
+        public bool IsRegular { get{ return (int)Type >= regularEvType && (int)Type < localEvType; } }
 
         /// <summary>通し番号</summary>
         public uint SequenceNum { get; private set; }

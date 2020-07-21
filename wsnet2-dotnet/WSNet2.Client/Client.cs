@@ -65,6 +65,17 @@ namespace WSNet2.DotnetClient
                 var msg = ev.Body<StrMessage>();
                 Console.WriteLine($"OnMessage[{ev.SenderID}]: {msg}");
             }
+
+            public void OnLeave(Player player)
+            {
+                Console.WriteLine("OnLeave: "+player.Id);
+            }
+
+            public void OnClosed(string description)
+            {
+                Console.WriteLine("OnClose: "+description);
+                cts.Cancel();
+            }
         }
 
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
@@ -98,7 +109,7 @@ namespace WSNet2.DotnetClient
                 {"name", "FooBar"},
             };
 
-            var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(10);
+            var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30);
 
             var cts = new CancellationTokenSource();
             var receiver = new EventReceiver(cts);

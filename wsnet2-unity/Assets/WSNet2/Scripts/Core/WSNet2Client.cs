@@ -49,10 +49,13 @@ namespace WSNet2.Core
             callbackPool.Process();
             lock(rooms)
             {
-                foreach (var room in rooms)
+                for (var i = rooms.Count-1; i >= 0; i--)
                 {
-                    room.ProcessCallback();
-                    // todo: 終わったroomを削除
+                    rooms[i].ProcessCallback();
+                    if (rooms[i].Closed)
+                    {
+                        rooms.RemoveAt(i);
+                    }
                 }
             }
         }
@@ -81,9 +84,8 @@ namespace WSNet2.Core
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            // asyncの警告を回避するためメソッドを分けてTaskを潰す。
             // create()の中では全体をtry-catchして例外はonFailedに流す。
-            var _ = create(roomOption, clientProps, receiver, onSuccess, onFailed);
+            Task.Run(() => create(roomOption, clientProps, receiver, onSuccess, onFailed));
         }
 
         private async Task create(
@@ -129,7 +131,7 @@ namespace WSNet2.Core
                     {
                         rooms.Add(room);
                     }
-                    _ = Task.Run(room.Start);
+                    Task.Run(room.Start);
                 });
             }
             catch (Exception e)

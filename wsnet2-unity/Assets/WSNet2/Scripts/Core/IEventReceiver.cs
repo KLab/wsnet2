@@ -49,5 +49,22 @@ namespace WSNet2.Core
         ///   </para>
         /// </remarks>
         void OnMessage(EvMessage ev);
+
+        /// <summary>
+        ///   他のプレイヤーの退室通知
+        /// </summary>
+        /// <param name="player">退室したプレイヤー</param>
+        void OnLeave(Player player);
+
+        /// <summary>
+        ///   退室通知
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     部屋から退室し切断した。再接続はできない。
+        ///     もし再入室するにはLobbyのJoin系APIを使う必要がある。
+        ///   </para>
+        /// </remarks>
+        void OnClosed(string description);
     }
 }
