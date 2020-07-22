@@ -176,10 +176,10 @@ namespace WSNet2.DotnetClient
                     switch(i%3){
                         case 0:
                             var msg = new StrMessage(str);
-                            room.RPC(RPCMessage, msg); //, Room.RPCToMaster);
+                            room.RPC(RPCMessage, msg, Room.RPCToMaster);
                             break;
                         case 1:
-                            room.RPC(receiver.RPCString, str); //, "id0001"); // target
+                            room.RPC(receiver.RPCString, str, "id0001"); // target
                             break;
                         case 2:
                             room.RPC(receiver.RPCString, str); // broadcast

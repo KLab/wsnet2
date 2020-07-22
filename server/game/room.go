@@ -120,7 +120,7 @@ Loop:
 		case msg := <-r.msgCh:
 			r.logger.Debugf("Room msg: room=%v, %T %v", r.Id, msg, msg)
 			if err := r.dispatch(msg); err != nil {
-				r.logger.Infof("Room msg error: %v", err)
+				r.logger.Errorf("Room msg error: %v", err)
 			}
 		}
 	}
@@ -194,6 +194,10 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgLeave(m)
 	case *MsgRoomProp:
 		return r.msgRoomProp(m)
+	case *MsgTargets:
+		return r.msgTargets(m)
+	case *MsgToMaster:
+		return r.msgToMaster(m)
 	case *MsgBroadcast:
 		return r.msgBroadcast(m)
 	case *MsgClientError:
@@ -203,13 +207,23 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
+// broadcast : 特定クライアントに送信.
+// muClients のロックを取得してから呼び出す.
+// 送信できない場合続行不能なので退室させる.
+func (r *Room) sendTo(c *Client, ev *binary.Event) error {
+	err := c.Send(ev)
+	if err != nil {
+		// removeClient locks muClients so that must be called another goroutine.
+		go r.removeClient(c, err)
+	}
+	return err
+}
+
+// broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.Event) {
 	for _, c := range r.clients {
-		if err := c.Send(ev); err != nil {
-			// removeClient locks muClients so that must be called another goroutine.
-			go r.removeClient(c, err)
-		}
+		_ = r.sendTo(c, ev)
 	}
 }
 
@@ -322,24 +336,40 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	return nil
 }
 
+func (r *Room) msgTargets(msg *MsgTargets) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+
+	ev := binary.NewEvMessage(msg.Sender.Id, msg.Data)
+
+	// todo: 失敗した人を通知したほうがいいかも？
+
+	for _, t := range msg.Targets {
+		c, ok := r.clients[ClientID(t)]
+		if !ok {
+			continue
+		}
+		_ = r.sendTo(c, ev)
+	}
+
+	return nil
+}
+
+func (r *Room) msgToMaster(msg *MsgToMaster) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	_ = r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
+	return nil
+}
+
 func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
-	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Payload))
+	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Data))
 	return nil
 }
 
 func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.Err)
 	return nil
-}
-
-func (r *Room) getClient(id ClientID) (*Client, error) {
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
-	cli, ok := r.clients[id]
-	if !ok {
-		return nil, xerrors.Errorf("client not found: client=%v", id)
-	}
-	return cli, nil
 }
