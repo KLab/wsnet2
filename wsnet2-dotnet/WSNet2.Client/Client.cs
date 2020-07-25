@@ -113,7 +113,10 @@ namespace WSNet2.DotnetClient
 
         static async Task Main(string[] args)
         {
-            var userid = "id0001";
+            var rand = new Random();
+            var userid = $"user{rand.Next(99):000}";
+            Console.WriteLine($"user id: {userid}");
+
             Serialization.Register<StrMessage>(0);
 
             var authData = genAuthData("testapppkey", userid);
@@ -124,45 +127,50 @@ namespace WSNet2.DotnetClient
                 userid,
                 authData);
 
-            var pubProps = new Dictionary<string, object>(){
-                {"aaa", "public"},
-                {"bbb", (int)13},
-            };
-            var privProps = new Dictionary<string, object>(){
-                {"aaa", "private"},
-                {"ccc", false},
-            };
             var cliProps = new Dictionary<string, object>(){
-                {"name", "FooBar"},
+                {"name", userid},
             };
 
-            var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(10);
 
             var cts = new CancellationTokenSource();
             var receiver = new EventReceiver(cts);
             receiver.RegisterRPC<StrMessage>(RPCMessage);
             receiver.RegisterRPC(receiver.RPCString);
 
+            var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Func<Room,bool> onJoined = (Room room) => {
+                roomJoined.TrySetResult(room);
+                return true;
+            };
+            Action<Exception> onFailed = (Exception e) => roomJoined.TrySetException(e);
 
-            var roomCreated = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
-            client.Create(
-                roomOpt,
-                cliProps,
-                receiver,
-                (room) => {
-                    roomCreated.TrySetResult(room);
-                    return true;
-                },
-                (e) => {
-                    roomCreated.TrySetException(e);
-                });
+            if (args.Length == 0)
+            {
+                // create room
+                var pubProps = new Dictionary<string, object>(){
+                    {"aaa", "public"},
+                    {"bbb", (int)rand.Next(100)},
+                };
+                var privProps = new Dictionary<string, object>(){
+                    {"aaa", "private"},
+                    {"ccc", false},
+                };
+                var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30);
+
+                client.Create(roomOpt, cliProps, receiver, onJoined, onFailed);
+            }
+            else
+            {
+                var roomId = args[0];
+                client.Join(roomId, cliProps, receiver, onJoined, onFailed);
+            }
 
             _ = callbackrunner(client, cts.Token);
 
             try
             {
-                var room = await roomCreated.Task;
-                Console.WriteLine("created room = "+room.Id);
+                var room = await roomJoined.Task;
+                Console.WriteLine("joined room = "+room.Id);
 
                 int i = 0;
 
