@@ -17,7 +17,7 @@ namespace WSNet2.Core
         public abstract void OnError(Exception e);
         public abstract void OnJoined(Player me);
         public abstract void OnOtherPlayerJoined(Player player);
-        public abstract void OnLeave(Player player);
+        public abstract void OnOtherPlayerLeaved(Player player);
         public abstract void OnClosed(string description);
 
         public int RegisterRPC(Action<string, string> rpc)

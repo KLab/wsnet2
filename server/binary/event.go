@@ -22,10 +22,10 @@ const (
 	//  - Dict: properties
 	EvTypeJoined EvType = regularEvType + iota
 
-	// EvTypeLeave : クライアントが退室した
+	// EvTypeLeaved : クライアントが退室した
 	// payload:
 	//  - str8: client ID
-	EvTypeLeave
+	EvTypeLeaved
 
 	// EvTypeRoomProp : 部屋情報の変更
 	// payload:
@@ -103,7 +103,7 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 }
 
 func NewEvLeave(cliId string) *Event {
-	return &Event{EvTypeLeave, MarshalStr8(cliId)}
+	return &Event{EvTypeLeaved, MarshalStr8(cliId)}
 }
 
 func NewEvRoomProp(cliId string, rpp *MsgRoomPropPayload) *Event {
