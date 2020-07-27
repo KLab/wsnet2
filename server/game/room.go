@@ -191,7 +191,7 @@ func (r *Room) removeClient(c *Client, err error) {
 		r.master = r.players[r.masterOrder[0]]
 	}
 
-	r.broadcast(binary.NewEvLeave(string(cid), r.master.Id))
+	r.broadcast(binary.NewEvLeaved(string(cid), r.master.Id))
 }
 
 func (r *Room) dispatch(msg Msg) error {

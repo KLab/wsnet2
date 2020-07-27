@@ -103,7 +103,7 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 	return &Event{EvTypeJoined, payload}
 }
 
-func NewEvLeave(cliId, masterId string) *Event {
+func NewEvLeaved(cliId, masterId string) *Event {
 	payload := MarshalStr8(cliId)
 	payload = append(payload, MarshalStr8(masterId)...)
 
