@@ -1,10 +1,12 @@
 package game
 
 import (
-	"wsnet2/binary"
-	"wsnet2/pb"
+	"time"
 
 	"golang.org/x/xerrors"
+
+	"wsnet2/binary"
+	"wsnet2/pb"
 )
 
 type Msg interface {
@@ -20,9 +22,11 @@ var _ Msg = &MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
 type JoinedInfo struct {
-	Room    *pb.RoomInfo
-	Players []*pb.ClientInfo
-	Client  *Client
+	Room     *pb.RoomInfo
+	Players  []*pb.ClientInfo
+	Client   *Client
+	MasterId ClientID
+	Deadline time.Duration
 }
 
 // MsgCreate : 部屋作成メッセージ

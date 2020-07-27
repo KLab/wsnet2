@@ -33,22 +33,23 @@ message RoomInfo {
 	// @inject_tag: db:"search_group"
 	uint32 search_group = 8;
 
-	// client read deadline
-	uint32 client_deadline = 9;
-
 	// max players count. this is not contained wachers.
 	// @inject_tag: db:"max_players"
 	uint32 max_players = 10;
 
+	// players count
 	// @inject_tag: db:"players"
 	uint32 players = 11;
 
+	// watchers count
 	// @inject_tag: db:"watchers"
 	uint32 watchers = 12;
 
+	// properties shown in search result
 	// @inject_tag: db:"props"
 	bytes public_props = 13;
 
+	// properties not shown in search result
 	bytes private_props =  14;
 
 	// @inject_tag: db:"created"

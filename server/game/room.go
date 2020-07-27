@@ -63,7 +63,7 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
@@ -79,7 +79,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		RoomInfo: info,
 		repo:     repo,
 		key:      RandomHex(roomKeyLen),
-		deadline: time.Duration(info.ClientDeadline) * time.Second,
+		deadline: time.Duration(deadlineSec) * time.Second,
 
 		publicProps:  pubProps,
 		privateProps: privProps,
@@ -237,14 +237,6 @@ func (r *Room) broadcast(ev *binary.Event) {
 	}
 }
 
-func (r *Room) notifyDeadline(deadline time.Duration) {
-	r.muClients.RLock()
-	defer r.muClients.RUnlock()
-	for _, c := range r.players {
-		c.newDeadline <- deadline
-	}
-}
-
 func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
@@ -258,7 +250,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	players := []*pb.ClientInfo{cinfo}
-	msg.Joined <- JoinedInfo{rinfo, players, master}
+	msg.Joined <- JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }
@@ -285,7 +277,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	for _, c := range r.players {
 		players = append(players, c.ClientInfo.Clone())
 	}
-	msg.Joined <- JoinedInfo{rinfo, players, client}
+	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }
@@ -301,13 +293,11 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	}
 	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
 
-	deadlineUpdated := r.ClientDeadline != msg.ClientDeadline
 	r.RoomInfo.Visible = msg.Visible
 	r.RoomInfo.Joinable = msg.Joinable
 	r.RoomInfo.Watchable = msg.Watchable
 	r.RoomInfo.SearchGroup = msg.SearchGroup
 	r.RoomInfo.MaxPlayers = msg.MaxPlayer
-	r.RoomInfo.ClientDeadline = msg.ClientDeadline
 
 	if len(msg.PublicProps) > 0 {
 		for k, v := range msg.PublicProps {
@@ -335,14 +325,20 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 
 	r.repo.updateRoomInfo(r)
 
-	if deadlineUpdated {
-		r.deadline = time.Duration(msg.ClientDeadline) * time.Second
-		r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, r.deadline)
-		r.notifyDeadline(r.deadline)
-	}
-
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+
+	if msg.ClientDeadline != 0 {
+		deadline := time.Duration(msg.ClientDeadline) * time.Second
+		if deadline != r.deadline {
+			r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, deadline)
+			r.deadline = deadline
+			for _, c := range r.players {
+				c.newDeadline <- deadline
+			}
+		}
+	}
+
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }

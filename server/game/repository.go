@@ -123,19 +123,19 @@ func (repo *Repository) ValidAuthToken(roomId, userId string, token *pb.AuthToke
 	return true
 }
 
-func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.RoomInfo, []*pb.ClientInfo, *pb.AuthToken, error) {
+func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	tx, err := repo.db.Beginx()
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("begin error: %w", err)
+		return nil, xerrors.Errorf("begin error: %w", err)
 	}
 
 	info, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {
 		tx.Rollback()
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	loglevel := log.CurrentLevel()
@@ -143,10 +143,10 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		loglevel = log.Level(op.LogLevel)
 	}
 
-	room, ch, err := NewRoom(repo, info, master, repo.conf, loglevel)
+	room, ch, err := NewRoom(repo, info, master, op.ClientDeadline, repo.conf, loglevel)
 	if err != nil {
 		tx.Rollback()
-		return nil, nil, nil, xerrors.Errorf("NewRoom error: %w", err)
+		return nil, xerrors.Errorf("NewRoom error: %w", err)
 	}
 
 	var joined JoinedInfo
@@ -154,18 +154,18 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	case j, ok := <-ch:
 		if !ok {
 			tx.Rollback()
-			return nil, nil, nil, xerrors.Errorf("CreateRoom joind chan closed: room=%v", room.ID())
+			return nil, xerrors.Errorf("CreateRoom joind chan closed: room=%v", room.ID())
 		}
 		joined = j
 	case <-ctx.Done():
 		tx.Rollback()
-		return nil, nil, nil, xerrors.Errorf("CreateRoom timeout or context done: room=%v", room.ID())
+		return nil, xerrors.Errorf("CreateRoom timeout or context done: room=%v", room.ID())
 	}
 
 	token, err := issueAuthToken(master.Id, room.key)
 	if err != nil {
 		tx.Rollback()
-		return nil, nil, nil, xerrors.Errorf("CreateRoom issue auth token failed: %w", err)
+		return nil, xerrors.Errorf("CreateRoom issue auth token failed: %w", err)
 	}
 
 	cli := joined.Client
@@ -179,16 +179,22 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	repo.clients[cli.ID()][room.ID()] = cli
 
 	tx.Commit()
-	return joined.Room, joined.Players, token, nil
+	return &pb.JoinedRoomRes{
+		RoomInfo: joined.Room,
+		Players:  joined.Players,
+		Token:    token,
+		MasterId: string(joined.MasterId),
+		Deadline: uint32(joined.Deadline / time.Second),
+	}, nil
 }
 
-func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.RoomInfo, []*pb.ClientInfo, *pb.AuthToken, error) {
+func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("JoinRoom: %w", err)
+		return nil, xerrors.Errorf("JoinRoom: %w", err)
 	}
 	ch := make(chan JoinedInfo)
 	room.msgCh <- &MsgJoin{client, ch}
@@ -197,16 +203,16 @@ func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.Clie
 	select {
 	case j, ok := <-ch:
 		if !ok {
-			return nil, nil, nil, xerrors.Errorf("JoinRoom joind chan closed: room=%v", room.ID())
+			return nil, xerrors.Errorf("JoinRoom joind chan closed: room=%v", room.ID())
 		}
 		joined = j
 	case <-ctx.Done():
-		return nil, nil, nil, xerrors.Errorf("JoinRoom timeout or context done: room=%v", room.ID())
+		return nil, xerrors.Errorf("JoinRoom timeout or context done: room=%v", room.ID())
 	}
 
 	token, err := issueAuthToken(client.Id, room.key)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("JoinRoom issue auth token failed: %w", err)
+		return nil, xerrors.Errorf("JoinRoom issue auth token failed: %w", err)
 	}
 	cli := joined.Client
 
@@ -217,21 +223,26 @@ func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.Clie
 	}
 	repo.clients[cli.ID()][room.ID()] = cli
 
-	return joined.Room, joined.Players, token, nil
+	return &pb.JoinedRoomRes{
+		RoomInfo: joined.Room,
+		Players:  joined.Players,
+		Token:    token,
+		MasterId: string(joined.MasterId),
+		Deadline: uint32(joined.Deadline / time.Second),
+	}, nil
 }
 
 func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
 	ri := &pb.RoomInfo{
-		AppId:          repo.app.Id,
-		HostId:         repo.hostId,
-		Visible:        op.Visible,
-		Watchable:      op.Watchable,
-		SearchGroup:    op.SearchGroup,
-		ClientDeadline: op.ClientDeadline,
-		MaxPlayers:     op.MaxPlayers,
-		Players:        1,
-		PublicProps:    op.PublicProps,
-		PrivateProps:   op.PrivateProps,
+		AppId:        repo.app.Id,
+		HostId:       repo.hostId,
+		Visible:      op.Visible,
+		Watchable:    op.Watchable,
+		SearchGroup:  op.SearchGroup,
+		MaxPlayers:   op.MaxPlayers,
+		Players:      1,
+		PublicProps:  op.PublicProps,
+		PrivateProps: op.PrivateProps,
 	}
 	ri.SetCreated(time.Now())
 
