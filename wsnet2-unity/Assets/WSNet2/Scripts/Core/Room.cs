@@ -74,6 +74,7 @@ namespace WSNet2.Core
         RoomInfo info;
         Uri uri;
         AuthToken token;
+        uint deadlineMilliSec;
         EventReceiver eventReceiver;
 
         ClientWebSocket ws;
@@ -107,6 +108,7 @@ namespace WSNet2.Core
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
             this.token = joined.token;
+            this.deadlineMilliSec = joined.deadline * 1000;
             this.eventReceiver = receiver;
             this.Running = true;
             this.Closed = false;
@@ -140,8 +142,8 @@ namespace WSNet2.Core
                 }
             }
 
-            // todo: masterIdをもらう
-            //masterId = joined.MasterId;
+            Console.WriteLine($"master = {joined.masterId}");
+            this.masterId = joined.masterId;
         }
 
         /// <summary>
