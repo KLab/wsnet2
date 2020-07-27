@@ -91,26 +91,84 @@ namespace WSNet2.Core
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            // create()の中では全体をtry-catchして例外はonFailedに流す。
-            Task.Run(() => create(roomOption, clientProps, receiver, onSuccess, onFailed));
+            var param = new CreateParam();
+            param.roomOption = roomOption;
+            param.clientInfo = new ClientInfo(userId, clientProps);
+
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom("/rooms", content, receiver, onSuccess, onFailed));
         }
 
-        private async Task create(
-            RoomOption roomOption,
+        /// <summary>
+        ///   部屋IDを指定して入室
+        /// </summary>
+        public void Join(
+            string roomId,
             IDictionary<string, object> clientProps,
+            EventReceiver receiver,
+            Func<Room, bool> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new JoinParam();
+            param.roomId = roomId;
+            param.clientInfo = new ClientInfo(userId, clientProps);
+
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom("/rooms/join", content, receiver, onSuccess, onFailed));
+        }
+
+        /// <summary>
+        ///   部屋番号を指定して入室
+        /// </summary>
+        /// <remarks>
+        ///   TODO: 検索クエリも渡せるようにする（案件側で細かい条件指定をしたい）
+        /// </remarks>
+        public void Join(
+            int number,
+            IDictionary<string, object> clientProps,
+            EventReceiver receiver,
+            Func<Room, bool> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new JoinByNumberParam();
+            param.roomNumber = number;
+            param.clientInfo = new ClientInfo(userId, clientProps);
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom("/rooms/join/number", content, receiver, onSuccess, onFailed));
+        }
+
+        /// <summary>
+        ///   検索クエリに合致する部屋にランダム入室
+        /// </summary>
+        public void RandomJoin(
+            uint group,
+            PropQuery[][] queries,
+            IDictionary<string, object> clientProps,
+            EventReceiver receiver,
+            Func<Room, bool> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new JoinByQueriesParam();
+            param.searchGroup = group;
+            param.queries = queries;
+            param.clientInfo = new ClientInfo(userId, clientProps);
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom("/rooms/join/query", content, receiver, onSuccess, onFailed));
+        }
+
+        private async Task connectToRoom(
+            string path,
+            byte[] content,
             EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
             try
             {
-                var param = new CreateParam();
-                param.roomOption = roomOption;
-                param.clientInfo = new ClientInfo(userId, clientProps);
-
-                var opt = MessagePackSerializer.Serialize(param);
-                var content = new ByteArrayContent(opt);
-
                 var cli = new HttpClient();
                 cli.DefaultRequestHeaders.Add("X-Wsnet-App", appId);
                 cli.DefaultRequestHeaders.Add("X-Wsnet-User", userId);
@@ -118,7 +176,7 @@ namespace WSNet2.Core
                 cli.DefaultRequestHeaders.Add("X-Wsnet-Nonce", authData.Nonce);
                 cli.DefaultRequestHeaders.Add("X-Wsnet-Hash", authData.Hash);
 
-                var res = await cli.PostAsync(baseUri + "/rooms", content);
+                var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
                 var body = await res.Content.ReadAsByteArrayAsync();
                 if (!res.IsSuccessStatusCode)
                 {
@@ -126,12 +184,11 @@ namespace WSNet2.Core
                     throw new Exception($"Create failed: code={res} {msg}");
                 }
 
-                var joined = MessagePackSerializer.Deserialize<JoinedResponse>(body);
-                var room = new Room(joined, userId, receiver);
+                var joinedResponse = MessagePackSerializer.Deserialize<JoinedResponse>(body);
+                var room = new Room(joinedResponse, userId, receiver);
 
                 callbackPool.Add(() =>
                 {
-                    Console.WriteLine("callback onsuccess");
                     if (!onSuccess(room))
                     {
                         return;
