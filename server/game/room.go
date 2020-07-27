@@ -36,11 +36,10 @@ type Room struct {
 	done     chan struct{}
 	wgClient sync.WaitGroup
 
-	muClients sync.RWMutex
-	clients   map[ClientID]*Client
-	master    *Client
-	order     []ClientID
-	// todo: photonのactorNrみたいに連番ふったほうがよいかも。gameObjectのphotonView.IDみたいなのを作るときに必要
+	muClients   sync.RWMutex
+	players     map[ClientID]*Client
+	master      *Client
+	masterOrder []ClientID
 
 	// todo: pongにclientたちの最終送信時刻を入れたい
 	// muLastMsg sync.RWMutex
@@ -88,8 +87,8 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		msgCh: make(chan Msg, RoomMsgChSize),
 		done:  make(chan struct{}),
 
-		clients: make(map[ClientID]*Client),
-		order:   []ClientID{},
+		players:     make(map[ClientID]*Client),
+		masterOrder: []ClientID{},
 
 		logger: log.Get(loglevel),
 	}
@@ -163,25 +162,36 @@ func (r *Room) removeClient(c *Client, err error) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	cid := ClientID(c.Id)
+	cid := c.ID()
 
-	if _, ok := r.clients[cid]; !ok {
+	if _, ok := r.players[cid]; !ok {
 		r.logger.Debugf("Client may be aleady leaved: room=%v, client=%v", r.Id, cid)
 		return
 	}
 
 	r.logger.Infof("Client removed: room=%v, client=%v %v", r.Id, cid, err)
-	delete(r.clients, cid)
-	// todo: orderの書き換え
+	delete(r.players, cid)
+
+	for i, id := range r.masterOrder {
+		if id == cid {
+			r.masterOrder = append(r.masterOrder[:i], r.masterOrder[i+1:]...)
+			break
+		}
+	}
 
 	c.Removed(err)
 
-	if len(r.clients) == 0 {
+	if len(r.players) == 0 {
 		close(r.done)
 		return
 	}
 
-	r.broadcast(binary.NewEvLeave(string(cid)))
+	if r.master.ID() == cid {
+		r.logger.Infof("Master switched: room=%v master:%v->%v", r.Id, r.master.Id, r.masterOrder[0])
+		r.master = r.players[r.masterOrder[0]]
+	}
+
+	r.broadcast(binary.NewEvLeave(string(cid), r.master.Id))
 }
 
 func (r *Room) dispatch(msg Msg) error {
@@ -222,7 +232,7 @@ func (r *Room) sendTo(c *Client, ev *binary.Event) error {
 // broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.Event) {
-	for _, c := range r.clients {
+	for _, c := range r.players {
 		_ = r.sendTo(c, ev)
 	}
 }
@@ -230,7 +240,7 @@ func (r *Room) broadcast(ev *binary.Event) {
 func (r *Room) notifyDeadline(deadline time.Duration) {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
-	for _, c := range r.clients {
+	for _, c := range r.players {
 		c.newDeadline <- deadline
 	}
 }
@@ -242,8 +252,8 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.wgClient.Add(1)
 	master := NewClient(msg.Info, r)
 	r.master = master
-	r.clients[ClientID(master.Id)] = master
-	r.order = append(r.order, master.ID())
+	r.players[ClientID(master.Id)] = master
+	r.masterOrder = append(r.masterOrder, master.ID())
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
@@ -257,21 +267,22 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	if r.MaxPlayers == uint32(len(r.clients)) {
+	if r.MaxPlayers == uint32(len(r.players)) {
 		close(msg.Joined)
 		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 	}
 
 	r.wgClient.Add(1)
 	client := NewClient(msg.Info, r)
-	r.clients[ClientID(client.Id)] = client
-	r.RoomInfo.Players = uint32(len(r.clients))
+	r.players[client.ID()] = client
+	r.masterOrder = append(r.masterOrder, client.ID())
+	r.RoomInfo.Players = uint32(len(r.players))
 	r.repo.updateRoomInfo(r)
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := client.ClientInfo.Clone()
-	players := make([]*pb.ClientInfo, 0, len(r.clients))
-	for _, c := range r.clients {
+	players := make([]*pb.ClientInfo, 0, len(r.players))
+	for _, c := range r.players {
 		players = append(players, c.ClientInfo.Clone())
 	}
 	msg.Joined <- JoinedInfo{rinfo, players, client}
@@ -342,11 +353,12 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 
 	ev := binary.NewEvMessage(msg.Sender.Id, msg.Data)
 
-	// todo: 失敗した人を通知したほうがいいかも？
+	// todo: 居なかった人を通知したほうがいいかも？
 
 	for _, t := range msg.Targets {
-		c, ok := r.clients[ClientID(t)]
+		c, ok := r.players[ClientID(t)]
 		if !ok {
+			r.logger.Infof("target %s is absent", t)
 			continue
 		}
 		_ = r.sendTo(c, ev)

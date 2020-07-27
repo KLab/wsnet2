@@ -66,6 +66,11 @@ namespace WSNet2.DotnetClient
                 Console.WriteLine("OnOtherPlayerLeaved: "+player.Id);
             }
 
+            public override void OnMasterPlayerSwitched(Player pred, Player newly)
+            {
+                Console.WriteLine($"OnMasterplayerswitched: {pred.Id} -> {newly.Id}");
+            }
+
             public override void OnClosed(string description)
             {
                 Console.WriteLine("OnClose: "+description);
@@ -131,7 +136,6 @@ namespace WSNet2.DotnetClient
             var cliProps = new Dictionary<string, object>(){
                 {"name", userid},
             };
-
 
             var cts = new CancellationTokenSource();
             var receiver = new EventReceiver(cts);

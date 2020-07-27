@@ -57,10 +57,19 @@ namespace WSNet2.Core
         /// <summary>部屋内の全Player</summary>
         public IReadOnlyDictionary<string, Player> Players { get { return players; } }
 
+        /// <summary>マスタークライアント</summary>
+        public Player Master {
+            get
+            {
+                return players[masterId];
+            }
+        }
+
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
 
         Dictionary<string, Player> players;
+        string masterId;
 
         RoomInfo info;
         Uri uri;
@@ -130,6 +139,9 @@ namespace WSNet2.Core
                     Me = player;
                 }
             }
+
+            // todo: masterIdをもらう
+            //masterId = joined.MasterId;
         }
 
         /// <summary>
@@ -409,7 +421,14 @@ namespace WSNet2.Core
             callbackPool.Add(() =>
             {
                 var player = players[ev.ClientID];
-                players.Remove(ev.ClientID);
+
+                if (masterId == player.Id)
+                {
+                    masterId = ev.MasterID;
+                    eventReceiver.OnMasterPlayerSwitched(player, Master);
+                }
+
+                players.Remove(player.Id);
                 eventReceiver.OnOtherPlayerLeaved(player);
             });
         }

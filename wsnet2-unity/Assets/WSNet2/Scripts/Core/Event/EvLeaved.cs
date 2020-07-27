@@ -7,6 +7,7 @@ namespace WSNet2.Core
     {
         /// <summary>退室したPlayer</summary>
         public string ClientID { get; private set; }
+        public string MasterID { get; private set; }
 
         /// <summary>
         ///   コンストラクタ
@@ -14,6 +15,7 @@ namespace WSNet2.Core
         public EvLeaved(SerialReader reader) : base(EvType.Leaved, reader)
         {
             ClientID = reader.ReadString();
+            MasterID = reader.ReadString();
         }
     }
 }

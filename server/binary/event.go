@@ -25,6 +25,7 @@ const (
 	// EvTypeLeaved : クライアントが退室した
 	// payload:
 	//  - str8: client ID
+	//  - str8: master client ID
 	EvTypeLeaved
 
 	// EvTypeRoomProp : 部屋情報の変更
@@ -102,8 +103,11 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 	return &Event{EvTypeJoined, payload}
 }
 
-func NewEvLeave(cliId string) *Event {
-	return &Event{EvTypeLeaved, MarshalStr8(cliId)}
+func NewEvLeave(cliId, masterId string) *Event {
+	payload := MarshalStr8(cliId)
+	payload = append(payload, MarshalStr8(masterId)...)
+
+	return &Event{EvTypeLeaved, payload}
 }
 
 func NewEvRoomProp(cliId string, rpp *MsgRoomPropPayload) *Event {
