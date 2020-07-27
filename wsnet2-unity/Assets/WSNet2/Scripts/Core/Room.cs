@@ -142,7 +142,6 @@ namespace WSNet2.Core
                 }
             }
 
-            Console.WriteLine($"master = {joined.masterId}");
             this.masterId = joined.masterId;
         }
 
