@@ -10,6 +10,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
+	"wsnet2/binary"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -89,6 +90,22 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 	return res, nil
 }
 
+func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int) []pb.RoomInfo {
+	filtered := make([]pb.RoomInfo, 0, len(rooms))
+	for i, r := range rooms {
+		for _, q := range queries {
+			if q.match(props[i]) {
+				filtered = append(filtered, r)
+				break
+			}
+		}
+		if limit > 0 && len(filtered) >= limit {
+			break
+		}
+	}
+	return filtered
+}
+
 func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
 	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
@@ -122,7 +139,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 	return res, nil
 }
 
-func (rs *RoomService) JoinById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -130,14 +147,24 @@ func (rs *RoomService) JoinById(appId, roomId string, clientInfo *pb.ClientInfo)
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
 	if err != nil {
-		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
+		return nil, xerrors.Errorf("JoinById: Failed to get room: %w", err)
 	}
 
-	return rs.join(appId, roomId, clientInfo, room.HostId)
+	if len(queries) > 0 {
+		props, err := unmarshalProps(room.PublicProps)
+		if err != nil {
+			return nil, xerrors.Errorf("JoinById: unmarshalProps: %w", err)
+		}
 
+		filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+
+		room = filtered[0]
+	}
+
+	return rs.join(appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -151,10 +178,21 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, clientInfo *
 		return nil, xerrors.Errorf("JoinByNumber: Failed to get room: %w", err)
 	}
 
+	if len(queries) > 0 {
+		props, err := unmarshalProps(room.PublicProps)
+		if err != nil {
+			return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
+		}
+
+		filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+
+		room = filtered[0]
+	}
+
 	return rs.join(appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) JoinByQuery(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	rooms, err := rs.Search(appId, searchGroup, queries, 1000)
 	if err != nil {
 		return nil, err
@@ -167,10 +205,10 @@ func (rs *RoomService) JoinByQuery(appId string, searchGroup uint32, queries []P
 		if err == nil {
 			return res, nil
 		}
-		log.Debugf("JoinByQuery: failed to join room: %v", err)
+		log.Debugf("JoinAtRandom: failed to join room: %v", err)
 	}
 
-	return nil, xerrors.Errorf("JoinByQuery: Failed to join all rooms")
+	return nil, xerrors.Errorf("JoinAtRandom: Failed to join all rooms")
 }
 
 func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int) ([]pb.RoomInfo, error) {
@@ -179,18 +217,5 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
 	}
 
-	filtered := make([]pb.RoomInfo, 0, len(rooms))
-	for i, r := range rooms {
-		for _, q := range queries {
-			if q.match(props[i]) {
-				filtered = append(filtered, r)
-				break
-			}
-		}
-		if limit > 0 && len(filtered) >= limit {
-			break
-		}
-	}
-
-	return filtered, nil
+	return filter(rooms, props, queries, limit), nil
 }
