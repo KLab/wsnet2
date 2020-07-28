@@ -305,7 +305,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	vars := JoinVars(mux.Vars(r))
 	searchGroup, _ := vars.searchGroup()
 
-	room, err := sv.roomService.JoinByQuery(h.appId, searchGroup, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinAtRandom(h.appId, searchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)

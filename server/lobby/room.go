@@ -192,7 +192,7 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 	return rs.join(appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) JoinByQuery(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	rooms, err := rs.Search(appId, searchGroup, queries, 1000)
 	if err != nil {
 		return nil, err
@@ -205,10 +205,10 @@ func (rs *RoomService) JoinByQuery(appId string, searchGroup uint32, queries []P
 		if err == nil {
 			return res, nil
 		}
-		log.Debugf("JoinByQuery: failed to join room: %v", err)
+		log.Debugf("JoinAtRandom: failed to join room: %v", err)
 	}
 
-	return nil, xerrors.Errorf("JoinByQuery: Failed to join all rooms")
+	return nil, xerrors.Errorf("JoinAtRandom: Failed to join all rooms")
 }
 
 func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int) ([]pb.RoomInfo, error) {
