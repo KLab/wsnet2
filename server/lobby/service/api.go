@@ -229,12 +229,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	vars := JoinVars(mux.Vars(r))
 	roomId, _ := vars.roomId()
 
-	var room *pb.JoinedRoomRes
-	if searchGroup, found := vars.searchGroup(); found {
-		room, err = sv.roomService.JoinByIdWithQuery(h.appId, roomId, searchGroup, param.Queries, &param.ClientInfo)
-	} else {
-		room, err = sv.roomService.JoinById(h.appId, roomId, &param.ClientInfo)
-	}
+	room, err := sv.roomService.JoinById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
@@ -272,12 +267,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	vars := JoinVars(mux.Vars(r))
 	roomNumber, _ := vars.roomNumber()
 
-	var room *pb.JoinedRoomRes
-	if searchGroup, found := vars.searchGroup(); found {
-		room, err = sv.roomService.JoinByNumberWithQuery(h.appId, roomNumber, searchGroup, param.Queries, &param.ClientInfo)
-	} else {
-		room, err = sv.roomService.JoinByNumber(h.appId, roomNumber, &param.ClientInfo)
-	}
+	room, err := sv.roomService.JoinByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
