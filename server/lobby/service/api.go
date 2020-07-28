@@ -186,9 +186,9 @@ type JoinParam struct {
 
 type JoinVars map[string]string
 
-func (vars JoinVars) roomId() (id string, found bool) {
-	id, found = vars["roomId"]
-	return
+func (vars JoinVars) roomId() (string, bool) {
+	id, found := vars["roomId"]
+	return id, found
 }
 
 func (vars JoinVars) roomNumber() (number int32, found bool) {
@@ -196,7 +196,7 @@ func (vars JoinVars) roomNumber() (number int32, found bool) {
 		n, _ := strconv.ParseInt(v, 10, 32)
 		number = int32(n)
 	}
-	return
+	return number, found
 }
 
 func (vars JoinVars) searchGroup() (sg uint32, found bool) {
@@ -204,7 +204,7 @@ func (vars JoinVars) searchGroup() (sg uint32, found bool) {
 		n, _ := strconv.ParseUint(v, 10, 32)
 		sg = uint32(n)
 	}
-	return
+	return sg, found
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
