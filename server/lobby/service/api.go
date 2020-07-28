@@ -72,9 +72,11 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	}
 
 	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
-	r.HandleFunc("/rooms/join", sv.handleJoinRoom).Methods("POST")
-	r.HandleFunc("/rooms/join/number", sv.handleJoinRoomByNumber).Methods("POST")
-	r.HandleFunc("/rooms/join/query", sv.handleJoinRoomByQuery).Methods("POST")
+	r.HandleFunc("/rooms/join/id/{roomId}", sv.handleJoinRoom).Methods("POST")
+	r.HandleFunc("/rooms/join/id/{roomId}/{searchGroup[0-9]+}", sv.handleJoinRoom).Methods("POST")
+	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
+	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}/{searchGroup:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
+	r.HandleFunc("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom).Methods("POST")
 	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
 }
 
@@ -178,8 +180,31 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 }
 
 type JoinParam struct {
-	RoomId     string
+	Queries    []lobby.PropQueries
 	ClientInfo pb.ClientInfo
+}
+
+type JoinVars map[string]string
+
+func (vars JoinVars) roomId() (id string, found bool) {
+	id, found = vars["roomId"]
+	return
+}
+
+func (vars JoinVars) roomNumber() (number int32, found bool) {
+	if v, found := vars["roomNumber"]; found {
+		n, _ := strconv.ParseInt(v, 10, 32)
+		number = int32(n)
+	}
+	return
+}
+
+func (vars JoinVars) searchGroup() (sg uint32, found bool) {
+	if v, found := vars["searchGroup"]; found {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		sg = uint32(n)
+	}
+	return
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
@@ -201,7 +226,15 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := sv.roomService.JoinById(h.appId, param.RoomId, &param.ClientInfo)
+	vars := JoinVars(mux.Vars(r))
+	roomId, _ := vars.roomId()
+
+	var room *pb.JoinedRoomRes
+	if searchGroup, found := vars.searchGroup(); found {
+		room, err = sv.roomService.JoinByIdWithQuery(h.appId, roomId, searchGroup, param.Queries, &param.ClientInfo)
+	} else {
+		room, err = sv.roomService.JoinById(h.appId, roomId, &param.ClientInfo)
+	}
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
@@ -215,11 +248,6 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
 		return
 	}
-}
-
-type JoinByNumberParam struct {
-	RoomNumber int32
-	ClientInfo pb.ClientInfo
 }
 
 func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
@@ -233,7 +261,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var param JoinByNumberParam
+	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
 		log.Errorf("Failed to read request body: %v", err)
@@ -241,7 +269,15 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	room, err := sv.roomService.JoinByNumber(h.appId, param.RoomNumber, &param.ClientInfo)
+	vars := JoinVars(mux.Vars(r))
+	roomNumber, _ := vars.roomNumber()
+
+	var room *pb.JoinedRoomRes
+	if searchGroup, found := vars.searchGroup(); found {
+		room, err = sv.roomService.JoinByNumberWithQuery(h.appId, roomNumber, searchGroup, param.Queries, &param.ClientInfo)
+	} else {
+		room, err = sv.roomService.JoinByNumber(h.appId, roomNumber, &param.ClientInfo)
+	}
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
@@ -257,16 +293,10 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	}
 }
 
-type JoinByQueryParam struct {
-	SearchGroup uint32
-	Queries     []lobby.PropQueries
-	ClientInfo  pb.ClientInfo
-}
-
-func (sv *LobbyService) handleJoinRoomByQuery(w http.ResponseWriter, r *http.Request) {
+func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
 
-	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
+	log.Infof("handleJoinRoomAtRandom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
 		log.Errorf("Failed to user auth: %v", err)
@@ -274,7 +304,7 @@ func (sv *LobbyService) handleJoinRoomByQuery(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var param JoinByQueryParam
+	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
 		log.Errorf("Failed to read request body: %v", err)
@@ -282,7 +312,10 @@ func (sv *LobbyService) handleJoinRoomByQuery(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	room, err := sv.roomService.JoinByQuery(h.appId, param.SearchGroup, param.Queries, &param.ClientInfo)
+	vars := JoinVars(mux.Vars(r))
+	searchGroup, _ := vars.searchGroup()
+
+	room, err := sv.roomService.JoinByQuery(h.appId, searchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to join room: %v", err)
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
