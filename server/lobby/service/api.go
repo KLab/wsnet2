@@ -73,9 +73,7 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 
 	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
 	r.HandleFunc("/rooms/join/id/{roomId}", sv.handleJoinRoom).Methods("POST")
-	r.HandleFunc("/rooms/join/id/{roomId}/{searchGroup[0-9]+}", sv.handleJoinRoom).Methods("POST")
 	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
-	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}/{searchGroup:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
 	r.HandleFunc("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom).Methods("POST")
 	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
 }
