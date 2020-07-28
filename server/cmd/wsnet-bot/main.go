@@ -52,7 +52,7 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 			Visible:     true,
 			Watchable:   false,
 			WithNumber:  true,
-			MaxPlayers:  4,
+			MaxPlayers:  6,
 			SearchGroup: 1,
 			PublicProps: binary.MarshalDict(props),
 		},
@@ -75,7 +75,6 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 
 func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 	param := &service.JoinParam{
-		RoomId: roomId,
 		ClientInfo: pb.ClientInfo{
 			Id: b.userId,
 		},
@@ -83,7 +82,29 @@ func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 
 	room := &pb.JoinedRoomRes{}
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/join", param, room)
+	url := fmt.Sprintf("http://localhost:8080/rooms/join/id/%s", roomId)
+	err := b.doLobbyRequest("POST", url, param, room)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("[bot:%v] Join success, WebSocket=%s\n", b.userId, room.Url)
+
+	return room, nil
+}
+
+func (b *bot) JoinRoomWithQuery(roomId string, searchGroup uint32, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
+	param := &service.JoinParam{
+		Queries: []lobby.PropQueries{queries},
+		ClientInfo: pb.ClientInfo{
+			Id: b.userId,
+		},
+	}
+
+	room := &pb.JoinedRoomRes{}
+
+	url := fmt.Sprintf("http://localhost:8080/rooms/join/id/%s/%d", roomId, searchGroup)
+	err := b.doLobbyRequest("POST", url, param, room)
 	if err != nil {
 		return nil, err
 	}
@@ -94,8 +115,7 @@ func (b *bot) JoinRoom(roomId string) (*pb.JoinedRoomRes, error) {
 }
 
 func (b *bot) JoinRoomByNumber(roomNumber int32) (*pb.JoinedRoomRes, error) {
-	param := &service.JoinByNumberParam{
-		RoomNumber: roomNumber,
+	param := &service.JoinParam{
 		ClientInfo: pb.ClientInfo{
 			Id: b.userId,
 		},
@@ -103,7 +123,8 @@ func (b *bot) JoinRoomByNumber(roomNumber int32) (*pb.JoinedRoomRes, error) {
 
 	room := &pb.JoinedRoomRes{}
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/join/number", param, room)
+	url := fmt.Sprintf("http://localhost:8080/rooms/join/number/%d", roomNumber)
+	err := b.doLobbyRequest("POST", url, param, room)
 	if err != nil {
 		return nil, err
 	}
@@ -113,10 +134,9 @@ func (b *bot) JoinRoomByNumber(roomNumber int32) (*pb.JoinedRoomRes, error) {
 	return room, nil
 }
 
-func (b *bot) JoinRoomByQuery(queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
-	param := &service.JoinByQueryParam{
-		SearchGroup: 1,
-		Queries:     []lobby.PropQueries{queries},
+func (b *bot) JoinRoomByNumberWithQuery(roomNumber int32, searchGroup uint32, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
+	param := &service.JoinParam{
+		Queries: []lobby.PropQueries{queries},
 		ClientInfo: pb.ClientInfo{
 			Id: b.userId,
 		},
@@ -124,19 +144,41 @@ func (b *bot) JoinRoomByQuery(queries []lobby.PropQuery) (*pb.JoinedRoomRes, err
 
 	room := &pb.JoinedRoomRes{}
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/join/query", param, room)
+	url := fmt.Sprintf("http://localhost:8080/rooms/join/number/%d/%d", roomNumber, searchGroup)
+	err := b.doLobbyRequest("POST", url, param, room)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("[bot:%v] Join by room number success, WebSocket=%s\n", b.userId, room.Url)
+
+	return room, nil
+}
+
+func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
+	param := &service.JoinParam{
+		Queries: []lobby.PropQueries{queries},
+		ClientInfo: pb.ClientInfo{
+			Id: b.userId,
+		},
+	}
+
+	room := &pb.JoinedRoomRes{}
+
+	url := fmt.Sprintf("http://localhost:8080/rooms/join/random/%d", searchGroup)
+	err := b.doLobbyRequest("POST", url, param, room)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return nil, err
 	}
 
-	fmt.Printf("[bot:%v] Join by query success, WebSocket=%s\n", b.userId, room.Url)
+	fmt.Printf("[bot:%v] Join at random success, WebSocket=%s\n", b.userId, room.Url)
 	return room, nil
 }
 
-func (b *bot) SearchRoom(queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
+func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
 	param := &service.SearchParam{
-		SearchGroup: 1,
+		SearchGroup: searchGroup,
 		Queries:     []lobby.PropQueries{queries},
 	}
 
@@ -224,22 +266,22 @@ func main() {
 	var queries []lobby.PropQuery
 	fmt.Println("key1 =")
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpEqual, Val: binary.MarshalInt(1024)}}
-	bot.SearchRoom(queries)
+	bot.SearchRoom(1, queries)
 	fmt.Println("key1 !")
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpNot, Val: binary.MarshalInt(1024)}}
-	bot.SearchRoom(queries)
+	bot.SearchRoom(1, queries)
 	fmt.Println("key1 <")
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpLessThan, Val: binary.MarshalInt(1024)}}
-	bot.SearchRoom(queries)
+	bot.SearchRoom(1, queries)
 	fmt.Println("key1 <=")
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpLessThanOrEqual, Val: binary.MarshalInt(1024)}}
-	bot.SearchRoom(queries)
+	bot.SearchRoom(1, queries)
 	fmt.Println("key1 >")
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpGreaterThan, Val: binary.MarshalInt(1024)}}
-	bot.SearchRoom(queries)
+	bot.SearchRoom(1, queries)
 	fmt.Println("key1 >=")
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpGreaterThanOrEqual, Val: binary.MarshalInt(1024)}}
-	bot.SearchRoom(queries)
+	bot.SearchRoom(1, queries)
 
 	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
 	if err != nil {
@@ -250,18 +292,21 @@ func main() {
 	done := make(chan bool)
 	go eventloop(ws, bot.userId, done)
 
-	go spawnPlayer(room.RoomInfo.Id, "23456")
-	go spawnPlayerByNumber(room.RoomInfo.Number, "34567")
-	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpEqual, Val: binary.MarshalInt(1024)}}
-	go spawnPlayerByQuery(queries, "45678")
+	q := &query{1, []lobby.PropQuery{{Key: "key1", Op: lobby.OpEqual, Val: binary.MarshalInt(1024)}}}
+
+	go spawnPlayer(room.RoomInfo.Id, "23456", nil)
+	go spawnPlayer(room.RoomInfo.Id, "34567", q)
+	go spawnPlayerByNumber(room.RoomInfo.Number, "45678", nil)
+	go spawnPlayerByNumber(room.RoomInfo.Number, "56789", q)
+	go spawnPlayerAtRandom("67890", q)
 
 	go func() {
 		time.Sleep(time.Second * 1)
-		spawnPlayer(room.RoomInfo.Id, "56789")
+		spawnPlayer(room.RoomInfo.Id, "78901", nil)
 	}()
 	go func() {
 		time.Sleep(time.Second * 1)
-		spawnPlayer(room.RoomInfo.Id, "67890")
+		spawnPlayer(room.RoomInfo.Id, "89012", nil)
 	}()
 
 	go func() {
@@ -323,9 +368,21 @@ func main() {
 	<-done
 }
 
-func spawnPlayer(roomId, userId string) {
+type query struct {
+	searchGroup uint32
+	queries     []lobby.PropQuery
+}
+
+func spawnPlayer(roomId, userId string, q *query) {
 	bot := NewBot(appID, appKey, userId)
-	room, err := bot.JoinRoom(roomId)
+
+	var room *pb.JoinedRoomRes
+	var err error
+	if q != nil {
+		room, err = bot.JoinRoomWithQuery(roomId, q.searchGroup, q.queries)
+	} else {
+		room, err = bot.JoinRoom(roomId)
+	}
 	if err != nil {
 		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
 		return
@@ -341,9 +398,16 @@ func spawnPlayer(roomId, userId string) {
 	go eventloop(ws, userId, done)
 }
 
-func spawnPlayerByNumber(roomNumber int32, userId string) {
+func spawnPlayerByNumber(roomNumber int32, userId string, q *query) {
 	bot := NewBot(appID, appKey, userId)
-	room, err := bot.JoinRoomByNumber(roomNumber)
+
+	var room *pb.JoinedRoomRes
+	var err error
+	if q != nil {
+		room, err = bot.JoinRoomByNumberWithQuery(roomNumber, q.searchGroup, q.queries)
+	} else {
+		room, err = bot.JoinRoomByNumber(roomNumber)
+	}
 	if err != nil {
 		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
 		return
@@ -359,9 +423,9 @@ func spawnPlayerByNumber(roomNumber int32, userId string) {
 	go eventloop(ws, userId, done)
 }
 
-func spawnPlayerByQuery(queries []lobby.PropQuery, userId string) {
+func spawnPlayerAtRandom(userId string, q *query) {
 	bot := NewBot(appID, appKey, userId)
-	room, err := bot.JoinRoomByQuery(queries)
+	room, err := bot.JoinRoomAtRandom(q.searchGroup, q.queries)
 	if err != nil {
 		fmt.Printf("[bot:%v] join room error: %v\n", userId, err)
 		return
@@ -376,6 +440,7 @@ func spawnPlayerByQuery(queries []lobby.PropQuery, userId string) {
 	done := make(chan bool)
 	go eventloop(ws, userId, done)
 }
+
 func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 	defer close(done)
 	for {
