@@ -3,6 +3,8 @@ package lobby
 import (
 	"bytes"
 
+	"golang.org/x/xerrors"
+
 	"wsnet2/binary"
 	"wsnet2/log"
 )
@@ -23,6 +25,18 @@ type PropQuery struct {
 	Key string
 	Op  OpType
 	Val []byte
+}
+
+func unmarshalProps(props []byte) (binary.Dict, error) {
+	um, _, err := binary.Unmarshal(props)
+	if err != nil {
+		return nil, err
+	}
+	dict, ok := um.(binary.Dict)
+	if !ok {
+		return nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
+	}
+	return dict, nil
 }
 
 func (q *PropQuery) match(val []byte) bool {
