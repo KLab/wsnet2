@@ -12,26 +12,6 @@ namespace WSNet2.Core
         public ClientInfo clientInfo;
     }
 
-    [MessagePackObject]
-    public class JoinParam
-    {
-        [Key("RoomId")]
-        public string roomId;
-
-        [Key("ClientInfo")]
-        public ClientInfo clientInfo;
-    }
-
-    [MessagePackObject]
-    public class JoinByNumberParam
-    {
-        [Key("RoomNumber")]
-        public int roomNumber;
-
-        [Key("ClientInfo")]
-        public ClientInfo clientInfo;
-    }
-
     public enum OpType : byte
     {
         Equal = 0,
@@ -56,11 +36,8 @@ namespace WSNet2.Core
     }
 
     [MessagePackObject]
-    public class JoinByQueriesParam
+    public class JoinParam
     {
-        [Key("SearchGroup")]
-        public uint searchGroup;
-
         [Key("Queries")]
         public PropQuery[][] queries;
 
