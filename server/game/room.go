@@ -244,7 +244,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.wgClient.Add(1)
 	master := NewClient(msg.Info, r)
 	r.master = master
-	r.players[ClientID(master.Id)] = master
+	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
 
 	rinfo := r.RoomInfo.Clone()
