@@ -221,7 +221,7 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
-// broadcast : 特定クライアントに送信.
+// sendTo : 特定クライアントに送信.
 // muClients のロックを取得してから呼び出す.
 // 送信できない場合続行不能なので退室させる.
 func (r *Room) sendTo(c *Client, ev *binary.Event) error {
@@ -237,6 +237,9 @@ func (r *Room) sendTo(c *Client, ev *binary.Event) error {
 // muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.Event) {
 	for _, c := range r.players {
+		_ = r.sendTo(c, ev)
+	}
+	for _, c := range r.watchers {
 		_ = r.sendTo(c, ev)
 	}
 }
@@ -400,6 +403,7 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 func (r *Room) msgToMaster(msg *MsgToMaster) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	// todo: 送信できなかったら通知したい
 	_ = r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
 	return nil
 }
