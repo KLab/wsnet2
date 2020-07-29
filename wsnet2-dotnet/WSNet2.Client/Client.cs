@@ -167,7 +167,14 @@ namespace WSNet2.DotnetClient
             else
             {
                 var roomId = args[0];
-                client.Join(roomId, cliProps, receiver, onJoined, onFailed);
+                if (args.Length == 1)
+                {
+                    client.Join(roomId, cliProps, receiver, onJoined, onFailed);
+                }
+                else
+                {
+                    client.Watch(roomId, cliProps, receiver, onJoined, onFailed);
+                }
             }
 
             _ = callbackrunner(client, cts.Token);
