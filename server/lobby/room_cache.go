@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
 	"wsnet2/log"
@@ -32,18 +31,6 @@ func newRoomCacheQuery(db *sqlx.DB, expire time.Duration, sql string, args ...in
 		query:  sql,
 		args:   args,
 	}
-}
-
-func unmarshalProps(props []byte) (binary.Dict, error) {
-	um, _, err := binary.Unmarshal(props)
-	if err != nil {
-		return nil, err
-	}
-	dict, ok := um.(binary.Dict)
-	if !ok {
-		return nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
-	}
-	return dict, nil
 }
 
 func (q *roomCacheQuery) do() ([]pb.RoomInfo, []binary.Dict, error) {
