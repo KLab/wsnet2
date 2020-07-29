@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using WSNet2.Core;
 
 public class GameScript : MonoBehaviour
 {
@@ -18,6 +19,44 @@ public class GameScript : MonoBehaviour
     Ball ball;
 
     Bar playerBar;
+
+
+    class GameEventReceiver : WSNet2.Core.EventReceiver
+    {
+        public override void OnError(Exception e)
+        {
+            Debug.Log("OnError: " + e);
+        }
+
+        public override void OnJoined(Player me)
+        {
+            Debug.Log("OnJoined: " + me.Id);
+        }
+
+        public override void OnOtherPlayerJoined(Player player)
+        {
+            Debug.Log("OnOtherPlayerJoined: " + player.Id);
+        }
+
+        public override void OnLeave(Player player)
+        {
+            Debug.Log("OnLeave: " + player.Id);
+        }
+
+        public override void OnClosed(string description)
+        {
+            Debug.Log("OnClose: " + description);
+        }
+    }
+
+    public static EventReceiver CreateEventReceiver()
+    {
+        var r = new GameEventReceiver();
+
+        // r.RegisterRPC<StrMessage>(OnStrMsgRPC);
+
+        return r;
+    }
 
     // Start is called before the first frame update
     void Start()
