@@ -65,6 +65,7 @@ namespace WSNet2.Core
             }
         }
 
+        string myId;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
 
@@ -105,6 +106,7 @@ namespace WSNet2.Core
         /// <param name="receiver">イベントレシーバ</param>
         public Room(JoinedResponse joined, string myId, EventReceiver receiver)
         {
+            this.myId = myId;
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
             this.token = joined.token;
@@ -276,7 +278,7 @@ namespace WSNet2.Core
         {
             var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("X-Wsnet-App", info.appId);
-            ws.Options.SetRequestHeader("X-Wsnet-User", Me.Id);
+            ws.Options.SetRequestHeader("X-Wsnet-User", myId);
             ws.Options.SetRequestHeader("X-Wsnet-Nonce", token.nonce);
             ws.Options.SetRequestHeader("X-Wsnet-Hash", token.hash);
             ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
@@ -396,7 +398,7 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvJoined(EvJoined ev)
         {
-            if (ev.ClientID == Me.Id)
+            if (ev.ClientID == myId)
             {
                 callbackPool.Add(() =>
                 {
