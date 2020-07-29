@@ -24,6 +24,9 @@ type Client struct {
 	*pb.ClientInfo
 	room *Room
 
+	isPlayer bool
+	nodeCount uint32
+
 	removed     chan struct{}
 	removeCause string
 	done        chan struct{}
@@ -40,10 +43,20 @@ type Client struct {
 	evErr chan error
 }
 
-func NewClient(info *pb.ClientInfo, room *Room) *Client {
+func NewPlayer(info *pb.ClientInfo, room *Room) *Client {
+	return newClient(info, room, true)
+}
+
+func NewWatcher(info *pb.ClientInfo, room *Room) *Client {
+	return newClient(info, room, false)
+}
+
+func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) *Client {
 	c := &Client{
 		ClientInfo: info,
 		room:       room,
+		isPlayer:   isPlayer,
+		nodeCount:  1,
 
 		removed:     make(chan struct{}),
 		done:        make(chan struct{}),

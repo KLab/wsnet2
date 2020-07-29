@@ -40,6 +40,7 @@ type Room struct {
 	players     map[ClientID]*Client
 	master      *Client
 	masterOrder []ClientID
+	watchers    map[ClientID]*Client
 
 	// todo: pongにclientたちの最終送信時刻を入れたい
 	// muLastMsg sync.RWMutex
@@ -89,6 +90,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, dea
 
 		players:     make(map[ClientID]*Client),
 		masterOrder: []ClientID{},
+		watchers:    make(map[ClientID]*Client),
 
 		logger: log.Get(loglevel),
 	}
@@ -200,6 +202,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgCreate(m)
 	case *MsgJoin:
 		return r.msgJoin(m)
+	case *MsgWatch:
+		return r.msgWatch(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
 	case *MsgRoomProp:
@@ -242,7 +246,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	defer r.muClients.Unlock()
 
 	r.wgClient.Add(1)
-	master := NewClient(msg.Info, r)
+	master := NewPlayer(msg.Info, r)
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
@@ -265,7 +269,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 
 	r.wgClient.Add(1)
-	client := NewClient(msg.Info, r)
+	client := NewPlayer(msg.Info, r)
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
 	r.RoomInfo.Players = uint32(len(r.players))
@@ -279,6 +283,31 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
+	return nil
+}
+
+func (r *Room) msgWatch(msg *MsgWatch) error {
+	if !r.Watchable {
+		close(msg.Joined)
+		return xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
+	}
+
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+
+	r.wgClient.Add(1)
+	client := NewWatcher(msg.Info, r)
+	r.watchers[client.ID()] = client
+	r.RoomInfo.Watchers++
+	r.repo.updateRoomInfo(r)
+
+	rinfo := r.RoomInfo.Clone()
+	players := make([]*pb.ClientInfo, 0, len(r.players))
+	for _, c := range r.players {
+		players = append(players, c.ClientInfo.Clone())
+	}
+
+	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	return nil
 }
 

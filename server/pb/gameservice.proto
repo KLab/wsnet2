@@ -10,6 +10,7 @@ import "roomoption.proto";
 service Game {
 	rpc Create (CreateRoomReq) returns (JoinedRoomRes);
 	rpc Join (JoinRoomReq) returns (JoinedRoomRes);
+	rpc Watch (JoinRoomReq) returns (JoinedRoomRes);
 }
 
 message CreateRoomReq {

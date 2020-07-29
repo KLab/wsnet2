@@ -15,6 +15,7 @@ type Msg interface {
 
 var _ Msg = &MsgCreate{}
 var _ Msg = &MsgJoin{}
+var _ Msg = &MsgWatch{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgBroadcast{}
@@ -46,6 +47,15 @@ type MsgJoin struct {
 }
 
 func (*MsgJoin) msg() {}
+
+// MsgWatch : 観戦入室メッセージ
+// gRPCリクエストよりwsnet内で発生
+type MsgWatch struct {
+	Info   *pb.ClientInfo
+	Joined chan<- JoinedInfo
+}
+
+func (*MsgWatch) msg() {}
 
 // MsgLeave : 退室メッセージ
 // クライアントの自発的な退室リクエスト

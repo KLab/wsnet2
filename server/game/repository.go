@@ -189,6 +189,14 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 }
 
 func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	return repo.joinRoom(ctx, id, client, true)
+}
+
+func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	return repo.joinRoom(ctx, id, client, false)
+}
+
+func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, isPlayer bool) (*pb.JoinedRoomRes, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -197,7 +205,13 @@ func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.Clie
 		return nil, xerrors.Errorf("JoinRoom: %w", err)
 	}
 	ch := make(chan JoinedInfo)
-	room.msgCh <- &MsgJoin{client, ch}
+	var msg Msg
+	if isPlayer {
+		msg = &MsgJoin{client, ch}
+	} else {
+		msg = &MsgWatch{client, ch}
+	}
+	room.msgCh <- msg
 
 	var joined JoinedInfo
 	select {
