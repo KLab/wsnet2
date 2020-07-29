@@ -251,6 +251,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		AppId:        repo.app.Id,
 		HostId:       repo.hostId,
 		Visible:      op.Visible,
+		Joinable:     op.Joinable,
 		Watchable:    op.Watchable,
 		SearchGroup:  op.SearchGroup,
 		MaxPlayers:   op.MaxPlayers,

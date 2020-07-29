@@ -260,6 +260,11 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 }
 
 func (r *Room) msgJoin(msg *MsgJoin) error {
+	if !r.Joinable {
+		close(msg.Joined)
+		return xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
+	}
+
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
