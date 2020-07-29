@@ -219,3 +219,47 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 
 	return filter(rooms, props, queries, limit), nil
 }
+
+func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	// 仮実装
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
+	}
+
+	game, err := rs.gameCache.Get(room.HostId)
+	if err != nil {
+		return nil, xerrors.Errorf("join: failed to get game server: %w", err)
+	}
+
+	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
+	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	if err != nil {
+		log.Errorf("client connection error: %v", err)
+		return nil, err
+	}
+	defer conn.Close()
+
+	client := pb.NewGameClient(conn)
+
+	req := &pb.JoinRoomReq{
+		AppId:      appId,
+		RoomId:     roomId,
+		ClientInfo: clientInfo,
+	}
+
+	res, err := client.Watch(context.TODO(), req)
+	if err != nil {
+		fmt.Printf("join room error: %v", err)
+		return nil, err
+	}
+
+	log.Infof("Joined room: %v", res)
+
+	return res, nil
+}
