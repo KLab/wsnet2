@@ -96,6 +96,7 @@ loop:
 
 		case <-c.room.Done():
 			c.room.logger.Debugf("room done: client=%v", c.Id)
+			curPeer.Close("room closed")
 			if !t.Stop() {
 				<-t.C
 			}

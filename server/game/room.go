@@ -161,17 +161,25 @@ func (r *Room) Timeout(c *Client) {
 }
 
 func (r *Room) removeClient(c *Client, err error) {
+	if c.isPlayer {
+		r.removePlayer(c, err)
+	} else {
+		r.removeWatcher(c, err)
+	}
+}
+
+func (r *Room) removePlayer(c *Client, err error) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	cid := c.ID()
 
 	if _, ok := r.players[cid]; !ok {
-		r.logger.Debugf("Client may be aleady leaved: room=%v, client=%v", r.Id, cid)
+		r.logger.Debugf("Player may be aleady leaved: room=%v, client=%v", r.Id, cid)
 		return
 	}
 
-	r.logger.Infof("Client removed: room=%v, client=%v %v", r.Id, cid, err)
+	r.logger.Infof("Player removed: room=%v, client=%v %v", r.Id, cid, err)
 	delete(r.players, cid)
 
 	for i, id := range r.masterOrder {
@@ -193,7 +201,30 @@ func (r *Room) removeClient(c *Client, err error) {
 		r.master = r.players[r.masterOrder[0]]
 	}
 
+	r.RoomInfo.Players = uint32(len(r.players))
+	r.repo.updateRoomInfo(r)
+
 	r.broadcast(binary.NewEvLeaved(string(cid), r.master.Id))
+}
+
+func (r *Room) removeWatcher(c *Client, err error) {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+
+	cid := c.ID()
+
+	if _, ok := r.watchers[cid]; !ok {
+		r.logger.Debugf("Watcher may be aleady leaved: room=%v, client=%v", r.Id, cid)
+		return
+	}
+
+	r.logger.Infof("Watcher removed: room=%v, client=%v %v", r.Id, cid, err)
+	delete(r.watchers, cid)
+
+	r.RoomInfo.Watchers -= c.nodeCount
+	r.repo.updateRoomInfo(r)
+
+	c.Removed(err)
 }
 
 func (r *Room) dispatch(msg Msg) error {

@@ -313,6 +313,7 @@ namespace WSNet2.Core
                 {
                     case EvClosed evClosed:
                         OnEvClosed(evClosed);
+                        evBufPool.Add(ev.BufferArray);
                         return;
 
                     case EvPeerReady evPeerReady:
