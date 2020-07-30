@@ -214,7 +214,7 @@ func (r *Room) removeWatcher(c *Client, err error) {
 	cid := c.ID()
 
 	if _, ok := r.watchers[cid]; !ok {
-		r.logger.Debugf("Watcher may be aleady leaved: room=%v, client=%v", r.Id, cid)
+		r.logger.Debugf("Watcher may be aleady left: room=%v, client=%v", r.Id, cid)
 		return
 	}
 
