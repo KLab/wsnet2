@@ -337,7 +337,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	r.wgClient.Add(1)
 	client := NewWatcher(msg.Info, r)
 	r.watchers[client.ID()] = client
-	r.RoomInfo.Watchers++
+	r.RoomInfo.Watchers += client.nodeCount
 	r.repo.updateRoomInfo(r)
 
 	rinfo := r.RoomInfo.Clone()
