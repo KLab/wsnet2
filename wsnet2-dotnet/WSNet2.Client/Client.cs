@@ -61,9 +61,9 @@ namespace WSNet2.DotnetClient
                 Console.WriteLine("OnOtherPlayerJoined: "+player.Id);
             }
 
-            public override void OnOtherPlayerLeaved(Player player)
+            public override void OnOtherPlayerLeft(Player player)
             {
-                Console.WriteLine("OnOtherPlayerLeaved: "+player.Id);
+                Console.WriteLine("OnOtherPlayerLeft: "+player.Id);
             }
 
             public override void OnMasterPlayerSwitched(Player pred, Player newly)

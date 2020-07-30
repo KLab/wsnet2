@@ -17,7 +17,7 @@ namespace WSNet2.Core
         public abstract void OnError(Exception e);
         public abstract void OnJoined(Player me);
         public abstract void OnOtherPlayerJoined(Player player);
-        public abstract void OnOtherPlayerLeaved(Player player);
+        public abstract void OnOtherPlayerLeft(Player player);
         public abstract void OnMasterPlayerSwitched(Player pred, Player newly);
         public abstract void OnClosed(string description);
 

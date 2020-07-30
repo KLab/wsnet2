@@ -19,7 +19,7 @@ namespace WSNet2.Core
             Pong,
 
             Joined = regularEvType,
-            Leaved,
+            Left,
             RomProp,
             ClientProp,
             Message,
@@ -60,8 +60,8 @@ namespace WSNet2.Core
                 case EvType.Joined:
                     ev = new EvJoined(reader);
                     break;
-                case EvType.Leaved:
-                    ev = new EvLeaved(reader);
+                case EvType.Left:
+                    ev = new EvLeft(reader);
                     break;
                 case EvType.Message:
                     ev = new EvRPC(reader);

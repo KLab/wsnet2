@@ -3,7 +3,7 @@ namespace WSNet2.Core
     /// <summary>
     ///   プレイヤーが退室しました
     /// </summary>
-    public class EvLeaved : Event
+    public class EvLeft : Event
     {
         /// <summary>退室したPlayer</summary>
         public string ClientID { get; private set; }
@@ -12,7 +12,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   コンストラクタ
         /// </summary>
-        public EvLeaved(SerialReader reader) : base(EvType.Leaved, reader)
+        public EvLeft(SerialReader reader) : base(EvType.Left, reader)
         {
             ClientID = reader.ReadString();
             MasterID = reader.ReadString();

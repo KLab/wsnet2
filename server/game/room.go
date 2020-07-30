@@ -165,7 +165,7 @@ func (r *Room) removeClient(c *Client, err error) {
 	cid := c.ID()
 
 	if _, ok := r.players[cid]; !ok {
-		r.logger.Debugf("Client may be aleady leaved: room=%v, client=%v", r.Id, cid)
+		r.logger.Debugf("Client may be aleady left: room=%v, client=%v", r.Id, cid)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (r *Room) removeClient(c *Client, err error) {
 		r.master = r.players[r.masterOrder[0]]
 	}
 
-	r.broadcast(binary.NewEvLeaved(string(cid), r.master.Id))
+	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
 }
 
 func (r *Room) dispatch(msg Msg) error {
