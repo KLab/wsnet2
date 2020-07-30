@@ -29,7 +29,7 @@ public class TitleScene : MonoBehaviour
             {"name", "FooBar"},
         };
         var roomOpt = new RoomOption(10, 100, pubProps, privProps);
-        var receiver = GameScript.CreateEventReceiver();
+        var receiver = new DelegatedEventReceiver();
 
         prepareWSNet2Client();
         WSNet2Runner.Instance.Client.Create(
@@ -40,6 +40,7 @@ public class TitleScene : MonoBehaviour
             {
                 Debug.Log("created: room=" + room.Id);
                 WSNet2Runner.Instance.GameRoom = room;
+                WSNet2Runner.Instance.GameEventReceiver = receiver;
                 return true;
             },
             (e) => Debug.Log("create failed: " + e)

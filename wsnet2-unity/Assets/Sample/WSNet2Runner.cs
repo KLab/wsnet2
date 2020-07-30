@@ -22,6 +22,12 @@ public class WSNet2Runner : MonoBehaviour
         get; set;
     }
 
+    // Active game room.
+    public DelegatedEventReceiver GameEventReceiver
+    {
+        get; set;
+    }
+
     public static void CreateInstance()
     {
         if (WSNet2Runner.Instance == null)

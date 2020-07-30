@@ -32,44 +32,6 @@ public class GameScript : MonoBehaviour
         roomText.text += s + "\n";
     }
 
-    class GameEventReceiver : WSNet2.Core.EventReceiver
-    {
-        public override void OnError(Exception e)
-        {
-            Debug.Log("OnError: " + e);
-            RoomLog("OnError:" + e);
-        }
-
-        public override void OnJoined(Player me)
-        {
-            Debug.Log("OnJoined: " + me.Id);
-        }
-
-        public override void OnOtherPlayerJoined(Player player)
-        {
-            Debug.Log("OnOtherPlayerJoined: " + player.Id);
-        }
-
-        public override void OnLeave(Player player)
-        {
-            Debug.Log("OnLeave: " + player.Id);
-        }
-
-        public override void OnClosed(string description)
-        {
-            Debug.Log("OnClose: " + description);
-        }
-    }
-
-    public static EventReceiver CreateEventReceiver()
-    {
-        var r = new GameEventReceiver();
-
-        // r.RegisterRPC<StrMessage>(OnStrMsgRPC);
-
-        return r;
-    }
-
     // Start is called before the first frame update
     void Start()
     {
