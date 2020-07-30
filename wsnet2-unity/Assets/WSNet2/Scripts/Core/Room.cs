@@ -322,8 +322,8 @@ namespace WSNet2.Core
                     case EvJoined evJoined:
                         OnEvJoined(evJoined);
                         break;
-                    case EvLeaved evLeaved:
-                        OnEvLeaved(evLeaved);
+                    case EvLeft evLeft:
+                        OnEvLeft(evLeft);
                         break;
                     case EvRPC evRpc:
                         OnEvRPC(evRpc);
@@ -420,7 +420,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   プレイヤー退室イベント
         /// </summary>
-        private void OnEvLeaved(EvLeaved ev)
+        private void OnEvLeft(EvLeft ev)
         {
             callbackPool.Add(() =>
             {
@@ -433,7 +433,7 @@ namespace WSNet2.Core
                 }
 
                 players.Remove(player.Id);
-                eventReceiver.OnOtherPlayerLeaved(player);
+                eventReceiver.OnOtherPlayerLeft(player);
             });
         }
 

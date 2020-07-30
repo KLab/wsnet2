@@ -175,7 +175,7 @@ func (r *Room) removePlayer(c *Client, err error) {
 	cid := c.ID()
 
 	if _, ok := r.players[cid]; !ok {
-		r.logger.Debugf("Player may be aleady leaved: room=%v, client=%v", r.Id, cid)
+		r.logger.Debugf("Player may be aleady left: room=%v, client=%v", r.Id, cid)
 		return
 	}
 
@@ -204,7 +204,7 @@ func (r *Room) removePlayer(c *Client, err error) {
 	r.RoomInfo.Players = uint32(len(r.players))
 	r.repo.updateRoomInfo(r)
 
-	r.broadcast(binary.NewEvLeaved(string(cid), r.master.Id))
+	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
 }
 
 func (r *Room) removeWatcher(c *Client, err error) {

@@ -25,9 +25,14 @@ public class SampleClient : MonoBehaviour
             Debug.Log("OnOtherPlayerJoined: "+player.Id);
         }
 
-        public override void OnLeave(Player player)
+        public override void OnOtherPlayerLeft(Player player)
         {
-            Debug.Log("OnLeave: "+player.Id);
+            Debug.Log("OnOtherPlayerLeft: "+player.Id);
+        }
+
+        public override void OnMasterPlayerSwitched(Player pred, Player newly)
+        {
+            Debug.Log("OnMasterPlayerswitched: "+pred.Id+" -> "+newly.Id);
         }
 
         public override void OnClosed(string description)
