@@ -11,6 +11,7 @@ public class Ball : MonoBehaviour
     public void setRandomDirection()
     {
         direction = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f));
+        direction.Normalize();
     }
 
     void Awake()

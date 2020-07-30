@@ -2,11 +2,14 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using WSNet2.Core;
 
 public class GameScript : MonoBehaviour
 {
+    public Text roomText;
+
     public InputAction moveInput;
     public Ball ballAsset;
     public Bar barAsset;
@@ -20,12 +23,21 @@ public class GameScript : MonoBehaviour
 
     Bar playerBar;
 
+    Bar cpuBar;
+
+    bool isOnlineMode;
+
+    void RoomLog(string s)
+    {
+        roomText.text += s + "\n";
+    }
 
     class GameEventReceiver : WSNet2.Core.EventReceiver
     {
         public override void OnError(Exception e)
         {
             Debug.Log("OnError: " + e);
+            RoomLog("OnError:" + e);
         }
 
         public override void OnJoined(Player me)
@@ -71,12 +83,28 @@ public class GameScript : MonoBehaviour
         ball = Instantiate(ballAsset);
         bar1.Init(true);
         bar2.Init(false);
-        ball.setRandomDirection();
-        ball.speed = 3f;
 
         playerBar = bar1;
+
+        isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
+
+        if (isOnlineMode)
+        {
+            roomText.text = "Room:" + WSNet2Runner.Instance.GameRoom.Id + "\n";
+        }
+        else
+        {
+            roomText.text = "";
+            cpuBar = bar2;
+            RestartGame();
+        }
     }
 
+    void RestartGame()
+    {
+        ball.setRandomDirection();
+        ball.speed = 3f;
+    }
 
     // Update is called once per frame
     void Update()
@@ -92,6 +120,18 @@ public class GameScript : MonoBehaviour
             pos.y = Math.Min(pos.y, maxY);
             pos.y = Math.Max(pos.y, minY);
             playerBar.transform.position = pos;
+        }
+
+        if (cpuBar != null)
+        {
+            var pos = new Vector2(cpuBar.transform.position.x, cpuBar.transform.position.y);
+            var maxY = topRight.y - cpuBar.height / 2f;
+            var minY = bottomLeft.y + cpuBar.height / 2f;
+
+            pos.y = ball.transform.position.y;
+            pos.y = Math.Min(pos.y, maxY);
+            pos.y = Math.Max(pos.y, minY);
+            cpuBar.transform.position = pos;
         }
 
         if (ball != null)
@@ -120,7 +160,10 @@ public class GameScript : MonoBehaviour
             {
                 if (py - ph / 2f <= by && py + ph / 2f >= by)
                 {
-                    ball.direction.x *= -1;
+                    if (ball.direction.x < 0)
+                    {
+                        ball.direction.x *= -1;
+                    }
                 }
             }
         }
@@ -136,13 +179,17 @@ public class GameScript : MonoBehaviour
             var pw = bar2.width;
             var ph = bar2.height;
 
-            if (bx - br <= px + pw / 2f && bx + br >= px + pw / 2f)
+            if (bx - br <= px - pw / 2f && bx + br >= px - pw / 2f)
             {
                 if (py - ph / 2f <= by && py + ph / 2f >= by)
                 {
-                    ball.direction.x *= -1;
+                    if (ball.direction.x > 0)
+                    {
+                        ball.direction.x *= -1;
+                    }
                 }
             }
         }
+
     }
 }
