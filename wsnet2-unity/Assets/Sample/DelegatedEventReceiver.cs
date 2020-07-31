@@ -4,11 +4,12 @@ using WSNet2.Core;
 
 public class DelegatedEventReceiver : WSNet2.Core.EventReceiver
 {
-    Action<Exception> OnErrorDelegate;
-    Action<Player> OnJoinedDelegate;
-    Action<Player> OnOtherPlayerJoinedDelegate;
-    Action<Player> OnLeaveDelegate;
-    Action<string> OnClosedDelegate;
+    public Action<Exception> OnErrorDelegate;
+    public Action<Player> OnJoinedDelegate;
+    public Action<Player> OnOtherPlayerJoinedDelegate;
+    public Action<Player> OnOtherPlayerLeftDelegate;
+    public Action<Player, Player> OnMasterPlayerSwitchedDelegate;
+    public Action<string> OnClosedDelegate;
 
 
     public override void OnError(Exception e)
@@ -38,12 +39,21 @@ public class DelegatedEventReceiver : WSNet2.Core.EventReceiver
         }
     }
 
-    public override void OnLeave(Player player)
+    public override void OnOtherPlayerLeft(Player player)
     {
         Debug.Log("OnLeave: " + player.Id);
-        if (OnLeaveDelegate != null)
+        if (OnOtherPlayerLeftDelegate != null)
         {
-            OnLeaveDelegate(player);
+            OnOtherPlayerLeftDelegate(player);
+        }
+    }
+
+    public override void OnMasterPlayerSwitched(Player pred, Player newly)
+    {
+        Debug.Log("OnMasterPlayerSwitched: " + pred.Id + " " + newly.Id);
+        if (OnMasterPlayerSwitchedDelegate != null)
+        {
+            OnMasterPlayerSwitchedDelegate(pred, newly);
         }
     }
 
