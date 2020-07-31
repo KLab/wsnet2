@@ -10,6 +10,9 @@ namespace WSNet2.Core
         [Key("visible")]
         public bool visible;
 
+        [Key("joinable")]
+        public bool joinable;
+
         [Key("watchable")]
         public bool watchable;
 
@@ -42,6 +45,7 @@ namespace WSNet2.Core
             IDictionary<string, object> privateProps)
         {
             this.visible = true;
+            this.joinable = true;
             this.watchable = true;
             this.withNumber = false;
             this.searchGroup = searchGroup;
@@ -70,6 +74,12 @@ namespace WSNet2.Core
             return this;
         }
 
+        public RoomOption Joinable(bool val)
+        {
+            this.joinable = val;
+            return this;
+        }
+
         public RoomOption Watchable(bool val)
         {
             this.watchable = val;
@@ -92,7 +102,7 @@ namespace WSNet2.Core
         {
             return string.Format(
                 "RoomOption{{\r\n\tv:{0},w:{1},n:{2},sg:{3},mp:{4},\r\n\tpub:{5},\r\n\tpriv{6}}}",
-                visible, watchable, withNumber, searchGroup, maxPlayers,
+                visible, joinable, watchable, withNumber, searchGroup, maxPlayers,
                 BitConverter.ToString(publicProps), BitConverter.ToString(privateProps));
         }
     }

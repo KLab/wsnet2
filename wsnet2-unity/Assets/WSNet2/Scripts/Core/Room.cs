@@ -54,13 +54,28 @@ namespace WSNet2.Core
         /// <summary>自分自身のPlayer</summary>
         public Player Me { get; private set; }
 
+        /// <summary>部屋内の全Player</summary>
+        public IReadOnlyDictionary<string, Player> Players { get { return players; } }
+
+        /// <summary>マスタークライアント</summary>
+        public Player Master {
+            get
+            {
+                return players[masterId];
+            }
+        }
+
+        string myId;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
-        List<Player> players;
+
+        Dictionary<string, Player> players;
+        string masterId;
 
         RoomInfo info;
         Uri uri;
         AuthToken token;
+        uint deadlineMilliSec;
         EventReceiver eventReceiver;
 
         ClientWebSocket ws;
@@ -91,9 +106,11 @@ namespace WSNet2.Core
         /// <param name="receiver">イベントレシーバ</param>
         public Room(JoinedResponse joined, string myId, EventReceiver receiver)
         {
+            this.myId = myId;
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
             this.token = joined.token;
+            this.deadlineMilliSec = joined.deadline * 1000;
             this.eventReceiver = receiver;
             this.Running = true;
             this.Closed = false;
@@ -116,16 +133,18 @@ namespace WSNet2.Core
             reader = Serialization.NewReader(new ArraySegment<byte>(info.privateProps));
             privateProps = reader.ReadDict();
 
-            players = new List<Player>(joined.players.Length);
+            players = new Dictionary<string, Player>(joined.players.Length);
             foreach (var p in joined.players)
             {
                 var player = new Player(p);
-                players.Add(player);
+                players[p.Id] = player;
                 if (p.Id == myId)
                 {
                     Me = player;
                 }
             }
+
+            this.masterId = joined.masterId;
         }
 
         /// <summary>
@@ -259,7 +278,7 @@ namespace WSNet2.Core
         {
             var ws = new ClientWebSocket();
             ws.Options.SetRequestHeader("X-Wsnet-App", info.appId);
-            ws.Options.SetRequestHeader("X-Wsnet-User", Me.Id);
+            ws.Options.SetRequestHeader("X-Wsnet-User", myId);
             ws.Options.SetRequestHeader("X-Wsnet-Nonce", token.nonce);
             ws.Options.SetRequestHeader("X-Wsnet-Hash", token.hash);
             ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
@@ -294,6 +313,7 @@ namespace WSNet2.Core
                 {
                     case EvClosed evClosed:
                         OnEvClosed(evClosed);
+                        evBufPool.Add(ev.BufferArray);
                         return;
 
                     case EvPeerReady evPeerReady:
@@ -301,6 +321,9 @@ namespace WSNet2.Core
                         break;
                     case EvJoined evJoined:
                         OnEvJoined(evJoined);
+                        break;
+                    case EvLeft evLeft:
+                        OnEvLeft(evLeft);
                         break;
                     case EvRPC evRpc:
                         OnEvRPC(evRpc);
@@ -323,36 +346,36 @@ namespace WSNet2.Core
         private async Task<Event> ReceiveEvent(WebSocket ws, CancellationToken ct)
         {
             var buf = evBufPool.Take(ct);
-            var pos = 0;
-            while(true){
-                var seg = new ArraySegment<byte>(buf, pos, buf.Length-pos);
-                var ret = await ws.ReceiveAsync(seg, ct);
-
-                if (ret.CloseStatus.HasValue)
-                {
-                    evBufPool.Add(buf);
-                    switch (ret.CloseStatus.Value)
-                    {
-                        case WebSocketCloseStatus.NormalClosure:
-                        case WebSocketCloseStatus.EndpointUnavailable:
-                            // unreconnectable states.
-                            return new EvClosed(ret.CloseStatusDescription);
-                        default:
-                            throw new Exception("ws status:("+ret.CloseStatus.Value+") "+ret.CloseStatusDescription);
-                    }
-                }
-
-                pos += ret.Count;
-                if (ret.EndOfMessage) {
-                    break;
-                }
-
-                // メッセージがbufに収まらないときはbufをリサイズして続きを受信
-                Array.Resize(ref buf, buf.Length*2);
-            }
-
             try
             {
+                var pos = 0;
+                while(true){
+                    var seg = new ArraySegment<byte>(buf, pos, buf.Length-pos);
+                    var ret = await ws.ReceiveAsync(seg, ct);
+
+                    if (ret.CloseStatus.HasValue)
+                    {
+                        evBufPool.Add(buf);
+                        switch (ret.CloseStatus.Value)
+                        {
+                            case WebSocketCloseStatus.NormalClosure:
+                            case WebSocketCloseStatus.EndpointUnavailable:
+                                // unreconnectable states.
+                                return new EvClosed(ret.CloseStatusDescription);
+                            default:
+                                throw new Exception("ws status:("+ret.CloseStatus.Value+") "+ret.CloseStatusDescription);
+                        }
+                    }
+
+                    pos += ret.Count;
+                    if (ret.EndOfMessage) {
+                        break;
+                    }
+
+                    // メッセージがbufに収まらないときはbufをリサイズして続きを受信
+                    Array.Resize(ref buf, buf.Length*2);
+                }
+
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
             }
             catch(Exception e)
@@ -376,18 +399,41 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvJoined(EvJoined ev)
         {
-            if (ev.ClientID == Me.Id)
+            if (ev.ClientID == myId)
             {
-                Me.Props = ev.GetProps(Me.Props);
-                callbackPool.Add(() => eventReceiver.OnJoined(Me));
+                callbackPool.Add(() =>
+                {
+                    Me.Props = ev.GetProps(Me.Props);
+                    eventReceiver.OnJoined(Me);
+                });
                 return;
             }
 
             callbackPool.Add(()=>
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
-                players.Add(player);
-                callbackPool.Add(() => eventReceiver.OnOtherPlayerJoined(player));
+                players[player.Id] = player;
+                eventReceiver.OnOtherPlayerJoined(player);
+            });
+        }
+
+        /// <summary>
+        ///   プレイヤー退室イベント
+        /// </summary>
+        private void OnEvLeft(EvLeft ev)
+        {
+            callbackPool.Add(() =>
+            {
+                var player = players[ev.ClientID];
+
+                if (masterId == player.Id)
+                {
+                    masterId = ev.MasterID;
+                    eventReceiver.OnMasterPlayerSwitched(player, Master);
+                }
+
+                players.Remove(player.Id);
+                eventReceiver.OnOtherPlayerLeft(player);
             });
         }
 

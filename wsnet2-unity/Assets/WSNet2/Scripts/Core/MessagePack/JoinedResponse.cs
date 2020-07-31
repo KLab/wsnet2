@@ -16,5 +16,11 @@ namespace WSNet2.Core
 
         [Key("token")]
         public AuthToken token;
+
+        [Key("master_id")]
+        public string masterId;
+
+        [Key("deadline")]
+        public uint deadline;
     }
 }

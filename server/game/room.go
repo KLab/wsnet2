@@ -36,11 +36,11 @@ type Room struct {
 	done     chan struct{}
 	wgClient sync.WaitGroup
 
-	muClients sync.RWMutex
-	clients   map[ClientID]*Client
-	master    *Client
-	order     []ClientID
-	// todo: photonのactorNrみたいに連番ふったほうがよいかも。gameObjectのphotonView.IDみたいなのを作るときに必要
+	muClients   sync.RWMutex
+	players     map[ClientID]*Client
+	master      *Client
+	masterOrder []ClientID
+	watchers    map[ClientID]*Client
 
 	// todo: pongにclientたちの最終送信時刻を入れたい
 	// muLastMsg sync.RWMutex
@@ -64,7 +64,7 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
+func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
@@ -80,7 +80,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		RoomInfo: info,
 		repo:     repo,
 		key:      RandomHex(roomKeyLen),
-		deadline: time.Duration(info.ClientDeadline) * time.Second,
+		deadline: time.Duration(deadlineSec) * time.Second,
 
 		publicProps:  pubProps,
 		privateProps: privProps,
@@ -88,8 +88,9 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, con
 		msgCh: make(chan Msg, RoomMsgChSize),
 		done:  make(chan struct{}),
 
-		clients: make(map[ClientID]*Client),
-		order:   []ClientID{},
+		players:     make(map[ClientID]*Client),
+		masterOrder: []ClientID{},
+		watchers:    make(map[ClientID]*Client),
 
 		logger: log.Get(loglevel),
 	}
@@ -160,28 +161,70 @@ func (r *Room) Timeout(c *Client) {
 }
 
 func (r *Room) removeClient(c *Client, err error) {
+	if c.isPlayer {
+		r.removePlayer(c, err)
+	} else {
+		r.removeWatcher(c, err)
+	}
+}
+
+func (r *Room) removePlayer(c *Client, err error) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	cid := ClientID(c.Id)
+	cid := c.ID()
 
-	if _, ok := r.clients[cid]; !ok {
-		r.logger.Debugf("Client may be aleady leaved: room=%v, client=%v", r.Id, cid)
+	if _, ok := r.players[cid]; !ok {
+		r.logger.Debugf("Player may be aleady left: room=%v, client=%v", r.Id, cid)
 		return
 	}
 
-	r.logger.Infof("Client removed: room=%v, client=%v %v", r.Id, cid, err)
-	delete(r.clients, cid)
-	// todo: orderの書き換え
+	r.logger.Infof("Player removed: room=%v, client=%v %v", r.Id, cid, err)
+	delete(r.players, cid)
+
+	for i, id := range r.masterOrder {
+		if id == cid {
+			r.masterOrder = append(r.masterOrder[:i], r.masterOrder[i+1:]...)
+			break
+		}
+	}
 
 	c.Removed(err)
 
-	if len(r.clients) == 0 {
+	if len(r.players) == 0 {
 		close(r.done)
 		return
 	}
 
-	r.broadcast(binary.NewEvLeave(string(cid)))
+	if r.master.ID() == cid {
+		r.logger.Infof("Master switched: room=%v master:%v->%v", r.Id, r.master.Id, r.masterOrder[0])
+		r.master = r.players[r.masterOrder[0]]
+	}
+
+	r.RoomInfo.Players = uint32(len(r.players))
+	r.repo.updateRoomInfo(r)
+
+	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
+}
+
+func (r *Room) removeWatcher(c *Client, err error) {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+
+	cid := c.ID()
+
+	if _, ok := r.watchers[cid]; !ok {
+		r.logger.Debugf("Watcher may be aleady left: room=%v, client=%v", r.Id, cid)
+		return
+	}
+
+	r.logger.Infof("Watcher removed: room=%v, client=%v %v", r.Id, cid, err)
+	delete(r.watchers, cid)
+
+	r.RoomInfo.Watchers -= c.nodeCount
+	r.repo.updateRoomInfo(r)
+
+	c.Removed(err)
 }
 
 func (r *Room) dispatch(msg Msg) error {
@@ -190,6 +233,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgCreate(m)
 	case *MsgJoin:
 		return r.msgJoin(m)
+	case *MsgWatch:
+		return r.msgWatch(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
 	case *MsgRoomProp:
@@ -207,7 +252,7 @@ func (r *Room) dispatch(msg Msg) error {
 	}
 }
 
-// broadcast : 特定クライアントに送信.
+// sendTo : 特定クライアントに送信.
 // muClients のロックを取得してから呼び出す.
 // 送信できない場合続行不能なので退室させる.
 func (r *Room) sendTo(c *Client, ev *binary.Event) error {
@@ -222,16 +267,11 @@ func (r *Room) sendTo(c *Client, ev *binary.Event) error {
 // broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.Event) {
-	for _, c := range r.clients {
+	for _, c := range r.players {
 		_ = r.sendTo(c, ev)
 	}
-}
-
-func (r *Room) notifyDeadline(deadline time.Duration) {
-	r.muClients.RLock()
-	defer r.muClients.RUnlock()
-	for _, c := range r.clients {
-		c.newDeadline <- deadline
+	for _, c := range r.watchers {
+		_ = r.sendTo(c, ev)
 	}
 }
 
@@ -240,42 +280,73 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	defer r.muClients.Unlock()
 
 	r.wgClient.Add(1)
-	master := NewClient(msg.Info, r)
+	master := NewPlayer(msg.Info, r)
 	r.master = master
-	r.clients[ClientID(master.Id)] = master
-	r.order = append(r.order, master.ID())
+	r.players[master.ID()] = master
+	r.masterOrder = append(r.masterOrder, master.ID())
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	players := []*pb.ClientInfo{cinfo}
-	msg.Joined <- JoinedInfo{rinfo, players, master}
+	msg.Joined <- JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 	return nil
 }
 
 func (r *Room) msgJoin(msg *MsgJoin) error {
+	if !r.Joinable {
+		close(msg.Joined)
+		return xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
+	}
+
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	if r.MaxPlayers == uint32(len(r.clients)) {
+	if r.MaxPlayers == uint32(len(r.players)) {
 		close(msg.Joined)
 		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 	}
 
 	r.wgClient.Add(1)
-	client := NewClient(msg.Info, r)
-	r.clients[ClientID(client.Id)] = client
-	r.RoomInfo.Players = uint32(len(r.clients))
+	client := NewPlayer(msg.Info, r)
+	r.players[client.ID()] = client
+	r.masterOrder = append(r.masterOrder, client.ID())
+	r.RoomInfo.Players = uint32(len(r.players))
 	r.repo.updateRoomInfo(r)
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := client.ClientInfo.Clone()
-	players := make([]*pb.ClientInfo, 0, len(r.clients))
-	for _, c := range r.clients {
+	players := make([]*pb.ClientInfo, 0, len(r.players))
+	for _, c := range r.players {
 		players = append(players, c.ClientInfo.Clone())
 	}
-	msg.Joined <- JoinedInfo{rinfo, players, client}
+	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
+	return nil
+}
+
+func (r *Room) msgWatch(msg *MsgWatch) error {
+	if !r.Watchable {
+		close(msg.Joined)
+		return xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
+	}
+
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+
+	r.wgClient.Add(1)
+	client := NewWatcher(msg.Info, r)
+	r.watchers[client.ID()] = client
+	r.RoomInfo.Watchers += client.nodeCount
+	r.repo.updateRoomInfo(r)
+
+	rinfo := r.RoomInfo.Clone()
+	players := make([]*pb.ClientInfo, 0, len(r.players))
+	for _, c := range r.players {
+		players = append(players, c.ClientInfo.Clone())
+	}
+
+	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	return nil
 }
 
@@ -290,13 +361,11 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	}
 	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
 
-	deadlineUpdated := r.ClientDeadline != msg.ClientDeadline
 	r.RoomInfo.Visible = msg.Visible
 	r.RoomInfo.Joinable = msg.Joinable
 	r.RoomInfo.Watchable = msg.Watchable
 	r.RoomInfo.SearchGroup = msg.SearchGroup
 	r.RoomInfo.MaxPlayers = msg.MaxPlayer
-	r.RoomInfo.ClientDeadline = msg.ClientDeadline
 
 	if len(msg.PublicProps) > 0 {
 		for k, v := range msg.PublicProps {
@@ -324,14 +393,20 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 
 	r.repo.updateRoomInfo(r)
 
-	if deadlineUpdated {
-		r.deadline = time.Duration(msg.ClientDeadline) * time.Second
-		r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, r.deadline)
-		r.notifyDeadline(r.deadline)
-	}
-
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+
+	if msg.ClientDeadline != 0 {
+		deadline := time.Duration(msg.ClientDeadline) * time.Second
+		if deadline != r.deadline {
+			r.logger.Debugf("Room notify new deadline: room=%v %v", r.Id, deadline)
+			r.deadline = deadline
+			for _, c := range r.players {
+				c.newDeadline <- deadline
+			}
+		}
+	}
+
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
@@ -342,11 +417,12 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 
 	ev := binary.NewEvMessage(msg.Sender.Id, msg.Data)
 
-	// todo: 失敗した人を通知したほうがいいかも？
+	// todo: 居なかった人を通知したほうがいいかも？
 
 	for _, t := range msg.Targets {
-		c, ok := r.clients[ClientID(t)]
+		c, ok := r.players[ClientID(t)]
 		if !ok {
+			r.logger.Infof("target %s is absent", t)
 			continue
 		}
 		_ = r.sendTo(c, ev)
@@ -358,6 +434,7 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 func (r *Room) msgToMaster(msg *MsgToMaster) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	// todo: 送信できなかったら通知したい
 	_ = r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
 	return nil
 }

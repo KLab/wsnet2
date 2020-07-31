@@ -157,6 +157,21 @@ namespace WSNet2.Core
             Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, receiver, onSuccess, onFailed));
         }
 
+        public void Watch(
+            string roomId,
+            IDictionary<string, object> clientProps,
+            EventReceiver receiver,
+            Func<Room, bool> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new JoinParam();
+            param.clientInfo = new ClientInfo(userId, clientProps);
+
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, receiver, onSuccess, onFailed));
+        }
+
         private async Task connectToRoom(
             string path,
             byte[] content,
