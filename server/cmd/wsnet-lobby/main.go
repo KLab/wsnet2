@@ -14,6 +14,7 @@ import (
 )
 
 func main() {
+	defer log.InitLogger()()
 	log.SetLevel(log.ALL)
 
 	if len(os.Args) < 2 {
