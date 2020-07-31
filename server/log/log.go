@@ -35,38 +35,9 @@ var (
 	level Level = INFO // global log level.
 )
 
-// Logger type
-type Logger Level
-
 // Get Logger for custom log level.
-func Get(l Level) Logger {
-	return Logger(l)
-}
-
-// Level returns logger log level.
-func (l Logger) Level() Level {
-	return Level(l)
-}
-
-// Debugf outputs log for debug
-func (l Logger) Debugf(format string, v ...interface{}) {
-	if Level(l) >= DEBUG {
-		wrappedLogger.Debugf(format, v...)
-	}
-}
-
-// Infof outputs log for information
-func (l Logger) Infof(format string, v ...interface{}) {
-	if Level(l) >= INFO {
-		wrappedLogger.Infof(format, v...)
-	}
-}
-
-// Errorf outouts log for error
-func (l Logger) Errorf(format string, v ...interface{}) {
-	if Level(l) >= ERROR {
-		wrappedLogger.Errorf(format, v...)
-	}
+func Get(l Level) *zap.Logger {
+	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l)))
 }
 
 // CurrentLevel returns global log level
