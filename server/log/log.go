@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -104,10 +105,15 @@ func (l Level) String() string {
 	return "ALL"
 }
 
+func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(t.Format("15:04:05.000"))
+}
+
 func InitLogger() func() {
 	// Consoleに出力するLogger
 	consoleEnc := zap.NewDevelopmentEncoderConfig()
 	consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleEnc.EncodeTime = consoleTimeEncoder
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, zap.DebugLevel)
 
 	// TODO: 指定されたファイルに出力する。
