@@ -6,6 +6,7 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using WSNet2.Core;
 
+
 public class GameScript : MonoBehaviour
 {
     public Text roomText;
@@ -26,10 +27,51 @@ public class GameScript : MonoBehaviour
     Bar cpuBar;
 
     bool isOnlineMode;
+    bool isMasterClient;
+
+    float nextSyncTime;
 
     void RoomLog(string s)
     {
         roomText.text += s + "\n";
+    }
+
+    public class SyncPositionMessage : IWSNetSerializable
+    {
+        // TODO Vector を.NETCore実装と共存させる方法を考える
+
+        public Vector2 bar1Pos;
+        public Vector2 bar2Pos;
+        public Vector2 ballPos;
+
+        public SyncPositionMessage() { }
+
+        public void Serialize(SerialWriter writer)
+        {
+            writer.Write(bar1Pos.x);
+            writer.Write(bar1Pos.y);
+            writer.Write(bar2Pos.x);
+            writer.Write(bar2Pos.y);
+            writer.Write(ballPos.x);
+            writer.Write(ballPos.y);
+        }
+
+        public void Deserialize(SerialReader reader, int len)
+        {
+            bar1Pos.x = reader.ReadFloat();
+            bar1Pos.y = reader.ReadFloat();
+            bar2Pos.x = reader.ReadFloat();
+            bar2Pos.y = reader.ReadFloat();
+            ballPos.x = reader.ReadFloat();
+            ballPos.y = reader.ReadFloat();
+        }
+    }
+
+    void RPCSyncPosition(string sender, SyncPositionMessage msg)
+    {
+        bar1.transform.position = msg.bar1Pos;
+        bar2.transform.position = msg.bar2Pos;
+        ball.transform.position = msg.ballPos;
     }
 
     // Start is called before the first frame update
@@ -53,6 +95,47 @@ public class GameScript : MonoBehaviour
         if (isOnlineMode)
         {
             roomText.text = "Room:" + WSNet2Runner.Instance.GameRoom.Id + "\n";
+
+            // Roomの処理を開始する前に EventReceiver と RPC の登録を行う必要がある
+            WSNet2Runner.Instance.GameEventReceiver.OnClosedDelegate += reason =>
+            {
+                RoomLog("OnClosed:" + reason);
+            };
+
+            WSNet2Runner.Instance.GameEventReceiver.OnErrorDelegate += e =>
+            {
+                RoomLog("OnError:" + e);
+            };
+
+            WSNet2Runner.Instance.GameEventReceiver.OnJoinedDelegate += p =>
+            {
+                RoomLog("OnJoined:" + p.Id);
+            };
+
+            WSNet2Runner.Instance.GameEventReceiver.OnMasterPlayerSwitchedDelegate += (prev, cur) =>
+            {
+                RoomLog("OnMasterPlayerSwitched:" + prev.Id + " -> " + cur.Id);
+            };
+
+            WSNet2Runner.Instance.GameEventReceiver.OnOtherPlayerJoinedDelegate += (p) =>
+            {
+                RoomLog("OnOtherPlayerJoined:" + p.Id);
+            };
+
+            WSNet2Runner.Instance.GameEventReceiver.OnOtherPlayerLeftDelegate += (p) =>
+            {
+                RoomLog("OnOtherPlayerLeft:" + p.Id);
+            };
+
+            WSNet2Runner.Instance.GameEventReceiver.RegisterRPC<SyncPositionMessage>(RPCSyncPosition);
+
+            WSNet2Runner.Instance.GameRoom.Running = true;
+
+            if (WSNet2Runner.Instance.GameRoom.Master.Id == WSNet2Runner.Instance.GameRoom.Me.Id)
+            {
+                // TODO 仮 .NETCore実装が MasterClientになる予定
+                isMasterClient = true;
+            }
         }
         else
         {
@@ -68,7 +151,6 @@ public class GameScript : MonoBehaviour
         ball.speed = 3f;
     }
 
-    // Update is called once per frame
     void Update()
     {
         if (playerBar != null)
@@ -153,5 +235,21 @@ public class GameScript : MonoBehaviour
             }
         }
 
+
+        if (isMasterClient)
+        {
+            nextSyncTime -= Time.deltaTime;
+            if (nextSyncTime < 0)
+            {
+                nextSyncTime = 0.1f;
+                WSNet2Runner.Instance.GameRoom.RPC(RPCSyncPosition, new SyncPositionMessage
+                {
+                    bar1Pos = bar1.transform.position,
+                    bar2Pos = bar2.transform.position,
+                    ballPos = ball.transform.position,
+                });
+
+            }
+        }
     }
 }

@@ -22,7 +22,7 @@ public class WSNet2Runner : MonoBehaviour
         get; set;
     }
 
-    // Active game room.
+    // Active game receiver.
     public DelegatedEventReceiver GameEventReceiver
     {
         get; set;
@@ -32,6 +32,7 @@ public class WSNet2Runner : MonoBehaviour
     {
         if (WSNet2Runner.Instance == null)
         {
+            WSNet2Helper.RegisterTypes();
             new GameObject("WSNet2Runner").AddComponent<WSNet2Runner>();
         }
     }

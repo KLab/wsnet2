@@ -3,7 +3,7 @@ using System.Text;
 using System.Security.Cryptography;
 using WSNet2.Core;
 
-public static class WSNetHelper
+public static class WSNet2Helper
 {
     public static AuthData GenAuthData(string key, string userid)
     {
@@ -27,5 +27,6 @@ public static class WSNetHelper
     public static void RegisterTypes()
     {
         Serialization.Register<SampleClient.StrMessage>(1);
+        Serialization.Register<GameScript.SyncPositionMessage>(2);
     }
 }
