@@ -4,7 +4,8 @@ package pb;
 
 message RoomOption {
 	bool visible = 1;
-	bool watchable = 2;
+	bool joinable = 2;
+	bool watchable = 3;
 
 	bool with_number = 7;
 	uint32 search_group = 8;

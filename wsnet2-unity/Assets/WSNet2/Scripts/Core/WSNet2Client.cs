@@ -111,12 +111,11 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam();
-            param.roomId = roomId;
             param.clientInfo = new ClientInfo(userId, clientProps);
 
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom("/rooms/join", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, receiver, onSuccess, onFailed));
         }
 
         /// <summary>
@@ -132,12 +131,11 @@ namespace WSNet2.Core
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new JoinByNumberParam();
-            param.roomNumber = number;
+            var param = new JoinParam();
             param.clientInfo = new ClientInfo(userId, clientProps);
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom("/rooms/join/number", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, receiver, onSuccess, onFailed));
         }
 
         /// <summary>
@@ -151,13 +149,27 @@ namespace WSNet2.Core
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new JoinByQueriesParam();
-            param.searchGroup = group;
+            var param = new JoinParam();
             param.queries = queries;
             param.clientInfo = new ClientInfo(userId, clientProps);
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom("/rooms/join/query", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, receiver, onSuccess, onFailed));
+        }
+
+        public void Watch(
+            string roomId,
+            IDictionary<string, object> clientProps,
+            EventReceiver receiver,
+            Func<Room, bool> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new JoinParam();
+            param.clientInfo = new ClientInfo(userId, clientProps);
+
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, receiver, onSuccess, onFailed));
         }
 
         private async Task connectToRoom(

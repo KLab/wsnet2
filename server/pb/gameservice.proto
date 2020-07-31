@@ -10,6 +10,7 @@ import "roomoption.proto";
 service Game {
 	rpc Create (CreateRoomReq) returns (JoinedRoomRes);
 	rpc Join (JoinRoomReq) returns (JoinedRoomRes);
+	rpc Watch (JoinRoomReq) returns (JoinedRoomRes);
 }
 
 message CreateRoomReq {
@@ -26,7 +27,19 @@ message JoinRoomReq {
 
 message JoinedRoomRes {
 	RoomInfo room_info = 1;
+
+	// all players
 	repeated ClientInfo players = 2;
+
+	// websocket endpoint url
 	string url = 3;
+
+	// auth token for websocket connection
 	AuthToken token = 4;
+
+	// room master
+	string master_id = 5;
+
+	// client read deadline
+	uint32 deadline = 6;
 }

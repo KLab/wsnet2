@@ -1,10 +1,12 @@
 package game
 
 import (
-	"wsnet2/binary"
-	"wsnet2/pb"
+	"time"
 
 	"golang.org/x/xerrors"
+
+	"wsnet2/binary"
+	"wsnet2/pb"
 )
 
 type Msg interface {
@@ -13,6 +15,7 @@ type Msg interface {
 
 var _ Msg = &MsgCreate{}
 var _ Msg = &MsgJoin{}
+var _ Msg = &MsgWatch{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgBroadcast{}
@@ -20,9 +23,11 @@ var _ Msg = &MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
 type JoinedInfo struct {
-	Room    *pb.RoomInfo
-	Players []*pb.ClientInfo
-	Client  *Client
+	Room     *pb.RoomInfo
+	Players  []*pb.ClientInfo
+	Client   *Client
+	MasterId ClientID
+	Deadline time.Duration
 }
 
 // MsgCreate : 部屋作成メッセージ
@@ -42,6 +47,15 @@ type MsgJoin struct {
 }
 
 func (*MsgJoin) msg() {}
+
+// MsgWatch : 観戦入室メッセージ
+// gRPCリクエストよりwsnet内で発生
+type MsgWatch struct {
+	Info   *pb.ClientInfo
+	Joined chan<- JoinedInfo
+}
+
+func (*MsgWatch) msg() {}
 
 // MsgLeave : 退室メッセージ
 // クライアントの自発的な退室リクエスト

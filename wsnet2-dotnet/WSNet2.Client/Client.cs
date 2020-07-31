@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -60,9 +61,14 @@ namespace WSNet2.DotnetClient
                 Console.WriteLine("OnOtherPlayerJoined: "+player.Id);
             }
 
-            public override void OnLeave(Player player)
+            public override void OnOtherPlayerLeft(Player player)
             {
-                Console.WriteLine("OnLeave: "+player.Id);
+                Console.WriteLine("OnOtherPlayerLeft: "+player.Id);
+            }
+
+            public override void OnMasterPlayerSwitched(Player pred, Player newly)
+            {
+                Console.WriteLine($"OnMasterplayerswitched: {pred.Id} -> {newly.Id}");
             }
 
             public override void OnClosed(string description)
@@ -131,7 +137,6 @@ namespace WSNet2.DotnetClient
                 {"name", userid},
             };
 
-
             var cts = new CancellationTokenSource();
             var receiver = new EventReceiver(cts);
             receiver.RegisterRPC<StrMessage>(RPCMessage);
@@ -162,7 +167,14 @@ namespace WSNet2.DotnetClient
             else
             {
                 var roomId = args[0];
-                client.Join(roomId, cliProps, receiver, onJoined, onFailed);
+                if (args.Length == 1)
+                {
+                    client.Join(roomId, cliProps, receiver, onJoined, onFailed);
+                }
+                else
+                {
+                    client.Watch(roomId, cliProps, receiver, onJoined, onFailed);
+                }
             }
 
             _ = callbackrunner(client, cts.Token);
@@ -179,18 +191,22 @@ namespace WSNet2.DotnetClient
                     var str = Console.ReadLine();
 
                     cts.Token.ThrowIfCancellationRequested();
-                    Console.WriteLine($"input ({Thread.CurrentThread.ManagedThreadId}): {str}");
 
                     switch(i%3){
                         case 0:
+                            Console.WriteLine($"rpc to master: {str}");
                             var msg = new StrMessage(str);
                             room.RPC(RPCMessage, msg, Room.RPCToMaster);
                             break;
                         case 1:
-                            room.RPC(receiver.RPCString, str, "id0001"); // target
+                            var ids = room.Players.Keys.ToArray();
+                            var target = ids[rand.Next(ids.Length)];
+                            Console.WriteLine($"rpc to {target}: {str}");
+                            room.RPC(receiver.RPCString, str, target);
                             break;
                         case 2:
-                            room.RPC(receiver.RPCString, str); // broadcast
+                            Console.WriteLine($"rpc to all: {str}");
+                            room.RPC(receiver.RPCString, str);
                             break;
                     }
                     i++;
