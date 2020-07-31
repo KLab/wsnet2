@@ -136,6 +136,7 @@ func (l Level) String() string {
 func InitLogger() func() {
 	// Consoleに出力するLogger
 	consoleEnc := zap.NewDevelopmentEncoderConfig()
+	consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, zap.DebugLevel)
 
 	// TODO: 指定されたファイルに出力する。
