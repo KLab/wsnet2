@@ -16,20 +16,17 @@ var (
 	defaultLogLevel = zap.NewAtomicLevel()
 )
 
-// Level type of loglevel
-type Level int
+type Level = zapcore.Level
 
 const (
-	// NOLOG output no logs
-	NOLOG Level = iota
 	// ERROR output error logs
-	ERROR
+	ERROR = zap.ErrorLevel
 	// INFO output info/error logs
-	INFO
+	INFO = zap.InfoLevel
 	// DEBUG output debug/info/error logs
-	DEBUG
+	DEBUG = zap.DebugLevel
 	// ALL output all logs
-	ALL
+	ALL = zap.DebugLevel
 )
 
 var (
@@ -38,7 +35,7 @@ var (
 
 // Get Logger for custom log level.
 func Get(l Level) *zap.Logger {
-	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l)))
+	return rootLogger.WithOptions(zap.IncreaseLevel(l))
 }
 
 // CurrentLevel returns global log level
@@ -46,25 +43,9 @@ func CurrentLevel() Level {
 	return level
 }
 
-func toZapLevel(l Level) zapcore.Level {
-	switch l {
-	case NOLOG:
-		return zapcore.PanicLevel
-	case ERROR:
-		return zapcore.ErrorLevel
-	case INFO:
-		return zapcore.InfoLevel
-	case DEBUG, ALL:
-		return zapcore.DebugLevel
-	}
-	Errorf("Unknown level: %v", l)
-	return zapcore.DebugLevel
-}
-
 // SetLevel sets global log level
 func SetLevel(l Level) Level {
-	defaultLogLevel.SetLevel(toZapLevel(l))
-
+	defaultLogLevel.SetLevel(l)
 	level, l = l, level
 	return l
 }
@@ -88,21 +69,6 @@ func Errorf(format string, v ...interface{}) {
 	if level >= ERROR {
 		wrappedLogger.Errorf(format, v...)
 	}
-}
-
-// String implements Stringer interface
-func (l Level) String() string {
-	switch {
-	case l <= NOLOG:
-		return "NOLOG"
-	case l == ERROR:
-		return "ERROR"
-	case l == INFO:
-		return "INFO"
-	case l == DEBUG:
-		return "DEBUG"
-	}
-	return "ALL"
 }
 
 func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
