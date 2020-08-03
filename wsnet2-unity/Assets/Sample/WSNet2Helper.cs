@@ -5,10 +5,12 @@ using WSNet2.Core;
 
 public static class WSNet2Helper
 {
-    public static byte[] Serialize<T> (T v) where T : class, IWSNetSerializable {
+    public static byte[] Serialize<T>(T v) where T : class, IWSNetSerializable
+    {
         // FIXME: もう少し便利な方法が提供してほしい
         var w = WSNet2.Core.Serialization.GetWriter();
-        lock (w) {
+        lock (w)
+        {
             w.Write<T>(v);
             var seg = w.ArraySegment();
             var ret = new byte[seg.Count];
@@ -17,10 +19,12 @@ public static class WSNet2Helper
         }
     }
 
-    public static byte[] Serialize(int v) {
+    public static byte[] Serialize(int v)
+    {
         // FIXME: もう少し便利な方法が提供してほしい
         var w = WSNet2.Core.Serialization.GetWriter();
-        lock (w) {
+        lock (w)
+        {
             w.Write(v);
             var seg = w.ArraySegment();
             var ret = new byte[seg.Count];
@@ -29,10 +33,12 @@ public static class WSNet2Helper
         }
     }
 
-    public static byte[] Serialize(string v) {
+    public static byte[] Serialize(string v)
+    {
         // FIXME: もう少し便利な方法が提供してほしい
         var w = WSNet2.Core.Serialization.GetWriter();
-        lock (w) {
+        lock (w)
+        {
             w.Write(v);
             var seg = w.ArraySegment();
             var ret = new byte[seg.Count];
@@ -64,5 +70,7 @@ public static class WSNet2Helper
     {
         Serialization.Register<SampleClient.StrMessage>(1);
         Serialization.Register<GameScript.SyncPositionMessage>(2);
+        Serialization.Register<GameScript.EmptyMessage>(3);
+        Serialization.Register<GameScript.PlayerMoveMessage>(4);
     }
 }

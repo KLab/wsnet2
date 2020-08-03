@@ -7,12 +7,12 @@ using WSNet2.Core;
 
 public class TitleScene : MonoBehaviour
 {
-
     public InputField lobbyInput;
     public InputField appIdInput;
     public InputField appKeyInput;
     public InputField userIdInput;
 
+    public static uint SearchGroup = 1000;
 
     public void OnClickCreate()
     {
@@ -20,8 +20,6 @@ public class TitleScene : MonoBehaviour
 
         var pubProps = new Dictionary<string, object>(){
             {"game", "pong"},
-            {"aaa", "public"},
-            {"bbb", (int)13},
         };
         var privProps = new Dictionary<string, object>(){
             {"aaa", "private"},
@@ -30,7 +28,7 @@ public class TitleScene : MonoBehaviour
         var cliProps = new Dictionary<string, object>(){
             {"userId", userIdInput.text},
         };
-        var roomOpt = new RoomOption(10, 1000, pubProps, privProps);
+        var roomOpt = new RoomOption(2, SearchGroup, pubProps, privProps);
         var receiver = new DelegatedEventReceiver();
 
         prepareWSNet2Client();
@@ -76,7 +74,7 @@ public class TitleScene : MonoBehaviour
 
         prepareWSNet2Client();
         WSNet2Runner.Instance.Client.RandomJoin(
-            1000,
+            SearchGroup,
             queries,
             cliProps,
             receiver,
