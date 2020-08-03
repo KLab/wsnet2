@@ -241,7 +241,8 @@ public class GameScript : MonoBehaviour
             nextSyncTime -= Time.deltaTime;
             if (nextSyncTime < 0)
             {
-                nextSyncTime = 0.1f;
+                // nextSyncTime = 0.1f;
+                nextSyncTime = 1.0f;
                 WSNet2Runner.Instance.GameRoom.RPC(RPCSyncPosition, new SyncPositionMessage
                 {
                     bar1Pos = bar1.transform.position,

@@ -19,9 +19,9 @@ public class TitleScene : MonoBehaviour
         Debug.Log("OnClickCreate");
 
         var pubProps = new Dictionary<string, object>(){
+            {"game", "pong"},
             {"aaa", "public"},
             {"bbb", (int)13},
-            {"game", "pong"},
         };
         var privProps = new Dictionary<string, object>(){
             {"aaa", "private"},
@@ -51,7 +51,6 @@ public class TitleScene : MonoBehaviour
         );
     }
 
-
     public void OnClickRandomJoin()
     {
         Debug.Log("OnClickRandomJoin");
@@ -63,10 +62,14 @@ public class TitleScene : MonoBehaviour
             {"bbb", (int)13},
         };
 
-        var q = new PropQuery{
-            key = "game",
-            op = OpType.Equal,
-            val = System.Text.Encoding.UTF8.GetBytes("pong"), // これゲーム実装側にやらせる?
+        var queries = new PropQuery[][]{
+            new PropQuery[] {
+                new PropQuery{
+                    key = "game",
+                    op = OpType.Equal,
+                    val = WSNet2Helper.Serialize("pong"),
+                },
+            },
         };
 
         var receiver = new DelegatedEventReceiver();
@@ -74,7 +77,7 @@ public class TitleScene : MonoBehaviour
         prepareWSNet2Client();
         WSNet2Runner.Instance.Client.RandomJoin(
             1000,
-            null,
+            queries,
             cliProps,
             receiver,
             (room) =>
