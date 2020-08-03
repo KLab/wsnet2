@@ -504,6 +504,7 @@ namespace WSNet2.Core
                 ct.ThrowIfCancellationRequested();
 
                 var interval = Task.Delay(1000);
+                msg.SetTimestamp();
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                 await interval;
             }

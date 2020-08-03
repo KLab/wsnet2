@@ -16,6 +16,7 @@ type Msg interface {
 var _ Msg = &MsgCreate{}
 var _ Msg = &MsgJoin{}
 var _ Msg = &MsgWatch{}
+var _ Msg = &MsgPing{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgBroadcast{}
@@ -56,6 +57,26 @@ type MsgWatch struct {
 }
 
 func (*MsgWatch) msg() {}
+
+// MsgPing : タイムアウト防止定期通信.
+// nonregular message
+type MsgPing struct {
+	Sender    *Client
+	Timestamp uint64
+}
+
+func (*MsgPing) msg() {}
+
+func msgPing(sender *Client, m binary.Msg) (Msg, error) {
+	ts, err := binary.UnmarshalPingPayload(m.Payload())
+	if err != nil {
+		return nil, err
+	}
+	return &MsgPing{
+		Sender:    sender,
+		Timestamp: ts,
+	}, nil
+}
 
 // MsgLeave : 退室メッセージ
 // クライアントの自発的な退室リクエスト
@@ -162,6 +183,8 @@ func (*MsgClientError) msg() {}
 
 func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 	switch m.Type() {
+	case binary.MsgTypePing:
+		return msgPing(cli, m)
 	case binary.MsgTypeLeave:
 		return msgLeave(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeRoomProp:

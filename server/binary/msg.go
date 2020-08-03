@@ -33,6 +33,8 @@ const (
 
 	// MsgTypePing : 定期通信.
 	// タイムアウトしないように
+	// payload:
+	// - 64bit-be: timestamp
 	MsgTypePing MsgType = 1 + iota
 )
 const (
@@ -116,6 +118,15 @@ func UnmarshalMsg(data []byte) (Msg, error) {
 	data = data[3:]
 
 	return &regularMsg{mt, seq, data}, nil
+}
+
+// UnmarshalPingPayload parses payload of MsgPing
+func UnmarshalPingPayload(payload []byte) (uint64, error) {
+	if len(payload) < 8 {
+		return 0, xerrors.Errorf("data length not enough: %v", len(payload))
+	}
+
+	return get64(payload), nil
 }
 
 type MsgRoomPropPayload struct {

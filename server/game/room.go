@@ -235,6 +235,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgJoin(m)
 	case *MsgWatch:
 		return r.msgWatch(m)
+	case *MsgPing:
+		return r.msgPing(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
 	case *MsgRoomProp:
@@ -347,6 +349,12 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	}
 
 	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
+	return nil
+}
+
+func (r *Room) msgPing(msg *MsgPing) error {
+	// TODO: implement
+	r.logger.Debugf("ping: %v", msg)
 	return nil
 }
 
