@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using MessagePack;
 
+using System.Threading;
+
 namespace WSNet2.Core
 {
     public class AuthData

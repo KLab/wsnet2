@@ -3,30 +3,30 @@ using System;
 namespace WSNet2.Core
 {
     /// <summary>
+    ///   イベント種別
+    /// </summary>
+    public enum EvType
+    {
+        regularEvType = 30,
+        localEvType = 0x10000,
+
+        PeerReady = 1,
+        Pong,
+
+        Joined = regularEvType,
+        Left,
+        RomProp,
+        ClientProp,
+        Message,
+
+        Closed = localEvType,
+    }
+
+    /// <summary>
     ///   Gameサーバから送られてくるイベント
     /// </summary>
     public class Event
     {
-        const int regularEvType = 30;
-        const int localEvType = 0x10000;
-
-        /// <summary>
-        ///   イベント種別
-        /// </summary>
-        public enum EvType
-        {
-            PeerReady = 1,
-            Pong,
-
-            Joined = regularEvType,
-            Left,
-            RomProp,
-            ClientProp,
-            Message,
-
-            Closed = localEvType,
-        }
-
         /// <summary>
         ///   受信に使ったArraySegmentの中身（使い終わったらバッファプールに返却する用）
         /// </summary>
@@ -36,7 +36,7 @@ namespace WSNet2.Core
         public EvType Type { get; private set; }
 
         /// <summary>通常メッセージか</summary>
-        public bool IsRegular { get{ return (int)Type >= regularEvType && (int)Type < localEvType; } }
+        public bool IsRegular { get{ return Type >= EvType.regularEvType && Type < EvType.localEvType; } }
 
         /// <summary>通し番号</summary>
         public uint SequenceNum { get; private set; }

@@ -177,7 +177,7 @@ namespace WSNet2.DotnetClient
                 }
             }
 
-            _ = callbackrunner(client, cts.Token);
+            _ = Task.Run(async () => await callbackrunner(client, cts.Token));
 
             try
             {
