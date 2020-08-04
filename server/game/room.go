@@ -42,9 +42,7 @@ type Room struct {
 	masterOrder []ClientID
 	watchers    map[ClientID]*Client
 
-	// todo: pongにclientたちの最終送信時刻を入れたい
-	// muLastMsg sync.RWMutex
-	// lastMsg   map[ClientID]int // unixtime
+	lastMsg binary.Dict // map[clientID]unixtime
 
 	logger log.Logger
 }
@@ -91,6 +89,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, dea
 		players:     make(map[ClientID]*Client),
 		masterOrder: []ClientID{},
 		watchers:    make(map[ClientID]*Client),
+		lastMsg:     make(binary.Dict),
 
 		logger: log.Get(loglevel),
 	}
@@ -120,6 +119,7 @@ Loop:
 			break Loop
 		case msg := <-r.msgCh:
 			r.logger.Debugf("Room msg: room=%v, %T %v", r.Id, msg, msg)
+			r.updateLastMsg(msg.SenderID())
 			if err := r.dispatch(msg); err != nil {
 				r.logger.Errorf("Room msg error: %v", err)
 			}
@@ -153,6 +153,25 @@ func (r *Room) drainMsg() {
 // Done returns a channel which cloased when room is done.
 func (r *Room) Done() <-chan struct{} {
 	return r.done
+}
+
+func (r *Room) addLastMsg(cid ClientID) {
+	now := uint64(time.Now().Unix())
+	r.lastMsg[string(cid)] = binary.MarshalULong(now)
+}
+
+func (r *Room) removeLastMsg(cid ClientID) {
+	delete(r.lastMsg, string(cid))
+}
+
+/// UpdateLastMsg : PlayerがMsgを受信したとき更新する.
+/// 既に登録されているPlayerのみ書き込み (watcherを含めないため)
+func (r *Room) updateLastMsg(cid ClientID) {
+	id := string(cid)
+	if _, ok := r.lastMsg[id]; ok {
+		now := uint64(time.Now().Unix())
+		r.lastMsg[id] = binary.MarshalULong(now)
+	}
 }
 
 // Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる
@@ -205,6 +224,8 @@ func (r *Room) removePlayer(c *Client, err error) {
 	r.repo.updateRoomInfo(r)
 
 	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
+
+	r.removeLastMsg(cid)
 }
 
 func (r *Room) removeWatcher(c *Client, err error) {
@@ -292,6 +313,9 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	players := []*pb.ClientInfo{cinfo}
 	msg.Joined <- JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
+
+	r.addLastMsg(master.ID())
+
 	return nil
 }
 
@@ -324,6 +348,9 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
+
+	r.addLastMsg(client.ID())
+
 	return nil
 }
 
@@ -353,9 +380,8 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 }
 
 func (r *Room) msgPing(msg *MsgPing) error {
-	// TODO: implement
-	r.logger.Debugf("ping: %v", msg)
-	return nil
+	ev := binary.NewEvPong(msg.Timestamp, r.lastMsg)
+	return msg.Sender.SendSystemEvent(ev)
 }
 
 func (r *Room) msgLeave(msg *MsgLeave) error {

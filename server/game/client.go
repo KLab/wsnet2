@@ -24,7 +24,7 @@ type Client struct {
 	*pb.ClientInfo
 	room *Room
 
-	isPlayer bool
+	isPlayer  bool
 	nodeCount uint32
 
 	removed     chan struct{}
@@ -212,6 +212,21 @@ func (c *Client) Removed(cause error) {
 func (c *Client) Send(e *binary.Event) error {
 	c.room.logger.Debugf("client.send: client=%v %v", c.Id, e.Type)
 	return c.evbuf.Write(e)
+}
+
+// RoomのMsgLoopから呼ばれる.
+func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
+	c.room.logger.Debugf("client.SystemSend: client=%v %v", c.Id, e.Type)
+	p := c.peer
+	if p == nil {
+		return xerrors.Errorf("client.SendSystemEvent: no peer attached")
+	}
+
+	// SystemEventは送信順序を問わない. 多少遅れても構わない.
+	// roomのmsgloopを止めないために新しいgoroutineで送信する.
+	go p.SendSystemEvent(e)
+
+	return nil
 }
 
 // attachPeer: peerを紐付ける

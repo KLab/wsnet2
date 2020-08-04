@@ -95,6 +95,19 @@ func NewEvPeerReady(seqNum int) *SystemEvent {
 	}
 }
 
+// NewEvPong : Pongイベント
+// payload:
+// - 64bit-be: timestamp on ping sent.
+func NewEvPong(pingtime uint64, lastMsg Dict) *SystemEvent {
+	payload := MarshalULong(pingtime)
+	payload = append(payload, MarshalDict(lastMsg)...)
+
+	return &SystemEvent{
+		Type:    EvTypePong,
+		Payload: payload,
+	}
+}
+
 // NewEvJoind : 入室イベント
 func NewEvJoined(cli *pb.ClientInfo) *Event {
 	payload := MarshalStr8(cli.Id)
