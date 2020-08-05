@@ -526,6 +526,7 @@ namespace WSNet2.Core
                 ct.ThrowIfCancellationRequested();
 
                 // todo: deadline変更時にDelayを中断したい
+                // deadlineの半分の時間停止していても切断しないような間隔で送信
                 var interval = Task.Delay(deadlineMilliSec / 3);
                 msg.SetTimestamp();
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
