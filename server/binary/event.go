@@ -97,9 +97,12 @@ func NewEvPeerReady(seqNum int) *SystemEvent {
 
 // NewEvPong : Pongイベント
 // payload:
-// - 64bit-be: timestamp on ping sent.
-func NewEvPong(pingtime uint64, lastMsg Dict) *SystemEvent {
+// - unsigned 64bit-be: timestamp on ping sent.
+// - unsigned 32bit-be: watcher count in the room.
+// - dict: last msg timestamps of each player.
+func NewEvPong(pingtime uint64, watchers uint32, lastMsg Dict) *SystemEvent {
 	payload := MarshalULong(pingtime)
+	payload = append(payload, MarshalUInt(int(watchers))...)
 	payload = append(payload, MarshalDict(lastMsg)...)
 
 	return &SystemEvent{

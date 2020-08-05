@@ -42,7 +42,7 @@ type Room struct {
 	masterOrder []ClientID
 	watchers    map[ClientID]*Client
 
-	lastMsg binary.Dict // map[clientID]unixtime
+	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
 	logger log.Logger
 }
@@ -155,9 +155,9 @@ func (r *Room) Done() <-chan struct{} {
 	return r.done
 }
 
-func (r *Room) addLastMsg(cid ClientID) {
-	now := uint64(time.Now().Unix())
-	r.lastMsg[string(cid)] = binary.MarshalULong(now)
+func (r *Room) writeLastMsg(cid ClientID) {
+	millisec := uint64(time.Now().UnixNano()) / 1000000
+	r.lastMsg[string(cid)] = binary.MarshalULong(millisec)
 }
 
 func (r *Room) removeLastMsg(cid ClientID) {
@@ -169,8 +169,7 @@ func (r *Room) removeLastMsg(cid ClientID) {
 func (r *Room) updateLastMsg(cid ClientID) {
 	id := string(cid)
 	if _, ok := r.lastMsg[id]; ok {
-		now := uint64(time.Now().Unix())
-		r.lastMsg[id] = binary.MarshalULong(now)
+		r.writeLastMsg(cid)
 	}
 }
 
@@ -314,7 +313,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	msg.Joined <- JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 
-	r.addLastMsg(master.ID())
+	r.writeLastMsg(master.ID())
 
 	return nil
 }
@@ -349,7 +348,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 
-	r.addLastMsg(client.ID())
+	r.writeLastMsg(client.ID())
 
 	return nil
 }
@@ -380,7 +379,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 }
 
 func (r *Room) msgPing(msg *MsgPing) error {
-	ev := binary.NewEvPong(msg.Timestamp, r.lastMsg)
+	ev := binary.NewEvPong(msg.Timestamp, r.RoomInfo.Watchers, r.lastMsg)
 	return msg.Sender.SendSystemEvent(ev)
 }
 

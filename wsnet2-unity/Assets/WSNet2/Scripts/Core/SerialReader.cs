@@ -477,6 +477,42 @@ namespace WSNet2.Core
             return vals;
         }
 
+        public Dictionary<string, bool> ReadBoolDict()
+        {
+            checkType(Type.Dict);
+            var dict = new Dictionary<string, bool>();
+            var count = Get8();
+
+            for (var i = 0; i < count; i++)
+            {
+                var klen = Get8();
+                var key = string.Intern(utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, klen));
+                pos += klen + 2;
+                dict[key] = ReadBool();
+            }
+
+            return dict;
+        }
+
+        // TODO: implement other primitive type dict
+
+        public Dictionary<string, ulong> ReadULongDict()
+        {
+            checkType(Type.Dict);
+            var dict = new Dictionary<string, ulong>();
+            var count = Get8();
+
+            for (var i = 0; i < count; i++)
+            {
+                var klen = Get8();
+                var key = string.Intern(utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, klen));
+                pos += klen + 2;
+                dict[key] = ReadULong();
+            }
+
+            return dict;
+        }
+
         public int Get8()
         {
             checkLength(1);

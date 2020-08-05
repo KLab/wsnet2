@@ -34,7 +34,7 @@ const (
 	// MsgTypePing : 定期通信.
 	// タイムアウトしないように
 	// payload:
-	// - 64bit-be: timestamp
+	// - 64bit-be: unix timestamp (milli seconds)
 	MsgTypePing MsgType = 1 + iota
 )
 const (

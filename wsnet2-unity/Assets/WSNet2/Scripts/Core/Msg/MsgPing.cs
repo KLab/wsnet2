@@ -21,9 +21,9 @@ namespace WSNet2.Core
         public void SetTimestamp()
         {
             var now = DateTime.UtcNow;
-            var unix = ((DateTimeOffset)now).ToUnixTimeSeconds();
+            var unix = (ulong)((DateTimeOffset)now).ToUnixTimeMilliseconds();
 
-            buf[1] = (byte)((unix & 0x7f00000000000000) >> 56);
+            buf[1] = (byte)((unix & 0xff00000000000000) >> 56);
             buf[2] = (byte)((unix & 0xff000000000000) >> 48);
             buf[3] = (byte)((unix & 0xff0000000000) >> 40);
             buf[4] = (byte)((unix & 0xff00000000) >> 32);

@@ -57,6 +57,10 @@ namespace WSNet2.Core
                 case EvType.PeerReady:
                     ev = new EvPeerReady(reader);
                     break;
+                case EvType.Pong:
+                    ev = new EvPong(reader);
+                    break;
+
                 case EvType.Joined:
                     ev = new EvJoined(reader);
                     break;
