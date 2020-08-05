@@ -444,8 +444,8 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
 	}
 
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvClientProp(msg.Sender.Id, msg.Payload()))
 	return nil
 }
