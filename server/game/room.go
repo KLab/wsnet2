@@ -239,6 +239,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgLeave(m)
 	case *MsgRoomProp:
 		return r.msgRoomProp(m)
+	case *MsgClientProp:
+		return r.msgClientProp(m)
 	case *MsgTargets:
 		return r.msgTargets(m)
 	case *MsgToMaster:
@@ -420,6 +422,31 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	}
 
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
+	return nil
+}
+
+func (r *Room) msgClientProp(msg *MsgClientProp) error {
+	if !msg.Sender.isPlayer {
+		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
+	}
+
+	r.logger.Debugf("MsgClientProp: client=%v, props=%v", msg.Sender.Id, msg.Props)
+	if len(msg.Props) > 0 {
+		c := msg.Sender
+		for k, v := range msg.Props {
+			if _, ok := c.props[k]; ok && len(v) == 0 {
+				delete(c.props, k)
+			} else {
+				c.props[k] = v
+			}
+		}
+		c.ClientInfo.Props = binary.MarshalDict(c.props)
+		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
+	}
+
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+	r.broadcast(binary.NewEvClientProp(msg.Sender.Id, msg.Payload()))
 	return nil
 }
 
