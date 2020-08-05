@@ -279,8 +279,12 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
+	master, err := NewPlayer(msg.Info, r)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+	}
 	r.wgClient.Add(1)
-	master := NewPlayer(msg.Info, r)
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
@@ -307,8 +311,12 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 	}
 
+	client, err := NewPlayer(msg.Info, r)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+	}
 	r.wgClient.Add(1)
-	client := NewPlayer(msg.Info, r)
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
 	r.RoomInfo.Players = uint32(len(r.players))
@@ -334,8 +342,12 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
+	client, err := NewWatcher(msg.Info, r)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+	}
 	r.wgClient.Add(1)
-	client := NewWatcher(msg.Info, r)
 	r.watchers[client.ID()] = client
 	r.RoomInfo.Watchers += client.nodeCount
 	r.repo.updateRoomInfo(r)
