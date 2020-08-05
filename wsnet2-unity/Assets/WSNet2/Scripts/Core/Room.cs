@@ -65,6 +65,12 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>Ping応答時間 (millisec)</summary>
+        public ulong RttMillisec { get; private set; }
+
+        /// <summary>全Playerの最終メッセージ受信時刻 (millisec)</summary>
+        public IReadOnlyDictionary<string, ulong> LastMsgTimestamps { get; private set; }
+
         string myId;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
@@ -323,6 +329,9 @@ namespace WSNet2.Core
                     case EvPeerReady evPeerReady:
                         OnEvPeerReady(evPeerReady, ct);
                         break;
+                    case EvPong evPong:
+                        OnEvPong(evPong);
+                        break;
                     case EvJoined evJoined:
                         OnEvJoined(evJoined);
                         break;
@@ -382,10 +391,10 @@ namespace WSNet2.Core
 
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
             }
-            catch(Exception e)
+            catch(Exception)
             {
                 evBufPool.Add(buf);
-                throw e;
+                throw;
             }
         }
 
@@ -398,6 +407,19 @@ namespace WSNet2.Core
             var pinger = Task.Run(async() => await Pinger(ct));
             senderTaskSource.TrySetResult(sender);
             pingerTaskSource.TrySetResult(pinger);
+        }
+
+        /// <summary>
+        ///   Pongイベント
+        /// </summary>
+        private void OnEvPong(EvPong ev)
+        {
+            callbackPool.Add(() =>
+            {
+                info.watchers = ev.WatcherCount;
+                RttMillisec = ev.RTT;
+                LastMsgTimestamps = ev.lastMsgTimestamps;
+            });
         }
 
         /// <summary>
