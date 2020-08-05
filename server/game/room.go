@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
@@ -46,7 +47,7 @@ type Room struct {
 	// muLastMsg sync.RWMutex
 	// lastMsg   map[ClientID]int // unixtime
 
-	logger log.Logger
+	logger *zap.SugaredLogger
 }
 
 func initProps(props []byte) (binary.Dict, []byte, error) {
@@ -92,7 +93,7 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, dea
 		masterOrder: []ClientID{},
 		watchers:    make(map[ClientID]*Client),
 
-		logger: log.Get(loglevel),
+		logger: log.Get(loglevel).With(zap.String("room", info.Id)).Sugar(),
 	}
 
 	go r.MsgLoop()
