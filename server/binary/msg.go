@@ -198,6 +198,15 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	return &rpp, nil
 }
 
+// UnmarshalClientProp parses payload of MsgTypeClientProp.
+func UnmarshalClientProp(payload []byte) (Dict, error) {
+	d, _, e := UnmarshalAs(payload, TypeDict)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid MsgClientProp payload (props): %w", e)
+	}
+	return d.(Dict), nil
+}
+
 // UnmarshalTargetsAndData parses payload of MsgTypeTargets
 func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 	t, l, e := UnmarshalAs(payload, TypeList)
