@@ -81,7 +81,7 @@ namespace WSNet2.Core
         RoomInfo info;
         Uri uri;
         AuthToken token;
-        uint deadlineMilliSec;
+        int deadlineMilliSec;
         EventReceiver eventReceiver;
 
         ClientWebSocket ws;
@@ -117,7 +117,7 @@ namespace WSNet2.Core
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
             this.token = joined.token;
-            this.deadlineMilliSec = joined.deadline * 1000;
+            this.deadlineMilliSec = (int)joined.deadline * 1000;
             this.eventReceiver = receiver;
             this.Running = true;
             this.Closed = false;
@@ -525,7 +525,8 @@ namespace WSNet2.Core
             {
                 ct.ThrowIfCancellationRequested();
 
-                var interval = Task.Delay(1000);
+                // todo: deadline変更時にDelayを中断したい
+                var interval = Task.Delay(deadlineMilliSec / 3);
                 msg.SetTimestamp();
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                 await interval;
