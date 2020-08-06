@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -21,7 +22,7 @@ type Level int
 
 const (
 	// NOLOG output no logs
-	NOLOG Level = iota
+	NOLOG Level = iota + 1
 	// ERROR output error logs
 	ERROR
 	// INFO output info/error logs
@@ -92,17 +93,19 @@ func Errorf(format string, v ...interface{}) {
 
 // String implements Stringer interface
 func (l Level) String() string {
-	switch {
-	case l <= NOLOG:
+	switch l {
+	case NOLOG:
 		return "NOLOG"
-	case l == ERROR:
+	case ERROR:
 		return "ERROR"
-	case l == INFO:
+	case INFO:
 		return "INFO"
-	case l == DEBUG:
+	case DEBUG:
 		return "DEBUG"
+	case ALL:
+		return "ALL"
 	}
-	return "ALL"
+	return fmt.Sprintf("Level(%d)", l)
 }
 
 func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
