@@ -57,6 +57,8 @@ type LobbyConf struct {
 	Port      int
 	PprofPort int `toml:"pprof_port"`
 
+	Loglevel uint32 `toml:"loglevel"`
+
 	// ValidHeartBeat : HeartBeatの有効期間
 	ValidHeartBeat int64 `toml:"valid_heartbeat"`
 }
@@ -76,6 +78,7 @@ func Load(conffile string) (*Config, error) {
 		},
 		Lobby: LobbyConf{
 			ValidHeartBeat: 5,
+			Loglevel:       2,
 		},
 	}
 
