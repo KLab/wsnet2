@@ -4,62 +4,65 @@ using System.Collections.Generic;
 using UnityEngine;
 using WSNet2.Core;
 
-public class WSNet2Runner : MonoBehaviour
+namespace Sample
 {
-    public static WSNet2Runner Instance
+    public class WSNet2Runner : MonoBehaviour
     {
-        get; private set;
-    }
-
-    public WSNet2Client Client
-    {
-        get; set;
-    }
-
-    // Active game room.
-    public Room GameRoom
-    {
-        get; set;
-    }
-
-    // Active game receiver.
-    public DelegatedEventReceiver GameEventReceiver
-    {
-        get; set;
-    }
-
-    public static void CreateInstance()
-    {
-        if (WSNet2Runner.Instance == null)
+        public static WSNet2Runner Instance
         {
-            WSNet2Helper.RegisterTypes();
-            new GameObject("WSNet2Runner").AddComponent<WSNet2Runner>();
+            get; private set;
         }
-    }
 
-    void Awake()
-    {
-        if (Instance == null)
+        public WSNet2Client Client
         {
-            Instance = this;
-            DontDestroyOnLoad(gameObject);
+            get; set;
         }
-        else
+
+        // Active game room.
+        public Room GameRoom
         {
-            Destroy(gameObject);
+            get; set;
         }
-    }
 
-    void Start()
-    {
-        Debug.Log("WSNet2Runner.Start");
-    }
-
-    void Update()
-    {
-        if (Client != null)
+        // Active game receiver.
+        public DelegatedEventReceiver GameEventReceiver
         {
-            Client.ProcessCallback();
+            get; set;
+        }
+
+        public static void CreateInstance()
+        {
+            if (WSNet2Runner.Instance == null)
+            {
+                Logic.WSNet2Helper.RegisterTypes();
+                new GameObject("WSNet2Runner").AddComponent<WSNet2Runner>();
+            }
+        }
+
+        void Awake()
+        {
+            if (Instance == null)
+            {
+                Instance = this;
+                DontDestroyOnLoad(gameObject);
+            }
+            else
+            {
+                Destroy(gameObject);
+            }
+        }
+
+        void Start()
+        {
+            Debug.Log("WSNet2Runner.Start");
+        }
+
+        void Update()
+        {
+            if (Client != null)
+            {
+                Client.ProcessCallback();
+            }
         }
     }
 }

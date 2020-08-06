@@ -3,21 +3,24 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class InputFieldScript : MonoBehaviour
+namespace Sample
 {
-    public string deafultText;
-
-    void Start()
+    public class InputFieldScript : MonoBehaviour
     {
-        if (this.deafultText != null)
+        public string deafultText;
+
+        void Start()
         {
-            var inputField = GetComponent<InputField>();
-            inputField.text = deafultText;
+            if (this.deafultText != null)
+            {
+                var inputField = GetComponent<InputField>();
+                inputField.text = deafultText;
+            }
         }
-    }
 
-    void Update()
-    {
+        void Update()
+        {
 
+        }
     }
 }
