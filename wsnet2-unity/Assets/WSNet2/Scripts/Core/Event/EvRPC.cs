@@ -15,7 +15,7 @@ namespace WSNet2.Core
 
         public byte RpcID { get; private set; }
 
-        public SerialReader Reader { get; private set; }
+        public SerialReader Reader { get { return reader; } }
 
         /// <summary>
         ///   コンストラクタ
@@ -30,7 +30,6 @@ namespace WSNet2.Core
         {
             SenderID = reader.ReadString();
             RpcID = reader.ReadByte();
-            Reader = reader;
         }
     }
 }

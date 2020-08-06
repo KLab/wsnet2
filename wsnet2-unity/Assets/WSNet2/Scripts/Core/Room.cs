@@ -65,6 +65,12 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>Ping応答時間 (millisec)</summary>
+        public ulong RttMillisec { get; private set; }
+
+        /// <summary>全Playerの最終メッセージ受信時刻 (millisec)</summary>
+        public IReadOnlyDictionary<string, ulong> LastMsgTimestamps { get; private set; }
+
         string myId;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
@@ -75,11 +81,12 @@ namespace WSNet2.Core
         RoomInfo info;
         Uri uri;
         AuthToken token;
-        uint deadlineMilliSec;
+        int deadlineMilliSec;
         EventReceiver eventReceiver;
 
         ClientWebSocket ws;
         TaskCompletionSource<Task> senderTaskSource;
+        TaskCompletionSource<Task> pingerTaskSource;
         int reconnection;
 
         BlockingCollection<byte[]> evBufPool;
@@ -110,7 +117,7 @@ namespace WSNet2.Core
             this.info = joined.roomInfo;
             this.uri = new Uri(joined.url);
             this.token = joined.token;
-            this.deadlineMilliSec = joined.deadline * 1000;
+            this.deadlineMilliSec = (int)joined.deadline * 1000;
             this.eventReceiver = receiver;
             this.Running = true;
             this.Closed = false;
@@ -182,9 +189,10 @@ namespace WSNet2.Core
 
                 var cts = new CancellationTokenSource();
 
-                // Receiverの中でEvPeerReadyを受け取ったらSenderを起動する
+                // Receiverの中でEvPeerReadyを受け取ったらSender/Pingerを起動する
                 // SenderのTaskをawaitしたいのでこれで受け取る
                 senderTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+                pingerTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 try
                 {
@@ -194,6 +202,7 @@ namespace WSNet2.Core
                     {
                         Task.Run(async() => await Receiver(cts.Token)),
                         Task.Run(async() => await await senderTaskSource.Task),
+                        Task.Run(async() => await await pingerTaskSource.Task),
                     };
                     await tasks[Task.WaitAny(tasks)];
 
@@ -313,11 +322,15 @@ namespace WSNet2.Core
                 {
                     case EvClosed evClosed:
                         OnEvClosed(evClosed);
-                        evBufPool.Add(ev.BufferArray);
+                        // EvClosedはバッファ使っていなかった
+                        //evBufPool.Add(ev.BufferArray);
                         return;
 
                     case EvPeerReady evPeerReady:
                         OnEvPeerReady(evPeerReady, ct);
+                        break;
+                    case EvPong evPong:
+                        OnEvPong(evPong);
                         break;
                     case EvJoined evJoined:
                         OnEvJoined(evJoined);
@@ -378,10 +391,10 @@ namespace WSNet2.Core
 
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
             }
-            catch(Exception e)
+            catch(Exception)
             {
                 evBufPool.Add(buf);
-                throw e;
+                throw;
             }
         }
 
@@ -390,8 +403,23 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvPeerReady(EvPeerReady ev, CancellationToken ct)
         {
-            var task = Task.Run(async() => await Sender(ev.LastMsgSeqNum+1, ct));
-            senderTaskSource.TrySetResult(task);
+            var sender = Task.Run(async() => await Sender(ev.LastMsgSeqNum+1, ct));
+            var pinger = Task.Run(async() => await Pinger(ct));
+            senderTaskSource.TrySetResult(sender);
+            pingerTaskSource.TrySetResult(pinger);
+        }
+
+        /// <summary>
+        ///   Pongイベント
+        /// </summary>
+        private void OnEvPong(EvPong ev)
+        {
+            callbackPool.Add(() =>
+            {
+                info.watchers = ev.WatcherCount;
+                RttMillisec = ev.RTT;
+                LastMsgTimestamps = ev.lastMsgTimestamps;
+            });
         }
 
         /// <summary>
@@ -442,6 +470,7 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvRPC(EvRPC ev)
         {
+            // fixme: RPCがまだ登録されていないかもしれない。callbackの中で判定すべき。
             if (ev.RpcID >= eventReceiver.RPCActions.Count)
             {
                 var e = new Exception($"RpcID({ev.RpcID}) is not registered");
@@ -483,6 +512,26 @@ namespace WSNet2.Core
                 }
             }
             while (hasMsg.Take(ct));
+        }
+
+        /// <summary>
+        ///   Ping送信ループ
+        /// </summary>
+        private async Task Pinger(CancellationToken ct)
+        {
+            var msg = new MsgPing();
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                // todo: deadline変更時にDelayを中断したい
+                // deadlineの半分の時間停止していても切断しないような間隔で送信
+                var interval = Task.Delay(deadlineMilliSec / 3);
+                msg.SetTimestamp();
+                await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
+                await interval;
+            }
         }
     }
 }

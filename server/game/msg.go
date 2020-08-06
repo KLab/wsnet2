@@ -11,11 +11,13 @@ import (
 
 type Msg interface {
 	msg()
+	SenderID() ClientID
 }
 
 var _ Msg = &MsgCreate{}
 var _ Msg = &MsgJoin{}
 var _ Msg = &MsgWatch{}
+var _ Msg = &MsgPing{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgBroadcast{}
@@ -39,6 +41,10 @@ type MsgCreate struct {
 
 func (*MsgCreate) msg() {}
 
+func (m *MsgCreate) SenderID() ClientID {
+	return ClientID(m.Info.Id)
+}
+
 // MsgJoin : 入室メッセージ
 // gRPCリクエストよりwsnet内で発生
 type MsgJoin struct {
@@ -47,6 +53,10 @@ type MsgJoin struct {
 }
 
 func (*MsgJoin) msg() {}
+
+func (m *MsgJoin) SenderID() ClientID {
+	return ClientID(m.Info.Id)
+}
 
 // MsgWatch : 観戦入室メッセージ
 // gRPCリクエストよりwsnet内で発生
@@ -57,6 +67,34 @@ type MsgWatch struct {
 
 func (*MsgWatch) msg() {}
 
+func (m *MsgWatch) SenderID() ClientID {
+	return ClientID(m.Info.Id)
+}
+
+// MsgPing : タイムアウト防止定期通信.
+// nonregular message
+type MsgPing struct {
+	Sender    *Client
+	Timestamp uint64
+}
+
+func (*MsgPing) msg() {}
+
+func (m *MsgPing) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
+func msgPing(sender *Client, m binary.Msg) (Msg, error) {
+	ts, err := binary.UnmarshalPingPayload(m.Payload())
+	if err != nil {
+		return nil, err
+	}
+	return &MsgPing{
+		Sender:    sender,
+		Timestamp: ts,
+	}, nil
+}
+
 // MsgLeave : 退室メッセージ
 // クライアントの自発的な退室リクエスト
 type MsgLeave struct {
@@ -65,6 +103,10 @@ type MsgLeave struct {
 }
 
 func (*MsgLeave) msg() {}
+
+func (m *MsgLeave) SenderID() ClientID {
+	return m.Sender.ID()
+}
 
 func msgLeave(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	return &MsgLeave{
@@ -82,6 +124,10 @@ type MsgRoomProp struct {
 }
 
 func (*MsgRoomProp) msg() {}
+
+func (m *MsgRoomProp) SenderID() ClientID {
+	return m.Sender.ID()
+}
 
 func msgRoomProp(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	rpp, err := binary.UnmarshalRoomPropPayload(msg.Payload())
@@ -105,6 +151,10 @@ type MsgTargets struct {
 
 func (*MsgTargets) msg() {}
 
+func (m *MsgTargets) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
 func msgTargets(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	targets, data, err := binary.UnmarshalTargetsAndData(msg.Payload())
 	if err != nil {
@@ -127,6 +177,10 @@ type MsgToMaster struct {
 
 func (*MsgToMaster) msg() {}
 
+func (m *MsgToMaster) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
 func msgToMaster(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	return &MsgToMaster{
 		RegularMsg: msg,
@@ -144,6 +198,10 @@ type MsgBroadcast struct {
 
 func (*MsgBroadcast) msg() {}
 
+func (m *MsgBroadcast) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
 func msgBroadcast(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	return &MsgBroadcast{
 		RegularMsg: msg,
@@ -160,8 +218,14 @@ type MsgClientError struct {
 
 func (*MsgClientError) msg() {}
 
+func (m *MsgClientError) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
 func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 	switch m.Type() {
+	case binary.MsgTypePing:
+		return msgPing(cli, m)
 	case binary.MsgTypeLeave:
 		return msgLeave(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeRoomProp:

@@ -12,24 +12,6 @@ namespace WSNet2.Core
     /// </remarks>
     public class MsgPool
     {
-        const int regularMsgType = 30;
-
-        /// <summary>
-        ///   Msg種別
-        /// </summary>
-        public enum MsgType
-        {
-            Ping = 1,
-
-            Leave = regularMsgType,
-            RoomProp,
-            ClientProp,
-            Target,
-            ToMaster,
-            Broadcast,
-            Kick,
-        }
-
         int sequenceNum;
         int tookSeqNum;
         SerialWriter[] pool;
