@@ -7,6 +7,16 @@ namespace WSNet2.Core
     [MessagePackObject]
     public class RoomOption
     {
+        public enum LogLevel
+        {
+            DEFAULT = 0,
+            NOLOG,
+            ERROR,
+            INFO,
+            DEBUG,
+            ALL,
+        }
+
         [Key("visible")]
         public bool visible;
 
@@ -33,6 +43,9 @@ namespace WSNet2.Core
 
         [Key("private_props")]
         public byte[] privateProps;
+
+        [Key("log_level")]
+        public LogLevel logLevel;
 
         public RoomOption()
         {
@@ -95,6 +108,12 @@ namespace WSNet2.Core
         public RoomOption WithClientDeadline(uint sec)
         {
             this.clientDeadline = sec;
+            return this;
+        }
+
+        public RoomOption SetLogLevel(LogLevel l)
+        {
+            this.logLevel = l;
             return this;
         }
 
