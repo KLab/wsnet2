@@ -20,6 +20,7 @@ var _ Msg = &MsgWatch{}
 var _ Msg = &MsgPing{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
+var _ Msg = &MsgClientProp{}
 var _ Msg = &MsgBroadcast{}
 var _ Msg = &MsgClientError{}
 
@@ -141,6 +142,27 @@ func msgRoomProp(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	}, nil
 }
 
+// MsgClientProp : 自身のプロパティの変更
+type MsgClientProp struct {
+	binary.RegularMsg
+	Sender *Client
+	Props  binary.Dict
+}
+
+func (*MsgClientProp) msg() {}
+
+func msgClientProp(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	props, err := binary.UnmarshalClientProp(msg.Payload())
+	if err != nil {
+		return nil, err
+	}
+	return &MsgClientProp{
+		RegularMsg: msg,
+		Sender:     sender,
+		Props:      props,
+	}, nil
+}
+
 // MsgTargets : 特定プレイヤーに送る
 type MsgTargets struct {
 	binary.RegularMsg
@@ -230,6 +252,8 @@ func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 		return msgLeave(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeRoomProp:
 		return msgRoomProp(cli, m.(binary.RegularMsg))
+	case binary.MsgTypeClientProp:
+		return msgClientProp(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeTargets:
 		return msgTargets(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeToMaster:

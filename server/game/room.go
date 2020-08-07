@@ -262,6 +262,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgLeave(m)
 	case *MsgRoomProp:
 		return r.msgRoomProp(m)
+	case *MsgClientProp:
+		return r.msgClientProp(m)
 	case *MsgTargets:
 		return r.msgTargets(m)
 	case *MsgToMaster:
@@ -302,8 +304,11 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	r.wgClient.Add(1)
-	master := NewPlayer(msg.Info, r)
+	master, err := NewPlayer(msg.Info, r)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+	}
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
@@ -333,8 +338,11 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 	}
 
-	r.wgClient.Add(1)
-	client := NewPlayer(msg.Info, r)
+	client, err := NewPlayer(msg.Info, r)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+	}
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
 	r.RoomInfo.Players = uint32(len(r.players))
@@ -363,8 +371,11 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	r.wgClient.Add(1)
-	client := NewWatcher(msg.Info, r)
+	client, err := NewWatcher(msg.Info, r)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+	}
 	r.watchers[client.ID()] = client
 	r.RoomInfo.Watchers += client.nodeCount
 	r.repo.updateRoomInfo(r)
@@ -442,6 +453,31 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	}
 
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
+	return nil
+}
+
+func (r *Room) msgClientProp(msg *MsgClientProp) error {
+	if !msg.Sender.isPlayer {
+		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
+	}
+
+	r.logger.Debugf("MsgClientProp: client=%v, props=%v", msg.Sender.Id, msg.Props)
+	if len(msg.Props) > 0 {
+		c := msg.Sender
+		for k, v := range msg.Props {
+			if _, ok := c.props[k]; ok && len(v) == 0 {
+				delete(c.props, k)
+			} else {
+				c.props[k] = v
+			}
+		}
+		c.ClientInfo.Props = binary.MarshalDict(c.props)
+		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
+	}
+
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	r.broadcast(binary.NewEvClientProp(msg.Sender.Id, msg.Payload()))
 	return nil
 }
 

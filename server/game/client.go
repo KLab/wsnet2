@@ -27,6 +27,8 @@ type Client struct {
 	isPlayer  bool
 	nodeCount uint32
 
+	props binary.Dict
+
 	removed     chan struct{}
 	removeCause string
 	done        chan struct{}
@@ -43,20 +45,27 @@ type Client struct {
 	evErr chan error
 }
 
-func NewPlayer(info *pb.ClientInfo, room *Room) *Client {
+func NewPlayer(info *pb.ClientInfo, room *Room) (*Client, error) {
 	return newClient(info, room, true)
 }
 
-func NewWatcher(info *pb.ClientInfo, room *Room) *Client {
+func NewWatcher(info *pb.ClientInfo, room *Room) (*Client, error) {
 	return newClient(info, room, false)
 }
 
-func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) *Client {
+func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) (*Client, error) {
+	props, iProps, err := initProps(info.Props)
+	if err != nil {
+		return nil, xerrors.Errorf("Props unmarshal error: %w", err)
+	}
+	info.Props = iProps
 	c := &Client{
 		ClientInfo: info,
 		room:       room,
 		isPlayer:   isPlayer,
 		nodeCount:  1,
+
+		props: props,
 
 		removed:     make(chan struct{}),
 		done:        make(chan struct{}),
@@ -70,10 +79,12 @@ func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) *Client {
 		evErr: make(chan error),
 	}
 
+	room.wgClient.Add(1)
+
 	go c.MsgLoop(room.deadline)
 	go c.EventLoop()
 
-	return c
+	return c, nil
 }
 
 func (c *Client) ID() ClientID {
