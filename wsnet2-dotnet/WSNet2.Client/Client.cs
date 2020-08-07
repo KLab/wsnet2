@@ -192,6 +192,12 @@ namespace WSNet2.DotnetClient
 
                     cts.Token.ThrowIfCancellationRequested();
 
+                    if (str=="leave")
+                    {
+                        room.Leave();
+                        continue;
+                    }
+
                     switch(i%3){
                         case 0:
                             Console.WriteLine($"rpc to master: {str}");

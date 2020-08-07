@@ -256,6 +256,12 @@ namespace WSNet2.Core
             }
         }
 
+        public void Leave()
+        {
+            msgPool.PostLeave();
+            hasMsg.TryAdd(true);
+        }
+
         public void RPC(Action<string, string> rpc, string param, params string[] targets)
         {
             msgPool.PostRPC(getRpcId(rpc), param, targets);
