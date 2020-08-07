@@ -79,6 +79,8 @@ func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) (*Client, error) 
 		evErr: make(chan error),
 	}
 
+	room.wgClient.Add(1)
+
 	go c.MsgLoop(room.deadline)
 	go c.EventLoop()
 

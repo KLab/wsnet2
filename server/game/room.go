@@ -286,7 +286,6 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 		close(msg.Joined)
 		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
 	}
-	r.wgClient.Add(1)
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
@@ -318,7 +317,6 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		close(msg.Joined)
 		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
 	}
-	r.wgClient.Add(1)
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
 	r.RoomInfo.Players = uint32(len(r.players))
@@ -349,7 +347,6 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		close(msg.Joined)
 		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
 	}
-	r.wgClient.Add(1)
 	r.watchers[client.ID()] = client
 	r.RoomInfo.Watchers += client.nodeCount
 	r.repo.updateRoomInfo(r)
