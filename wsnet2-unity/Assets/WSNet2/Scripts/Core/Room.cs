@@ -1,8 +1,5 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace WSNet2.Core
@@ -12,24 +9,6 @@ namespace WSNet2.Core
     /// </summary>
     public class Room
     {
-        /// <summary>保持できるEventの数</summary>
-        const int EvBufPoolSize = 16;
-
-        /// <summary>各Eventのバッファサイズの初期値</summary>
-        const int EvBufInitialSize = 256;
-
-        /// <summary>保持できるMsgの数</summary>
-        const int MsgPoolSize = 8;
-
-        /// <summary>各Msgのバッファサイズの初期値</summary>
-        const int MsgBufInitialSize = 512;
-
-        /// <summary>最大再接続試行回数</summary>
-        const int MaxReconnection = 30;
-
-        /// <summary>再接続インターバル (milli seconds)</summary>
-        const int RetryIntervalMilliSec = 1000;
-
         /// <summary>RoomのMasterをRPCの対象に指定</summary
         public const string[] RPCToMaster = null;
 
@@ -45,7 +24,7 @@ namespace WSNet2.Core
         /// <summary>観戦可能</summary>
         public bool Watchable { get { return info.watchable; } }
 
-        /// <summary>Eventループの動作状態</summary>
+        /// <summary>Callbackループの動作状態</summary>
         public bool Running { get; set; }
 
         /// <summary>終了したかどうか</summary>
@@ -79,31 +58,11 @@ namespace WSNet2.Core
         string masterId;
 
         RoomInfo info;
-        Uri uri;
-        AuthToken token;
-        int deadlineMilliSec;
         EventReceiver eventReceiver;
 
-        ClientWebSocket ws;
-        TaskCompletionSource<Task> senderTaskSource;
-        TaskCompletionSource<Task> pingerTaskSource;
-        int reconnection;
-
-        BlockingCollection<byte[]> evBufPool;
-        uint evSeqNum;
-
-        ///<summary>PoolにMsgが追加されたフラグ</summary>
-        /// <remarks>
-        ///   <para>
-        ///     msgPoolにAdd*したあとTryAdd(true)する。
-        ///     送信ループがTake()で待機しているので、Addされたら動き始める。
-        ///     サイズ=1にしておくことで、送信前に複数回Addされても1度のループで送信される。
-        ///   </para>
-        /// </remarks>
-        BlockingCollection<bool> hasMsg;
-        MsgPool msgPool;
-
         CallbackPool callbackPool = new CallbackPool();
+
+        Connection con;
 
         /// <summary>
         ///   コンストラクタ
@@ -115,24 +74,12 @@ namespace WSNet2.Core
         {
             this.myId = myId;
             this.info = joined.roomInfo;
-            this.uri = new Uri(joined.url);
-            this.token = joined.token;
-            this.deadlineMilliSec = (int)joined.deadline * 1000;
+
+            this.con = new Connection(this, myId, joined);
+
             this.eventReceiver = receiver;
             this.Running = true;
             this.Closed = false;
-            this.reconnection = 0;
-
-            this.evSeqNum = 0;
-            this.evBufPool = new BlockingCollection<byte[]>(
-                new ConcurrentStack<byte[]>(), EvBufPoolSize);
-            for (var i = 0; i<EvBufPoolSize; i++)
-            {
-                evBufPool.Add(new byte[EvBufInitialSize]);
-            }
-
-            this.msgPool = new MsgPool(MsgPoolSize, MsgBufInitialSize);
-            this.hasMsg = new BlockingCollection<bool>(1);
 
             var reader = Serialization.NewReader(new ArraySegment<byte>(info.publicProps));
             publicProps = reader.ReadDict();
@@ -171,107 +118,44 @@ namespace WSNet2.Core
             }
         }
 
-        /// <summary>
-        ///   websocket接続をはじめる
-        /// </summary>
-        /// <remarks>
-        ///   <para>
-        ///     NormalClosure or EndpointUnavailable まで自動再接続する (TODO)
-        ///     もしくはクライアントからの強制切断
-        ///   </para>
-        /// </remarks>
         public async Task Start()
         {
-            while(true)
-            {
-                Exception lastException;
-                var retryInterval = Task.Delay(RetryIntervalMilliSec);
+            string msg;
 
-                var cts = new CancellationTokenSource();
-
-                // Receiverの中でEvPeerReadyを受け取ったらSender/Pingerを起動する
-                // SenderのTaskをawaitしたいのでこれで受け取る
-                senderTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
-                pingerTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-                try
-                {
-                    ws = await Connect(cts.Token);
-
-                    var tasks = new Task[]
-                    {
-                        Task.Run(async() => await Receiver(cts.Token)),
-                        Task.Run(async() => await await senderTaskSource.Task),
-                        Task.Run(async() => await await pingerTaskSource.Task),
-                    };
-                    await tasks[Task.WaitAny(tasks)];
-
-                    // finish task without exception: unreconnectable
-                    return;
-                }
-                catch(WebSocketException e)
-                {
-                    switch (e.WebSocketErrorCode)
-                    {
-                        case WebSocketError.NotAWebSocket:
-                        case WebSocketError.UnsupportedProtocol:
-                        case WebSocketError.UnsupportedVersion:
-                            callbackPool.Add(() => {
-                                Closed = true;
-                                eventReceiver.OnError(e);
-                                eventReceiver.OnClosed(e.Message);
-                            });
-                            return;
-                    }
-
-                    // retry on other exception
-                    lastException = e;
-                }
-                catch(Exception e)
-                {
-                    // retry
-                    lastException = e;
-                }
-                finally
-                {
-                    senderTaskSource.TrySetCanceled();
-                    cts.Cancel();
-                }
-
-                callbackPool.Add(()=>{
-                    eventReceiver.OnError(lastException);
-                });
-
-                if (++reconnection > MaxReconnection)
-                {
-                    callbackPool.Add(() => {
-                        Closed = true;
-                        var msg = $"MaxReconnection: {lastException.Message}";
-                        eventReceiver.OnClosed(msg);
-                    });
-                    return;
-                }
-
-                await retryInterval;
+            try{
+                msg = await con.Start();
             }
+            catch(Exception e)
+            {
+                OnError(e);
+                msg = e.Message;
+            }
+            callbackPool.Add(() =>
+            {
+                if (!Closed)
+                {
+                    Closed = true;
+                    eventReceiver.OnClosed(msg);
+                }
+            });
         }
 
         public void Leave()
         {
-            msgPool.PostLeave();
-            hasMsg.TryAdd(true);
+            con.msgPool.PostLeave();
+            con.hasMsg.TryAdd(false);
         }
 
         public void RPC(Action<string, string> rpc, string param, params string[] targets)
         {
-            msgPool.PostRPC(getRpcId(rpc), param, targets);
-            hasMsg.TryAdd(true);
+            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            con.hasMsg.TryAdd(true);
         }
 
         public void RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
         {
-            msgPool.PostRPC(getRpcId(rpc), param, targets);
-            hasMsg.TryAdd(true);
+            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            con.hasMsg.TryAdd(true);
         }
 
         private byte getRpcId(Delegate rpc)
@@ -286,134 +170,43 @@ namespace WSNet2.Core
             return rpcId;
         }
 
-        /// <summary>
-        ///   Websocketで接続する
-        /// </summary>
-        private async Task<ClientWebSocket> Connect(CancellationToken ct)
-        {
-            var ws = new ClientWebSocket();
-            ws.Options.SetRequestHeader("X-Wsnet-App", info.appId);
-            ws.Options.SetRequestHeader("X-Wsnet-User", myId);
-            ws.Options.SetRequestHeader("X-Wsnet-Nonce", token.nonce);
-            ws.Options.SetRequestHeader("X-Wsnet-Hash", token.hash);
-            ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
 
-            await ws.ConnectAsync(uri, ct);
-            return ws;
+        public void OnError(Exception e)
+        {
+            callbackPool.Add(() => eventReceiver.OnError(e));
         }
 
-        /// <summary>
-        ///   Event受信ループ
-        /// </summary>
-        private async Task Receiver(CancellationToken ct)
+        public void OnEvent(Event ev)
         {
-            while(true)
+            switch (ev)
             {
-                ct.ThrowIfCancellationRequested();
-                var ev = await ReceiveEvent(ws, ct);
+                case EvClosed evClosed:
+                    OnEvClosed(evClosed);
+                    break;
 
-                if (ev.IsRegular)
-                {
-                    if (ev.SequenceNum != evSeqNum+1)
-                    {
-                        // todo: reconnectable?
-                        evBufPool.Add(ev.BufferArray);
-                        throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
-                    }
+                case EvPong evPong:
+                    OnEvPong(evPong);
+                    break;
+                case EvJoined evJoined:
+                    OnEvJoined(evJoined);
+                    break;
+                case EvLeft evLeft:
+                    OnEvLeft(evLeft);
+                    break;
+                case EvRPC evRpc:
+                    OnEvRPC(evRpc);
+                    break;
 
-                    evSeqNum++;
-                }
-
-                switch (ev)
-                {
-                    case EvClosed evClosed:
-                        OnEvClosed(evClosed);
-                        // EvClosedはバッファ使っていなかった
-                        //evBufPool.Add(ev.BufferArray);
-                        return;
-
-                    case EvPeerReady evPeerReady:
-                        OnEvPeerReady(evPeerReady, ct);
-                        break;
-                    case EvPong evPong:
-                        OnEvPong(evPong);
-                        break;
-                    case EvJoined evJoined:
-                        OnEvJoined(evJoined);
-                        break;
-                    case EvLeft evLeft:
-                        OnEvLeft(evLeft);
-                        break;
-                    case EvRPC evRpc:
-                        OnEvRPC(evRpc);
-                        break;
-
-                    default:
-                        evBufPool.Add(ev.BufferArray);
-                        throw new Exception($"unknown event: {ev}");
-                }
-
-                // Event受信に使ったバッファはcallbackで参照されるので
-                // callbackが呼ばれて使い終わってから返却
-                callbackPool.Add(() => evBufPool.Add(ev.BufferArray));
+                default:
+                    con.ReturnEventBuffer(ev);
+                    throw new Exception($"unknown event: {ev}");
             }
+
+            // Event受信に使ったバッファはcallbackで参照されるので
+            // callbackが呼ばれて使い終わってから返却
+            callbackPool.Add(() => con.ReturnEventBuffer(ev));
         }
 
-        /// <summary>
-        ///   Eventの受信
-        /// </summary>
-        private async Task<Event> ReceiveEvent(WebSocket ws, CancellationToken ct)
-        {
-            var buf = evBufPool.Take(ct);
-            try
-            {
-                var pos = 0;
-                while(true){
-                    var seg = new ArraySegment<byte>(buf, pos, buf.Length-pos);
-                    var ret = await ws.ReceiveAsync(seg, ct);
-
-                    if (ret.CloseStatus.HasValue)
-                    {
-                        evBufPool.Add(buf);
-                        switch (ret.CloseStatus.Value)
-                        {
-                            case WebSocketCloseStatus.NormalClosure:
-                            case WebSocketCloseStatus.EndpointUnavailable:
-                                // unreconnectable states.
-                                return new EvClosed(ret.CloseStatusDescription);
-                            default:
-                                throw new Exception("ws status:("+ret.CloseStatus.Value+") "+ret.CloseStatusDescription);
-                        }
-                    }
-
-                    pos += ret.Count;
-                    if (ret.EndOfMessage) {
-                        break;
-                    }
-
-                    // メッセージがbufに収まらないときはbufをリサイズして続きを受信
-                    Array.Resize(ref buf, buf.Length*2);
-                }
-
-                return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
-            }
-            catch(Exception)
-            {
-                evBufPool.Add(buf);
-                throw;
-            }
-        }
-
-        /// <summary>
-        ///   Peer準備完了イベント
-        /// </summary>
-        private void OnEvPeerReady(EvPeerReady ev, CancellationToken ct)
-        {
-            var sender = Task.Run(async() => await Sender(ev.LastMsgSeqNum+1, ct));
-            var pinger = Task.Run(async() => await Pinger(ct));
-            senderTaskSource.TrySetResult(sender);
-            pingerTaskSource.TrySetResult(pinger);
-        }
 
         /// <summary>
         ///   Pongイベント
@@ -495,49 +288,12 @@ namespace WSNet2.Core
         {
             callbackPool.Add(() =>
             {
-                Closed = true;
-                eventReceiver.OnClosed(ev.Description);
-            });
-        }
-
-        /// <summary>
-        ///   Msg送信ループ
-        /// </summary>
-        /// <param name="seqNum">開始Msg通し番号</param>
-        /// <param name="ct">ループ停止するトークン</param>
-        private async Task Sender(int seqNum, CancellationToken ct)
-        {
-            do
-            {
-                ArraySegment<byte>? msg;
-                while ((msg = msgPool.Take(seqNum)).HasValue)
+                if (!Closed)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
-                    seqNum++;
+                    Closed = true;
+                    eventReceiver.OnClosed(ev.Description);
                 }
-            }
-            while (hasMsg.Take(ct));
-        }
-
-        /// <summary>
-        ///   Ping送信ループ
-        /// </summary>
-        private async Task Pinger(CancellationToken ct)
-        {
-            var msg = new MsgPing();
-
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                // todo: deadline変更時にDelayを中断したい
-                // deadlineの半分の時間停止していても切断しないような間隔で送信
-                var interval = Task.Delay(deadlineMilliSec / 3);
-                msg.SetTimestamp();
-                await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
-                await interval;
-            }
+            });
         }
     }
 }
