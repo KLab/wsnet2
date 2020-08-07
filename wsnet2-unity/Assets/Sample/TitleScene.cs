@@ -15,22 +15,24 @@ namespace Sample
         public InputField userIdInput;
 
         public static uint SearchGroup = 1000;
+        public static uint MaxPlayers = 3;
 
         public void OnClickCreate()
         {
             Debug.Log("OnClickCreate");
 
             var pubProps = new Dictionary<string, object>(){
-            {"game", "pong"},
-        };
+                {"game", "pong"},
+                {"masterclient", "waiting"},
+            };
             var privProps = new Dictionary<string, object>(){
-            {"aaa", "private"},
-            {"ccc", false},
-        };
+                {"aaa", "private"},
+                {"ccc", false},
+            };
             var cliProps = new Dictionary<string, object>(){
-            {"userId", userIdInput.text},
-        };
-            var roomOpt = new RoomOption(2, SearchGroup, pubProps, privProps);
+                {"userId", userIdInput.text},
+            };
+            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, privProps);
             var receiver = new DelegatedEventReceiver();
 
             prepareWSNet2Client();
@@ -56,21 +58,18 @@ namespace Sample
             Debug.Log("OnClickRandomJoin");
 
             var cliProps = new Dictionary<string, object>(){
-            {"userId", userIdInput.text},
-        };
-            var query = new Dictionary<string, object>(){
-            {"bbb", (int)13},
-        };
+                {"userId", userIdInput.text},
+            };
 
             var queries = new PropQuery[][]{
-            new PropQuery[] {
-                new PropQuery{
-                    key = "game",
-                    op = OpType.Equal,
-                    val = Logic.WSNet2Helper.Serialize("pong"),
+                new PropQuery[] {
+                    new PropQuery{
+                        key = "game",
+                        op = OpType.Equal,
+                        val = Logic.WSNet2Helper.Serialize("pong"),
+                    },
                 },
-            },
-        };
+            };
 
             var receiver = new DelegatedEventReceiver();
 

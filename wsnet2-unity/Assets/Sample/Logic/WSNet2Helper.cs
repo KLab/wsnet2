@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using WSNet2.Core;
 
@@ -49,6 +50,20 @@ namespace Sample.Logic
             }
         }
 
+        public static byte[] Serialize(Dictionary<string, object> v)
+        {
+            // FIXME: もう少し便利な方法が提供してほしい
+            var w = WSNet2.Core.Serialization.GetWriter();
+            lock (w)
+            {
+                w.Write(v);
+                var seg = w.ArraySegment();
+                var ret = new byte[seg.Count];
+                System.Array.Copy(seg.Array, seg.Offset, ret, 0, seg.Count);
+                return ret;
+            }
+        }
+
         public static AuthData GenAuthData(string key, string userid)
         {
             var auth = new AuthData();
@@ -70,7 +85,6 @@ namespace Sample.Logic
 
         public static void RegisterTypes()
         {
-            Serialization.Register<SampleClient.StrMessage>(1);
             Serialization.Register<Sample.Logic.EmptyMessage>(2);
             Serialization.Register<Sample.Logic.GameState>(3);
             Serialization.Register<Sample.Logic.PlayerEvent>(4);

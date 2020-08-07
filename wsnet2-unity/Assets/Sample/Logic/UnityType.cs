@@ -3,7 +3,7 @@
 namespace Sample.Logic
 {
 
-struct Vector2
+public struct Vector2
 {
     public float x;
     public float y;
@@ -14,7 +14,7 @@ struct Vector2
     }
 }
 
-struct Vector3
+public struct Vector3
 {
     public float x;
     public float y;

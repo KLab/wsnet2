@@ -2,6 +2,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using WSNet2.Core;
 using Sample.Logic;
 
 namespace Sample
@@ -59,24 +60,6 @@ namespace Sample
         void RPCKeepAlive(string sender, EmptyMessage _)
         {
             // 現状なにか通信してないと部屋から蹴られるので
-        }
-
-        void RPCRestartGame(string sender, EmptyMessage _)
-        {
-            var room = WSNet2Runner.Instance.GameRoom;
-
-            if (WSNet2Runner.Instance.GameRoom.Master.Id == WSNet2Runner.Instance.GameRoom.Me.Id)
-            {
-                playerBar = bar1;
-                opponentBar = bar2;
-                playerBar.GetComponent<Renderer>().material.color = Color.blue;
-            }
-            else if (room.Players.ContainsKey(room.Me.Id))
-            {
-                opponentBar = bar1;
-                playerBar = bar2;
-                playerBar.GetComponent<Renderer>().material.color = Color.blue;
-            }
         }
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
