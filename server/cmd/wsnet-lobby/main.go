@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	log.SetLevel(log.ALL)
+	defer log.InitLogger()()
 
 	if len(os.Args) < 2 {
 		panic(fmt.Errorf("no config.toml specified"))
@@ -23,6 +23,8 @@ func main() {
 	if err != nil {
 		panic(fmt.Errorf("%+v\n", err))
 	}
+
+	log.SetLevel(log.Level(conf.Lobby.Loglevel))
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 

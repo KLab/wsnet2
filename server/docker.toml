@@ -11,10 +11,11 @@ websocket_port = 8000
 pprof_port = 3000
 
 default_deadline = 5
-default_loglevel = 4
+default_loglevel = 5
 
 [Lobby]
 hostname = "localhost"
 net = "tcp"
 port = 8080
 pprof_port = 3001
+loglevel = 5

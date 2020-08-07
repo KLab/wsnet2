@@ -74,6 +74,25 @@ func (p *Peer) SendReady(lastMsgSeq int) error {
 	return p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
 }
 
+// SendSystemEvent : SystemEventを送信する.
+// 送信失敗時はPeerを閉じて再接続できるようにする.
+func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
+	p.muWrite.Lock()
+	defer p.muWrite.Unlock()
+	if p.closed {
+		return nil
+	}
+	err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
+	if err != nil {
+		p.client.room.logger.Errorf("Peer SendSystemEvent: write message error: %v", err)
+		p.conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
+		p.conn.Close()
+		p.closed = true
+	}
+	return err
+}
+
 // SendEvents : evbufに蓄積されてるイベントを送信
 // 送信失敗時はPeerを閉じて再接続できるようにする. errorは返さない.
 // 再接続しても復帰不能な場合はerrorを返す（Client.EventLoopを止める）.

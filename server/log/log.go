@@ -2,9 +2,19 @@ package log
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
+	"time"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+var (
+	rootLogger    *zap.Logger
+	defaultLogger *zap.Logger
+	wrappedLogger *zap.SugaredLogger
+
+	defaultLogLevel = zap.NewAtomicLevel()
 )
 
 // Level type of loglevel
@@ -12,7 +22,7 @@ type Level int
 
 const (
 	// NOLOG output no logs
-	NOLOG Level = iota
+	NOLOG Level = iota + 1
 	// ERROR output error logs
 	ERROR
 	// INFO output info/error logs
@@ -23,50 +33,13 @@ const (
 	ALL
 )
 
-const logFlags = log.Ldate | log.Ltime | log.Lshortfile
-
 var (
-	level  Level = INFO // global log level.
-	logger       = log.New(os.Stdout, "", logFlags)
+	level Level = INFO // global log level.
 )
 
-// Logger type
-type Logger Level
-
 // Get Logger for custom log level.
-func Get(l Level) Logger {
-	return Logger(l)
-}
-
-// Level returns logger log level.
-func (l Logger) Level() Level {
-	return Level(l)
-}
-
-// Debugf outputs log for debug
-func (l Logger) Debugf(format string, v ...interface{}) {
-	if Level(l) >= DEBUG {
-		output("[DEBUG] "+format, v...)
-	}
-}
-
-// Infof outputs log for information
-func (l Logger) Infof(format string, v ...interface{}) {
-	if Level(l) >= INFO {
-		output("[INFO] "+format, v...)
-	}
-}
-
-// Errorf outouts log for error
-func (l Logger) Errorf(format string, v ...interface{}) {
-	if Level(l) >= ERROR {
-		output("[ERROR] "+format, v...)
-	}
-}
-
-// SetWriter sets custom log writer.
-func SetWriter(w io.Writer) {
-	logger = log.New(w, "", logFlags)
+func Get(l Level) *zap.Logger {
+	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l)))
 }
 
 // CurrentLevel returns global log level
@@ -74,8 +47,25 @@ func CurrentLevel() Level {
 	return level
 }
 
+func toZapLevel(l Level) zapcore.Level {
+	switch l {
+	case NOLOG:
+		return zapcore.PanicLevel
+	case ERROR:
+		return zapcore.ErrorLevel
+	case INFO:
+		return zapcore.InfoLevel
+	case DEBUG, ALL:
+		return zapcore.DebugLevel
+	}
+	Errorf("Unknown level: %v", l)
+	return zapcore.DebugLevel
+}
+
 // SetLevel sets global log level
 func SetLevel(l Level) Level {
+	defaultLogLevel.SetLevel(toZapLevel(l))
+
 	level, l = l, level
 	return l
 }
@@ -83,42 +73,73 @@ func SetLevel(l Level) Level {
 // Debugf outputs log for debug
 func Debugf(format string, v ...interface{}) {
 	if level >= DEBUG {
-		output("[DEBUG] "+format, v...)
+		wrappedLogger.Debugf(format, v...)
 	}
 }
 
 // Infof outputs log for information
 func Infof(format string, v ...interface{}) {
 	if level >= INFO {
-		output("[INFO] "+format, v...)
+		wrappedLogger.Infof(format, v...)
 	}
 }
 
 // Errorf outputs log for error
 func Errorf(format string, v ...interface{}) {
 	if level >= ERROR {
-		output("[ERROR] "+format, v...)
-	}
-}
-
-func output(format string, v ...interface{}) {
-	err := logger.Output(3, fmt.Sprintf(format, v...))
-	if err != nil {
-		log.Fatalf("logger output error: %v", err)
+		wrappedLogger.Errorf(format, v...)
 	}
 }
 
 // String implements Stringer interface
 func (l Level) String() string {
-	switch {
-	case l <= NOLOG:
+	switch l {
+	case NOLOG:
 		return "NOLOG"
-	case l == ERROR:
+	case ERROR:
 		return "ERROR"
-	case l == INFO:
+	case INFO:
 		return "INFO"
-	case l == DEBUG:
+	case DEBUG:
 		return "DEBUG"
+	case ALL:
+		return "ALL"
 	}
-	return "ALL"
+	return fmt.Sprintf("Level(%d)", l)
+}
+
+func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+	enc.AppendString(t.Format("15:04:05.000"))
+}
+
+func InitLogger() func() {
+	// Consoleに出力するLogger
+	consoleEnc := zap.NewDevelopmentEncoderConfig()
+	consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	consoleEnc.EncodeTime = consoleTimeEncoder
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, zap.DebugLevel)
+
+	// TODO: 指定されたファイルに出力する。
+	// sink, closer, err := zap.Open("/tmp/zaplog.out")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fileEnc := zap.NewProductionEncoderConfig()
+	// core2 := zapcore.NewCore(zapcore.NewJSONEncoder(fileEnc), sink, zap.DebugLevel)
+	// core := zapcore.NewTee(core, core2)
+
+	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true))
+	rootLogger = logger
+	defaultLogger = logger.WithOptions(zap.IncreaseLevel(zap.InfoLevel))
+	wrappedLogger = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
+
+	// zap.S().Debugf() とかで使える logger を設定する。
+	zap.ReplaceGlobals(logger)
+	// 標準ライブラリの "log" パッケージを使ったログを流し込む。
+	zap.RedirectStdLog(logger)
+
+	return func() {
+		logger.Sync()
+		// closer()
+	}
 }
