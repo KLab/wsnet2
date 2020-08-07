@@ -151,6 +151,10 @@ type MsgClientProp struct {
 
 func (*MsgClientProp) msg() {}
 
+func (m *MsgClientProp) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
 func msgClientProp(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	props, err := binary.UnmarshalClientProp(msg.Payload())
 	if err != nil {
