@@ -65,6 +65,17 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>
+        ///   Leaveメッセージを投下
+        /// </summary>
+        public void PostLeave()
+        {
+            lock(this)
+            {
+                writeMsgType(MsgType.Leave);
+            }
+        }
+
         public void PostRPC(byte id, string param, string[] targets)
         {
             lock(this)
@@ -109,6 +120,16 @@ namespace WSNet2.Core
             }
 
             writer.Write(id);
+        }
+
+        private SerialWriter writeMsgType(MsgType msgType)
+        {
+            incrementSeqNum();
+            var writer = pool[sequenceNum % pool.Length];
+            writer.Reset();
+            writer.Put8((int)msgType);
+            writer.Put24(sequenceNum);
+            return writer;
         }
 
         /// <summary>
