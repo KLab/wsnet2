@@ -25,7 +25,7 @@ namespace WSNet2.Core
         public bool Watchable { get { return info.watchable; } }
 
         /// <summary>Callbackループの動作状態</summary>
-        public bool Running { get; set; }
+        public bool Running { get; private set; }
 
         /// <summary>終了したかどうか</summary>
         public bool Closed { get; private set; }
@@ -129,7 +129,7 @@ namespace WSNet2.Core
         ///     Unityではメインスレッドで呼ぶようにする。
         ///   </para>
         /// </remarks>
-        public void ProcessCallback()
+        internal void ProcessCallback()
         {
             if (Running)
             {
@@ -137,6 +137,9 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>
+        ///   websocket接続してイベント受信を開始する
+        /// </summary>
         internal async Task Start()
         {
             try{
@@ -204,6 +207,31 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   イベント処理を一時停止する
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     CallbackPoolの処理を止めることで部屋の状態の更新と通知を停止する。
+        ///     Restart()で再開する。
+        ///   </para>
+        ///   <para>
+        ///     Unityでシーン遷移するときなど、イベントを受け取れない時間に停止すると良い。
+        ///   </para>
+        /// </remarks>
+        public void Pause()
+        {
+            Running = false;
+        }
+
+        /// <summary>
+        ///   一時停止したイベント処理を再開する
+        /// </summary>
+        public void Restart()
+        {
+            Running = true;
+        }
+
+        /// <summary>
         ///   退室メッセージを送信
         /// </summary>
         /// <remarks>
@@ -217,6 +245,10 @@ namespace WSNet2.Core
             con.msgPool.PostLeave();
         }
 
+        /// <summary>
+        ///   RPC呼び出し
+        /// </summary>
+        /// todo: プリミティブ型引数を実装する
         public void RPC(Action<string, string> rpc, string param, params string[] targets)
         {
             con.msgPool.PostRPC(getRpcId(rpc), param, targets);
