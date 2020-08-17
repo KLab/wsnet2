@@ -228,12 +228,12 @@ namespace WSNet2.Core
 
                     if (ret.CloseStatus.HasValue)
                     {
-                        evBufPool.Add(buf);
                         switch (ret.CloseStatus.Value)
                         {
                             case WebSocketCloseStatus.NormalClosure:
                             case WebSocketCloseStatus.EndpointUnavailable:
                                 // unreconnectable states.
+                                evBufPool.Add(buf);
                                 return new EvClosed(ret.CloseStatusDescription);
                             default:
                                 throw new Exception("ws status:("+ret.CloseStatus.Value+") "+ret.CloseStatusDescription);
