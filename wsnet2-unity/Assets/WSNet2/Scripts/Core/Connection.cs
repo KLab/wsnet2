@@ -36,7 +36,6 @@ namespace WSNet2.Core
         AuthToken token;
         int pingInterval;
 
-        ClientWebSocket ws;
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
         int reconnection;
@@ -93,11 +92,11 @@ namespace WSNet2.Core
 
                 try
                 {
-                    ws = await Connect(cts.Token);
+                    var ws = await Connect(cts.Token);
 
                     var tasks = new Task[]
                     {
-                        Task.Run(async() => await Receiver(cts.Token)),
+                        Task.Run(async() => await Receiver(ws, cts.Token)),
                         Task.Run(async() => await await senderTaskSource.Task),
                         Task.Run(async() => await await pingerTaskSource.Task),
                     };
@@ -174,7 +173,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   Event受信ループ
         /// </summary>
-        private async Task Receiver(CancellationToken ct)
+        private async Task Receiver(ClientWebSocket ws, CancellationToken ct)
         {
             while(true)
             {
@@ -197,8 +196,8 @@ namespace WSNet2.Core
                 {
                     case EvType.PeerReady:
                         var evpr = ev as EvPeerReady;
-                        var sender = Task.Run(async() => await Sender(evpr.LastMsgSeqNum+1, ct));
-                        var pinger = Task.Run(async() => await Pinger(ct));
+                        var sender = Task.Run(async() => await Sender(ws, evpr.LastMsgSeqNum+1, ct));
+                        var pinger = Task.Run(async() => await Pinger(ws, ct));
                         senderTaskSource.TrySetResult(sender);
                         pingerTaskSource.TrySetResult(pinger);
                         break;
@@ -262,7 +261,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="seqNum">開始Msg通し番号</param>
         /// <param name="ct">ループ停止するトークン</param>
-        private async Task Sender(int seqNum, CancellationToken ct)
+        private async Task Sender(ClientWebSocket ws, int seqNum, CancellationToken ct)
         {
             while (true)
             {
@@ -281,7 +280,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   Ping送信ループ
         /// </summary>
-        private async Task Pinger(CancellationToken ct)
+        private async Task Pinger(ClientWebSocket ws, CancellationToken ct)
         {
             var msg = new MsgPing();
 
