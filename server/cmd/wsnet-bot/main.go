@@ -283,21 +283,26 @@ func main() {
 	go func() {
 		time.Sleep(time.Second * 2)
 		fmt.Println("msg 001")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 1, 1, 2, 3, 4, 5})
+		payload := []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 1}
+		payload = append(payload, binary.MarshalStr8("23456")...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
 		time.Sleep(time.Second)
 		fmt.Println("msg 002")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 2, 11, 12, 13, 14, 15})
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 2, 1, 2, 3, 4, 5})
 		time.Sleep(time.Second)
 		fmt.Println("msg 003")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 21, 22, 23, 24, 25})
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 11, 12, 13, 14, 15})
+		time.Sleep(time.Second)
+		fmt.Println("msg 004")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 4, 21, 22, 23, 24, 25})
 		//time.Sleep(time.Second)
 		//fmt.Println("msg 003")
 		//ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 21, 22, 23, 24, 25})
 		//		time.Sleep(time.Second)
 		//		ws.Close()
 		time.Sleep(time.Second)
-		fmt.Println("msg 004")
-		payload := []byte{byte(binary.MsgTypeClientProp), 0, 0, 4}
+		fmt.Println("msg 005")
+		payload = []byte{byte(binary.MsgTypeClientProp), 0, 0, 5}
 		payload = append(payload, binary.MarshalDict(binary.Dict{
 			"p1": binary.MarshalUShort(20),
 			"p2": []byte{},
@@ -320,14 +325,14 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second * 3)
-		fmt.Println("msg 004")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 4, 31, 32, 33, 34, 35})
+		fmt.Println("msg 006")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 6, 31, 32, 33, 34, 35})
 		time.Sleep(time.Second)
-		fmt.Println("msg 005")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 5, 41, 42, 43, 44, 45})
+		fmt.Println("msg 007")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 7, 41, 42, 43, 44, 45})
 		time.Sleep(time.Second)
-		fmt.Println("msg 006 (leave)")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 6})
+		fmt.Println("msg 008 (leave)")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 8})
 		time.Sleep(time.Second)
 		ws.Close()
 	}()

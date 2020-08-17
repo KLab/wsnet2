@@ -41,6 +41,11 @@ const (
 	//  - Dict: properties
 	EvTypeClientProp
 
+	// EvTypeMasterSwitched : Masterクライアントが切替わった
+	// payload:
+	//  - str8: new master client ID
+	EvTypeMasterSwitched
+
 	// EvTypeMessage : その他の通常メッセージ
 	// payload: (any)
 	EvTypeMessage
@@ -137,6 +142,10 @@ func NewEvClientProp(cliId string, props []byte) *Event {
 	payload = append(payload, props...)
 
 	return &Event{EvTypeClientProp, payload}
+}
+
+func NewEvMasterSwitched(cliId, masterId string) *Event {
+	return &Event{EvTypeMasterSwitched, MarshalStr8(masterId)}
 }
 
 func NewEvMessage(cliId string, body []byte) *Event {
