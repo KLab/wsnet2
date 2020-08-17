@@ -26,6 +26,8 @@ namespace WSNet2.Core
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
+        public MsgPool msgPool { get; private set; }
+
         Room room;
         string appId;
         string clientId;
@@ -41,17 +43,6 @@ namespace WSNet2.Core
 
         BlockingCollection<byte[]> evBufPool;
         uint evSeqNum;
-
-        ///<summary>PoolにMsgが追加されたフラグ</summary>
-        /// <remarks>
-        ///   <para>
-        ///     msgPoolにAdd*したあとTryAdd(true)する。
-        ///     送信ループがTake()で待機しているので、Addされたら動き始める。
-        ///     サイズ=1にしておくことで、送信前に複数回Addされても1度のループで送信される。
-        ///   </para>
-        /// </remarks>
-        public BlockingCollection<bool> hasMsg;
-        public MsgPool msgPool;
 
         /// <summary>
         ///   コンストラクタ
@@ -75,7 +66,6 @@ namespace WSNet2.Core
             }
 
             this.msgPool = new MsgPool(MsgPoolSize, MsgBufInitialSize);
-            this.hasMsg = new BlockingCollection<bool>(1);
         }
 
         /// <summary>
@@ -268,10 +258,9 @@ namespace WSNet2.Core
         /// <param name="ct">ループ停止するトークン</param>
         private async Task<string> Sender(int seqNum, CancellationToken ct)
         {
-            bool hasNext;
-            do
+            while (true)
             {
-                hasNext = hasMsg.Take();
+                msgPool.Wait(ct);
 
                 ArraySegment<byte>? msg;
                 while ((msg = msgPool.Take(seqNum)).HasValue)
@@ -281,11 +270,6 @@ namespace WSNet2.Core
                     seqNum++;
                 }
             }
-            while (hasNext);
-
-            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "client leave", ct);
-
-            return "msg sender closed.";
         }
 
         /// <summary>

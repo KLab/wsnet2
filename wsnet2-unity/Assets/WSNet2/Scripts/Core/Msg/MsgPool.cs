@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Threading;
 
 namespace WSNet2.Core
 {
@@ -16,6 +18,16 @@ namespace WSNet2.Core
         int tookSeqNum;
         SerialWriter[] pool;
 
+        ///<summary>PoolにMsgが追加されたフラグ</summary>
+        /// <remarks>
+        ///   <para>
+        ///     msgPoolにAdd*したあとTryAdd(true)する。
+        ///     送信ループがTake()で待機しているので、Addされたら動き始める。
+        ///     サイズ=1にしておくことで、送信前に複数回Addされても1度のループで送信される。
+        ///   </para>
+        /// </remarks>
+        BlockingCollection<bool> hasMsg;
+
         /// <summary>
         ///   コンストラクタ
         /// </summary>
@@ -30,6 +42,21 @@ namespace WSNet2.Core
             {
                 pool[i] = Serialization.NewWriter(initialBufSize);
             }
+
+            hasMsg = new BlockingCollection<bool>(1);
+        }
+
+        /// <summary>
+        ///   Msgが来るまで待つ
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     スレッドをブロックする
+        ///   </para>
+        /// </remarks>
+        public void Wait(CancellationToken ct)
+        {
+            _ = hasMsg.Take(ct);
         }
 
         /// <summary>
@@ -80,9 +107,7 @@ namespace WSNet2.Core
         {
             lock(this)
             {
-                incrementSeqNum();
-                var writer = pool[sequenceNum % pool.Length];
-                writeRPCType(writer, id, targets);
+                var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
             }
         }
@@ -91,40 +116,37 @@ namespace WSNet2.Core
         {
             lock(this)
             {
-                incrementSeqNum();
-                var writer = pool[sequenceNum % pool.Length];
-                writeRPCType(writer, id, targets);
+                var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
             }
         }
 
-        private void writeRPCType(SerialWriter writer, byte id, string[] targets)
+        private SerialWriter writeRPCHeader(byte id, string[] targets)
         {
-            writer.Reset();
+            SerialWriter writer;
 
             if (targets == Room.RPCToMaster)
             {
-                writer.Put8((int)MsgType.ToMaster);
-                writer.Put24(sequenceNum);
+                writer = writeMsgType(MsgType.ToMaster);
             }
             else if (targets.Length == 0)
             {
-                writer.Put8((int)MsgType.Broadcast);
-                writer.Put24(sequenceNum);
+                writer = writeMsgType(MsgType.Broadcast);
             }
             else
             {
-                writer.Put8((int)MsgType.Target);
-                writer.Put24(sequenceNum);
+                writer = writeMsgType(MsgType.Target);
                 writer.Write(targets);
             }
 
             writer.Write(id);
+            return writer;
         }
 
         private SerialWriter writeMsgType(MsgType msgType)
         {
             incrementSeqNum();
+            hasMsg.TryAdd(true);
             var writer = pool[sequenceNum % pool.Length];
             writer.Reset();
             writer.Put8((int)msgType);

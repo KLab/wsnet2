@@ -143,19 +143,16 @@ namespace WSNet2.Core
         public void Leave()
         {
             con.msgPool.PostLeave();
-            con.hasMsg.TryAdd(false);
         }
 
         public void RPC(Action<string, string> rpc, string param, params string[] targets)
         {
             con.msgPool.PostRPC(getRpcId(rpc), param, targets);
-            con.hasMsg.TryAdd(true);
         }
 
         public void RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
         {
             con.msgPool.PostRPC(getRpcId(rpc), param, targets);
-            con.hasMsg.TryAdd(true);
         }
 
         private byte getRpcId(Delegate rpc)
