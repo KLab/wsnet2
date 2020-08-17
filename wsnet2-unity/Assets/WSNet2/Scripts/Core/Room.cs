@@ -120,24 +120,18 @@ namespace WSNet2.Core
 
         public async Task Start()
         {
-            string msg;
-
             try{
-                msg = await con.Start();
+                await con.Start();
             }
             catch(Exception e)
             {
-                OnError(e);
-                msg = e.Message;
-            }
-            callbackPool.Add(() =>
-            {
-                if (!Closed)
+                callbackPool.Add(() =>
                 {
                     Closed = true;
-                    eventReceiver.OnClosed(msg);
-                }
-            });
+                    OnError(e);
+                    eventReceiver.OnClosed(e.Message);
+                });
+            }
         }
 
         public void Leave()
@@ -285,11 +279,8 @@ namespace WSNet2.Core
         {
             callbackPool.Add(() =>
             {
-                if (!Closed)
-                {
-                    Closed = true;
-                    eventReceiver.OnClosed(ev.Description);
-                }
+                Closed = true;
+                eventReceiver.OnClosed(ev.Description);
             });
         }
     }

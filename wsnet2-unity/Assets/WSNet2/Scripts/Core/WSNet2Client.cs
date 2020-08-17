@@ -193,7 +193,7 @@ namespace WSNet2.Core
                 if (!res.IsSuccessStatusCode)
                 {
                     var msg = System.Text.Encoding.UTF8.GetString(body);
-                    throw new Exception($"Create failed: code={res} {msg}");
+                    throw new Exception($"Connect to room failed: code={res} {msg}");
                 }
 
                 var joinedResponse = MessagePackSerializer.Deserialize<JoinedResponse>(body);

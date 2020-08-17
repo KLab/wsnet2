@@ -37,8 +37,8 @@ namespace WSNet2.Core
         int pingInterval;
 
         ClientWebSocket ws;
-        TaskCompletionSource<Task<string>> senderTaskSource;
-        TaskCompletionSource<Task<string>> pingerTaskSource;
+        TaskCompletionSource<Task> senderTaskSource;
+        TaskCompletionSource<Task> pingerTaskSource;
         int reconnection;
 
         BlockingCollection<byte[]> evBufPool;
@@ -77,7 +77,7 @@ namespace WSNet2.Core
         ///     もしくはクライアントからの強制切断
         ///   </para>
         /// </remarks>
-        public async Task<string> Start()
+        public async Task Start()
         {
             while(true)
             {
@@ -88,22 +88,24 @@ namespace WSNet2.Core
 
                 // Receiverの中でEvPeerReadyを受け取ったらSender/Pingerを起動する
                 // SenderのTaskをawaitしたいのでこれで受け取る
-                senderTaskSource = new TaskCompletionSource<Task<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
-                pingerTaskSource = new TaskCompletionSource<Task<string>>(TaskCreationOptions.RunContinuationsAsynchronously);
+                senderTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+                pingerTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 try
                 {
                     ws = await Connect(cts.Token);
 
-                    var tasks = new Task<string>[]
+                    var tasks = new Task[]
                     {
                         Task.Run(async() => await Receiver(cts.Token)),
                         Task.Run(async() => await await senderTaskSource.Task),
                         Task.Run(async() => await await pingerTaskSource.Task),
                     };
 
+                    await tasks[Task.WaitAny(tasks)];
+
                     // finish task without exception: unreconnectable. don't retry.
-                    return await tasks[Task.WaitAny(tasks)];
+                    return;
                 }
                 catch(WebSocketException e)
                 {
@@ -112,11 +114,11 @@ namespace WSNet2.Core
                         case WebSocketError.NotAWebSocket:
                         case WebSocketError.UnsupportedProtocol:
                         case WebSocketError.UnsupportedVersion:
-                            room.OnError(e);
-                            return e.Message;
+                            // unnable to connect. don't retry.
+                            throw;
                     }
 
-                    // retry on other exception
+                    // retry on other error.
                     lastException = e;
                 }
                 catch(Exception e)
@@ -127,15 +129,16 @@ namespace WSNet2.Core
                 finally
                 {
                     senderTaskSource.TrySetCanceled();
+                    pingerTaskSource.TrySetCanceled();
                     cts.Cancel();
                 }
 
-                room.OnError(lastException);
-
                 if (++reconnection > MaxReconnection)
                 {
-                    return $"MaxReconnection: {lastException.Message}";
+                    throw new Exception($"MaxReconnection: {lastException.Message}", lastException);
                 }
+
+                room.OnError(lastException);
 
                 await retryInterval;
             }
@@ -171,7 +174,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   Event受信ループ
         /// </summary>
-        private async Task<string> Receiver(CancellationToken ct)
+        private async Task Receiver(CancellationToken ct)
         {
             while(true)
             {
@@ -199,6 +202,9 @@ namespace WSNet2.Core
                         senderTaskSource.TrySetResult(sender);
                         pingerTaskSource.TrySetResult(pinger);
                         break;
+                    case EvType.Closed:
+                        room.OnEvent(ev);
+                        return;
                     default:
                         room.OnEvent(ev);
                         break;
@@ -256,7 +262,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="seqNum">開始Msg通し番号</param>
         /// <param name="ct">ループ停止するトークン</param>
-        private async Task<string> Sender(int seqNum, CancellationToken ct)
+        private async Task Sender(int seqNum, CancellationToken ct)
         {
             while (true)
             {
@@ -275,7 +281,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   Ping送信ループ
         /// </summary>
-        private async Task<string> Pinger(CancellationToken ct)
+        private async Task Pinger(CancellationToken ct)
         {
             var msg = new MsgPing();
 
