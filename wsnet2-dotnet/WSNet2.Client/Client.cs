@@ -70,7 +70,11 @@ namespace WSNet2.DotnetClient
         {
             Console.WriteLine($"OnRPCMessage [{senderId}]: {msg}");
         }
-
+        static void RPCMessages(string senderId, StrMessage[] msgs)
+        {
+            var strs = string.Join<StrMessage>(',', msgs);
+            Console.WriteLine($"OnRPCMessages [{senderId}]: {strs}"); 
+        }
         static void RPCString(string senderId, string str)
         {
             Console.WriteLine($"OnRPCString [{senderId}]: {str}");
@@ -116,6 +120,7 @@ namespace WSNet2.DotnetClient
                 room.OnErrorClosed += (_) => cts.Cancel();
 
                 room.RegisterRPC<StrMessage>(RPCMessage);
+                room.RegisterRPC<StrMessage>(RPCMessages);
                 room.RegisterRPC(RPCString);
 
                 return true;
@@ -185,7 +190,10 @@ namespace WSNet2.DotnetClient
                             break;
                         case 2:
                             Console.WriteLine($"rpc to all: {str}");
-                            room.RPC(RPCString, str);
+                            var msgs = new StrMessage[]{
+                                new StrMessage(str), new StrMessage(str),
+                            };
+                            room.RPC(RPCMessages, msgs);
                             break;
                     }
                     i++;
