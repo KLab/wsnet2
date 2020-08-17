@@ -528,6 +528,7 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 
 	target, found := r.players[msg.Target]
 	if !found {
+		// TODO: 失敗した場合の通知
 		return xerrors.Errorf("MsgSwitchMaster: player not found: room=%v, target=%v", r.Id, msg.Target)
 	}
 
