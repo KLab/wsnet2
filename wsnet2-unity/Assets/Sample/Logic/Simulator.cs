@@ -12,6 +12,7 @@ namespace Sample.Logic
     public enum GameStateCode
     {
         None,
+        WaitingGameMaster,
         WaitingPlayer,
         ReadyToStart,
         InGame,
@@ -81,10 +82,11 @@ namespace Sample.Logic
     {
         public GameStateCode Code;
         public int GameCount;
+        public string MasterId;
         public string Player1;
         public string Player2;
-        public bool Player1Ready;
-        public bool Player2Ready;
+        public int Player1Ready;
+        public int Player2Ready;
         public int Score1;
         public int Score2;
         public Bar Bar1;
@@ -96,6 +98,7 @@ namespace Sample.Logic
         {
             writer.Write((int)Code);
             writer.Write(GameCount);
+            writer.Write(MasterId);
             writer.Write(Player1);
             writer.Write(Player2);
             writer.Write(Player1Ready);
@@ -111,15 +114,18 @@ namespace Sample.Logic
         {
             Code = (GameStateCode)reader.ReadInt();
             GameCount = reader.ReadInt();
+            MasterId = reader.ReadString();
             Player1 = reader.ReadString();
             Player2 = reader.ReadString();
-            Player1Ready = reader.ReadBool();
-            Player2Ready = reader.ReadBool();
+            // Player1Ready = reader.ReadBool();
+            // Player2Ready = reader.ReadBool();
+            Player1Ready = reader.ReadInt();
+            Player2Ready = reader.ReadInt();
             Score1 = reader.ReadInt();
             Score2 = reader.ReadInt();
-            Bar1.Deserialize(reader, 0); // FIXME: how can I get valid len?
-            Bar2.Deserialize(reader, 0); // 
-            Ball.Deserialize(reader, 0); // 
+            Bar1 = reader.ReadObject(Bar1);
+            Bar2 = reader.ReadObject(Bar2);
+            Ball = reader.ReadObject(Ball);
         }
     }
 
@@ -181,12 +187,12 @@ namespace Sample.Logic
             MinY = -BoardHeight / 2;
             MaxY = BoardHeight / 2;
 
-            state.Code = GameStateCode.WaitingPlayer;
+            state.Code = GameStateCode.WaitingGameMaster;
             state.GameCount = 0;
-            state.Player1 = null;
-            state.Player2 = null;
-            state.Player1Ready = false;
-            state.Player2Ready = false;
+            state.Player1 = "";
+            state.Player2 = "";
+            state.Player1Ready = 0;
+            state.Player2Ready = 0;
             state.Score1 = 0;
             state.Score2 = 0;
             state.Bar1 = new Bar();
@@ -233,11 +239,16 @@ namespace Sample.Logic
                 state.Score2 = 0;
             }
             state.GameCount++;
+
             ResetPositions(state);
         }
 
         public void UpdateGame(GameState state, IEnumerable<PlayerEvent> events)
         {
+            if (state.Code == GameStateCode.WaitingGameMaster)
+            {
+                // Do nothing 
+            }
             if (state.Code == GameStateCode.WaitingPlayer)
             {
                 if (events != null)
@@ -246,6 +257,11 @@ namespace Sample.Logic
                     {
                         if (ev.Code == PlayerEventCode.Join)
                         {
+                            if (ev.PlayerId == state.Player1 || ev.PlayerId == state.Player2)
+                            {
+                                continue;
+                            }
+
                             if (string.IsNullOrEmpty(state.Player1))
                             {
                                 state.Player1 = ev.PlayerId;
@@ -267,14 +283,14 @@ namespace Sample.Logic
                     {
                         if (ev.PlayerId == state.Player1 && ev.Code == PlayerEventCode.Ready)
                         {
-                            state.Player1Ready = true;
+                            state.Player1Ready = 1;
                         }
                         if (ev.PlayerId == state.Player2 && ev.Code == PlayerEventCode.Ready)
                         {
-                            state.Player2Ready = true;
+                            state.Player2Ready = 1;
                         }
 
-                        if (state.Player1Ready && state.Player2Ready)
+                        if (state.Player1Ready == 1 && state.Player2Ready == 1)
                         {
                             StartNextGame(state);
                         }
@@ -323,7 +339,6 @@ namespace Sample.Logic
                     state.Ball.Direction.y *= -1;
                 }
 
-                state.Ball.Position.x = Math.Min(MaxX, Math.Max(MinX, state.Ball.Position.x));
                 state.Ball.Position.y = Math.Min(MaxY - state.Ball.Radius, Math.Max(MinY + state.Ball.Radius, state.Ball.Position.y));
 
                 {
@@ -371,11 +386,15 @@ namespace Sample.Logic
                 {
                     state.Code = GameStateCode.Goal;
                     state.Score2 += 1;
+                    state.Player1Ready = 0;
+                    state.Player2Ready = 0;
                 }
                 if (MaxX + state.Ball.Radius < state.Ball.Position.x)
                 {
                     state.Code = GameStateCode.Goal;
                     state.Score1 += 1;
+                    state.Player1Ready = 0;
+                    state.Player2Ready = 0;
                 }
             }
         }

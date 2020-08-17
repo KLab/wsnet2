@@ -85,9 +85,11 @@ namespace Sample.Logic
 
         public static void RegisterTypes()
         {
-            Serialization.Register<Sample.Logic.EmptyMessage>(2);
-            Serialization.Register<Sample.Logic.GameState>(3);
-            Serialization.Register<Sample.Logic.PlayerEvent>(4);
+            Serialization.Register<Sample.Logic.EmptyMessage>(0);
+            Serialization.Register<Sample.Logic.GameState>(10);
+            Serialization.Register<Sample.Logic.Bar>(11);
+            Serialization.Register<Sample.Logic.Ball>(12);
+            Serialization.Register<Sample.Logic.PlayerEvent>(20);
         }
     }
 }

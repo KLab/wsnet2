@@ -69,7 +69,8 @@ namespace Sample
 
         void RPCSyncGameState(string sender, GameState msg)
         {
-            if (WSNet2Runner.Instance.GameRoom.Master.Id == sender)
+            // TODO: How to check if the sender is valid master client?
+            if (msg.MasterId == sender)
             {
                 state = msg;
             }
@@ -160,6 +161,14 @@ namespace Sample
             Debug.Log(state.Code);
             if (state.Code == GameStateCode.WaitingPlayer)
             {
+                if (Time.frameCount % 10 == 0)
+                {
+                    events.Add(new PlayerEvent
+                    {
+                        Code = PlayerEventCode.Join,
+                        PlayerId = myPlayerId,
+                    });
+                }
             }
             else if (state.Code == GameStateCode.ReadyToStart)
             {
@@ -214,6 +223,23 @@ namespace Sample
                     });
                 }
                 prevMoveInput = value;
+            }
+            else if (state.Code == GameStateCode.Goal)
+            {
+                events.Add(new PlayerEvent
+                {
+                    Code = PlayerEventCode.Ready,
+                    PlayerId = myPlayerId,
+                });
+
+                if (!isOnlineMode)
+                {
+                    events.Add(new PlayerEvent
+                    {
+                        Code = PlayerEventCode.Ready,
+                        PlayerId = cpuPlayerId,
+                    });
+                }
             }
 
             // オンラインモードならイベントをRPCで送信

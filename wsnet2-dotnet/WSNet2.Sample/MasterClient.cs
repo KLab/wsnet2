@@ -56,6 +56,7 @@ namespace WSNet2.Sample
 
     class MasterClient
     {
+        string userId;
         WSNet2Client client;
         Dictionary<string, object> props;
 
@@ -64,6 +65,7 @@ namespace WSNet2.Sample
         Random rand;
         GameSimulator sim;
         GameState state;
+        List<PlayerEvent> events;
 
         public MasterClient(string server, string appId, string pKey, int serachGroup, int maxPlayer, string userId)
         {
@@ -76,10 +78,12 @@ namespace WSNet2.Sample
             props = new Dictionary<string, object>(){
                 {"name", userId},
             };
+            this.userId = userId;
             this.searchGroup = serachGroup;
             rand = new Random();
             sim = new GameSimulator();
             state = new GameState();
+            events = new List<PlayerEvent>();
             sim.Init(state);
         }
 
@@ -109,7 +113,10 @@ namespace WSNet2.Sample
                 roomJoined.TrySetResult(room);
                 return true;
             };
-            Action<Exception> onFailed = (Exception e) => roomJoined.TrySetException(e);
+            Action<Exception> onFailed = (Exception e) =>
+            {
+                roomJoined.TrySetException(e);
+            };
 
             Console.WriteLine("random join");
             client.RandomJoin(
@@ -120,31 +127,67 @@ namespace WSNet2.Sample
                 onJoined,
                 onFailed);
 
-            // TODO: 例外スローされない..
-            var room = await roomJoined.Task;
-            Console.WriteLine("joined");
-            cts.Token.ThrowIfCancellationRequested();
-            Console.WriteLine("joined room = "+room.Id);
+            // NOTE: 起動しとかないとコールバック呼ばれない
+            _ = Task.Run(async () =>
+            {
+                while (!roomJoined.Task.IsCompleted)
+                {
+                    cts.Token.ThrowIfCancellationRequested();
+                    client.ProcessCallback();
+                    await Task.Delay(100);
+                }
+            });
 
+            var room = await roomJoined.Task;
+            cts.Token.ThrowIfCancellationRequested();
+            Console.WriteLine("joined room = " + room.Id);
+
+
+            var syncStart = DateTime.UtcNow;
+            var lastSync = syncStart;
             while (true)
             {
-
                 cts.Token.ThrowIfCancellationRequested();
                 client.ProcessCallback();
-                await Task.Delay(1000);
+
+                if (state.Code == GameStateCode.WaitingGameMaster)
+                {
+                    state.Code = GameStateCode.WaitingPlayer;
+                    state.MasterId = userId;
+                }
+
+                sim.UpdateGame(state, events);
+                events.Clear();
+
+                var forceSync = false;
+                var now = DateTime.UtcNow;
+                if (forceSync || 100.0 <= now.Subtract(lastSync).TotalMilliseconds)
+                {
+                    room.RPC(RPCSyncGameState, state);
+                    lastSync = now;
+                }
+
+                await Task.Delay(16);
             }
         }
 
         void RPCKeepAlive(string sender, EmptyMessage _)
         {
+            Console.WriteLine("RPCKeepAlive from " + sender);
         }
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
         {
+            Console.WriteLine("RPCPlayerEvent from " + sender);
+            msg.PlayerId = sender;
+            events.Add(msg);
         }
 
         void RPCSyncGameState(string sender, GameState msg)
         {
+            Console.WriteLine("RPCSyncGameState from " + sender);
+            Console.WriteLine("MasterId: "+ msg.MasterId);
+            Console.WriteLine("State: "+ msg.Code);
         }
     }
 }
