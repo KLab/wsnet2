@@ -60,6 +60,11 @@ const (
 	// - Dict: properties (modified keys only)
 	MsgTypeClientProp
 
+	// MsgTypeSwitchMaster : Masterクライアントの切替え
+	// payload:
+	// - str8: client id
+	MsgTypeSwitchMaster
+
 	// MsgTypeTargets : 特定のクライアントへ送信
 	// payload:
 	//  - List: user ids
@@ -216,6 +221,16 @@ func UnmarshalClientProp(payload []byte) (Dict, error) {
 		return nil, xerrors.Errorf("Invalid MsgClientProp payload (props): %w", e)
 	}
 	return d.(Dict), nil
+}
+
+// UnmarshalSwitchMasterPayload parses payload of MsgTypeSwitchMaster
+func UnmarshalSwitchMasterPayload(payload []byte) (string, error) {
+	d, _, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return "", xerrors.Errorf("Invalid MsgSwitchMaster payload (client id): %w", e)
+	}
+
+	return d.(string), nil
 }
 
 // UnmarshalTargetsAndData parses payload of MsgTypeTargets

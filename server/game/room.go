@@ -270,6 +270,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgToMaster(m)
 	case *MsgBroadcast:
 		return r.msgBroadcast(m)
+	case *MsgSwitchMaster:
+		return r.msgSwitchMaster(m)
 	case *MsgClientError:
 		return r.msgClientError(m)
 	default:
@@ -513,6 +515,27 @@ func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Data))
+	return nil
+}
+
+func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
+	if msg.Sender != r.master {
+		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+	}
+
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+
+	target, found := r.players[msg.Target]
+	if !found {
+		return xerrors.Errorf("MsgSwitchMaster: player not found: room=%v, target=%v", r.Id, msg.Target)
+	}
+
+	r.master = target
+
+	r.logger.Debugf("Master switched: room=%v master:%v->%v", r.ID(), msg.Sender.ID(), r.master.Id)
+
+	r.broadcast(binary.NewEvMasterSwitched(msg.Sender.Id, r.master.Id))
 	return nil
 }
 
