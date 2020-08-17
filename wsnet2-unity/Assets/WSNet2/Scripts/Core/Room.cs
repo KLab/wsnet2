@@ -37,12 +37,7 @@ namespace WSNet2.Core
         public IReadOnlyDictionary<string, Player> Players { get { return players; } }
 
         /// <summary>マスタークライアント</summary>
-        public Player Master {
-            get
-            {
-                return players[masterId];
-            }
-        }
+        public Player Master { get { return players[masterId]; } }
 
         /// <summary>Ping応答時間 (millisec)</summary>
         public ulong RttMillisec { get; private set; }
@@ -52,20 +47,28 @@ namespace WSNet2.Core
 
         /// <summary>入室イベント通知</summary>
         public Action<Player> OnJoined;
+
         /// <summary>退室イベント通知</summary>
         public Action<string> OnClosed;
+
         /// <summary>他のプレイヤーの入室通知</summary>
         public Action<Player> OnOtherPlayerJoined;
+
         /// <summary>他のプレイヤーの退室通知</summary>
         public Action<Player> OnOtherPlayerLeft;
+
         /// <summary>マスタークライアントの変更通知</summary>
         public Action<Player, Player> OnMasterPlayerSwitched;
+
         /// <summary>部屋のプロパティの変更通知</summary>
         public Action<Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
+
         /// <summary>プレイヤーのプロパティの変更通知</summary>
         public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
+
         /// <summary>エラー通知</summary>
         public Action<Exception> OnError;
+
         /// <summary>エラーによる切断通知</summary>
         public Action<Exception> OnErrorClosed;
 
@@ -286,10 +289,6 @@ namespace WSNet2.Core
         {
             switch (ev)
             {
-                case EvClosed evClosed:
-                    OnEvClosed(evClosed);
-                    break;
-
                 case EvPong evPong:
                     OnEvPong(evPong);
                     break;
@@ -302,7 +301,9 @@ namespace WSNet2.Core
                 case EvRPC evRpc:
                     OnEvRPC(evRpc);
                     break;
-
+                case EvClosed evClosed:
+                    OnEvClosed(evClosed);
+                    break;
                 default:
                     con.ReturnEventBuffer(ev);
                     throw new Exception($"unknown event: {ev}");
