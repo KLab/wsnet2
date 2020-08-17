@@ -17,6 +17,7 @@ namespace WSNet2.Core
         Left,
         RomProp,
         ClientProp,
+        MasterSwitched,
         Message,
 
         Closed = localEvType,
