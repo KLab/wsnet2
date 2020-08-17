@@ -50,17 +50,35 @@ namespace WSNet2.Core
         /// <summary>全Playerの最終メッセージ受信時刻 (millisec)</summary>
         public IReadOnlyDictionary<string, ulong> LastMsgTimestamps { get; private set; }
 
+        /// <summary>入室イベント通知</summary>
+        public Action<Player> OnJoined;
+        /// <summary>退室イベント通知</summary>
+        public Action<string> OnClosed;
+        /// <summary>他のプレイヤーの入室通知</summary>
+        public Action<Player> OnOtherPlayerJoined;
+        /// <summary>他のプレイヤーの退室通知</summary>
+        public Action<Player> OnOtherPlayerLeft;
+        /// <summary>マスタークライアントの変更通知</summary>
+        public Action<Player, Player> OnMasterPlayerSwitched;
+        /// <summary>部屋のプロパティの変更通知</summary>
+        public Action<Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
+        /// <summary>プレイヤーのプロパティの変更通知</summary>
+        public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
+        /// <summary>エラー通知</summary>
+        public Action<Exception> OnError;
+        /// <summary>エラーによる切断通知</summary>
+        public Action<Exception> OnErrorClosed;
+
         string myId;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
-
         Dictionary<string, Player> players;
         string masterId;
-
         RoomInfo info;
-        EventReceiver eventReceiver;
 
         CallbackPool callbackPool = new CallbackPool();
+        Dictionary<Delegate, byte> rpcMap;
+        List<Action<string, SerialReader>> rpcActions;
 
         Connection con;
 
@@ -69,15 +87,16 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
-        /// <param name="receiver">イベントレシーバ</param>
-        public Room(JoinedResponse joined, string myId, EventReceiver receiver)
+        public Room(JoinedResponse joined, string myId)
         {
             this.myId = myId;
             this.info = joined.roomInfo;
 
             this.con = new Connection(this, myId, joined);
 
-            this.eventReceiver = receiver;
+            this.rpcMap = new Dictionary<Delegate, byte>();
+            this.rpcActions = new List<Action<string, SerialReader>>();
+
             this.Running = true;
             this.Closed = false;
 
@@ -118,7 +137,7 @@ namespace WSNet2.Core
             }
         }
 
-        public async Task Start()
+        internal async Task Start()
         {
             try{
                 await con.Start();
@@ -128,12 +147,71 @@ namespace WSNet2.Core
                 callbackPool.Add(() =>
                 {
                     Closed = true;
-                    OnError(e);
-                    eventReceiver.OnClosed(e.Message);
+                    if (OnErrorClosed != null)
+                    {
+                        OnErrorClosed(e);
+                    }
                 });
             }
         }
 
+        /// <summary>
+        ///   RPCを登録
+        /// </summary>
+        public int RegisterRPC(Action<string, string> rpc)
+        {
+            return registerRPC(
+                rpc,
+                (senderId, reader) => rpc(senderId, reader.ReadString()));
+        }
+
+        public int RegisterRPC<T>(Action<string, T> rpc, bool cacheObject = false) where T : class, IWSNetSerializable, new()
+        {
+            if (!cacheObject)
+            {
+                return registerRPC(
+                    rpc,
+                    (senderId, reader) => rpc(senderId, reader.ReadObject<T>()));
+            }
+
+            T obj = new T();
+            return registerRPC(
+                rpc,
+                (senderId, reader) => {
+                    obj = reader.ReadObject(obj);
+                    rpc(senderId, obj);
+                });
+        }
+
+        private int registerRPC(Delegate rpc, Action<string, SerialReader> action)
+        {
+            var id = rpcActions.Count;
+
+            if (id > byte.MaxValue)
+            {
+                throw new Exception("RPC map full");
+            }
+
+            if (rpcMap.ContainsKey(rpc))
+            {
+                throw new Exception("RPC target already registered");
+            }
+
+            rpcMap[rpc] = (byte)id;
+            rpcActions.Add(action);
+
+            return id;
+        }
+
+        /// <summary>
+        ///   退室メッセージを送信
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     送信だけでは退室は完了しない。
+        ///     OnClosedイベントを受け取って退室が完了する。
+        ///   </para>
+        /// </remarks>
         public void Leave()
         {
             con.msgPool.PostLeave();
@@ -152,7 +230,7 @@ namespace WSNet2.Core
         private byte getRpcId(Delegate rpc)
         {
             byte rpcId;
-            if (!eventReceiver.RPCMap.TryGetValue(rpc, out rpcId))
+            if (!rpcMap.TryGetValue(rpc, out rpcId))
             {
                 var msg = $"RPC target is not registered";
                 throw new Exception(msg);
@@ -161,13 +239,18 @@ namespace WSNet2.Core
             return rpcId;
         }
 
-
-        public void OnError(Exception e)
+        internal void handleError(Exception e)
         {
-            callbackPool.Add(() => eventReceiver.OnError(e));
+            callbackPool.Add(() =>
+            {
+                if (OnError != null)
+                {
+                    OnError(e);
+                }
+            });
         }
 
-        public void OnEvent(Event ev)
+        internal void handleEvent(Event ev)
         {
             switch (ev)
             {
@@ -194,10 +277,10 @@ namespace WSNet2.Core
             }
 
             // Event受信に使ったバッファはcallbackで参照されるので
-            // callbackが呼ばれて使い終わってから返却
+            // callbackが呼ばれて使い終わってから返却.
+            // 呼び出し中に例外が飛んでもいいように別callbackで。
             callbackPool.Add(() => con.ReturnEventBuffer(ev));
         }
-
 
         /// <summary>
         ///   Pongイベント
@@ -222,7 +305,10 @@ namespace WSNet2.Core
                 callbackPool.Add(() =>
                 {
                     Me.Props = ev.GetProps(Me.Props);
-                    eventReceiver.OnJoined(Me);
+                    if (OnJoined != null)
+                    {
+                        OnJoined(Me);
+                    }
                 });
                 return;
             }
@@ -231,7 +317,10 @@ namespace WSNet2.Core
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
                 players[player.Id] = player;
-                eventReceiver.OnOtherPlayerJoined(player);
+                if (OnOtherPlayerJoined != null)
+                {
+                    OnOtherPlayerJoined(player);
+                }
             });
         }
 
@@ -247,11 +336,17 @@ namespace WSNet2.Core
                 if (masterId == player.Id)
                 {
                     masterId = ev.MasterID;
-                    eventReceiver.OnMasterPlayerSwitched(player, Master);
+                    if (OnMasterPlayerSwitched != null)
+                    {
+                        OnMasterPlayerSwitched(player, Master);
+                    }
                 }
 
                 players.Remove(player.Id);
-                eventReceiver.OnOtherPlayerLeft(player);
+                if (OnOtherPlayerLeft != null)
+                {
+                    OnOtherPlayerLeft(player);
+                }
             });
         }
 
@@ -260,16 +355,22 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvRPC(EvRPC ev)
         {
-            // fixme: RPCがまだ登録されていないかもしれない。callbackの中で判定すべき。
-            if (ev.RpcID >= eventReceiver.RPCActions.Count)
+            callbackPool.Add(() =>
             {
-                var e = new Exception($"RpcID({ev.RpcID}) is not registered");
-                callbackPool.Add(() => eventReceiver.OnError(e));
-                return;
-            }
+                if (ev.RpcID >= rpcActions.Count)
+                {
+                    var e = new Exception($"RpcID({ev.RpcID}) is not registered");
+                    if (OnError != null)
+                    {
+                        OnError(e);
+                    }
 
-            var action = eventReceiver.RPCActions[ev.RpcID];
-            callbackPool.Add(() => action(ev.SenderID, ev.Reader));
+                    return;
+                }
+
+                var action = rpcActions[ev.RpcID];
+                action(ev.SenderID, ev.Reader);
+            });
         }
 
         /// <summary>
@@ -280,7 +381,10 @@ namespace WSNet2.Core
             callbackPool.Add(() =>
             {
                 Closed = true;
-                eventReceiver.OnClosed(ev.Description);
+                if (OnClosed != null)
+                {
+                    OnClosed(ev.Description);
+                }
             });
         }
     }

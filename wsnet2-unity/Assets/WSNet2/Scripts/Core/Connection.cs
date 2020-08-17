@@ -8,6 +8,8 @@ namespace WSNet2.Core
 {
     class Connection
     {
+        // todo: 設定を注入できるようにする
+
         /// <summary>保持できるEventの数</summary>
         const int EvBufPoolSize = 16;
 
@@ -137,14 +139,14 @@ namespace WSNet2.Core
                     throw new Exception($"MaxReconnection: {lastException.Message}", lastException);
                 }
 
-                room.OnError(lastException);
+                room.handleError(lastException);
 
                 await retryInterval;
             }
         }
 
         /// <summary>
-        ///   Room.OnEvent()に渡したEventを使い終わったら返却する.
+        ///   Room.handleEvent()に渡したEventを使い終わったら返却する.
         /// </summary>
         public void ReturnEventBuffer(Event ev)
         {
@@ -202,10 +204,10 @@ namespace WSNet2.Core
                         pingerTaskSource.TrySetResult(pinger);
                         break;
                     case EvType.Closed:
-                        room.OnEvent(ev);
+                        room.handleEvent(ev);
                         return;
                     default:
-                        room.OnEvent(ev);
+                        room.handleEvent(ev);
                         break;
                 }
             }
