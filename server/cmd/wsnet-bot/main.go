@@ -26,14 +26,20 @@ type bot struct {
 	appId  string
 	appKey string
 	userId string
+	props  binary.Dict
 	ws     *websocket.Dialer
 }
 
 func NewBot(appId, appKey, userId string) *bot {
+	props := binary.Dict{}
+	props["p1"] = binary.MarshalInt(65535)
+	props["p2"] = binary.MarshalStr16("fuga")
+
 	return &bot{
 		appId:  appId,
 		appKey: appKey,
 		userId: userId,
+		props:  props,
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
 			ReadBufferSize:  1024,
@@ -50,6 +56,7 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 	param := &service.CreateParam{
 		RoomOption: pb.RoomOption{
 			Visible:     true,
+			Joinable:    true,
 			Watchable:   false,
 			WithNumber:  true,
 			MaxPlayers:  6,
@@ -57,7 +64,8 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 			PublicProps: binary.MarshalDict(props),
 		},
 		ClientInfo: pb.ClientInfo{
-			Id: b.userId,
+			Id:    b.userId,
+			Props: binary.MarshalDict(b.props),
 		},
 	}
 
@@ -77,7 +85,8 @@ func (b *bot) JoinRoom(roomId string, queries []lobby.PropQuery) (*pb.JoinedRoom
 	param := &service.JoinParam{
 		Queries: []lobby.PropQueries{queries},
 		ClientInfo: pb.ClientInfo{
-			Id: b.userId,
+			Id:    b.userId,
+			Props: binary.MarshalDict(b.props),
 		},
 	}
 
@@ -98,7 +107,8 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 	param := &service.JoinParam{
 		Queries: []lobby.PropQueries{queries},
 		ClientInfo: pb.ClientInfo{
-			Id: b.userId,
+			Id:    b.userId,
+			Props: binary.MarshalDict(b.props),
 		},
 	}
 
@@ -119,7 +129,8 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 	param := &service.JoinParam{
 		Queries: []lobby.PropQueries{queries},
 		ClientInfo: pb.ClientInfo{
-			Id: b.userId,
+			Id:    b.userId,
+			Props: binary.MarshalDict(b.props),
 		},
 	}
 
@@ -284,6 +295,14 @@ func main() {
 		//ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 21, 22, 23, 24, 25})
 		//		time.Sleep(time.Second)
 		//		ws.Close()
+		time.Sleep(time.Second)
+		fmt.Println("msg 004")
+		payload := []byte{byte(binary.MsgTypeClientProp), 0, 0, 4}
+		payload = append(payload, binary.MarshalDict(binary.Dict{
+			"p1": binary.MarshalUShort(20),
+			"p2": []byte{},
+		})...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
 	}()
 
 	//	<-done

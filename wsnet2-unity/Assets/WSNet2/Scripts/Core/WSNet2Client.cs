@@ -72,22 +72,24 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="roomOption">部屋オプション</param>
         /// <param name="clientProps">自身のカスタムプロパティ</param>
-        /// <param name="receiver">イベントレシーバ</param>
         /// <param name="onSuccess">成功時callback</param>
         /// <param name="onFailed">失敗時callback</param>
         /// <remarks>
         ///   <para>callbackはProcessCallback経由で呼ばれる</para>
         ///   <para>
         ///     onSuccessが呼ばれた時点ではまだwebsocket接続していない。
-        ///     ここでRoom.Running=falseすることで、イベントが処理されるのを止めておける。
-        ///     ProcessCallback()は呼び続けて良い。
-        ///     シーン遷移後にRoom.Running=trueにするとイベントが処理されレシーバに届くようになる。
+        ///     ここでRoom.Pause()することで、イベントが処理されるのを止めておける（Room.On*やRPCが呼ばれない）。
+        ///     その間ProcessCallback()は呼び続けて良い。
+        ///     Room.Restart()するとイベント処理を再開する。
+        ///   </para>
+        ///   <para>
+        ///     たとえば、onSuccessでPauseしてシーン遷移し、
+        ///     遷移後のシーンでOn*やRPCを登録後にRestartするという使い方を想定している。
         ///   </para>
         /// </remarks>
         public void Create(
             RoomOption roomOption,
             IDictionary<string, object> clientProps,
-            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
@@ -97,7 +99,7 @@ namespace WSNet2.Core
 
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom("/rooms", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom("/rooms", content, onSuccess, onFailed));
         }
 
         /// <summary>
@@ -106,7 +108,6 @@ namespace WSNet2.Core
         public void Join(
             string roomId,
             IDictionary<string, object> clientProps,
-            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
@@ -115,7 +116,7 @@ namespace WSNet2.Core
 
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, onSuccess, onFailed));
         }
 
         /// <summary>
@@ -127,7 +128,6 @@ namespace WSNet2.Core
         public void Join(
             int number,
             IDictionary<string, object> clientProps,
-            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
@@ -135,7 +135,7 @@ namespace WSNet2.Core
             param.clientInfo = new ClientInfo(userId, clientProps);
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, onSuccess, onFailed));
         }
 
         /// <summary>
@@ -145,22 +145,21 @@ namespace WSNet2.Core
             uint group,
             PropQuery[][] queries,
             IDictionary<string, object> clientProps,
-            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
+            // todo: 検索クエリBuilderを提供する
             var param = new JoinParam();
             param.queries = queries;
             param.clientInfo = new ClientInfo(userId, clientProps);
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, onSuccess, onFailed));
         }
 
         public void Watch(
             string roomId,
             IDictionary<string, object> clientProps,
-            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
@@ -169,13 +168,12 @@ namespace WSNet2.Core
 
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, receiver, onSuccess, onFailed));
+            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, onSuccess, onFailed));
         }
 
         private async Task connectToRoom(
             string path,
             byte[] content,
-            EventReceiver receiver,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
@@ -193,11 +191,11 @@ namespace WSNet2.Core
                 if (!res.IsSuccessStatusCode)
                 {
                     var msg = System.Text.Encoding.UTF8.GetString(body);
-                    throw new Exception($"Create failed: code={res} {msg}");
+                    throw new Exception($"Connect to room failed: code={res} {msg}");
                 }
 
                 var joinedResponse = MessagePackSerializer.Deserialize<JoinedResponse>(body);
-                var room = new Room(joinedResponse, userId, receiver);
+                var room = new Room(joinedResponse, userId);
 
                 callbackPool.Add(() =>
                 {

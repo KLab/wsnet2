@@ -37,6 +37,7 @@ const (
 
 	// EvTypeClientProp : クライアント情報の変更
 	// payload:
+	//  - str8: client ID
 	//  - Dict: properties
 	EvTypeClientProp
 
@@ -128,6 +129,14 @@ func NewEvLeft(cliId, masterId string) *Event {
 
 func NewEvRoomProp(cliId string, rpp *MsgRoomPropPayload) *Event {
 	return &Event{EvTypeRoomProp, rpp.EventPayload}
+}
+
+func NewEvClientProp(cliId string, props []byte) *Event {
+	payload := make([]byte, 0, len(cliId)+1+len(props))
+	payload = append(payload, MarshalStr8(cliId)...)
+	payload = append(payload, props...)
+
+	return &Event{EvTypeClientProp, payload}
 }
 
 func NewEvMessage(cliId string, body []byte) *Event {
