@@ -57,7 +57,7 @@ namespace WSNet2.Core
         /// <summary>他のプレイヤーの退室通知</summary>
         public Action<Player> OnOtherPlayerLeft;
 
-        /// <summary>マスタークライアントの変更通知</summary>
+        /// <summary>マスタープレイヤーの変更通知</summary>
         public Action<Player, Player> OnMasterPlayerSwitched;
 
         /// <summary>部屋のプロパティの変更通知</summary>
@@ -246,6 +246,25 @@ namespace WSNet2.Core
         public void Leave()
         {
             con.msgPool.PostLeave();
+        }
+
+        /// <summary>
+        ///   Masterを移譲する
+        /// </summary>
+        /// <param name="newMaster">新Master</param>
+        public void SwitchMaster(Player newMaster)
+        {
+            if (Me != Master)
+            {
+                throw new Exception("SwitchMaster is for master only");
+            }
+
+            if (!players.ContainsKey(newMaster.Id))
+            {
+                throw new Exception($"Player \"{newMaster.Id}\" is not in this room");
+            }
+
+            con.msgPool.PostSwitchMaster(newMaster.Id);
         }
 
         /// <summary>

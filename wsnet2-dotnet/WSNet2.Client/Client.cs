@@ -171,6 +171,20 @@ namespace WSNet2.DotnetClient
                         continue;
                     }
 
+                    if (str.StartsWith("switchmaster "))
+                    {
+                        var newMaster = str.Substring("switchmaster ".Length);
+                        Console.WriteLine($"switch master to {newMaster}");
+                        try{
+                            room.SwitchMaster(room.Players[newMaster]);
+                        }
+                        catch(Exception e)
+                        {
+                            Console.WriteLine($"switch master error: {e.Message}");
+                        }
+                        continue;
+                    }
+
                     switch(i%3){
                         case 0:
                             Console.WriteLine($"rpc to master: {str}");
