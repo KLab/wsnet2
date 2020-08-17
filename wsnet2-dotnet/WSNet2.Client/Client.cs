@@ -37,52 +37,6 @@ namespace WSNet2.DotnetClient
 
     public class DotnetClient
     {
-        class EventReceiver : WSNet2.Core.EventReceiver
-        {
-            CancellationTokenSource cts;
-
-            public EventReceiver(CancellationTokenSource cts)
-            {
-                this.cts = cts;
-            }
-
-            public override void OnError(Exception e)
-            {
-                Console.WriteLine("OnError: "+e);
-            }
-
-            public override void OnJoined(Player me)
-            {
-                Console.WriteLine("OnJoined: "+me.Id);
-            }
-
-            public override void OnOtherPlayerJoined(Player player)
-            {
-                Console.WriteLine("OnOtherPlayerJoined: "+player.Id);
-            }
-
-            public override void OnOtherPlayerLeft(Player player)
-            {
-                Console.WriteLine("OnOtherPlayerLeft: "+player.Id);
-            }
-
-            public override void OnMasterPlayerSwitched(Player pred, Player newly)
-            {
-                Console.WriteLine($"OnMasterplayerswitched: {pred.Id} -> {newly.Id}");
-            }
-
-            public override void OnClosed(string description)
-            {
-                Console.WriteLine("OnClose: "+description);
-                cts.Cancel();
-            }
-
-            public void RPCString(string senderId, string str)
-            {
-                Console.WriteLine($"OnRPCString [{senderId}]: {str}");
-            }
-        }
-
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
             while(true){
@@ -117,6 +71,11 @@ namespace WSNet2.DotnetClient
             Console.WriteLine($"OnRPCMessage [{senderId}]: {msg}");
         }
 
+        static void RPCString(string senderId, string str)
+        {
+            Console.WriteLine($"OnRPCString [{senderId}]: {str}");
+        }
+
         static async Task Main(string[] args)
         {
             var rand = new Random();
@@ -138,13 +97,27 @@ namespace WSNet2.DotnetClient
             };
 
             var cts = new CancellationTokenSource();
-            var receiver = new EventReceiver(cts);
-            receiver.RegisterRPC<StrMessage>(RPCMessage);
-            receiver.RegisterRPC(receiver.RPCString);
 
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             Func<Room,bool> onJoined = (Room room) => {
                 roomJoined.TrySetResult(room);
+
+                room.OnError += (e) => Console.WriteLine($"OnError: {e}");
+                room.OnErrorClosed += (e) => Console.WriteLine($"OnErrorClosed: {e}");
+                room.OnJoined += (me) => Console.WriteLine($"OnJoined: {me.Id}");
+                room.OnClosed += (m) => Console.WriteLine($"OnClosed: {m}");
+                room.OnOtherPlayerJoined += (p) => Console.WriteLine($"OnOtherPlayerJoined: {p.Id}");
+                room.OnOtherPlayerLeft += (p) => Console.WriteLine($"OnOtherplayerleft: {p.Id}");
+                room.OnMasterPlayerSwitched += (p, n) => Console.WriteLine($"OnMasterPlayerSwitched: {p.Id} -> {n.Id}");
+                room.OnRoomPropertyChanged += (_, __) => Console.WriteLine($"OnRoomPropertyChanged");
+                room.OnPlayerPropertyChanged += (p, _) => Console.WriteLine($"OnPlayerPropertyChanged: {p.Id}");
+
+                room.OnClosed += (_) => cts.Cancel();
+                room.OnErrorClosed += (_) => cts.Cancel();
+
+                room.RegisterRPC<StrMessage>(RPCMessage);
+                room.RegisterRPC(RPCString);
+
                 return true;
             };
             Action<Exception> onFailed = (Exception e) => roomJoined.TrySetException(e);
@@ -162,18 +135,18 @@ namespace WSNet2.DotnetClient
                 };
                 var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30);
 
-                client.Create(roomOpt, cliProps, receiver, onJoined, onFailed);
+                client.Create(roomOpt, cliProps, onJoined, onFailed);
             }
             else
             {
                 var roomId = args[0];
                 if (args.Length == 1)
                 {
-                    client.Join(roomId, cliProps, receiver, onJoined, onFailed);
+                    client.Join(roomId, cliProps, onJoined, onFailed);
                 }
                 else
                 {
-                    client.Watch(roomId, cliProps, receiver, onJoined, onFailed);
+                    client.Watch(roomId, cliProps, onJoined, onFailed);
                 }
             }
 
@@ -208,11 +181,11 @@ namespace WSNet2.DotnetClient
                             var ids = room.Players.Keys.ToArray();
                             var target = ids[rand.Next(ids.Length)];
                             Console.WriteLine($"rpc to {target}: {str}");
-                            room.RPC(receiver.RPCString, str, target);
+                            room.RPC(RPCString, str, target);
                             break;
                         case 2:
                             Console.WriteLine($"rpc to all: {str}");
-                            room.RPC(receiver.RPCString, str);
+                            room.RPC(RPCString, str);
                             break;
                     }
                     i++;
