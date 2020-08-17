@@ -8,39 +8,6 @@ using WSNet2.Core;
 
 public class SampleClient : MonoBehaviour
 {
-    class EventReceiver : WSNet2.Core.EventReceiver
-    {
-        public override void OnError(Exception e)
-        {
-            Debug.Log("OnError: "+e);
-        }
-
-        public override void OnJoined(Player me)
-        {
-            Debug.Log("OnJoined: "+me.Id);
-        }
-
-        public override void OnOtherPlayerJoined(Player player)
-        {
-            Debug.Log("OnOtherPlayerJoined: "+player.Id);
-        }
-
-        public override void OnOtherPlayerLeft(Player player)
-        {
-            Debug.Log("OnOtherPlayerLeft: "+player.Id);
-        }
-
-        public override void OnMasterPlayerSwitched(Player pred, Player newly)
-        {
-            Debug.Log("OnMasterPlayerswitched: "+pred.Id+" -> "+newly.Id);
-        }
-
-        public override void OnClosed(string description)
-        {
-            Debug.Log("OnClose: "+description);
-        }
-    }
-
     public class StrMessage : IWSNetSerializable
     {
         string str;
@@ -119,14 +86,11 @@ public class SampleClient : MonoBehaviour
         };
         var roomOpt = new RoomOption(10, 100, pubProps, privProps);
 
-        var receiver = new EventReceiver();
-        receiver.RegisterRPC<StrMessage>(OnStrMsgRPC);
-
         cli.Create(
             roomOpt,
             cliProps,
-            receiver,
             (room) => {
+                room.RegisterRPC<StrMessage>(OnStrMsgRPC);
                 Debug.Log("created: room="+room.Id);
                 StartCoroutine(HandleRoom(room));
                 return true;

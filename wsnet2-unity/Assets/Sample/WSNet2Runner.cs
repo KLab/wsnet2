@@ -24,12 +24,6 @@ namespace Sample
             get; set;
         }
 
-        // Active game receiver.
-        public DelegatedEventReceiver GameEventReceiver
-        {
-            get; set;
-        }
-
         public static void CreateInstance()
         {
             if (WSNet2Runner.Instance == null)

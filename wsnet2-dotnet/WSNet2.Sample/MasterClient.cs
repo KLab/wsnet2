@@ -8,52 +8,6 @@ using Sample.Logic;
 
 namespace WSNet2.Sample
 {
-    class EventReceiver : WSNet2.Core.EventReceiver
-    {
-        CancellationTokenSource cts;
-
-        public EventReceiver(CancellationTokenSource cts)
-        {
-            this.cts = cts;
-        }
-
-        public override void OnError(Exception e)
-        {
-            Console.WriteLine("OnError: " + e);
-        }
-
-        public override void OnJoined(Player me)
-        {
-            Console.WriteLine("OnJoined: " + me.Id);
-        }
-
-        public override void OnOtherPlayerJoined(Player player)
-        {
-            Console.WriteLine("OnOtherPlayerJoined: " + player.Id);
-        }
-
-        public override void OnOtherPlayerLeft(Player player)
-        {
-            Console.WriteLine("OnOtherPlayerLeft: " + player.Id);
-        }
-
-        public override void OnMasterPlayerSwitched(Player pred, Player newly)
-        {
-            Console.WriteLine($"OnMasterplayerswitched: {pred.Id} -> {newly.Id}");
-        }
-
-        public override void OnClosed(string description)
-        {
-            Console.WriteLine("OnClose: " + description);
-            cts.Cancel();
-        }
-
-        public void RPCString(string senderId, string str)
-        {
-            Console.WriteLine($"OnRPCString [{senderId}]: {str}");
-        }
-    }
-
     class MasterClient
     {
         string userId;
@@ -100,16 +54,12 @@ namespace WSNet2.Sample
             };
 
             var cts = new CancellationTokenSource();
-            var receiver = new EventReceiver(cts);
-
             // この順番は Unity実装と合わせる必要あり.
-            receiver.RegisterRPC<EmptyMessage>(RPCKeepAlive);
-            receiver.RegisterRPC<GameState>(RPCSyncGameState);
-            receiver.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
 
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             Func<Room, bool> onJoined = (Room room) =>
             {
+                room.Pause();
                 roomJoined.TrySetResult(room);
                 return true;
             };
@@ -123,7 +73,6 @@ namespace WSNet2.Sample
                 (uint)searchGroup,
                 queries,
                 props,
-                receiver,
                 onJoined,
                 onFailed);
 
@@ -142,6 +91,10 @@ namespace WSNet2.Sample
             cts.Token.ThrowIfCancellationRequested();
             Console.WriteLine("joined room = " + room.Id);
 
+            room.RegisterRPC<EmptyMessage>(RPCKeepAlive);
+            room.RegisterRPC<GameState>(RPCSyncGameState);
+            room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
+            room.Restart();
 
             var syncStart = DateTime.UtcNow;
             var lastSync = syncStart;

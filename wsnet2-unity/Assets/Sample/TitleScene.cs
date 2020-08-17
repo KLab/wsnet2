@@ -33,19 +33,16 @@ namespace Sample
                 {"userId", userIdInput.text},
             };
             var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, privProps);
-            var receiver = new DelegatedEventReceiver();
 
             prepareWSNet2Client();
             WSNet2Runner.Instance.Client.Create(
                 roomOpt,
                 cliProps,
-                receiver,
                 (room) =>
                 {
-                    room.Running = false;
+                    room.Pause();
                     Debug.Log("created: room=" + room.Id);
                     WSNet2Runner.Instance.GameRoom = room;
-                    WSNet2Runner.Instance.GameEventReceiver = receiver;
                     SceneManager.LoadScene("Game");
                     return true;
                 },
@@ -71,20 +68,16 @@ namespace Sample
                 },
             };
 
-            var receiver = new DelegatedEventReceiver();
-
             prepareWSNet2Client();
             WSNet2Runner.Instance.Client.RandomJoin(
                 SearchGroup,
                 queries,
                 cliProps,
-                receiver,
                 (room) =>
                 {
-                    room.Running = false;
+                    room.Pause();
                     Debug.Log("join: room=" + room.Id);
                     WSNet2Runner.Instance.GameRoom = room;
-                    WSNet2Runner.Instance.GameEventReceiver = receiver;
                     SceneManager.LoadScene("Game");
                     return true;
                 },

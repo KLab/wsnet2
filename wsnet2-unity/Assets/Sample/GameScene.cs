@@ -100,44 +100,60 @@ namespace Sample
         {
             if (isOnlineMode)
             {
-                roomText.text = "Room:" + WSNet2Runner.Instance.GameRoom.Id + "\n";
+                var room = WSNet2Runner.Instance.GameRoom;
+                roomText.text = "Room:" + room.Id + "\n";
 
-                // Roomの処理を開始する前に EventReceiver と RPC の登録を行う必要がある
-                WSNet2Runner.Instance.GameEventReceiver.OnClosedDelegate += reason =>
+                room.OnError += (e) =>
                 {
-                    RoomLog("OnClosed:" + reason);
+                    Debug.LogError(e.ToString());
+                    RoomLog($"OnError: {e}");
                 };
 
-                WSNet2Runner.Instance.GameEventReceiver.OnErrorDelegate += e =>
+                room.OnErrorClosed += (e) =>
+                 {
+                     Debug.LogError(e.ToString());
+                     RoomLog($"OnErrorClosed: {e}");
+                 };
+
+                room.OnJoined += (me) =>
                 {
-                    RoomLog("OnError:" + e);
+                    RoomLog($"OnJoined: {me.Id}");
                 };
 
-                WSNet2Runner.Instance.GameEventReceiver.OnJoinedDelegate += p =>
+                room.OnClosed += (p) =>
                 {
-                    RoomLog("OnJoined:" + p.Id);
+                    RoomLog($"OnJoined: {p}");
                 };
 
-                WSNet2Runner.Instance.GameEventReceiver.OnMasterPlayerSwitchedDelegate += (prev, cur) =>
-                {
-                    RoomLog("OnMasterPlayerSwitched:" + prev.Id + " -> " + cur.Id);
-                };
+                room.OnOtherPlayerJoined += (p) =>
+                 {
+                     RoomLog("OnOtherPlayerJoined:" + p.Id);
+                 };
 
-                WSNet2Runner.Instance.GameEventReceiver.OnOtherPlayerJoinedDelegate += (p) =>
-                {
-                    RoomLog("OnOtherPlayerJoined:" + p.Id);
-                };
-
-                WSNet2Runner.Instance.GameEventReceiver.OnOtherPlayerLeftDelegate += (p) =>
+                room.OnOtherPlayerLeft += (p) =>
                 {
                     RoomLog("OnOtherPlayerLeft:" + p.Id);
                 };
 
-                WSNet2Runner.Instance.GameEventReceiver.RegisterRPC<EmptyMessage>(RPCKeepAlive);
-                WSNet2Runner.Instance.GameEventReceiver.RegisterRPC<GameState>(RPCSyncGameState);
-                WSNet2Runner.Instance.GameEventReceiver.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
+                room.OnMasterPlayerSwitched += (prev, cur) =>
+                {
+                    RoomLog("OnMasterPlayerSwitched:" + prev.Id + " -> " + cur.Id);
+                };
 
-                WSNet2Runner.Instance.GameRoom.Running = true;
+                room.OnRoomPropertyChanged += (_, __) =>
+                {
+                    RoomLog("OnRoomPropertyChanged");
+                };
+
+                room.OnPlayerPropertyChanged += (p, _) =>
+                {
+                    RoomLog($"OnPlayerPropertyChanged: {p.Id}");
+                };
+
+                room.RegisterRPC<EmptyMessage>(RPCKeepAlive);
+                room.RegisterRPC<GameState>(RPCSyncGameState);
+                room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
+                room.Restart();
             }
 
             events.Add(new PlayerEvent
