@@ -164,29 +164,270 @@ namespace WSNet2.Core
         /// <summary>
         ///   RPCを登録
         /// </summary>
+        public int RegisterRPC(Action<string> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc (senderId));
+        }
+        public int RegisterRPC(Action<string, bool> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadBool()));
+        }
+        public int RegisterRPC(Action<string, sbyte> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadSByte()));
+        }
+        public int RegisterRPC(Action<string, byte> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadByte()));
+        }
+        public int RegisterRPC(Action<string, short> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadShort()));
+        }
+        public int RegisterRPC(Action<string, ushort> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadUShort()));
+        }
+        public int RegisterRPC(Action<string, int> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadInt()));
+        }
+        public int RegisterRPC(Action<string, uint> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadUInt()));
+        }
+        public int RegisterRPC(Action<string, long> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadLong()));
+        }
+        public int RegisterRPC(Action<string, ulong> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadULong()));
+        }
+        public int RegisterRPC(Action<string, float> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadFloat()));
+        }
+        public int RegisterRPC(Action<string, double> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadDouble()));
+        }
         public int RegisterRPC(Action<string, string> rpc)
         {
-            return registerRPC(
-                rpc,
-                (senderId, reader) => rpc(senderId, reader.ReadString()));
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadString()));
         }
-
-        public int RegisterRPC<T>(Action<string, T> rpc, bool cacheObject = false) where T : class, IWSNetSerializable, new()
+        public int RegisterRPC<T>(Action<string, T> rpc, T cacheObject = null) where T : class, IWSNetSerializable, new()
         {
-            if (!cacheObject)
+            if (cacheObject == null)
             {
-                return registerRPC(
-                    rpc,
-                    (senderId, reader) => rpc(senderId, reader.ReadObject<T>()));
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadObject<T>()));
             }
 
-            T obj = new T();
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, (cacheObject = reader.ReadObject(cacheObject))));
+        }
+        public int RegisterRPC(Action<string, List<object>> rpc, List<object> cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadList()));
+            }
+
             return registerRPC(
                 rpc,
-                (senderId, reader) => {
-                    obj = reader.ReadObject(obj);
-                    rpc(senderId, obj);
-                });
+                (senderId, reader) => rpc(senderId, (cacheObject = reader.ReadList(cacheObject))));
+        }
+        public int RegisterRPC(Action<string, object[]> rpc, object[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadArray()));
+            }
+
+            return registerRPC(
+                rpc,
+                (senderId, reader) => rpc(senderId, (cacheObject = reader.ReadArray(cacheObject))));
+        }
+        public int RegisterRPC<T>(Action<string, List<T>> rpc, List<T> cacheObject = null) where T : class, IWSNetSerializable, new()
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadList<T>()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadList<T>(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC<T>(Action<string, T[]> rpc, T[] cacheObject = null) where T : class, IWSNetSerializable, new()
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadArray<T>()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadArray<T>(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, Dictionary<string, object>> rpc, Dictionary<string, object> cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadDict()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadDict(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, bool[]> rpc, bool[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadBools()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadBools(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, sbyte[]> rpc, sbyte[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadSBytes()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadSBytes(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, byte[]> rpc, byte[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadBytes()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadBytes(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, short[]> rpc, short[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadShorts()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadShorts(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, ushort[]> rpc, ushort[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadUShorts()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadUShorts(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, int[]> rpc, int[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadInts()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadInts(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, uint[]> rpc, uint[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadUInts()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadUInts(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, long[]> rpc, long[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadLongs()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadLongs(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, ulong[]> rpc, ulong[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadULongs()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadULongs(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, float[]> rpc, float[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadFloats()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadFloats(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, double[]> rpc, double[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadDoubles()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadDoubles(cacheObject);
+                rpc(senderId, cacheObject);
+            });
         }
 
         private int registerRPC(Delegate rpc, Action<string, SerialReader> action)
