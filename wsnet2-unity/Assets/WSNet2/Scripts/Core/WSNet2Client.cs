@@ -78,9 +78,13 @@ namespace WSNet2.Core
         ///   <para>callbackはProcessCallback経由で呼ばれる</para>
         ///   <para>
         ///     onSuccessが呼ばれた時点ではまだwebsocket接続していない。
-        ///     ここでRoom.Running=falseすることで、イベントが処理されるのを止めておける。
-        ///     ProcessCallback()は呼び続けて良い。
-        ///     シーン遷移後にRoom.Running=trueにするとイベントが処理されレシーバ(Room.On*)に届くようになる。
+        ///     ここでRoom.Pause()することで、イベントが処理されるのを止めておける（Room.On*やRPCが呼ばれない）。
+        ///     その間ProcessCallback()は呼び続けて良い。
+        ///     Room.Restart()するとイベント処理を再開する。
+        ///   </para>
+        ///   <para>
+        ///     たとえば、onSuccessでPauseしてシーン遷移し、
+        ///     遷移後のシーンでOn*やRPCを登録後にRestartするという使い方を想定している。
         ///   </para>
         /// </remarks>
         public void Create(

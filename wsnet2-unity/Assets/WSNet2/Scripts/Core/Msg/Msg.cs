@@ -9,6 +9,7 @@ namespace WSNet2.Core
         Leave = regularMsgType,
         RoomProp,
         ClientProp,
+        SwitchMaster,
         Target,
         ToMaster,
         Broadcast,
