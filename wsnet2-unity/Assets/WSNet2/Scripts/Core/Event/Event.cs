@@ -68,6 +68,9 @@ namespace WSNet2.Core
                 case EvType.Left:
                     ev = new EvLeft(reader);
                     break;
+                case EvType.MasterSwitched:
+                    ev = new EvMasterSwitched(reader);
+                    break;
                 case EvType.Message:
                     ev = new EvRPC(reader);
                     break;

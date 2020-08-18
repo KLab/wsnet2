@@ -317,6 +317,9 @@ namespace WSNet2.Core
                 case EvLeft evLeft:
                     OnEvLeft(evLeft);
                     break;
+                case EvMasterSwitched evMasterSwitched:
+                    OnEvMasterSwitched(evMasterSwitched);
+                    break;
                 case EvRPC evRpc:
                     OnEvRPC(evRpc);
                     break;
@@ -398,6 +401,22 @@ namespace WSNet2.Core
                 if (OnOtherPlayerLeft != null)
                 {
                     OnOtherPlayerLeft(player);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   マスタープレイヤー交代イベント
+        /// </summary>
+        private void OnEvMasterSwitched(EvMasterSwitched ev)
+        {
+            callbackPool.Add(() =>
+            {
+                var prev = Master;
+                masterId = ev.NewMasterId;
+                if (OnMasterPlayerSwitched != null)
+                {
+                    OnMasterPlayerSwitched(prev, Master);
                 }
             });
         }
