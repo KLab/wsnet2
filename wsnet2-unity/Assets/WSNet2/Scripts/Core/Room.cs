@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -430,6 +429,19 @@ namespace WSNet2.Core
                 rpc(senderId, cacheObject);
             });
         }
+        public int RegisterRPC(Action<string, string[]> rpc, string[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadStrings()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadStrings(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
 
         private int registerRPC(Delegate rpc, Action<string, SerialReader> action)
         {
@@ -611,6 +623,10 @@ namespace WSNet2.Core
             con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
         public void RPC(Action<string, double[]> rpc, double[] param, params string[] targets)
+        {
+            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+        }
+        public void RPC(Action<string, string[]> rpc, string[] param, params string[] targets)
         {
             con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
