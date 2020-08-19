@@ -477,6 +477,27 @@ namespace WSNet2.Core
             return vals;
         }
 
+        public string[] ReadStrings(string[] recycle = null)
+        {
+            checkType(Type.List);
+            var count = Get8();
+            var list = recycle;
+            if (list == null || list.Length != count)
+            {
+                list = new string[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                var len = Get16();
+                var st = pos;
+                list[i] = ReadString();
+                pos = st + len;
+            }
+
+            return list;
+        }
+
         public Dictionary<string, bool> ReadBoolDict()
         {
             checkType(Type.Dict);
