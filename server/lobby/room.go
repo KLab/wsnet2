@@ -91,15 +91,23 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 }
 
 func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int) []pb.RoomInfo {
-	filtered := make([]pb.RoomInfo, 0, len(rooms))
+	if limit == 0 || limit > len(rooms) {
+		limit = len(rooms)
+	}
+	// queriesが空の場合には全件マッチさせる
+	if len(queries) == 0 {
+		return rooms[0:limit]
+	}
+	filtered := make([]pb.RoomInfo, 0, limit)
 	for i, r := range rooms {
+		// queriesの何れかとマッチするか判定（OR）
 		for _, q := range queries {
 			if q.match(props[i]) {
 				filtered = append(filtered, r)
 				break
 			}
 		}
-		if limit > 0 && len(filtered) >= limit {
+		if len(filtered) >= limit {
 			break
 		}
 	}
