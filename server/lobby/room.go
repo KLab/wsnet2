@@ -158,16 +158,14 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 		return nil, xerrors.Errorf("JoinById: Failed to get room: %w", err)
 	}
 
-	if len(queries) > 0 {
-		props, err := unmarshalProps(room.PublicProps)
-		if err != nil {
-			return nil, xerrors.Errorf("JoinById: unmarshalProps: %w", err)
-		}
-
-		filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
-
-		room = filtered[0]
+	props, err := unmarshalProps(room.PublicProps)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinById: unmarshalProps: %w", err)
 	}
+
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+
+	room = filtered[0]
 
 	return rs.join(appId, room.Id, clientInfo, room.HostId)
 }
@@ -186,16 +184,14 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 		return nil, xerrors.Errorf("JoinByNumber: Failed to get room: %w", err)
 	}
 
-	if len(queries) > 0 {
-		props, err := unmarshalProps(room.PublicProps)
-		if err != nil {
-			return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
-		}
-
-		filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
-
-		room = filtered[0]
+	props, err := unmarshalProps(room.PublicProps)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
 	}
+
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+
+	room = filtered[0]
 
 	return rs.join(appId, room.Id, clientInfo, room.HostId)
 }
