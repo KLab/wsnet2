@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace WSNet2.Core
@@ -12,7 +14,7 @@ namespace WSNet2.Core
     ///     再接続時に再送するため、一定数を保持する役目も持つ。
     ///   </para>
     /// </remarks>
-    public class MsgPool
+    class MsgPool
     {
         int sequenceNum;
         int tookSeqNum;
@@ -103,6 +105,104 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>
+        ///   RPCメッセージを投下
+        /// </summary>
+        public void PostRPC(byte id, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+            }
+        }
+        public void PostRPC(byte id, bool param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, sbyte param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, byte param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, short param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, ushort param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, int param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, uint param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, long param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, ulong param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, float param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, double param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
         public void PostRPC(byte id, string param, string[] targets)
         {
             lock(this)
@@ -111,8 +211,111 @@ namespace WSNet2.Core
                 writer.Write(param);
             }
         }
-
         public void PostRPC<T>(byte id, T param, string[] targets) where T : class, IWSNetSerializable
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, IEnumerable param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, IDictionary<string, object> param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, bool[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, sbyte[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, byte[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, short[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, ushort[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, int[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, uint[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, long[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, ulong[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, float[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+            }
+        }
+        public void PostRPC(byte id, double[] param, string[] targets)
         {
             lock(this)
             {
