@@ -30,10 +30,10 @@ namespace WSNet2.Core
         public uint searchGroup;
 
         [Key("client_deadline")]
-        public uint clientDeadline;
+        public ushort clientDeadline;
 
         [Key("max_players")]
-        public uint maxPlayers;
+        public ushort maxPlayers;
 
         [Key("players")]
         public uint players;

@@ -13,16 +13,25 @@ namespace WSNet2.Core
         public const string[] RPCToMaster = null;
 
         /// <summary>RoomID</summary>
-        public string Id { get { return info.id; } }
+        public string Id { get => info.id; }
 
         /// <summary>検索可能</summary>
-        public bool Visible { get { return info.visible; } }
+        public bool Visible { get => info.visible; }
 
         /// <summary>入室可能</summary>
-        public bool Joinable { get { return info.joinable; } }
+        public bool Joinable { get => info.joinable; }
 
         /// <summary>観戦可能</summary>
-        public bool Watchable { get { return info.watchable; } }
+        public bool Watchable { get => info.watchable; }
+
+        /// <summary>検索グループ</summary>
+        public uint SearchGroup { get => info.searchGroup; }
+
+        /// <summary>検索グループ</summary>
+        public ushort MaxPlayers { get => info.maxPlayers; }
+
+        /// <summary>通信タイムアウト時間(秒)
+        public ushort ClientDeadline { get => info.clientDeadline; }
 
         /// <summary>Callbackループの動作状態</summary>
         public bool Running { get; private set; }
@@ -34,10 +43,10 @@ namespace WSNet2.Core
         public Player Me { get; private set; }
 
         /// <summary>部屋内の全Player</summary>
-        public IReadOnlyDictionary<string, Player> Players { get { return players; } }
+        public IReadOnlyDictionary<string, Player> Players { get => players; }
 
         /// <summary>マスタークライアント</summary>
-        public Player Master { get { return players[masterId]; } }
+        public Player Master { get => players[masterId]; }
 
         /// <summary>Ping応答時間 (millisec)</summary>
         public ulong RttMillisec { get; private set; }
@@ -71,6 +80,8 @@ namespace WSNet2.Core
 
         /// <summary>エラーによる切断通知</summary>
         public Action<Exception> OnErrorClosed;
+
+        private static Dictionary<string, object> emptyDict = new Dictionary<string, object>();
 
         string myId;
         Dictionary<string, object> publicProps;
@@ -519,6 +530,35 @@ namespace WSNet2.Core
             }
 
             con.msgPool.PostSwitchMaster(newMaster.Id);
+        }
+
+        /// <summary>
+        ///   Roomプロパティを変更する
+        /// </summary>
+        public void ChangeRoomProps(
+            bool? visible = null,
+            bool? joinable = null,
+            bool? watchable = null,
+            uint? searchGroup = null,
+            ushort? maxPlayers = null,
+            ushort? clientDeadline = null,
+            IDictionary<string, object> publicProps = null,
+            IDictionary<string, object> privateProps = null)
+        {
+            if (Me != Master)
+            {
+                throw new Exception("ChangeRoomProps is for master only");
+            }
+
+            con.msgPool.PostRoomProps(
+                visible ?? Visible,
+                joinable ?? Joinable,
+                watchable ?? Watchable,
+                searchGroup ?? SearchGroup,
+                maxPlayers ?? MaxPlayers,
+                clientDeadline ?? ClientDeadline,
+                publicProps ?? emptyDict,
+                privateProps ?? emptyDict);
         }
 
         /// <summary>
