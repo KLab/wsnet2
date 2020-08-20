@@ -156,7 +156,9 @@ const (
 
 // UnmarshalRoomPropPayload parses payload of MsgTypeRoomProp.
 func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
-	rpp := MsgRoomPropPayload{}
+	rpp := MsgRoomPropPayload{
+		EventPayload: payload,
+	}
 
 	// flags
 	d, l, e := UnmarshalAs(payload, TypeByte)
@@ -184,9 +186,6 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	}
 	rpp.MaxPlayer = uint32(d.(int))
 	payload = payload[l:]
-
-	// ここから先はclientに伝える
-	rpp.EventPayload = payload
 
 	// client deadline
 	d, l, e = UnmarshalAs(payload, TypeUShort)

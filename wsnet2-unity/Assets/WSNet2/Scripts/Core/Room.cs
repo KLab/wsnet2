@@ -70,7 +70,13 @@ namespace WSNet2.Core
         public Action<Player, Player> OnMasterPlayerSwitched;
 
         /// <summary>部屋のプロパティの変更通知</summary>
-        public Action<Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
+        /// OnRoomPropertyChanged(visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps);
+        /// <remarks>
+        ///   <para>
+        ///     変更のあったパラメータのみ値が入ります。
+        ///   </para>
+        /// </remarks>
+        public Action<bool?, bool?, bool?, uint?, uint?, uint?, Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
 
         /// <summary>プレイヤーのプロパティの変更通知</summary>
         public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
@@ -725,6 +731,9 @@ namespace WSNet2.Core
                 case EvLeft evLeft:
                     OnEvLeft(evLeft);
                     break;
+                case EvRoomProp evRoomProp:
+                    OnEvRoomProp(evRoomProp);
+                    break;
                 case EvMasterSwitched evMasterSwitched:
                     OnEvMasterSwitched(evMasterSwitched);
                     break;
@@ -809,6 +818,83 @@ namespace WSNet2.Core
                 if (OnOtherPlayerLeft != null)
                 {
                     OnOtherPlayerLeft(player);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   Roomプロパティ変更イベント
+        /// </summary>
+        private void OnEvRoomProp(EvRoomProp ev)
+        {
+            // ping間隔はすぐに変更しないとTimeoutする可能性がある
+
+
+            callbackPool.Add(() =>
+            {
+                bool? visible = null;
+                bool? joinable = null;
+                bool? watchable = null;
+                uint? searchGroup = null;
+                uint? maxPlayers = null;
+                uint? clientDeadline = null;
+                Dictionary<string, object> publicProps = null;
+                Dictionary<string, object> privateProps = null;
+
+                if (info.visible != ev.Visible)
+                {
+                    visible = info.visible = ev.Visible;
+                }
+
+                if (info.joinable != ev.Joinable)
+                {
+                    joinable = info.joinable = ev.Joinable;
+                }
+
+                if (info.watchable != ev.Watchable)
+                {
+                    watchable = info.watchable = ev.Watchable;
+                }
+
+                if (info.searchGroup != ev.SearchGroup)
+                {
+                    searchGroup = info.searchGroup = ev.SearchGroup;
+                }
+
+                if (info.maxPlayers != ev.MaxPlayers)
+                {
+                    maxPlayers = info.maxPlayers = ev.MaxPlayers;
+                }
+
+                if (this.clientDeadline != ev.ClientDeadline)
+                {
+                    clientDeadline = this.clientDeadline = ev.ClientDeadline;
+                }
+
+                if (ev.PublicProps != null)
+                {
+                    publicProps = ev.PublicProps;
+                    foreach (var kv in ev.PublicProps)
+                    {
+                        this.publicProps[kv.Key] = kv.Value;
+                    }
+                }
+
+                if (ev.PrivateProps != null)
+                {
+                    privateProps = ev.PrivateProps;
+                    foreach (var kv in ev.PrivateProps)
+                    {
+                        this.privateProps[kv.Key] = kv.Value;
+                    }
+                }
+
+                if (OnRoomPropertyChanged != null)
+                {
+                    OnRoomPropertyChanged(
+                        visible, joinable, watchable,
+                        searchGroup, maxPlayers, clientDeadline,
+                        publicProps, privateProps);
                 }
             });
         }
