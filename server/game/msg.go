@@ -22,6 +22,7 @@ var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgClientProp{}
 var _ Msg = &MsgBroadcast{}
+var _ Msg = &MsgSwitchMaster{}
 var _ Msg = &MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
@@ -236,6 +237,32 @@ func msgBroadcast(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	}, nil
 }
 
+// MsgSwitchMaster : MasterClientの切替え
+// MasterClientからのみ受け付ける.
+type MsgSwitchMaster struct {
+	binary.RegularMsg
+	Sender *Client
+	Target ClientID
+}
+
+func (*MsgSwitchMaster) msg() {}
+
+func (m *MsgSwitchMaster) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
+func msgSwitchMaster(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	target, err := binary.UnmarshalSwitchMasterPayload(msg.Payload())
+	if err != nil {
+		return nil, err
+	}
+	return &MsgSwitchMaster{
+		RegularMsg: msg,
+		Sender:     sender,
+		Target:     ClientID(target),
+	}, nil
+}
+
 // MsgClientError : Client内部エラー（内部で発生）
 type MsgClientError struct {
 	Sender *Client
@@ -264,6 +291,8 @@ func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 		return msgToMaster(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeBroadcast:
 		return msgBroadcast(cli, m.(binary.RegularMsg))
+	case binary.MsgTypeSwitchMaster:
+		return msgSwitchMaster(cli, m.(binary.RegularMsg))
 	}
 	return nil, xerrors.Errorf("unknown msg type: %T %v", m, m)
 }

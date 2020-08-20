@@ -17,6 +17,7 @@ namespace WSNet2.Core
         Left,
         RomProp,
         ClientProp,
+        MasterSwitched,
         Message,
 
         Closed = localEvType,
@@ -66,6 +67,9 @@ namespace WSNet2.Core
                     break;
                 case EvType.Left:
                     ev = new EvLeft(reader);
+                    break;
+                case EvType.MasterSwitched:
+                    ev = new EvMasterSwitched(reader);
                     break;
                 case EvType.Message:
                     ev = new EvRPC(reader);

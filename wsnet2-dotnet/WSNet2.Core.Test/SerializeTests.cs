@@ -668,5 +668,21 @@ namespace WSNet2.Core.Test
             var r = reader.ReadDoubles();
             Assert.AreEqual(v, r);
         }
+
+        [TestCase(new string[]{}, new byte[]{(byte)Type.List, 0})]
+        [TestCase(new string[]{"abc", "def"},
+                  new byte[]{(byte)Type.List, 2,
+                             0, 5, (byte)Type.Str8, 3, 0x61, 0x62,0x63,
+                             0, 5, (byte)Type.Str8, 3, 0x64, 0x65,0x66,
+                  })]
+        public void TestStrings(string[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadStrings();
+            Assert.AreEqual(v, r);
+        }
     }
 }
