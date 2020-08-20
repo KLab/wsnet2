@@ -49,6 +49,10 @@ const (
 	// EvTypeMessage : その他の通常メッセージ
 	// payload: (any)
 	EvTypeMessage
+
+	// EvTypeError : エラー通知
+	// payload: RegularMsg
+	EvTypeError
 )
 
 // Event from wsnet to client via websocket
@@ -153,4 +157,14 @@ func NewEvMessage(cliId string, body []byte) *Event {
 	payload = append(payload, MarshalStr8(cliId)...)
 	payload = append(payload, body...)
 	return &Event{EvTypeMessage, payload}
+}
+
+// NewEvError : エラー通知イベント
+// エラー発生の原因となったメッセージをそのまま返す
+func NewEvError(msg RegularMsg) *Event {
+	payload := make([]byte, 1+3+len(msg.Payload()))
+	payload[0] = byte(msg.Type())
+	put24(payload[1:], msg.SequenceNum())
+	copy(payload[5:], msg.Payload())
+	return &Event{EvTypeError, payload}
 }
