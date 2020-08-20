@@ -7,12 +7,34 @@ using Sample.Logic;
 
 namespace Sample
 {
+    /// <summary>
+    /// ゲームシーンのコントローラ
+    /// </summary>
     public class GameScene : MonoBehaviour
     {
+        /// <summary>
+        /// 画面背景の文字
+        /// </summary>
         public Text roomText;
+
+        /// <summary>
+        /// ボールのアセット
+        /// </summary>
         public BallView ballAsset;
+
+        /// <summary>
+        /// バーのアセット
+        /// </summary>
         public BarView barAsset;
+
+        /// <summary>
+        /// 1fr前の入力
+        /// </summary>
         public float prevMoveInput;
+
+        /// <summary>
+        /// 移動入力
+        /// </summary>
         public InputAction moveInput;
 
         BarView bar1;

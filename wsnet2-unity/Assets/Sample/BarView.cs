@@ -7,6 +7,9 @@ namespace Sample
         Vector2 direction;
         float speed;
 
+        /// <summary>
+        /// 座標やスピードの更新
+        /// </summary>
         public void UpdatePosition(Logic.Bar bar)
         {
             direction = bar.Direction;

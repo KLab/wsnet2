@@ -7,16 +7,45 @@ using WSNet2.Core;
 
 namespace Sample
 {
+    /// <summary>
+    /// タイトルシーンのコントローラ
+    /// </summary>
     public class TitleScene : MonoBehaviour
     {
+        /// <summary>
+        /// ロビーのURL入力フォーム
+        /// </summary>
         public InputField lobbyInput;
+
+        /// <summary>
+        /// appIdの入力フォーム
+        /// </summary>
         public InputField appIdInput;
+
+        /// <summary>
+        /// appKeyの入力フォーム
+        /// </summary>
         public InputField appKeyInput;
+
+        /// <summary>
+        /// ユーザIDの入力フォーム
+        /// </summary>
         public InputField userIdInput;
 
+        /// <summary>
+        /// Pongゲームのサーチグループ
+        /// </summary>
         public static uint SearchGroup = 1000;
+
+        /// <summary>
+        /// Pongゲームの最大プレイヤー数
+        /// 2PlayerとMasterClientの3人
+        /// </summary>
         public static uint MaxPlayers = 3;
 
+        /// <summary>
+        /// 部屋作成ボタンコールバック
+        /// </summary>
         public void OnClickCreate()
         {
             Debug.Log("OnClickCreate");
@@ -50,6 +79,9 @@ namespace Sample
             );
         }
 
+        /// <summary>
+        /// ランダム入室ボタンコールバック
+        /// </summary>
         public void OnClickRandomJoin()
         {
             Debug.Log("OnClickRandomJoin");
@@ -95,6 +127,10 @@ namespace Sample
         {
         }
 
+        /// <summary>
+        /// シングルトンのWSNet2Clientのインスタンスを作成し、ProcessCallbackのループを開始する
+        /// サーバやユーザIDが決まったあと1度呼び出すこと
+        /// </summary>
         void prepareWSNet2Client()
         {
             Debug.Log($"lobby {lobbyInput.text}");

@@ -8,17 +8,25 @@ namespace Sample
 {
     public class WSNet2Runner : MonoBehaviour
     {
+        /// <summary>
+        /// シングルトンインスタンス
+        /// </summary>
         public static WSNet2Runner Instance
         {
             get; private set;
         }
 
+        /// <summary>
+        /// WSNet2クライアント
+        /// </summary>
         public WSNet2Client Client
         {
             get; set;
         }
 
-        // Active game room.
+        /// <summary>
+        /// 現在アクティブなゲームルーム
+        /// </summary>
         public Room GameRoom
         {
             get; set;

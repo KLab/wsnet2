@@ -5,6 +5,9 @@ using UnityEngine.UI;
 
 namespace Sample
 {
+    /// <summary>
+    /// InputField のデフォルト文字を設定するコンポーネント
+    /// </summary>
     public class InputFieldScript : MonoBehaviour
     {
         public string deafultText;
