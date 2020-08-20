@@ -106,6 +106,18 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Master移譲メッセージを投下
+        /// </summary>
+        public void PostSwitchMaster(string newMasterId)
+        {
+            lock(this)
+            {
+                var writer = writeMsgType(MsgType.SwitchMaster);
+                writer.Write(newMasterId);
+            }
+        }
+
+        /// <summary>
         ///   RPCメッセージを投下
         /// </summary>
         public void PostRPC(byte id, string[] targets)

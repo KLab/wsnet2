@@ -57,7 +57,7 @@ namespace WSNet2.Core
         /// <summary>他のプレイヤーの退室通知</summary>
         public Action<Player> OnOtherPlayerLeft;
 
-        /// <summary>マスタークライアントの変更通知</summary>
+        /// <summary>マスタープレイヤーの変更通知</summary>
         public Action<Player, Player> OnMasterPlayerSwitched;
 
         /// <summary>部屋のプロパティの変更通知</summary>
@@ -503,6 +503,25 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Masterを移譲する
+        /// </summary>
+        /// <param name="newMaster">新Master</param>
+        public void SwitchMaster(Player newMaster)
+        {
+            if (Me != Master)
+            {
+                throw new Exception("SwitchMaster is for master only");
+            }
+
+            if (!players.ContainsKey(newMaster.Id))
+            {
+                throw new Exception($"Player \"{newMaster.Id}\" is not in this room");
+            }
+
+            con.msgPool.PostSwitchMaster(newMaster.Id);
+        }
+
+        /// <summary>
         ///   RPC呼び出し
         /// </summary>
         /// todo: プリミティブ型引数を実装する
@@ -667,6 +686,9 @@ namespace WSNet2.Core
                 case EvLeft evLeft:
                     OnEvLeft(evLeft);
                     break;
+                case EvMasterSwitched evMasterSwitched:
+                    OnEvMasterSwitched(evMasterSwitched);
+                    break;
                 case EvRPC evRpc:
                     OnEvRPC(evRpc);
                     break;
@@ -748,6 +770,22 @@ namespace WSNet2.Core
                 if (OnOtherPlayerLeft != null)
                 {
                     OnOtherPlayerLeft(player);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   マスタープレイヤー交代イベント
+        /// </summary>
+        private void OnEvMasterSwitched(EvMasterSwitched ev)
+        {
+            callbackPool.Add(() =>
+            {
+                var prev = Master;
+                masterId = ev.NewMasterId;
+                if (OnMasterPlayerSwitched != null)
+                {
+                    OnMasterPlayerSwitched(prev, Master);
                 }
             });
         }
