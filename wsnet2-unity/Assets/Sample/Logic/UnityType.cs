@@ -3,6 +3,9 @@
 namespace Sample.Logic
 {
 
+/// <summary>
+/// UnityEngine.Vector2 を Unity非依存の環境で処理するための型
+/// </summary>
 public struct Vector2
 {
     public float x;
@@ -14,6 +17,9 @@ public struct Vector2
     }
 }
 
+/// <summary>
+/// UnityEngine.Vector3 を Unity非依存の環境で処理するための型
+/// </summary>
 public struct Vector3
 {
     public float x;

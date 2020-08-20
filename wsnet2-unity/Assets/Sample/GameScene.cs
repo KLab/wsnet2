@@ -57,11 +57,6 @@ namespace Sample
             roomText.text += s + "\n";
         }
 
-        void RPCKeepAlive(string sender, EmptyMessage _)
-        {
-            // 現状なにか通信してないと部屋から蹴られるので
-        }
-
         void RPCPlayerEvent(string sender, PlayerEvent msg)
         {
             // only master client handle this.
@@ -150,7 +145,8 @@ namespace Sample
                     RoomLog($"OnPlayerPropertyChanged: {p.Id}");
                 };
 
-                room.RegisterRPC<EmptyMessage>(RPCKeepAlive);
+                /// 使用するRPCを登録する
+                /// MasterClientと同じ順番で同じRPCを登録する必要がある
                 room.RegisterRPC<GameState>(RPCSyncGameState);
                 room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
                 room.Restart();

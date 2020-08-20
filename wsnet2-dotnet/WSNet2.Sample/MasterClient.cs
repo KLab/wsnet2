@@ -91,7 +91,6 @@ namespace WSNet2.Sample
             cts.Token.ThrowIfCancellationRequested();
             Console.WriteLine("joined room = " + room.Id);
 
-            room.RegisterRPC<EmptyMessage>(RPCKeepAlive);
             room.RegisterRPC<GameState>(RPCSyncGameState);
             room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
             room.Restart();
@@ -122,11 +121,6 @@ namespace WSNet2.Sample
 
                 await Task.Delay(16);
             }
-        }
-
-        void RPCKeepAlive(string sender, EmptyMessage _)
-        {
-            Console.WriteLine("RPCKeepAlive from " + sender);
         }
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)

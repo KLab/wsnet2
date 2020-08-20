@@ -64,6 +64,12 @@ namespace Sample.Logic
             }
         }
 
+        /// <summary>
+        /// WSNet2にログインするための認証用データを生成する
+        /// </summary>
+        /// <param name="key">アプリケーション固有の鍵</param>
+        /// <param name="userid">ユーザID</param>
+        /// <returns></returns>
         public static AuthData GenAuthData(string key, string userid)
         {
             var auth = new AuthData();
@@ -83,9 +89,12 @@ namespace Sample.Logic
             return auth;
         }
 
+        /// <summary>
+        /// WSNet2のシリアライザでシリアライズする独自型の登録を行う
+        /// プロセス開始後1度だけ呼び出すこと
+        /// </summary>
         public static void RegisterTypes()
         {
-            Serialization.Register<Sample.Logic.EmptyMessage>(0);
             Serialization.Register<Sample.Logic.GameState>(10);
             Serialization.Register<Sample.Logic.Bar>(11);
             Serialization.Register<Sample.Logic.Ball>(12);
