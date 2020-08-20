@@ -167,6 +167,19 @@ namespace Sample
                     RoomLog($"OnPlayerPropertyChanged: {p.Id}");
                 };
 
+                room.OnRoomPropertyChanged += (publicProps, privateProps) =>
+                {
+                    RoomLog($"OnRoomPropertyChanged");
+                    foreach (var kv in publicProps)
+                    {
+                        Debug.LogFormat("(public) {0}:{1}", kv.Key, kv.Value.ToString());
+                    }
+                    foreach (var kv in privateProps)
+                    {
+                        Debug.LogFormat("(private) {0}:{1}", kv.Key, kv.Value.ToString());
+                    }
+                };
+
                 /// 使用するRPCを登録する
                 /// MasterClientと同じ順番で同じRPCを登録する必要がある
                 room.RegisterRPC<GameState>(RPCSyncGameState);
@@ -193,7 +206,34 @@ namespace Sample
         void Update()
         {
             Debug.Log(state.Code);
-            if (state.Code == GameStateCode.WaitingPlayer)
+
+            if (state.Code == GameStateCode.WaitingGameMaster)
+            {
+                if (Time.frameCount % 10 == 0)
+                {
+                    var room = WSNet2Runner.Instance.GameRoom;
+                    // 本当はルームマスタがルームを作成するシーケンスを想定しているが, サンプルは簡単のため,
+                    // マスタークライアントがJoinしてきたら, ルームマスタを委譲する
+                    if (room.Me == room.Master)
+                    {
+                        foreach (var p in room.Players.Values)
+                        {
+                            if (p.Id.StartsWith("gamemaster"))
+                            {
+                                RoomLog("Switch master to" + p.Id);
+                                room.ChangeRoomProp(
+                                    room.Visible, room.Joinable, room.Watchable,
+                                    TitleScene.SearchGroup, (ushort)TitleScene.MaxPlayers, (ushort)TitleScene.Deadline,
+                                    new Dictionary<string, object> { { "gamemaster", p.Id }, { "masterclient", "joined" } },
+                                    new Dictionary<string, object> { });
+                                room.SwitchMaster(p);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (state.Code == GameStateCode.WaitingPlayer)
             {
                 if (Time.frameCount % 10 == 0)
                 {

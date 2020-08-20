@@ -8,7 +8,7 @@ namespace Sample
         float speed;
 
         /// <summary>
-        /// 座標やスピードの更新
+        /// 座標更新
         /// </summary>
         public void UpdatePosition(Logic.Bar bar)
         {

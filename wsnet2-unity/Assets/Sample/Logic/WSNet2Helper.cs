@@ -14,6 +14,7 @@ namespace Sample.Logic
             var w = WSNet2.Core.Serialization.GetWriter();
             lock (w)
             {
+                w.Reset();
                 w.Write<T>(v);
                 var seg = w.ArraySegment();
                 var ret = new byte[seg.Count];
@@ -28,6 +29,7 @@ namespace Sample.Logic
             var w = WSNet2.Core.Serialization.GetWriter();
             lock (w)
             {
+                w.Reset();
                 w.Write(v);
                 var seg = w.ArraySegment();
                 var ret = new byte[seg.Count];
@@ -42,6 +44,7 @@ namespace Sample.Logic
             var w = WSNet2.Core.Serialization.GetWriter();
             lock (w)
             {
+                w.Reset();
                 w.Write(v);
                 var seg = w.ArraySegment();
                 var ret = new byte[seg.Count];
@@ -56,6 +59,7 @@ namespace Sample.Logic
             var w = WSNet2.Core.Serialization.GetWriter();
             lock (w)
             {
+                w.Reset();
                 w.Write(v);
                 var seg = w.ArraySegment();
                 var ret = new byte[seg.Count];

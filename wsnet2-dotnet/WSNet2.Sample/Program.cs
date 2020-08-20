@@ -12,17 +12,10 @@ namespace WSNet2.Sample
 {
     public class Program
     {
-        static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
-        {
-            while (true)
-            {
-                ct.ThrowIfCancellationRequested();
-                cli.ProcessCallback();
-                await Task.Delay(1000);
-            }
-        }
 
-        static async Task Main(string[] args)
+        const int MaxMasterClient = 10;
+
+        static void Main(string[] args)
         {
             WSNet2Helper.RegisterTypes();
 
@@ -30,12 +23,16 @@ namespace WSNet2.Sample
             var server = "http://localhost:8080";
             var appId = "testapp";
             var pKey = "testapppkey";
-            var userId = "gamemaster";
             var searchGroup = 1000;
-            var maxPlayer = 3;
 
-            var mc = new MasterClient(server, appId, pKey, searchGroup, maxPlayer, userId);
-            await mc.Serve();
+            var tasks = new Task[MaxMasterClient];
+            for (int i = 0; i < MaxMasterClient; i++)
+            {
+                var userId = "gamemaster" + rand.Next(1000, 9999).ToString();
+                tasks[i] = new MasterClient().Serve(server, appId, pKey, searchGroup, userId);
+            }
+
+            Task.WaitAll(tasks);
         }
     }
 }

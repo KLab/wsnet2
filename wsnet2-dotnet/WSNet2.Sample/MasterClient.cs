@@ -21,27 +21,48 @@ namespace WSNet2.Sample
         GameState state;
         List<PlayerEvent> events;
 
-        public MasterClient(string server, string appId, string pKey, int serachGroup, int maxPlayer, string userId)
+        public async Task Serve(string server, string appId, string pKey, int serachGroup, string userId)
         {
-            var authData = WSNet2Helper.GenAuthData("testapppkey", userId);
-            client = new WSNet2Client(
-                "http://localhost:8080",
-                "testapp",
-                userId,
-                authData);
-            props = new Dictionary<string, object>(){
-                {"name", userId},
-            };
-            this.userId = userId;
-            this.searchGroup = serachGroup;
-            rand = new Random();
-            sim = new GameSimulator();
-            state = new GameState();
-            events = new List<PlayerEvent>();
-            sim.Init(state);
+
+            // このディレイいるか?
+            await Task.Delay(1);
+
+            while (true)
+            {
+                var authData = WSNet2Helper.GenAuthData("testapppkey", userId);
+                client = new WSNet2Client(server, appId, userId, authData);
+                props = new Dictionary<string, object>(){
+                    {"name", userId},
+                };
+                this.userId = userId;
+                this.searchGroup = serachGroup;
+                rand = new Random();
+                sim = new GameSimulator();
+                state = new GameState();
+                events = new List<PlayerEvent>();
+                sim.Init(state);
+
+                try
+                {
+                    await ServeOne();
+                }
+                catch (Exception e)
+                {
+                    // FIXME: 例外の種類を増やすべき
+                    if (e.ToString().Contains("Connect to room failed"))
+                    {
+                        Console.WriteLine($"({userId}) no room found");
+                    }
+                    else
+                    {
+                        Console.WriteLine("({userId}) Serve Error: {0}", e);
+                    }
+                }
+                await Task.Delay(1000);
+            }
         }
 
-        public async Task Serve()
+        async Task ServeOne()
         {
             var queries = new PropQuery[][]{
                 new PropQuery[] {
@@ -50,12 +71,15 @@ namespace WSNet2.Sample
                         op = OpType.Equal,
                         val = WSNet2Helper.Serialize("pong"),
                     },
+                    new PropQuery{
+                        key = "masterclient",
+                        op = OpType.Equal,
+                        val = WSNet2Helper.Serialize("waiting"),
+                    },
                 },
             };
 
             var cts = new CancellationTokenSource();
-            // この順番は Unity実装と合わせる必要あり.
-
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             Func<Room, bool> onJoined = (Room room) =>
             {
@@ -68,7 +92,6 @@ namespace WSNet2.Sample
                 roomJoined.TrySetException(e);
             };
 
-            Console.WriteLine("random join");
             client.RandomJoin(
                 (uint)searchGroup,
                 queries,
@@ -76,7 +99,7 @@ namespace WSNet2.Sample
                 onJoined,
                 onFailed);
 
-            // NOTE: 起動しとかないとコールバック呼ばれない
+            // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>
             {
                 while (!roomJoined.Task.IsCompleted)
@@ -89,18 +112,43 @@ namespace WSNet2.Sample
 
             var room = await roomJoined.Task;
             cts.Token.ThrowIfCancellationRequested();
-            Console.WriteLine("joined room = " + room.Id);
 
+            Console.WriteLine(userId + " joined " + room.Id);
+
+            // この順番は Unity実装と合わせる必要あり.
             room.RegisterRPC<GameState>(RPCSyncGameState);
             room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
             room.Restart();
 
             var syncStart = DateTime.UtcNow;
             var lastSync = syncStart;
+            var roomEmptySince = DateTime.MinValue;
+
             while (true)
             {
                 cts.Token.ThrowIfCancellationRequested();
                 client.ProcessCallback();
+
+                // ルーム Create したクライアントが Master を譲ってくれるはず
+                if (room.Master != room.Me)
+                {
+                    if (room.PublicProps.ContainsKey("gamemaster")) {
+                        // すでに別のMasterクライアントが入室していたら抜ける
+                        var gm = room.PublicProps["gamemaster"].ToString();
+                        Console.WriteLine($"gamemaster {gm}");
+                        if (gm != room.Me.Id) {
+                            room.Leave();
+                            break;
+                        }
+                    }
+
+                    foreach (var kv in room.PublicProps) {
+                        Console.WriteLine($"(pub) {kv.Key} : {kv.Value}");
+                    }
+
+                    await Task.Delay(100);
+                    continue;
+                }
 
                 if (state.Code == GameStateCode.WaitingGameMaster)
                 {
@@ -113,14 +161,37 @@ namespace WSNet2.Sample
 
                 var forceSync = false;
                 var now = DateTime.UtcNow;
+
+                // 0.1秒ごとにゲーム状態の同期メッセージを送信する
                 if (forceSync || 100.0 <= now.Subtract(lastSync).TotalMilliseconds)
                 {
                     room.RPC(RPCSyncGameState, state);
                     lastSync = now;
                 }
 
+                // プレイヤーが誰もいなくなった状態が一定時間続いたら部屋から抜ける
+                if (room.Players.Count <= 1)
+                {
+                    if (roomEmptySince == DateTime.MinValue)
+                    {
+                        roomEmptySince = now;
+                    }
+
+                    if (5000 <= now.Subtract(roomEmptySince).TotalMilliseconds)
+                    {
+                        room.Leave();
+                        break;
+                    }
+                }
+                else
+                {
+                    roomEmptySince = DateTime.MaxValue;
+                }
+
                 await Task.Delay(16);
             }
+
+            Console.WriteLine(userId + " left " + room.Id);
         }
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
@@ -132,9 +203,7 @@ namespace WSNet2.Sample
 
         void RPCSyncGameState(string sender, GameState msg)
         {
-            Console.WriteLine("RPCSyncGameState from " + sender);
-            Console.WriteLine("MasterId: "+ msg.MasterId);
-            Console.WriteLine("State: "+ msg.Code);
+            // 未使用
         }
     }
 }

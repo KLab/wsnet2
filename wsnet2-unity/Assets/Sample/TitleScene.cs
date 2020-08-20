@@ -44,6 +44,12 @@ namespace Sample
         public static uint MaxPlayers = 3;
 
         /// <summary>
+        /// タイムアウト(秒)
+        /// </summary>
+        public static uint Deadline = 3;
+
+
+        /// <summary>
         /// 部屋作成ボタンコールバック
         /// </summary>
         public void OnClickCreate()
@@ -62,6 +68,7 @@ namespace Sample
                 {"userId", userIdInput.text},
             };
             var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, privProps);
+            roomOpt.WithClientDeadline(Deadline);
 
             prepareWSNet2Client();
             WSNet2Runner.Instance.Client.Create(
