@@ -130,7 +130,7 @@ namespace WSNet2.Core
         {
             lock(this)
             {
-                var flags = (byte)((visible ? 1 : 0) & (joinable ? 2 : 0) & (watchable ? 4 : 0));
+                var flags = (byte)((visible ? 1 : 0) + (joinable ? 2 : 0) + (watchable ? 4 : 0));
 
                 var writer = writeMsgType(MsgType.RoomProp);
                 writer.Write(flags);

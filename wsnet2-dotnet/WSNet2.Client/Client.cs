@@ -190,6 +190,26 @@ namespace WSNet2.DotnetClient
                         continue;
                     }
 
+                    if (str.StartsWith("roomprop "))
+                    {
+                        var strs = str.Split(' ');
+                        var deadline = room.ClientDeadline + 3;
+                        var pubProps = new Dictionary<string, object>();
+                        if (strs.Length > 1)
+                        {
+                            pubProps["public-modify"] = strs[1];
+                        }
+                        Dictionary<string, object> privProps = null;
+                        if (strs.Length > 2)
+                        {
+                            privProps = new Dictionary<string, object>(){
+                                {"private-modify", strs[2]},
+                            };
+                        }
+                        room.ChangeRoomProps(clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
+                        continue;
+                    }
+
                     switch(i%3){
                         case 0:
                             Console.WriteLine($"rpc to master: {str}");
@@ -212,6 +232,9 @@ namespace WSNet2.DotnetClient
                     }
                     i++;
                 }
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch (Exception e)
             {

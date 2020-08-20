@@ -28,10 +28,10 @@ namespace WSNet2.Core
         public uint SearchGroup { get => info.searchGroup; }
 
         /// <summary>検索グループ</summary>
-        public ushort MaxPlayers { get => info.maxPlayers; }
+        public uint MaxPlayers { get => info.maxPlayers; }
 
         /// <summary>通信タイムアウト時間(秒)
-        public ushort ClientDeadline { get => info.clientDeadline; }
+        public uint ClientDeadline { get => clientDeadline; }
 
         /// <summary>Callbackループの動作状態</summary>
         public bool Running { get; private set; }
@@ -81,14 +81,13 @@ namespace WSNet2.Core
         /// <summary>エラーによる切断通知</summary>
         public Action<Exception> OnErrorClosed;
 
-        private static Dictionary<string, object> emptyDict = new Dictionary<string, object>();
-
         string myId;
         Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
         Dictionary<string, Player> players;
         string masterId;
         RoomInfo info;
+        uint clientDeadline;
 
         CallbackPool callbackPool = new CallbackPool();
         Dictionary<Delegate, byte> rpcMap;
@@ -105,6 +104,7 @@ namespace WSNet2.Core
         {
             this.myId = myId;
             this.info = joined.roomInfo;
+            this.clientDeadline = joined.deadline;
 
             this.con = new Connection(this, myId, joined);
 
@@ -540,8 +540,8 @@ namespace WSNet2.Core
             bool? joinable = null,
             bool? watchable = null,
             uint? searchGroup = null,
-            ushort? maxPlayers = null,
-            ushort? clientDeadline = null,
+            uint? maxPlayers = null,
+            uint? clientDeadline = null,
             IDictionary<string, object> publicProps = null,
             IDictionary<string, object> privateProps = null)
         {
@@ -555,16 +555,15 @@ namespace WSNet2.Core
                 joinable ?? Joinable,
                 watchable ?? Watchable,
                 searchGroup ?? SearchGroup,
-                maxPlayers ?? MaxPlayers,
-                clientDeadline ?? ClientDeadline,
-                publicProps ?? emptyDict,
-                privateProps ?? emptyDict);
+                (ushort)(maxPlayers ?? MaxPlayers),
+                (ushort)(clientDeadline ?? 0),
+                publicProps ?? null,
+                privateProps ?? null);
         }
 
         /// <summary>
         ///   RPC呼び出し
         /// </summary>
-        /// todo: プリミティブ型引数を実装する
         public void RPC(Action<string> rpc, params string[] targets)
         {
             con.msgPool.PostRPC(getRpcId(rpc), targets);
