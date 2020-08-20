@@ -403,7 +403,12 @@ func (r *Room) msgLeave(msg *MsgLeave) error {
 }
 
 func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+
 	if msg.Sender != r.master {
+		// 送信元にエラー通知
+		r.sendTo(msg.Sender, binary.NewEvError(msg))
 		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
@@ -440,9 +445,6 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 
 	r.repo.updateRoomInfo(r)
 
-	r.muClients.RLock()
-	defer r.muClients.RUnlock()
-
 	if msg.ClientDeadline != 0 {
 		deadline := time.Duration(msg.ClientDeadline) * time.Second
 		if deadline != r.deadline {
@@ -459,7 +461,12 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 }
 
 func (r *Room) msgClientProp(msg *MsgClientProp) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+
 	if !msg.Sender.isPlayer {
+		// 送信元にエラー通知
+		r.sendTo(msg.Sender, binary.NewEvError(msg))
 		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
 	}
 
@@ -477,8 +484,6 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
 	}
 
-	r.muClients.RLock()
-	defer r.muClients.RUnlock()
 	r.broadcast(binary.NewEvClientProp(msg.Sender.Id, msg.Payload()))
 	return nil
 }
@@ -506,8 +511,12 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 func (r *Room) msgToMaster(msg *MsgToMaster) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
-	// todo: 送信できなかったら通知したい
-	_ = r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
+
+	err := r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
+	if err != nil {
+		// 送信元にエラー通知
+		r.sendTo(msg.Sender, binary.NewEvError(msg))
+	}
 	return nil
 }
 
@@ -519,16 +528,19 @@ func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 }
 
 func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
-	if msg.Sender != r.master {
-		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
-	}
-
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 
+	if msg.Sender != r.master {
+		// 送信元にエラー通知
+		r.sendTo(msg.Sender, binary.NewEvError(msg))
+		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+	}
+
 	target, found := r.players[msg.Target]
 	if !found {
-		// TODO: 失敗した場合の通知
+		// 送信元にエラー通知
+		r.sendTo(msg.Sender, binary.NewEvError(msg))
 		return xerrors.Errorf("MsgSwitchMaster: player not found: room=%v, target=%v", r.Id, msg.Target)
 	}
 
