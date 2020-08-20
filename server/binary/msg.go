@@ -197,19 +197,23 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	payload = payload[l:]
 
 	// public props
-	d, l, e = UnmarshalAs(payload, TypeDict)
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (public props): %w", e)
 	}
-	rpp.PublicProps = d.(Dict)
+	if d != nil {
+		rpp.PublicProps = d.(Dict)
+	}
 	payload = payload[l:]
 
 	// public props
-	d, l, e = UnmarshalAs(payload, TypeDict)
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (private props): %w", e)
 	}
-	rpp.PrivateProps = d.(Dict)
+	if d != nil {
+		rpp.PrivateProps = d.(Dict)
+	}
 
 	return &rpp, nil
 }
