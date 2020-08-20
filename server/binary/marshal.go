@@ -392,6 +392,9 @@ func unmarshalList(src []byte) (List, int, error) {
 //    - 16bit body length
 //    - marshaled body
 func MarshalDict(dict Dict) []byte {
+	if dict == nil {
+		return MarshalNull()
+	}
 	buf := make([]byte, 2)
 	buf[0] = byte(TypeDict)
 	buf[1] = byte(len(dict))
