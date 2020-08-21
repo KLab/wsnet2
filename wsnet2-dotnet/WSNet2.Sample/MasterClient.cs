@@ -21,12 +21,17 @@ namespace WSNet2.Sample
         GameState state;
         List<PlayerEvent> events;
 
+        /// <summary>
+        /// 1クライアントとしてルームに参加してMasterClientとして振る舞う
+        /// </summary>
+        /// <param name="server"></param>
+        /// <param name="appId"></param>
+        /// <param name="pKey"></param>
+        /// <param name="serachGroup"></param>
+        /// <param name="userId"></param>
+        /// <returns></returns>
         public async Task Serve(string server, string appId, string pKey, int serachGroup, string userId)
         {
-
-            // このディレイいるか?
-            await Task.Delay(1);
-
             while (true)
             {
                 var authData = WSNet2Helper.GenAuthData("testapppkey", userId);

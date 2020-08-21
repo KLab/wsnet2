@@ -29,7 +29,8 @@ namespace WSNet2.Sample
             for (int i = 0; i < MaxMasterClient; i++)
             {
                 var userId = "gamemaster" + rand.Next(1000, 9999).ToString();
-                tasks[i] = new MasterClient().Serve(server, appId, pKey, searchGroup, userId);
+                tasks[i] = Task.Run(async () =>
+                    await new MasterClient().Serve(server, appId, pKey, searchGroup, userId));
             }
 
             Task.WaitAll(tasks);
