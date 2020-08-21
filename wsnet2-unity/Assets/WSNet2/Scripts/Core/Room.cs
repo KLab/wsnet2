@@ -827,8 +827,11 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvRoomProp(EvRoomProp ev)
         {
-            // ping間隔はすぐに変更しないとTimeoutする可能性がある
-
+            if (ev.ClientDeadline > 0)
+            {
+                // ping間隔はすぐに変更しないとTimeoutする可能性がある
+                con.UpdatePingInterval(ev.ClientDeadline);
+            }
 
             callbackPool.Add(() =>
             {
