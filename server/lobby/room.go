@@ -224,21 +224,10 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 	return filter(rooms, props, queries, limit), nil
 }
 
-func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
-	// 仮実装
-	if _, found := rs.apps[appId]; !found {
-		return nil, xerrors.Errorf("Unknown appId: %v", appId)
-	}
-
-	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
+	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
-		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
-	}
-
-	game, err := rs.gameCache.Get(room.HostId)
-	if err != nil {
-		return nil, xerrors.Errorf("join: failed to get game server: %w", err)
+		return nil, xerrors.Errorf("watch: failed to get game server: %w", err)
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
@@ -259,11 +248,42 @@ func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo
 
 	res, err := client.Watch(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("join room error: %v", err)
+		fmt.Printf("watch room error: %v", err)
 		return nil, err
 	}
 
 	log.Infof("Joined room: %v", res)
 
 	return res, nil
+}
+
+func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("Watch: failed to get room: %w", err)
+	}
+
+	return rs.watch(appId, roomId, clientInfo, room.HostId)
+}
+
+func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+	if roomNumber == 0 {
+		return nil, xerrors.Errorf("Invalid room number: %v", roomNumber)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchByNumber: Failed to get room: %w", err)
+	}
+
+	return rs.watch(appId, room.Id, clientInfo, room.HostId)
 }
