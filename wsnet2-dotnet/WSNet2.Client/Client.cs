@@ -137,8 +137,16 @@ namespace WSNet2.DotnetClient
 
                     Console.WriteLine($"OnRoomPropertyChanged: flg={flags} sg={searchGroup} mp={maxPlayers} cd={clientDeadline} pub={pubp} priv={prip}");
                 };
-                room.OnPlayerPropertyChanged += (p, _) => Console.WriteLine($"OnPlayerPropertyChanged: {p.Id}");
+                room.OnPlayerPropertyChanged += (p, props) =>
+                {
+                    var propstr = "";
+                    foreach (var kv in props)
+                    {
+                        propstr += $"{kv.Key}:{kv.Value},";
+                    }
 
+                    Console.WriteLine($"OnPlayerPropertyChanged: {p.Id} {propstr}");
+                };
                 room.OnClosed += (_) => cts.Cancel();
                 room.OnErrorClosed += (_) => cts.Cancel();
 

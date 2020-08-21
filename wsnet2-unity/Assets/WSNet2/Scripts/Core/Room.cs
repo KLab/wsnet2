@@ -749,6 +749,9 @@ namespace WSNet2.Core
                 case EvRoomProp evRoomProp:
                     OnEvRoomProp(evRoomProp);
                     break;
+                case EvClientProp evClientProp:
+                    OnEvClientProp(evClientProp);
+                    break;
                 case EvMasterSwitched evMasterSwitched:
                     OnEvMasterSwitched(evMasterSwitched);
                     break;
@@ -915,6 +918,27 @@ namespace WSNet2.Core
                         visible, joinable, watchable,
                         searchGroup, maxPlayers, clientDeadline,
                         publicProps, privateProps);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   プレイヤープロパティ変更イベント
+        /// </summary>
+        private void OnEvClientProp(EvClientProp ev)
+        {
+            callbackPool.Add(() =>
+            {
+                var player = players[ev.ClientID];
+                var props = ev.GetProps(player.Props);
+                foreach(var kv in props)
+                {
+                    player.Props[kv.Key] = kv.Value;
+                }
+
+                if (OnPlayerPropertyChanged != null)
+                {
+                    OnPlayerPropertyChanged(player, props);
                 }
             });
         }
