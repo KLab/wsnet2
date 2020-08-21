@@ -309,6 +309,12 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(IDictionary<string, object> v)
         {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
             expand(2);
             buf[pos] = (byte)Type.Dict;
             pos++;

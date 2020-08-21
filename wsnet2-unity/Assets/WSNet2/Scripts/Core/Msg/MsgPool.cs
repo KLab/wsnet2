@@ -118,6 +118,31 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   RoomPorps変更メッセージを投下
+        /// </summary>
+        public void PostRoomProps(
+            bool visible, bool joinable, bool watchable,
+            uint searchGroup,
+            ushort maxPlayers,
+            ushort clientDeadline,
+            IDictionary<string, object> publicProps,
+            IDictionary<string, object> privateProps)
+        {
+            lock(this)
+            {
+                var flags = (byte)((visible ? 1 : 0) + (joinable ? 2 : 0) + (watchable ? 4 : 0));
+
+                var writer = writeMsgType(MsgType.RoomProp);
+                writer.Write(flags);
+                writer.Write(searchGroup);
+                writer.Write(maxPlayers);
+                writer.Write(clientDeadline);
+                writer.Write(publicProps);
+                writer.Write(privateProps);
+            }
+        }
+
+        /// <summary>
         ///   RPCメッセージを投下
         /// </summary>
         public void PostRPC(byte id, string[] targets)

@@ -13,16 +13,25 @@ namespace WSNet2.Core
         public const string[] RPCToMaster = null;
 
         /// <summary>RoomID</summary>
-        public string Id { get { return info.id; } }
+        public string Id { get => info.id; }
 
         /// <summary>検索可能</summary>
-        public bool Visible { get { return info.visible; } }
+        public bool Visible { get => info.visible; }
 
         /// <summary>入室可能</summary>
-        public bool Joinable { get { return info.joinable; } }
+        public bool Joinable { get => info.joinable; }
 
         /// <summary>観戦可能</summary>
-        public bool Watchable { get { return info.watchable; } }
+        public bool Watchable { get => info.watchable; }
+
+        /// <summary>検索グループ</summary>
+        public uint SearchGroup { get => info.searchGroup; }
+
+        /// <summary>検索グループ</summary>
+        public uint MaxPlayers { get => info.maxPlayers; }
+
+        /// <summary>通信タイムアウト時間(秒)
+        public uint ClientDeadline { get => clientDeadline; }
 
         /// <summary>Callbackループの動作状態</summary>
         public bool Running { get; private set; }
@@ -34,10 +43,10 @@ namespace WSNet2.Core
         public Player Me { get; private set; }
 
         /// <summary>部屋内の全Player</summary>
-        public IReadOnlyDictionary<string, Player> Players { get { return players; } }
+        public IReadOnlyDictionary<string, Player> Players { get => players; }
 
         /// <summary>マスタークライアント</summary>
-        public Player Master { get { return players[masterId]; } }
+        public Player Master { get => players[masterId]; }
 
         /// <summary>Ping応答時間 (millisec)</summary>
         public ulong RttMillisec { get; private set; }
@@ -61,7 +70,13 @@ namespace WSNet2.Core
         public Action<Player, Player> OnMasterPlayerSwitched;
 
         /// <summary>部屋のプロパティの変更通知</summary>
-        public Action<Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
+        /// OnRoomPropertyChanged(visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps);
+        /// <remarks>
+        ///   <para>
+        ///     変更のあったパラメータのみ値が入ります。
+        ///   </para>
+        /// </remarks>
+        public Action<bool?, bool?, bool?, uint?, uint?, uint?, Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
 
         /// <summary>プレイヤーのプロパティの変更通知</summary>
         public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
@@ -78,6 +93,7 @@ namespace WSNet2.Core
         Dictionary<string, Player> players;
         string masterId;
         RoomInfo info;
+        uint clientDeadline;
 
         CallbackPool callbackPool = new CallbackPool();
         Dictionary<Delegate, byte> rpcMap;
@@ -94,6 +110,7 @@ namespace WSNet2.Core
         {
             this.myId = myId;
             this.info = joined.roomInfo;
+            this.clientDeadline = joined.deadline;
 
             this.con = new Connection(this, myId, joined);
 
@@ -522,9 +539,37 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Roomプロパティを変更する
+        /// </summary>
+        public void ChangeRoomProperty(
+            bool? visible = null,
+            bool? joinable = null,
+            bool? watchable = null,
+            uint? searchGroup = null,
+            uint? maxPlayers = null,
+            uint? clientDeadline = null,
+            IDictionary<string, object> publicProps = null,
+            IDictionary<string, object> privateProps = null)
+        {
+            if (Me != Master)
+            {
+                throw new Exception("ChangeRoomProps is for master only");
+            }
+
+            con.msgPool.PostRoomProps(
+                visible ?? Visible,
+                joinable ?? Joinable,
+                watchable ?? Watchable,
+                searchGroup ?? SearchGroup,
+                (ushort)(maxPlayers ?? MaxPlayers),
+                (ushort)(clientDeadline ?? 0),
+                publicProps ?? null,
+                privateProps ?? null);
+        }
+
+        /// <summary>
         ///   RPC呼び出し
         /// </summary>
-        /// todo: プリミティブ型引数を実装する
         public void RPC(Action<string> rpc, params string[] targets)
         {
             con.msgPool.PostRPC(getRpcId(rpc), targets);
@@ -686,6 +731,9 @@ namespace WSNet2.Core
                 case EvLeft evLeft:
                     OnEvLeft(evLeft);
                     break;
+                case EvRoomProp evRoomProp:
+                    OnEvRoomProp(evRoomProp);
+                    break;
                 case EvMasterSwitched evMasterSwitched:
                     OnEvMasterSwitched(evMasterSwitched);
                     break;
@@ -770,6 +818,86 @@ namespace WSNet2.Core
                 if (OnOtherPlayerLeft != null)
                 {
                     OnOtherPlayerLeft(player);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   Roomプロパティ変更イベント
+        /// </summary>
+        private void OnEvRoomProp(EvRoomProp ev)
+        {
+            if (ev.ClientDeadline > 0)
+            {
+                // ping間隔はすぐに変更しないとTimeoutする可能性がある
+                con.UpdatePingInterval(ev.ClientDeadline);
+            }
+
+            callbackPool.Add(() =>
+            {
+                bool? visible = null;
+                bool? joinable = null;
+                bool? watchable = null;
+                uint? searchGroup = null;
+                uint? maxPlayers = null;
+                uint? clientDeadline = null;
+                Dictionary<string, object> publicProps = null;
+                Dictionary<string, object> privateProps = null;
+
+                if (info.visible != ev.Visible)
+                {
+                    visible = info.visible = ev.Visible;
+                }
+
+                if (info.joinable != ev.Joinable)
+                {
+                    joinable = info.joinable = ev.Joinable;
+                }
+
+                if (info.watchable != ev.Watchable)
+                {
+                    watchable = info.watchable = ev.Watchable;
+                }
+
+                if (info.searchGroup != ev.SearchGroup)
+                {
+                    searchGroup = info.searchGroup = ev.SearchGroup;
+                }
+
+                if (info.maxPlayers != ev.MaxPlayers)
+                {
+                    maxPlayers = info.maxPlayers = ev.MaxPlayers;
+                }
+
+                if (this.clientDeadline != ev.ClientDeadline)
+                {
+                    clientDeadline = this.clientDeadline = ev.ClientDeadline;
+                }
+
+                if (ev.PublicProps != null)
+                {
+                    publicProps = ev.PublicProps;
+                    foreach (var kv in ev.PublicProps)
+                    {
+                        this.publicProps[kv.Key] = kv.Value;
+                    }
+                }
+
+                if (ev.PrivateProps != null)
+                {
+                    privateProps = ev.PrivateProps;
+                    foreach (var kv in ev.PrivateProps)
+                    {
+                        this.privateProps[kv.Key] = kv.Value;
+                    }
+                }
+
+                if (OnRoomPropertyChanged != null)
+                {
+                    OnRoomPropertyChanged(
+                        visible, joinable, watchable,
+                        searchGroup, maxPlayers, clientDeadline,
+                        publicProps, privateProps);
                 }
             });
         }

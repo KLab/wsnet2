@@ -392,6 +392,9 @@ func unmarshalList(src []byte) (List, int, error) {
 //    - 16bit body length
 //    - marshaled body
 func MarshalDict(dict Dict) []byte {
+	if dict == nil {
+		return MarshalNull()
+	}
 	buf := make([]byte, 2)
 	buf[0] = byte(TypeDict)
 	buf[1] = byte(len(dict))
@@ -948,14 +951,18 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 }
 
 // Unmarshal bytes as specified type
-func UnmarshalAs(src []byte, t Type) (interface{}, int, error) {
+func UnmarshalAs(src []byte, types ...Type) (interface{}, int, error) {
 	if len(src) == 0 {
 		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
 	}
-	if Type(src[0]) != t {
-		return nil, 0, xerrors.Errorf("Unmarshal type mismatch: %v != %v", Type(src[0]), t)
+	st := Type(src[0])
+	for _, t := range types {
+		if st == t {
+			return Unmarshal(src)
+		}
 	}
-	return Unmarshal(src)
+
+	return nil, 0, xerrors.Errorf("Unmarshal type mismatch: %v != %v", Type(src[0]), types)
 }
 
 func clamp(val, min, max int) int {
