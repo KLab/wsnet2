@@ -541,7 +541,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   Roomプロパティを変更する
         /// </summary>
-        public void ChangeRoomProps(
+        public void ChangeRoomProperty(
             bool? visible = null,
             bool? joinable = null,
             bool? watchable = null,
