@@ -5,114 +5,152 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using WSNet2.Core;
 
-public class TitleScene : MonoBehaviour
+namespace Sample
 {
-    public InputField lobbyInput;
-    public InputField appIdInput;
-    public InputField appKeyInput;
-    public InputField userIdInput;
-
-    public static uint SearchGroup = 1000;
-
-    public void OnClickCreate()
+    /// <summary>
+    /// タイトルシーンのコントローラ
+    /// </summary>
+    public class TitleScene : MonoBehaviour
     {
-        Debug.Log("OnClickCreate");
+        /// <summary>
+        /// ロビーのURL入力フォーム
+        /// </summary>
+        public InputField lobbyInput;
 
-        var pubProps = new Dictionary<string, object>(){
-            {"game", "pong"},
-        };
-        var privProps = new Dictionary<string, object>(){
-            {"aaa", "private"},
-            {"ccc", false},
-        };
-        var cliProps = new Dictionary<string, object>(){
-            {"userId", userIdInput.text},
-        };
-        var roomOpt = new RoomOption(2, SearchGroup, pubProps, privProps);
-        var receiver = new DelegatedEventReceiver();
+        /// <summary>
+        /// appIdの入力フォーム
+        /// </summary>
+        public InputField appIdInput;
 
-        prepareWSNet2Client();
-        WSNet2Runner.Instance.Client.Create(
-            roomOpt,
-            cliProps,
-            receiver,
-            (room) =>
-            {
-                room.Running = false;
-                Debug.Log("created: room=" + room.Id);
-                WSNet2Runner.Instance.GameRoom = room;
-                WSNet2Runner.Instance.GameEventReceiver = receiver;
-                SceneManager.LoadScene("Game");
-                return true;
-            },
-            (e) => Debug.Log("create failed: " + e)
-        );
-    }
+        /// <summary>
+        /// appKeyの入力フォーム
+        /// </summary>
+        public InputField appKeyInput;
 
-    public void OnClickRandomJoin()
-    {
-        Debug.Log("OnClickRandomJoin");
+        /// <summary>
+        /// ユーザIDの入力フォーム
+        /// </summary>
+        public InputField userIdInput;
 
-        var cliProps = new Dictionary<string, object>(){
-            {"userId", userIdInput.text},
-        };
-        var query = new Dictionary<string, object>(){
-            {"bbb", (int)13},
-        };
+        /// <summary>
+        /// Pongゲームのサーチグループ
+        /// </summary>
+        public static uint SearchGroup = 1000;
 
-        var queries = new PropQuery[][]{
-            new PropQuery[] {
-                new PropQuery{
-                    key = "game",
-                    op = OpType.Equal,
-                    val = WSNet2Helper.Serialize("pong"),
+        /// <summary>
+        /// Pongゲームの最大プレイヤー数
+        /// 2PlayerとMasterClientの3人
+        /// </summary>
+        public static uint MaxPlayers = 3;
+
+        /// <summary>
+        /// タイムアウト(秒)
+        /// </summary>
+        public static uint Deadline = 3;
+
+
+        /// <summary>
+        /// 部屋作成ボタンコールバック
+        /// </summary>
+        public void OnClickCreate()
+        {
+            Debug.Log("OnClickCreate");
+
+            var pubProps = new Dictionary<string, object>(){
+                {"game", "pong"},
+                {"masterclient", "waiting"},
+            };
+            var privProps = new Dictionary<string, object>(){
+                {"aaa", "private"},
+                {"ccc", false},
+            };
+            var cliProps = new Dictionary<string, object>(){
+                {"userId", userIdInput.text},
+            };
+            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, privProps);
+            roomOpt.WithClientDeadline(Deadline);
+
+            prepareWSNet2Client();
+            WSNet2Runner.Instance.Client.Create(
+                roomOpt,
+                cliProps,
+                (room) =>
+                {
+                    room.Pause();
+                    Debug.Log("created: room=" + room.Id);
+                    WSNet2Runner.Instance.GameRoom = room;
+                    SceneManager.LoadScene("Game");
+                    return true;
                 },
-            },
-        };
+                (e) => Debug.Log("create failed: " + e)
+            );
+        }
 
-        var receiver = new DelegatedEventReceiver();
+        /// <summary>
+        /// ランダム入室ボタンコールバック
+        /// </summary>
+        public void OnClickRandomJoin()
+        {
+            Debug.Log("OnClickRandomJoin");
 
-        prepareWSNet2Client();
-        WSNet2Runner.Instance.Client.RandomJoin(
-            SearchGroup,
-            queries,
-            cliProps,
-            receiver,
-            (room) =>
-            {
-                room.Running = false;
-                Debug.Log("join: room=" + room.Id);
-                WSNet2Runner.Instance.GameRoom = room;
-                WSNet2Runner.Instance.GameEventReceiver = receiver;
-                SceneManager.LoadScene("Game");
-                return true;
-            },
-            (e) => Debug.Log("join failed: " + e)
-        );
-    }
+            var cliProps = new Dictionary<string, object>(){
+                {"userId", userIdInput.text},
+            };
 
-    // Start is called before the first frame update
-    void Start()
-    {
-    }
+            var queries = new PropQuery[][]{
+                new PropQuery[] {
+                    new PropQuery{
+                        key = "game",
+                        op = OpType.Equal,
+                        val = Logic.WSNet2Helper.Serialize("pong"),
+                    },
+                },
+            };
 
-    // Update is called once per frame
-    void Update()
-    {
-    }
+            prepareWSNet2Client();
+            WSNet2Runner.Instance.Client.RandomJoin(
+                SearchGroup,
+                queries,
+                cliProps,
+                (room) =>
+                {
+                    room.Pause();
+                    Debug.Log("join: room=" + room.Id);
+                    WSNet2Runner.Instance.GameRoom = room;
+                    SceneManager.LoadScene("Game");
+                    return true;
+                },
+                (e) => Debug.Log("join failed: " + e)
+            );
+        }
 
-    void prepareWSNet2Client()
-    {
-        Debug.Log($"lobby {lobbyInput.text}");
-        Debug.Log($"appId {appIdInput.text}");
-        Debug.Log($"appKey {appKeyInput.text}");
-        Debug.Log($"userId {userIdInput.text}");
+        // Start is called before the first frame update
+        void Start()
+        {
+        }
 
-        WSNet2Runner.CreateInstance();
-        WSNet2Runner.Instance.Client = new WSNet2Client(
-            lobbyInput.text,
-            appIdInput.text,
-            userIdInput.text,
-            WSNet2Helper.GenAuthData(appKeyInput.text, userIdInput.text));
+        // Update is called once per frame
+        void Update()
+        {
+        }
+
+        /// <summary>
+        /// シングルトンのWSNet2Clientのインスタンスを作成し、ProcessCallbackのループを開始する
+        /// サーバやユーザIDが決まったあと1度呼び出すこと
+        /// </summary>
+        void prepareWSNet2Client()
+        {
+            Debug.Log($"lobby {lobbyInput.text}");
+            Debug.Log($"appId {appIdInput.text}");
+            Debug.Log($"appKey {appKeyInput.text}");
+            Debug.Log($"userId {userIdInput.text}");
+
+            WSNet2Runner.CreateInstance();
+            WSNet2Runner.Instance.Client = new WSNet2Client(
+                lobbyInput.text,
+                appIdInput.text,
+                userIdInput.text,
+                Logic.WSNet2Helper.GenAuthData(appKeyInput.text, userIdInput.text));
+        }
     }
 }

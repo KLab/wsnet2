@@ -375,7 +375,7 @@ GameObject:
   - component: {fileID: 1335951425}
   - component: {fileID: 1335951424}
   m_Layer: 0
-  m_Name: GameScript
+  m_Name: GameScene
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -390,37 +390,38 @@ MonoBehaviour:
   m_GameObject: {fileID: 1335951423}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cd1b26538b7b04b9f968f2a1bd3bcde2, type: 3}
+  m_Script: {fileID: 11500000, guid: 25885e0664920472296e5a87948aa51f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   roomText: {fileID: 577729329}
+  prevMoveInput: 0
   moveInput:
     m_Name: Move Input
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: 8f61c3ba-f287-4ed5-96d5-28c40fa1c007
+    m_Id: eaeab7c9-af1a-4300-9508-be664470ee85
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings:
     - m_Name: 1D Axis
-      m_Id: 4c409761-86c8-4d27-b1fe-5a98b3e2cdc1
+      m_Id: 206b5ede-5529-410d-91be-5e7705de0e66
       m_Path: 1DAxis
       m_Interactions: 
       m_Processors: 
       m_Groups: 
       m_Action: Move Input
       m_Flags: 4
-    - m_Name: Negative
-      m_Id: c58bc3a7-393d-4053-84af-f3a0340a35c5
-      m_Path: <Keyboard>/downArrow
+    - m_Name: negative
+      m_Id: c9c29546-2e20-42cf-a7d0-0cef53ad20c9
+      m_Path: <Keyboard>/upArrow
       m_Interactions: 
       m_Processors: 
       m_Groups: 
       m_Action: Move Input
       m_Flags: 8
-    - m_Name: Positive
-      m_Id: bfdeac5f-9eea-4fb5-8bee-20d3ef780a1e
-      m_Path: <Keyboard>/upArrow
+    - m_Name: positive
+      m_Id: 2659f36e-f0a7-4743-b888-62b71c6704fb
+      m_Path: <Keyboard>/downArrow
       m_Interactions: 
       m_Processors: 
       m_Groups: 
