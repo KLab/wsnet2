@@ -29,9 +29,6 @@ namespace WSNet2.Core
         [Key("search_group")]
         public uint searchGroup;
 
-        [Key("client_deadline")]
-        public uint clientDeadline;
-
         [Key("max_players")]
         public uint maxPlayers;
 

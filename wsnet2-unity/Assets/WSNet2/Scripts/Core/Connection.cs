@@ -37,6 +37,7 @@ namespace WSNet2.Core
         Uri uri;
         AuthToken token;
         int pingInterval;
+        CancellationTokenSource pingerDelayCanceller;
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
@@ -55,7 +56,8 @@ namespace WSNet2.Core
             this.clientId = clientId;
             this.uri = new Uri(joined.url);
             this.token = joined.token;
-            this.pingInterval = calcPingInterval((int)joined.deadline);
+            this.pingInterval = calcPingInterval(room.ClientDeadline);
+            this.pingerDelayCanceller = new CancellationTokenSource();
             this.reconnection = 0;
 
             this.evSeqNum = 0;
@@ -154,6 +156,19 @@ namespace WSNet2.Core
             {
                 evBufPool.Add(ev.BufferArray);
             }
+        }
+
+        /// <summary>
+        ///   Ping間隔を更新する
+        /// </summary>
+        public void UpdatePingInterval(uint deadline)
+        {
+            var canceller = pingerDelayCanceller;
+
+            pingInterval = calcPingInterval(deadline);
+            pingerDelayCanceller = new CancellationTokenSource();
+
+            canceller.Cancel();
         }
 
         /// <summary>
@@ -290,11 +305,17 @@ namespace WSNet2.Core
             {
                 ct.ThrowIfCancellationRequested();
 
-                // todo: deadline変更時にDelayを中断したい
-                var interval = Task.Delay(pingInterval);
+                var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
                 msg.SetTimestamp();
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
-                await interval;
+                try
+                {
+                    await interval;
+                }
+                catch(TaskCanceledException)
+                {
+                    // pingerDelayCancellerによるcancelは無視
+                }
             }
         }
 
@@ -306,9 +327,9 @@ namespace WSNet2.Core
         ///     deadlineの半分の時間停止していても切断しないような間隔とする.
         ///   </para>
         /// </remarks>
-        private int calcPingInterval(int deadline)
+        private int calcPingInterval(uint deadline)
         {
-            return deadline * 1000 / 3;
+            return (int)deadline * 1000 / 3;
         }
     }
 }

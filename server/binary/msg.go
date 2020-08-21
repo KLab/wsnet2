@@ -156,7 +156,9 @@ const (
 
 // UnmarshalRoomPropPayload parses payload of MsgTypeRoomProp.
 func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
-	rpp := MsgRoomPropPayload{}
+	rpp := MsgRoomPropPayload{
+		EventPayload: payload,
+	}
 
 	// flags
 	d, l, e := UnmarshalAs(payload, TypeByte)
@@ -185,9 +187,6 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	rpp.MaxPlayer = uint32(d.(int))
 	payload = payload[l:]
 
-	// ここから先はclientに伝える
-	rpp.EventPayload = payload
-
 	// client deadline
 	d, l, e = UnmarshalAs(payload, TypeUShort)
 	if e != nil {
@@ -197,19 +196,23 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	payload = payload[l:]
 
 	// public props
-	d, l, e = UnmarshalAs(payload, TypeDict)
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (public props): %w", e)
 	}
-	rpp.PublicProps = d.(Dict)
+	if d != nil {
+		rpp.PublicProps = d.(Dict)
+	}
 	payload = payload[l:]
 
 	// public props
-	d, l, e = UnmarshalAs(payload, TypeDict)
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (private props): %w", e)
 	}
-	rpp.PrivateProps = d.(Dict)
+	if d != nil {
+		rpp.PrivateProps = d.(Dict)
+	}
 
 	return &rpp, nil
 }

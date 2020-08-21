@@ -15,7 +15,7 @@ namespace WSNet2.Core
 
         Joined = regularEvType,
         Left,
-        RomProp,
+        RoomProp,
         ClientProp,
         MasterSwitched,
         Message,
@@ -67,6 +67,9 @@ namespace WSNet2.Core
                     break;
                 case EvType.Left:
                     ev = new EvLeft(reader);
+                    break;
+                case EvType.RoomProp:
+                    ev = new EvRoomProp(reader);
                     break;
                 case EvType.MasterSwitched:
                     ev = new EvMasterSwitched(reader);

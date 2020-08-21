@@ -234,7 +234,11 @@ namespace WSNet2.Core
 
         public Dictionary<string, object> ReadDict(IDictionary<string, object> recycle = null)
         {
-            checkType(Type.Dict);
+            if (checkType(Type.Dict, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var dict = new Dictionary<string, object>();
             var count = Get8();
 

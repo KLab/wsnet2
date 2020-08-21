@@ -510,6 +510,16 @@ namespace WSNet2.Core.Test
 
             Assert.AreEqual(v, r);
             Assert.AreEqual(0, Obj1.NewCount);
+
+            writer.Reset();
+            v = null;
+            expect = new byte[]{(byte)Type.Null};
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            reader = Serialization.NewReader(writer.ArraySegment());
+            r = reader.ReadDict();
+            Assert.Null(r);
         }
 
         [TestCase(new bool[]{}, new byte[]{(byte)Type.Bools, 0x00, 0x00})]

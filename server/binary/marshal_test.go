@@ -431,26 +431,40 @@ func TestMarshalList(t *testing.T) {
 }
 
 func TestMarshalDict(t *testing.T) {
-	dict := Dict{
-		"int1": []byte{byte(TypeInt), 0x80, 0x00, 0x00, 0x01},
+	tests := []struct {
+		dict Dict
+		buf  []byte
+	}{
+		{
+			dict: Dict{
+				"int1": []byte{byte(TypeInt), 0x80, 0x00, 0x00, 0x01},
+			},
+			buf: []byte{byte(TypeDict), 1,
+				4, 'i', 'n', 't', '1', 0, 5, byte(TypeInt), 0x80, 0x00, 0x00, 0x01,
+			},
+		},
+		{
+			dict: nil,
+			buf:  []byte{byte(TypeNull)},
+		},
 	}
-	buf := []byte{byte(TypeDict), 1,
-		4, 'i', 'n', 't', '1', 0, 5, byte(TypeInt), 0x80, 0x00, 0x00, 0x01,
-	}
-
-	b := MarshalDict(dict)
-	if !reflect.DeepEqual(b, buf) {
-		t.Fatalf("MarshalDict:\n%#v\n%#v", b, buf)
-	}
-	r, l, e := Unmarshal(b)
-	if e != nil {
-		t.Fatalf("Unmarshal error: %v", e)
-	}
-	if diff := cmp.Diff(r, dict); diff != "" {
-		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
-	}
-	if l != len(buf) {
-		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
+	for _, test := range tests {
+		b := MarshalDict(test.dict)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalDict:\n%#v\n%#v", b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		if !(test.dict == nil && r == nil) {
+			if diff := cmp.Diff(r, test.dict); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
+		}
+		if l != len(test.buf) {
+			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
+		}
 	}
 }
 
