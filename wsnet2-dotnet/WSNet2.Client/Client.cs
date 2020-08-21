@@ -113,7 +113,30 @@ namespace WSNet2.DotnetClient
                 room.OnOtherPlayerJoined += (p) => Console.WriteLine($"OnOtherPlayerJoined: {p.Id}");
                 room.OnOtherPlayerLeft += (p) => Console.WriteLine($"OnOtherplayerleft: {p.Id}");
                 room.OnMasterPlayerSwitched += (p, n) => Console.WriteLine($"OnMasterPlayerSwitched: {p.Id} -> {n.Id}");
-                room.OnRoomPropertyChanged += (_, __) => Console.WriteLine($"OnRoomPropertyChanged");
+                room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
+                {
+                    var flags = !visible.HasValue ? "-" : visible.Value ? "V" : "x";
+                    flags += !joinable.HasValue ? "-" : joinable.Value ? "J" : "x";
+                    flags += !watchable.HasValue ? "-" : watchable.Value ? "W" : "x";
+                    var pubp = "";
+                    if (publicProps != null)
+                    {
+                        foreach (var kv in publicProps)
+                        {
+                            pubp += $"{kv.Key}:{kv.Value},";
+                        }
+                    }
+                    var prip = "";
+                    if (privateProps != null)
+                    {
+                        foreach (var kv in privateProps)
+                        {
+                            prip += $"{kv.Key}:{kv.Value},";
+                        }
+                    }
+
+                    Console.WriteLine($"OnRoomPropertyChanged: flg={flags} sg={searchGroup} mp={maxPlayers} cd={clientDeadline} pub={pubp} priv={prip}");
+                };
                 room.OnPlayerPropertyChanged += (p, _) => Console.WriteLine($"OnPlayerPropertyChanged: {p.Id}");
 
                 room.OnClosed += (_) => cts.Cancel();
@@ -193,6 +216,7 @@ namespace WSNet2.DotnetClient
                     if (str.StartsWith("roomprop "))
                     {
                         var strs = str.Split(' ');
+                        var joinable = !room.Joinable;
                         var deadline = room.ClientDeadline + 3;
                         var pubProps = new Dictionary<string, object>();
                         if (strs.Length > 1)
@@ -206,7 +230,7 @@ namespace WSNet2.DotnetClient
                                 {"private-modify", strs[2]},
                             };
                         }
-                        room.ChangeRoomProps(clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
+                        room.ChangeRoomProps(joinable: joinable, clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
                         continue;
                     }
 
