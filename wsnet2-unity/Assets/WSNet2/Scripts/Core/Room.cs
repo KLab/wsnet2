@@ -45,6 +45,12 @@ namespace WSNet2.Core
         /// <summary>部屋内の全Player</summary>
         public IReadOnlyDictionary<string, Player> Players { get => players; }
 
+        /// <summary>ルームの公開プロパティ</summary>
+        public IReadOnlyDictionary<string, object> PublicProps { get => publicProps; }
+
+        /// <summary>ルームの非公開プロパティ</summary>
+        public IReadOnlyDictionary<string, object> PrivateProps { get => privateProps; }
+
         /// <summary>マスタークライアント</summary>
         public Player Master { get => players[masterId]; }
 
