@@ -165,8 +165,8 @@ namespace WSNet2.Core
         {
             var canceller = pingerDelayCanceller;
 
-            pingerDelayCanceller = new CancellationTokenSource();
             pingInterval = calcPingInterval(deadline);
+            pingerDelayCanceller = new CancellationTokenSource();
 
             canceller.Cancel();
         }
