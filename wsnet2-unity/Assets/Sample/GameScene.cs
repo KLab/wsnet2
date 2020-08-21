@@ -157,17 +157,12 @@ namespace Sample
                     RoomLog("OnMasterPlayerSwitched:" + prev.Id + " -> " + cur.Id);
                 };
 
-                room.OnRoomPropertyChanged += (_, __) =>
-                {
-                    RoomLog("OnRoomPropertyChanged");
-                };
-
                 room.OnPlayerPropertyChanged += (p, _) =>
                 {
                     RoomLog($"OnPlayerPropertyChanged: {p.Id}");
                 };
 
-                room.OnRoomPropertyChanged += (publicProps, privateProps) =>
+                room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
                 {
                     RoomLog($"OnRoomPropertyChanged");
                     foreach (var kv in publicProps)
@@ -221,9 +216,9 @@ namespace Sample
                             if (p.Id.StartsWith("gamemaster"))
                             {
                                 RoomLog("Switch master to" + p.Id);
-                                room.ChangeRoomProp(
-                                    room.Visible, room.Joinable, room.Watchable,
-                                    TitleScene.SearchGroup, (ushort)TitleScene.MaxPlayers, (ushort)TitleScene.Deadline,
+                                room.ChangeRoomProperty(
+                                    null, null, null,
+                                    null, null, null,
                                     new Dictionary<string, object> { { "gamemaster", p.Id }, { "masterclient", "joined" } },
                                     new Dictionary<string, object> { });
                                 room.SwitchMaster(p);
