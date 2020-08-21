@@ -889,19 +889,21 @@ namespace WSNet2.Core
                     clientDeadline = this.clientDeadline = ev.ClientDeadline;
                 }
 
-                if (ev.PublicProps != null)
+                var props = ev.GetPublicProps(this.publicProps);
+                if (props != null)
                 {
-                    publicProps = ev.PublicProps;
-                    foreach (var kv in ev.PublicProps)
+                    publicProps = props;
+                    foreach (var kv in props)
                     {
                         this.publicProps[kv.Key] = kv.Value;
                     }
                 }
 
-                if (ev.PrivateProps != null)
+                props = ev.GetPrivateProps(this.privateProps);
+                if (props != null)
                 {
-                    privateProps = ev.PrivateProps;
-                    foreach (var kv in ev.PrivateProps)
+                    privateProps = props;
+                    foreach (var kv in props)
                     {
                         this.privateProps[kv.Key] = kv.Value;
                     }

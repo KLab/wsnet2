@@ -10,8 +10,9 @@ namespace WSNet2.Core
         public uint SearchGroup;
         public ushort MaxPlayers;
         public ushort ClientDeadline;
-        public Dictionary<string, object> PublicProps;
-        public Dictionary<string, object> PrivateProps;
+
+        Dictionary<string, object> publicProps;
+        Dictionary<string, object> privateProps;
 
         public EvRoomProp(SerialReader reader) : base(EvType.RoomProp, reader)
         {
@@ -22,8 +23,29 @@ namespace WSNet2.Core
             SearchGroup = reader.ReadUInt();
             MaxPlayers = reader.ReadUShort();
             ClientDeadline = reader.ReadUShort();
-            PublicProps = reader.ReadDict();
-            PrivateProps = reader.ReadDict();
+            publicProps = null;
+            privateProps = null;
+        }
+
+        public Dictionary<string, object> GetPublicProps(IDictionary<string, object> recycle = null)
+        {
+            if (publicProps == null)
+            {
+                publicProps = reader.ReadDict(recycle);
+            }
+
+            return publicProps;
+        }
+
+        public Dictionary<string, object> GetPrivateProps(IDictionary<string, object> recycle = null)
+        {
+            if (privateProps == null)
+            {
+                _ = GetPublicProps();
+                privateProps = reader.ReadDict(recycle);
+            }
+
+            return privateProps;
         }
     }
 }
