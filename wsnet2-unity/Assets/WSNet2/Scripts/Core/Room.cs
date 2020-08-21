@@ -559,10 +559,10 @@ namespace WSNet2.Core
         {
             if (Me != Master)
             {
-                throw new Exception("ChangeRoomProps is for master only");
+                throw new Exception("ChangeRoomProperty is for master only");
             }
 
-            con.msgPool.PostRoomProps(
+            con.msgPool.PostRoomProp(
                 visible ?? Visible,
                 joinable ?? Joinable,
                 watchable ?? Watchable,
@@ -571,6 +571,15 @@ namespace WSNet2.Core
                 (ushort)(clientDeadline ?? 0),
                 publicProps ?? null,
                 privateProps ?? null);
+        }
+
+        /// <summary>
+        ///   自分自身のプロパティを変更する
+        /// </summary>
+        /// <param name="props">変更するプロパティの辞書</param>
+        public void ChangeMyProperty(IDictionary<string, object> props)
+        {
+            con.msgPool.PostClientProp(props);
         }
 
         /// <summary>

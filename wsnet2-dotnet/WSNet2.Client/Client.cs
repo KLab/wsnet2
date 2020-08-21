@@ -230,7 +230,22 @@ namespace WSNet2.DotnetClient
                                 {"private-modify", strs[2]},
                             };
                         }
-                        room.ChangeRoomProps(joinable: joinable, clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
+                        room.ChangeRoomProperty(joinable: joinable, clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
+                        continue;
+                    }
+
+                    if (str.StartsWith("myprop "))
+                    {
+                        var strs = str.Split(' ');
+                        if (strs.Length == 3)
+                        {
+                            var prop = new Dictionary<string, object>(){{strs[1], strs[2]}};
+                            room.ChangeMyProperty(prop);
+                        }
+                        else
+                        {
+                            Console.WriteLine("invalid param: myprop <key> <value>");
+                        }
                         continue;
                     }
 

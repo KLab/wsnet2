@@ -120,7 +120,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   RoomPorps変更メッセージを投下
         /// </summary>
-        public void PostRoomProps(
+        public void PostRoomProp(
             bool visible, bool joinable, bool watchable,
             uint searchGroup,
             ushort maxPlayers,
@@ -140,6 +140,15 @@ namespace WSNet2.Core
                 writer.Write(publicProps);
                 writer.Write(privateProps);
             }
+        }
+
+        /// <summary>
+        ///   自分自身のプロパティ変更メッセージを投下
+        /// </summary>
+        public void PostClientProp(IDictionary<string, object> props)
+        {
+            var writer = writeMsgType(MsgType.ClientProp);
+            writer.Write(props);
         }
 
         /// <summary>
