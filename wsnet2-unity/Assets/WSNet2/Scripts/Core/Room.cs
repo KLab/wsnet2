@@ -559,10 +559,10 @@ namespace WSNet2.Core
         {
             if (Me != Master)
             {
-                throw new Exception("ChangeRoomProps is for master only");
+                throw new Exception("ChangeRoomProperty is for master only");
             }
 
-            con.msgPool.PostRoomProps(
+            con.msgPool.PostRoomProp(
                 visible ?? Visible,
                 joinable ?? Joinable,
                 watchable ?? Watchable,
@@ -571,6 +571,15 @@ namespace WSNet2.Core
                 (ushort)(clientDeadline ?? 0),
                 publicProps ?? null,
                 privateProps ?? null);
+        }
+
+        /// <summary>
+        ///   自分自身のプロパティを変更する
+        /// </summary>
+        /// <param name="props">変更するプロパティの辞書</param>
+        public void ChangeMyProperty(IDictionary<string, object> props)
+        {
+            con.msgPool.PostClientProp(props);
         }
 
         /// <summary>
@@ -740,6 +749,9 @@ namespace WSNet2.Core
                 case EvRoomProp evRoomProp:
                     OnEvRoomProp(evRoomProp);
                     break;
+                case EvClientProp evClientProp:
+                    OnEvClientProp(evClientProp);
+                    break;
                 case EvMasterSwitched evMasterSwitched:
                     OnEvMasterSwitched(evMasterSwitched);
                     break;
@@ -880,19 +892,21 @@ namespace WSNet2.Core
                     clientDeadline = this.clientDeadline = ev.ClientDeadline;
                 }
 
-                if (ev.PublicProps != null)
+                var props = ev.GetPublicProps(this.publicProps);
+                if (props != null)
                 {
-                    publicProps = ev.PublicProps;
-                    foreach (var kv in ev.PublicProps)
+                    publicProps = props;
+                    foreach (var kv in props)
                     {
                         this.publicProps[kv.Key] = kv.Value;
                     }
                 }
 
-                if (ev.PrivateProps != null)
+                props = ev.GetPrivateProps(this.privateProps);
+                if (props != null)
                 {
-                    privateProps = ev.PrivateProps;
-                    foreach (var kv in ev.PrivateProps)
+                    privateProps = props;
+                    foreach (var kv in props)
                     {
                         this.privateProps[kv.Key] = kv.Value;
                     }
@@ -904,6 +918,27 @@ namespace WSNet2.Core
                         visible, joinable, watchable,
                         searchGroup, maxPlayers, clientDeadline,
                         publicProps, privateProps);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   プレイヤープロパティ変更イベント
+        /// </summary>
+        private void OnEvClientProp(EvClientProp ev)
+        {
+            callbackPool.Add(() =>
+            {
+                var player = players[ev.ClientID];
+                var props = ev.GetProps(player.Props);
+                foreach(var kv in props)
+                {
+                    player.Props[kv.Key] = kv.Value;
+                }
+
+                if (OnPlayerPropertyChanged != null)
+                {
+                    OnPlayerPropertyChanged(player, props);
                 }
             });
         }

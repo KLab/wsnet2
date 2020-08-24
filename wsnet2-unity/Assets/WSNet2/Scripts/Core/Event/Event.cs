@@ -71,6 +71,9 @@ namespace WSNet2.Core
                 case EvType.RoomProp:
                     ev = new EvRoomProp(reader);
                     break;
+                case EvType.ClientProp:
+                    ev = new EvClientProp(reader);
+                    break;
                 case EvType.MasterSwitched:
                     ev = new EvMasterSwitched(reader);
                     break;

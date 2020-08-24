@@ -30,15 +30,18 @@ const (
 
 	// EvTypeRoomProp : 部屋情報の変更
 	// payload:
-	//  - UInt: client deadline
-	//  - Dict: public props
-	//  - Dict: private props
+	// - Byte: flags (1=visible, 2=joinable, 4=watchable)
+	// - UInt: search group
+	// - UShort: max players
+	// - UShort: client deadline (second)
+	// - Dict: public props (modified keys only)
+	// - Dict: private props (modified keys only)
 	EvTypeRoomProp
 
 	// EvTypeClientProp : クライアント情報の変更
 	// payload:
 	//  - str8: client ID
-	//  - Dict: properties
+	//  - Dict: properties (modified keys only)
 	EvTypeClientProp
 
 	// EvTypeMasterSwitched : Masterクライアントが切替わった
