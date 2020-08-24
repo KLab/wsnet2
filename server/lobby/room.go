@@ -81,7 +81,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 
 	res, err := client.Create(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("create room error: %v", err)
+		log.Errorf("create room error: %v", err)
 		return nil, err
 	}
 
@@ -138,7 +138,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 
 	res, err := client.Join(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("join room error: %v", err)
+		log.Errorf("join room error: %v", err)
 		return nil, err
 	}
 
@@ -164,7 +164,9 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 	}
 
 	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
-
+	if len(filtered) == 0 {
+		return nil, xerrors.Errorf("JoinById: filter result is empty")
+	}
 	room = filtered[0]
 
 	return rs.join(appId, room.Id, clientInfo, room.HostId)
@@ -190,7 +192,9 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 	}
 
 	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
-
+	if len(filtered) == 0 {
+		return nil, xerrors.Errorf("JoinByNumber: filter result is empty")
+	}
 	room = filtered[0]
 
 	return rs.join(appId, room.Id, clientInfo, room.HostId)
@@ -224,21 +228,10 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 	return filter(rooms, props, queries, limit), nil
 }
 
-func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
-	// 仮実装
-	if _, found := rs.apps[appId]; !found {
-		return nil, xerrors.Errorf("Unknown appId: %v", appId)
-	}
-
-	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
+	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
-		return nil, xerrors.Errorf("Join: failed to get room: %w", err)
-	}
-
-	game, err := rs.gameCache.Get(room.HostId)
-	if err != nil {
-		return nil, xerrors.Errorf("join: failed to get game server: %w", err)
+		return nil, xerrors.Errorf("watch: failed to get game server: %w", err)
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
@@ -259,11 +252,64 @@ func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo
 
 	res, err := client.Watch(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("join room error: %v", err)
+		log.Errorf("watch room error: %v", err)
 		return nil, err
 	}
 
 	log.Infof("Joined room: %v", res)
 
 	return res, nil
+}
+
+func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchById: failed to get room: %w", err)
+	}
+
+	props, err := unmarshalProps(room.PublicProps)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchById: unmarshalProps: %w", err)
+	}
+
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+	if len(filtered) == 0 {
+		return nil, xerrors.Errorf("WatchById: filter result is empty")
+	}
+	room = filtered[0]
+
+	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+}
+
+func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	if _, found := rs.apps[appId]; !found {
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+	}
+	if roomNumber == 0 {
+		return nil, xerrors.Errorf("Invalid room number: %v", roomNumber)
+	}
+
+	var room pb.RoomInfo
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchByNumber: Failed to get room: %w", err)
+	}
+
+	props, err := unmarshalProps(room.PublicProps)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchByNumber: unmarshalProps: %w", err)
+	}
+
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+	if len(filtered) == 0 {
+		return nil, xerrors.Errorf("WatchByNumber: filter result is empty")
+	}
+	room = filtered[0]
+
+	return rs.watch(appId, room.Id, clientInfo, room.HostId)
 }

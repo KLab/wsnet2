@@ -77,6 +77,7 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	r.HandleFunc("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom).Methods("POST")
 	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
 	r.HandleFunc("/rooms/watch/id/{roomId}", sv.handleWatchRoom).Methods("POST")
+	r.HandleFunc("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber).Methods("POST")
 }
 
 type header struct {
@@ -366,16 +367,13 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
 
-	log.Infof("handleJoinRoom: appID=%s, userID=%s", h.appId, h.userId)
+	log.Infof("handleWatchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
 		log.Errorf("Failed to user auth: %v", err)
 		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
 		return
 	}
-
-	roomId := mux.Vars(r)["roomId"]
-	log.Infof("watch roomid=%v", roomId)
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
@@ -385,10 +383,51 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	room, err := sv.roomService.WatchById(h.appId, roomId, &param.ClientInfo)
+	vars := JoinVars(mux.Vars(r))
+	roomId, _ := vars.roomId()
+
+	room, err := sv.roomService.WatchById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		log.Errorf("Failed to watch room: %v", err)
+		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
+		return
+	}
+	log.Debugf("%#v", room)
+
+	err = renderResponse(w, room)
+	if err != nil {
+		log.Errorf("Failed to marshal room: %v", err)
+		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.Request) {
+	h := parseSpecificHeader(r)
+
+	log.Infof("handleWatchRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
+
+	if err := sv.authUser(h); err != nil {
+		log.Errorf("Failed to user auth: %v", err)
+		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		return
+	}
+
+	var param JoinParam
+	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	if err != nil {
+		log.Errorf("Failed to read request body: %v", err)
+		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		return
+	}
+
+	vars := JoinVars(mux.Vars(r))
+	roomNumber, _ := vars.roomNumber()
+
+	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
+	if err != nil {
+		log.Errorf("Failed to watch room: %v", err)
+		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
 		return
 	}
 	log.Debugf("%#v", room)
