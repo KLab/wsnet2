@@ -257,7 +257,7 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 	return res, nil
 }
 
-func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -268,10 +268,19 @@ func (rs *RoomService) WatchById(appId, roomId string, clientInfo *pb.ClientInfo
 		return nil, xerrors.Errorf("Watch: failed to get room: %w", err)
 	}
 
-	return rs.watch(appId, roomId, clientInfo, room.HostId)
+	props, err := unmarshalProps(room.PublicProps)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
+	}
+
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+
+	room = filtered[0]
+
+	return rs.watch(appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -284,6 +293,15 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, clientInfo 
 	if err != nil {
 		return nil, xerrors.Errorf("WatchByNumber: Failed to get room: %w", err)
 	}
+
+	props, err := unmarshalProps(room.PublicProps)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
+	}
+
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+
+	room = filtered[0]
 
 	return rs.watch(appId, room.Id, clientInfo, room.HostId)
 }

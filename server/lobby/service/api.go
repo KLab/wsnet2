@@ -386,7 +386,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	vars := JoinVars(mux.Vars(r))
 	roomId, _ := vars.roomId()
 
-	room, err := sv.roomService.WatchById(h.appId, roomId, &param.ClientInfo)
+	room, err := sv.roomService.WatchById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to watch room: %v", err)
 		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
@@ -424,7 +424,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	vars := JoinVars(mux.Vars(r))
 	roomNumber, _ := vars.roomNumber()
 
-	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, &param.ClientInfo)
+	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
 		log.Errorf("Failed to watch room: %v", err)
 		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
