@@ -267,6 +267,7 @@ namespace WSNet2.Core.Test
         [TestCase("abc", new byte[]{(byte)Type.Str8, 3, 0x61, 0x62, 0x63})]
         [TestCase("あ", new byte[]{(byte)Type.Str8, 3, 0xe3, 0x81, 0x82})]
         [TestCase("🍣🍺", new byte[]{(byte)Type.Str8, 8, 0xF0, 0x9F, 0x8D, 0xA3, 0xF0,0x9F, 0x8D, 0xBA})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestStr8(string v, byte[] expect)
         {
             writer.Write(v);
@@ -432,6 +433,15 @@ namespace WSNet2.Core.Test
             var r2 = reader.ReadArray(recycle);
             Assert.AreEqual(typeof(object[]), r2.GetType());
             Assert.AreEqual(v, r2);
+
+            v = null;
+            expect = new byte[]{(byte)Type.Null};
+            writer.Reset();
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+            reader = Serialization.NewReader(writer.ArraySegment());
+            r = reader.ReadList(recycle);
+            Assert.Null(r);
         }
 
         [Test]
@@ -470,6 +480,12 @@ namespace WSNet2.Core.Test
             var r2 = reader.ReadArray<Obj1>(recycle);
             Assert.AreEqual(typeof(Obj1[]), r2.GetType());
             Assert.AreEqual(expect, r2);
+
+            bin = new byte[]{(byte)Type.Null};
+            expect = null;
+            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            r = reader.ReadList<Obj1>();
+            Assert.Null(r);
         }
 
         [Test]
@@ -526,6 +542,7 @@ namespace WSNet2.Core.Test
         [TestCase(new bool[]{true, false, true}, new byte[]{(byte)Type.Bools, 0, 3, 0b10100000})]
         [TestCase(new bool[]{false, false, true, false, true, true, false, true}, new byte[]{(byte)Type.Bools, 0, 8, 0b00101101})]
         [TestCase(new bool[]{true, true, false, true, false, false, true, false, true}, new byte[]{(byte)Type.Bools, 0, 9, 0b11010010, 0b10000000})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestBools(bool[] v, byte[] expect)
         {
             writer.Write(v);
@@ -538,6 +555,7 @@ namespace WSNet2.Core.Test
 
         [TestCase(new sbyte[]{}, new byte[]{(byte)Type.SBytes, 0x00, 0x00})]
         [TestCase(new sbyte[]{0, 1, -128, 127}, new byte[]{(byte)Type.SBytes, 0, 4, 0x80, 0x81, 0x00, 0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestSBytes(sbyte[] v, byte[] expect)
         {
             writer.Write(v);
@@ -550,6 +568,7 @@ namespace WSNet2.Core.Test
 
         [TestCase(new byte[]{}, new byte[]{(byte)Type.Bytes, 0x00, 0x00})]
         [TestCase(new byte[]{0, 1, 127, 255}, new byte[]{(byte)Type.Bytes, 0, 4, 0, 1, 127, 255})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestBytes(byte[] v, byte[] expect)
         {
             writer.Write(v);
@@ -563,6 +582,7 @@ namespace WSNet2.Core.Test
         [TestCase(new short[]{}, new byte[]{(byte)Type.Shorts, 0x00, 0x00})]
         [TestCase(new short[]{0, 1, short.MinValue, short.MaxValue},
                   new byte[]{(byte)Type.Shorts, 0, 4, 0x80, 0x00, 0x80, 0x01, 0x00, 0x00, 0xff, 0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestShorts(short[] v, byte[] expect)
         {
             writer.Write(v);
@@ -576,6 +596,7 @@ namespace WSNet2.Core.Test
         [TestCase(new ushort[]{}, new byte[]{(byte)Type.UShorts, 0x00, 0x00})]
         [TestCase(new ushort[]{0, 1, ushort.MaxValue},
                   new byte[]{(byte)Type.UShorts, 0, 3, 0x00, 0x00, 0x00, 0x01, 0xff, 0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestUShorts(ushort[] v, byte[] expect)
         {
             writer.Write(v);
@@ -589,6 +610,7 @@ namespace WSNet2.Core.Test
         [TestCase(new int[]{}, new byte[]{(byte)Type.Ints, 0x00, 0x00})]
         [TestCase(new int[]{0, 1, int.MinValue, int.MaxValue},
                   new byte[]{(byte)Type.Ints, 0, 4, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestInts(int[] v, byte[] expect)
         {
             writer.Write(v);
@@ -602,6 +624,7 @@ namespace WSNet2.Core.Test
         [TestCase(new uint[]{}, new byte[]{(byte)Type.UInts, 0x00, 0x00})]
         [TestCase(new uint[]{0, 1, uint.MaxValue},
                   new byte[]{(byte)Type.UInts, 0, 3, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x01, 0xff,0xff,0xff,0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestUInts(uint[] v, byte[] expect)
         {
             writer.Write(v);
@@ -619,6 +642,7 @@ namespace WSNet2.Core.Test
                              0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                              0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestLongs(long[] v, byte[] expect)
         {
             writer.Write(v);
@@ -635,6 +659,7 @@ namespace WSNet2.Core.Test
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
                              0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestULongs(ulong[] v, byte[] expect)
         {
             writer.Write(v);
@@ -652,6 +677,7 @@ namespace WSNet2.Core.Test
                              0x00, 0x7f, 0xff, 0xff,
                              0xff, 0x7f, 0xff, 0xff,
                              0xbf, 0xa0, 0x00, 0x00})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestFloats(float[] v, byte[] expect)
         {
             writer.Write(v);
@@ -669,6 +695,7 @@ namespace WSNet2.Core.Test
                              0x00, 0x0f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                              0xff, 0xef, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                              0xbf, 0xf4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestDoubles(double[] v, byte[] expect)
         {
             writer.Write(v);
@@ -685,6 +712,7 @@ namespace WSNet2.Core.Test
                              0, 5, (byte)Type.Str8, 3, 0x61, 0x62,0x63,
                              0, 5, (byte)Type.Str8, 3, 0x64, 0x65,0x66,
                   })]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
         public void TestStrings(string[] v, byte[] expect)
         {
             writer.Write(v);

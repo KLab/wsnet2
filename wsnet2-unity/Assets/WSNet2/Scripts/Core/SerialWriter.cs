@@ -213,6 +213,12 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(string v)
         {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
             var len = utf8.GetByteCount(v);
             if (len <= byte.MaxValue)
             {
@@ -283,6 +289,12 @@ namespace WSNet2.Core
         /// <param name="v">値</param>
         public void Write(IEnumerable v)
         {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
             expand(2);
             buf[pos] = (byte)Type.List;
             var countpos = pos + 1;
@@ -350,6 +362,12 @@ namespace WSNet2.Core
         /// <param name="vals">値</param>
         public void Write(bool[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -384,6 +402,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(sbyte[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -408,6 +432,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(byte[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -431,6 +461,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(short[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -455,6 +491,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(ushort[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -478,6 +520,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(int[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -502,6 +550,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(uint[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -525,6 +579,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(long[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -548,6 +608,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(ulong[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -571,6 +637,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(float[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {
@@ -604,6 +676,12 @@ namespace WSNet2.Core
         /// </summary>
         public void Write(double[] vals)
         {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
             var count = vals.Length;
             if (count > ushort.MaxValue)
             {

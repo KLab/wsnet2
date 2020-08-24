@@ -316,6 +316,9 @@ func unmarshalStr16(src []byte) (string, int, error) {
 //  - 16bit body length
 //  - body
 func MarshalObj(obj *Obj) []byte {
+	if obj == nil {
+		return MarshalNull()
+	}
 	len := len(obj.Body)
 	buf := make([]byte, len+4)
 	buf[0] = byte(TypeObj)
@@ -348,6 +351,9 @@ func unmarshalObj(src []byte) (*Obj, int, error) {
 //    - 16bit body length
 //    - marshaled body
 func MarshalList(list List) []byte {
+	if list == nil {
+		return MarshalNull()
+	}
 	buf := make([]byte, 2)
 	buf[0] = byte(TypeList)
 	buf[1] = byte(len(list))
@@ -444,6 +450,10 @@ func unmarshalDict(src []byte) (Dict, int, error) {
 //  - 16bit count
 //  - repeat: bits...
 func MarshalBools(bs []bool) []byte {
+	if bs == nil {
+		return MarshalNull()
+	}
+
 	count := len(bs)
 	if count > math.MaxInt16 {
 		count = math.MaxInt16
@@ -487,6 +497,10 @@ func unmarshalBools(src []byte) ([]bool, int, error) {
 //  - 16bit count
 //  - repeat: sbyte...
 func MarshalSBytes(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -524,6 +538,10 @@ func unmarshalSBytes(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: byte...
 func MarshalBytes(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -561,6 +579,10 @@ func unmarshalBytes(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: 16bit BE integer...
 func MarshalShorts(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -599,6 +621,10 @@ func unmarshalShorts(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: 16bit BE integer...
 func MarshalUShorts(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -637,6 +663,10 @@ func unmarshalUShorts(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: 32bit BE integer...
 func MarshalInts(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -675,6 +705,10 @@ func unmarshalInts(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: 32bit BE integer...
 func MarshalUInts(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -713,6 +747,10 @@ func unmarshalUInts(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: 64bit BE integer...
 func MarshalLongs(vals []int) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -761,6 +799,10 @@ func unmarshalLongs(src []byte) ([]int, int, error) {
 //  - 16bit count
 //  - repeat: 64bit BE integer...
 func MarshalULongs(vals []uint64) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -794,6 +836,10 @@ func unmarshalULongs(src []byte) ([]uint64, int, error) {
 
 // MarshalFloats marshals IEEE754 single array
 func MarshalFloats(vals []float32) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
@@ -839,6 +885,10 @@ func unmarshalFloats(src []byte) ([]float32, int, error) {
 
 // MarshalDoubles marshals IEEE754 single array
 func MarshalDoubles(vals []float64) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
 	count := len(vals)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16

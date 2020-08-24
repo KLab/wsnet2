@@ -383,50 +383,72 @@ func TestMarshalStr16(t *testing.T) {
 }
 
 func TestMarshalObj(t *testing.T) {
-	obj := &Obj{1, []byte{1, 2, 3, 4, 5}}
-	buf := []byte{byte(TypeObj), 1, 0, 5, 1, 2, 3, 4, 5}
-
-	b := MarshalObj(obj)
-	if !reflect.DeepEqual(b, buf) {
-		t.Fatalf("MarshalObj:\n%#v\n%#v", b, buf)
+	tests := []struct {
+		obj *Obj
+		buf []byte
+	}{
+		{
+			obj: &Obj{1, []byte{1, 2, 3, 4, 5}},
+			buf: []byte{byte(TypeObj), 1, 0, 5, 1, 2, 3, 4, 5},
+		},
+		{obj: nil, buf: []byte{byte(TypeNull)}},
 	}
-	r, l, e := Unmarshal(b)
-	if e != nil {
-		t.Fatalf("Unmarshal error: %v", e)
-	}
-	if diff := cmp.Diff(r, obj); diff != "" {
-		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
-	}
-	if l != len(buf) {
-		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
+	for _, test := range tests {
+		b := MarshalObj(test.obj)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalObj:\n%#v\n%#v", b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		if !(test.obj == nil && r == nil) {
+			if diff := cmp.Diff(r, test.obj); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
+		}
+		if l != len(test.buf) {
+			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
+		}
 	}
 }
 
 func TestMarshalList(t *testing.T) {
-	list := List{
-		[]byte{byte(TypeStr8), 3, 'a', 'b', 'c'},
-		[]byte{byte(TypeNull)},
-		[]byte{byte(TypeByte), 1},
+	tests := []struct {
+		list List
+		buf  []byte
+	}{
+		{
+			list: List{
+				[]byte{byte(TypeStr8), 3, 'a', 'b', 'c'},
+				[]byte{byte(TypeNull)},
+				[]byte{byte(TypeByte), 1},
+			},
+			buf: []byte{byte(TypeList), 3,
+				0, 5, byte(TypeStr8), 3, 'a', 'b', 'c',
+				0, 1, byte(TypeNull),
+				0, 2, byte(TypeByte), 1,
+			},
+		},
+		{list: nil, buf: []byte{byte(TypeNull)}},
 	}
-	buf := []byte{byte(TypeList), 3,
-		0, 5, byte(TypeStr8), 3, 'a', 'b', 'c',
-		0, 1, byte(TypeNull),
-		0, 2, byte(TypeByte), 1,
-	}
-
-	b := MarshalList(list)
-	if !reflect.DeepEqual(b, buf) {
-		t.Fatalf("MarshalList:\n%#v\n%#v", b, buf)
-	}
-	r, l, e := Unmarshal(b)
-	if e != nil {
-		t.Fatalf("Unmarshal error: %v", e)
-	}
-	if diff := cmp.Diff(r, list); diff != "" {
-		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
-	}
-	if l != len(buf) {
-		t.Fatalf("Unmarshal length = %v, wants %v", l, len(buf))
+	for _, test := range tests {
+		b := MarshalList(test.list)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalList:\n%#v\n%#v", b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		if !(test.list == nil && r == nil) {
+			if diff := cmp.Diff(r, test.list); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
+		}
+		if l != len(test.buf) {
+			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
+		}
 	}
 }
 
@@ -486,6 +508,7 @@ func TestMarshalBools(t *testing.T) {
 			[]bool{true, true, false, true, false, false, true, false, true},
 			[]byte{byte(TypeBools), 0, 9, 0b11010010, 0b10000000},
 		},
+		{nil, []byte{byte(TypeNull)}},
 	}
 	for _, test := range tests {
 		b := MarshalBools(test.val)
@@ -496,8 +519,10 @@ func TestMarshalBools(t *testing.T) {
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
 		}
-		if diff := cmp.Diff(r, test.val); diff != "" {
-			t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+		if !(test.val == nil && r == nil) {
+			if diff := cmp.Diff(r, test.val); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
 		}
 		if l != len(test.buf) {
 			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
@@ -571,6 +596,13 @@ func TestMarshalIntegers(t *testing.T) {
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			},
 		},
+		{MarshalSBytes, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalBytes, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalShorts, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalUShorts, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalInts, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalUInts, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalLongs, nil, nil, []byte{byte(TypeNull)}},
 	}
 	for _, test := range tests {
 		b := test.marshal(test.in)
@@ -583,9 +615,11 @@ func TestMarshalIntegers(t *testing.T) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%#v): Unmarshal error: %v", fname, test.in, e)
 		}
-		if diff := cmp.Diff(r, test.out); diff != "" {
-			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
-			t.Fatalf("%s(%#v): Unmarshal (-got +want)\n%s", fname, test.in, diff)
+		if !(test.out == nil && r == nil) {
+			if diff := cmp.Diff(r, test.out); diff != "" {
+				fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+				t.Fatalf("%s(%#v): Unmarshal (-got +want)\n%s", fname, test.in, diff)
+			}
 		}
 		if l != len(test.buf) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
@@ -609,6 +643,7 @@ func TestMarshalULongs(t *testing.T) {
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 			},
 		},
+		{nil, []byte{byte(TypeNull)}},
 	}
 	for _, test := range tests {
 		b := MarshalULongs(test.val)
@@ -619,8 +654,10 @@ func TestMarshalULongs(t *testing.T) {
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
 		}
-		if diff := cmp.Diff(r, test.val); diff != "" {
-			t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+		if !(test.val == nil && r == nil) {
+			if diff := cmp.Diff(r, test.val); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
 		}
 		if l != len(test.buf) {
 			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
@@ -643,6 +680,7 @@ func TestMarshalFloats(t *testing.T) {
 				0xbf, 0xa0, 0x00, 0x00, // sign=0, exp=7f, frac=1.01
 			},
 		},
+		{nil, []byte{byte(TypeNull)}},
 	}
 	for _, test := range tests {
 		b := MarshalFloats(test.val)
@@ -653,8 +691,10 @@ func TestMarshalFloats(t *testing.T) {
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
 		}
-		if diff := cmp.Diff(r, test.val); diff != "" {
-			t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+		if !(test.val == nil && r == nil) {
+			if diff := cmp.Diff(r, test.val); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
 		}
 		if l != len(test.buf) {
 			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
@@ -677,6 +717,7 @@ func TestMarshalDoubles(t *testing.T) {
 				0xbf, 0xf4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // sign=0, exp=3ff, frac=1.01
 			},
 		},
+		{nil, []byte{byte(TypeNull)}},
 	}
 	for _, test := range tests {
 		b := MarshalDoubles(test.val)
@@ -687,8 +728,10 @@ func TestMarshalDoubles(t *testing.T) {
 		if e != nil {
 			t.Fatalf("Unmarshal error: %v", e)
 		}
-		if diff := cmp.Diff(r, test.val); diff != "" {
-			t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+		if !(test.val == nil && r == nil) {
+			if diff := cmp.Diff(r, test.val); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
 		}
 		if l != len(test.buf) {
 			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
