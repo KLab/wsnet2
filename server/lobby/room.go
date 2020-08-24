@@ -81,7 +81,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 
 	res, err := client.Create(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("create room error: %v", err)
+		log.Errorf("create room error: %v", err)
 		return nil, err
 	}
 
@@ -138,7 +138,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 
 	res, err := client.Join(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("join room error: %v", err)
+		log.Errorf("join room error: %v", err)
 		return nil, err
 	}
 
@@ -252,7 +252,7 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 
 	res, err := client.Watch(context.TODO(), req)
 	if err != nil {
-		fmt.Printf("watch room error: %v", err)
+		log.Errorf("watch room error: %v", err)
 		return nil, err
 	}
 
