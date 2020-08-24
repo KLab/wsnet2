@@ -118,7 +118,12 @@ namespace WSNet2.Core
 
         public string ReadString()
         {
-            var t = checkType(Type.Str8, Type.Str16);
+            var t = checkType(Type.Str8, Type.Str16, Type.Null);
+            if (t == Type.Null)
+            {
+                return null;
+            }
+
             var len = (t == Type.Str8) ? Get8() : Get16();
             var str = utf8.GetString(arrSeg.Array, arrSeg.Offset + pos, len);
             pos += len;
@@ -164,7 +169,11 @@ namespace WSNet2.Core
 
         public List<object> ReadList(IReadOnlyList<object> recycle = null)
         {
-            checkType(Type.List);
+            if (checkType(Type.List, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get8();
             var list = new List<object>(count);
             var recycleCount = (recycle != null) ? recycle.Count : 0;
@@ -180,7 +189,11 @@ namespace WSNet2.Core
 
         public object[] ReadArray(IReadOnlyList<object> recycle = null)
         {
-            checkType(Type.List);
+            if (checkType(Type.List, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get8();
             var list = new object[count];
             var recycleCount = (recycle != null) ? recycle.Count : 0;
@@ -196,7 +209,11 @@ namespace WSNet2.Core
 
         public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
         {
-            checkType(Type.List);
+            if (checkType(Type.List, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get8();
             var list = new List<T>(count);
             var recycleCount = (recycle != null) ? recycle.Count : 0;
@@ -215,7 +232,11 @@ namespace WSNet2.Core
 
         public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
         {
-            checkType(Type.List);
+            if (checkType(Type.List, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get8();
             var list = new T[count];
             var recycleCount = (recycle != null) ? recycle.Count : 0;
@@ -259,7 +280,11 @@ namespace WSNet2.Core
 
         public bool[] ReadBools(bool[] recycle = null)
         {
-            checkType(Type.Bools);
+            if (checkType(Type.Bools, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -283,7 +308,11 @@ namespace WSNet2.Core
 
         public sbyte[] ReadSBytes(sbyte[] recycle = null)
         {
-            checkType(Type.SBytes);
+            if (checkType(Type.SBytes, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -301,7 +330,11 @@ namespace WSNet2.Core
 
         public byte[] ReadBytes(byte[] recycle = null)
         {
-            checkType(Type.Bytes);
+            if (checkType(Type.Bytes, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -319,7 +352,11 @@ namespace WSNet2.Core
 
         public short[] ReadShorts(short[] recycle = null)
         {
-            checkType(Type.Shorts);
+            if (checkType(Type.Shorts, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -337,7 +374,11 @@ namespace WSNet2.Core
 
         public ushort[] ReadUShorts(ushort[] recycle = null)
         {
-            checkType(Type.UShorts);
+            if (checkType(Type.UShorts, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -355,7 +396,11 @@ namespace WSNet2.Core
 
         public int[] ReadInts(int[] recycle = null)
         {
-            checkType(Type.Ints);
+            if (checkType(Type.Ints, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -373,7 +418,11 @@ namespace WSNet2.Core
 
         public uint[] ReadUInts(uint[] recycle = null)
         {
-            checkType(Type.UInts);
+            if (checkType(Type.UInts, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -391,7 +440,11 @@ namespace WSNet2.Core
 
         public long[] ReadLongs(long[] recycle = null)
         {
-            checkType(Type.Longs);
+            if (checkType(Type.Longs, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -409,7 +462,11 @@ namespace WSNet2.Core
 
         public ulong[] ReadULongs(ulong[] recycle = null)
         {
-            checkType(Type.ULongs);
+            if (checkType(Type.ULongs, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -427,7 +484,11 @@ namespace WSNet2.Core
 
         public float[] ReadFloats(float[] recycle = null)
         {
-            checkType(Type.Floats);
+            if (checkType(Type.Floats, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -455,7 +516,11 @@ namespace WSNet2.Core
 
         public double[] ReadDoubles(double[] recycle = null)
         {
-            checkType(Type.Doubles);
+            if (checkType(Type.Doubles, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get16();
             var vals = recycle;
             if (vals == null || vals.Length != count)
@@ -483,7 +548,11 @@ namespace WSNet2.Core
 
         public string[] ReadStrings(string[] recycle = null)
         {
-            checkType(Type.List);
+            if (checkType(Type.List, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var count = Get8();
             var list = recycle;
             if (list == null || list.Length != count)
@@ -504,7 +573,11 @@ namespace WSNet2.Core
 
         public Dictionary<string, bool> ReadBoolDict()
         {
-            checkType(Type.Dict);
+            if (checkType(Type.Dict, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var dict = new Dictionary<string, bool>();
             var count = Get8();
 
@@ -523,7 +596,11 @@ namespace WSNet2.Core
 
         public Dictionary<string, ulong> ReadULongDict()
         {
-            checkType(Type.Dict);
+            if (checkType(Type.Dict, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
             var dict = new Dictionary<string, ulong>();
             var count = Get8();
 
@@ -621,6 +698,19 @@ namespace WSNet2.Core
             var t = (Type)buf[pos];
             if (t != want1 && t != want2) {
                 var msg = String.Format("Type mismatch: {0} wants {1} or {2}", t, want1, want2);
+                throw new SerializationException(msg);
+            }
+
+            pos++;
+            return t;
+        }
+
+        Type checkType(Type want1, Type want2, Type want3)
+        {
+            checkLength(1);
+            var t = (Type)buf[pos];
+            if (t != want1 && t != want2 && t != want3) {
+                var msg = String.Format("Type mismatch: {0} wants {1}, {2} or {3}", t, want1, want2, want3);
                 throw new SerializationException(msg);
             }
 
