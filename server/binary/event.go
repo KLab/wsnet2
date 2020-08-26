@@ -51,8 +51,16 @@ const (
 	EvTypeMessage
 
 	// EvTypeError : エラー通知
-	// payload: RegularMsg
+	// payload:
+	//  - byte: error kind
+	//  - RegularMsg: original msg
 	EvTypeError
+
+	// EvTypeUnreachable : 未到達通知
+	// payload:
+	//  - List: client IDs
+	//  - RegularMsg: original msg
+	EvTypeUnreachable
 )
 
 // Event from wsnet to client via websocket
@@ -159,12 +167,37 @@ func NewEvMessage(cliId string, body []byte) *Event {
 	return &Event{EvTypeMessage, payload}
 }
 
+//go:generate stringer -type=EvError
+type EvError byte
+
+const (
+	EvErrorPermissionDeny EvError = 1 + iota
+	EvErrorTargetNotFound
+)
+
 // NewEvError : エラー通知イベント
-// エラー発生の原因となったメッセージをそのまま返す
-func NewEvError(msg RegularMsg) *Event {
-	payload := make([]byte, 1+3+len(msg.Payload()))
-	payload[0] = byte(msg.Type())
-	put24(payload[1:], msg.SequenceNum())
-	copy(payload[5:], msg.Payload())
+// エラー種別とエラー発生の原因となったメッセージをそのまま返す
+func NewEvError(msg RegularMsg, kind EvError) *Event {
+	payload := make([]byte, 1+1+3+len(msg.Payload()))
+	payload[0] = byte(kind)
+	payload[1] = byte(msg.Type())
+	put24(payload[2:], msg.SequenceNum())
+	copy(payload[6:], msg.Payload())
 	return &Event{EvTypeError, payload}
+}
+
+// NewEvUnreachable : 未到達通知イベント
+// 未到達のClientのリストとエラー発生の原因となったメッセージをそのまま返す
+func NewEvUnreachable(msg RegularMsg, cliIds []string) *Event {
+	list := List{}
+	for _, c := range cliIds {
+		list = append(list, MarshalStr8(c))
+	}
+	payload := MarshalList(list)
+	payload = append(payload, byte(msg.Type()))
+	seq := make([]byte, 0, 3)
+	put24(seq, msg.SequenceNum())
+	payload = append(payload, seq...)
+	payload = append(payload, msg.Payload()...)
+	return &Event{EvTypeUnreachable, payload}
 }
