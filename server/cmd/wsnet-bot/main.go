@@ -316,7 +316,7 @@ func main() {
 	}()
 
 	//	<-done
-	time.Sleep(6 * time.Second)
+	time.Sleep(8 * time.Second)
 
 	fmt.Println("reconnect test")
 	ws, err = bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 2)
@@ -330,14 +330,19 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second * 3)
-		fmt.Println("msg 006")
+		fmt.Println("msg 007")
 		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 7, 31, 32, 33, 34, 35})
 		time.Sleep(time.Second)
-		fmt.Println("msg 007")
+		fmt.Println("msg 008")
 		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 8, 41, 42, 43, 44, 45})
 		time.Sleep(time.Second)
-		fmt.Println("msg 008 (leave)")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 9})
+		fmt.Println("msg 009")
+		payload := []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 9}
+		payload = append(payload, binary.MarshalStr8("23456")...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
+		time.Sleep(time.Second)
+		fmt.Println("msg 010 (leave)")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 10})
 		time.Sleep(time.Second)
 		ws.Close()
 	}()
@@ -429,6 +434,8 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 			name := string(b[7 : 7+namelen])
 			props := b[7+namelen:]
 			fmt.Printf("[bot:%v] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
+		case binary.EvTypeError:
+			fmt.Printf("[bot:%v] %s: %v, %v\n", userId, ty, binary.EvError(b[5]), b)
 		default:
 			fmt.Printf("[bot:%v] ReadMessage: %v, %v\n", userId, ty, b)
 		}
