@@ -408,7 +408,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvError(msg, binary.EvErrorPermissionDeny))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
 		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
@@ -466,7 +466,7 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 
 	if !msg.Sender.isPlayer {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvError(msg, binary.EvErrorPermissionDeny))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
 		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
 	}
 
@@ -508,7 +508,7 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 
 	// 居なかった人を通知
 	if len(absent) > 0 {
-		r.sendTo(msg.Sender, binary.NewEvUnreachable(msg, absent))
+		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, absent))
 	}
 
 	return nil
@@ -535,14 +535,14 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvError(msg, binary.EvErrorPermissionDeny))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
 		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
 	target, found := r.players[msg.Target]
 	if !found {
 		// 対象が居ないことを通知
-		r.sendTo(msg.Sender, binary.NewEvError(msg, binary.EvErrorTargetNotFound))
+		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
 		return xerrors.Errorf("MsgSwitchMaster: player not found: room=%v, target=%v", r.Id, msg.Target)
 	}
 
