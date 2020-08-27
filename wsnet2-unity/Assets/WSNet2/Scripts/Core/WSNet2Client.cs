@@ -162,12 +162,11 @@ namespace WSNet2.Core
         /// </summary>
         public void Watch(
             string roomId,
-            IDictionary<string, object> clientProps,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam();
-            param.clientInfo = new ClientInfo(userId, clientProps);
+            param.clientInfo = new ClientInfo(userId);
 
             var content = MessagePackSerializer.Serialize(param);
 
@@ -179,12 +178,11 @@ namespace WSNet2.Core
         /// </summary>
         public void Watch(
             int number,
-            IDictionary<string, object> clientProps,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam();
-            param.clientInfo = new ClientInfo(userId, clientProps);
+            param.clientInfo = new ClientInfo(userId);
 
             var content = MessagePackSerializer.Serialize(param);
 

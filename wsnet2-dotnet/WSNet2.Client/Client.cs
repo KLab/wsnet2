@@ -182,7 +182,7 @@ namespace WSNet2.DotnetClient
                 }
                 else
                 {
-                    client.Watch(number, cliProps, onJoined, onFailed);
+                    client.Watch(number, onJoined, onFailed);
                 }
             }
 
@@ -192,6 +192,14 @@ namespace WSNet2.DotnetClient
             {
                 var room = await roomJoined.Task;
                 Console.WriteLine($"joined room = {room.Id} [{room.Number}]");
+
+                foreach (var p in room.Players){
+                    var pp = $"  player {p.Key}: ";
+                    foreach (var kv in p.Value.Props) {
+                        pp += $"{kv.Key}:{kv.Value}, ";
+                    }
+                    Console.WriteLine(pp);
+                }
 
                 int i = 0;
 
