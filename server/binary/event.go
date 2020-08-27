@@ -191,11 +191,7 @@ func NewEvError(msg RegularMsg, kind EvError) *Event {
 // NewEvUnreachable : 未到達通知イベント
 // 未到達のClientのリストとエラー発生の原因となったメッセージをそのまま返す
 func NewEvUnreachable(msg RegularMsg, cliIds []string) *Event {
-	list := List{}
-	for _, c := range cliIds {
-		list = append(list, MarshalStr8(c))
-	}
-	payload := MarshalList(list)
+	payload := MarshalStrings(cliIds)
 	payload = append(payload, byte(msg.Type()))
 	seq := make([]byte, 0, 3)
 	put24(seq, msg.SequenceNum())

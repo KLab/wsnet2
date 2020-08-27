@@ -681,3 +681,29 @@ func TestMarshalDoubles(t *testing.T) {
 		}
 	}
 }
+
+func TestMarshalStrings(t *testing.T) {
+	s := "0123456789abcdef0123456789abcdef" // len=32
+	s256 := s + s + s + s + s + s + s + s   // len=256
+	s65536 := s256
+	for len(s65536) < 65536 {
+		s65536 += s65536
+	}
+
+	strings := []string{"", "abc", "あいうえお", s256, s65536}
+
+	list := List{}
+	for _, s := range strings {
+		if len(s) <= math.MaxUint8 {
+			list = append(list, MarshalStr8(s))
+		} else {
+			list = append(list, MarshalStr16(s))
+		}
+	}
+	buf := MarshalList(list)
+
+	b := MarshalStrings(strings)
+	if !reflect.DeepEqual(b, buf) {
+		t.Fatalf("MarshalStrings:\n%#v\n%#v", b, buf)
+	}
+}
