@@ -288,21 +288,26 @@ func main() {
 		ws.WriteMessage(websocket.BinaryMessage, payload)
 		time.Sleep(time.Second)
 		fmt.Println("msg 002")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 2, 1, 2, 3, 4, 5})
+		payload = []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 2}
+		payload = append(payload, binary.MarshalStr8("34567")...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
 		time.Sleep(time.Second)
 		fmt.Println("msg 003")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 11, 12, 13, 14, 15})
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 1, 2, 3, 4, 5})
 		time.Sleep(time.Second)
 		fmt.Println("msg 004")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 4, 21, 22, 23, 24, 25})
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 4, 11, 12, 13, 14, 15})
+		time.Sleep(time.Second)
+		fmt.Println("msg 005")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 5, 21, 22, 23, 24, 25})
 		//time.Sleep(time.Second)
 		//fmt.Println("msg 003")
 		//ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 21, 22, 23, 24, 25})
 		//		time.Sleep(time.Second)
 		//		ws.Close()
 		time.Sleep(time.Second)
-		fmt.Println("msg 005")
-		payload = []byte{byte(binary.MsgTypeClientProp), 0, 0, 5}
+		fmt.Println("msg 006")
+		payload = []byte{byte(binary.MsgTypeClientProp), 0, 0, 6}
 		payload = append(payload, binary.MarshalDict(binary.Dict{
 			"p1": binary.MarshalUShort(20),
 			"p2": []byte{},
@@ -311,7 +316,7 @@ func main() {
 	}()
 
 	//	<-done
-	time.Sleep(6 * time.Second)
+	time.Sleep(8 * time.Second)
 
 	fmt.Println("reconnect test")
 	ws, err = bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 2)
@@ -325,14 +330,19 @@ func main() {
 
 	go func() {
 		time.Sleep(time.Second * 3)
-		fmt.Println("msg 006")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 6, 31, 32, 33, 34, 35})
-		time.Sleep(time.Second)
 		fmt.Println("msg 007")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 7, 41, 42, 43, 44, 45})
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 7, 31, 32, 33, 34, 35})
 		time.Sleep(time.Second)
-		fmt.Println("msg 008 (leave)")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 8})
+		fmt.Println("msg 008")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 8, 41, 42, 43, 44, 45})
+		time.Sleep(time.Second)
+		fmt.Println("msg 009")
+		payload := []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 9}
+		payload = append(payload, binary.MarshalStr8("23456")...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
+		time.Sleep(time.Second)
+		fmt.Println("msg 010 (leave)")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 10})
 		time.Sleep(time.Second)
 		ws.Close()
 	}()
@@ -424,6 +434,15 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 			name := string(b[7 : 7+namelen])
 			props := b[7+namelen:]
 			fmt.Printf("[bot:%v] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
+		case binary.EvTypePermissionDeny:
+			fmt.Printf("[bot:%v] %s: %v\n", userId, ty, b)
+		case binary.EvTypeTargetNotFound:
+			list, _, err := binary.UnmarshalAs(b[5:], binary.TypeList)
+			if err != nil {
+				fmt.Printf("[bot:%v] %s: error: %v\n", userId, ty, err)
+				break
+			}
+			fmt.Printf("[bot:%v] %s: %v %v\n", userId, ty, list, b)
 		default:
 			fmt.Printf("[bot:%v] ReadMessage: %v, %v\n", userId, ty, b)
 		}

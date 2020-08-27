@@ -932,6 +932,36 @@ func unmarshalDoubles(src []byte) ([]float64, int, error) {
 	return vals, l, nil
 }
 
+func MarshalStrings(vals []string) []byte {
+	buf := make([]byte, 2)
+	buf[0] = byte(TypeList)
+	buf[1] = byte(len(vals))
+	sizebuf := make([]byte, 2)
+	strbuf := make([]byte, 3)
+	for _, v := range vals {
+		var sz int
+		n := len(v)
+		if n <= math.MaxUint8 {
+			sz = 1
+			strbuf[0] = byte(TypeStr8)
+			put8(strbuf[1:], n)
+		} else {
+			if n > math.MaxUint16 {
+				n = math.MaxUint16
+				v = v[:math.MaxUint16]
+			}
+			sz = 2
+			strbuf[0] = byte(TypeStr16)
+			put16(strbuf[1:], n)
+		}
+		put16(sizebuf, 1+sz+n)
+		buf = append(buf, sizebuf...)
+		buf = append(buf, strbuf[:1+sz]...)
+		buf = append(buf, []byte(v)...)
+	}
+	return buf
+}
+
 // Unmarshal serialized bytes
 func Unmarshal(src []byte) (interface{}, int, error) {
 	if len(src) == 0 {
