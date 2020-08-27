@@ -147,8 +147,11 @@ namespace WSNet2.Core
         /// </summary>
         public void PostClientProp(IDictionary<string, object> props)
         {
-            var writer = writeMsgType(MsgType.ClientProp);
-            writer.Write(props);
+            lock(this)
+            {
+                var writer = writeMsgType(MsgType.ClientProp);
+                writer.Write(props);
+            }
         }
 
         /// <summary>
