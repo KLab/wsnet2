@@ -8,6 +8,7 @@ import (
 type EvType byte
 
 const regularEvType = 30
+const errorEvType = 128
 const (
 	// NewEvPeerReady : Peer準備完了イベント
 	// payload:
@@ -49,12 +50,13 @@ const (
 	// EvTypeMessage : その他の通常メッセージ
 	// payload: (any)
 	EvTypeMessage
-
+)
+const (
 	// EvTypeError : エラー通知
 	// payload:
 	//  - byte: error kind
 	//  - RegularMsg: original msg
-	EvTypeError
+	EvTypeError EvType = errorEvType + iota
 
 	// EvTypeUnreachable : 未到達通知
 	// payload:
