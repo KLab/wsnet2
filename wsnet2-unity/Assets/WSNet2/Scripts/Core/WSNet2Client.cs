@@ -157,6 +157,9 @@ namespace WSNet2.Core
             Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, onSuccess, onFailed));
         }
 
+        /// <summary>
+        ///   RoomIDを指定して観戦入室
+        /// </summary>
         public void Watch(
             string roomId,
             IDictionary<string, object> clientProps,
@@ -169,6 +172,23 @@ namespace WSNet2.Core
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, onSuccess, onFailed));
+        }
+
+        /// <summary>
+        ///   部屋番号を指定して観戦入室
+        /// </summary>
+        public void Watch(
+            int number,
+            IDictionary<string, object> clientProps,
+            Func<Room, bool> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new JoinParam();
+            param.clientInfo = new ClientInfo(userId, clientProps);
+
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, onSuccess, onFailed));
         }
 
         private async Task connectToRoom(
