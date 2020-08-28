@@ -147,6 +147,19 @@ namespace WSNet2.DotnetClient
 
                     Console.WriteLine($"OnPlayerPropertyChanged: {p.Id} {propstr}");
                 };
+                room.OnMsgError += (ev) =>
+                {
+                    switch(ev)
+                    {
+                        case EvPermissionDeny permission:
+                            Console.WriteLine($"OnMsgError: permission deny: {ev.MsgType} {ev.MsgSeqNum}");
+                            break;
+                        case EvTargetNotFound notfound:
+                            var targets = string.Join(",", notfound.Targets);
+                            Console.WriteLine($"OnMsgError: target not found: {ev.MsgType} {ev.MsgSeqNum} {targets}");
+                            break;
+                    }
+                };
                 room.OnClosed += (_) => cts.Cancel();
                 room.OnErrorClosed += (_) => cts.Cancel();
 
@@ -267,7 +280,7 @@ namespace WSNet2.DotnetClient
                             var ids = room.Players.Keys.ToArray();
                             var target = ids[rand.Next(ids.Length)];
                             Console.WriteLine($"rpc to {target}: {str}");
-                            room.RPC(RPCString, str, target);
+                            room.RPC(RPCString, str, target, "nobody");
                             break;
                         case 2:
                             Console.WriteLine($"rpc to all: {str}");

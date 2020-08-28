@@ -8,6 +8,7 @@ namespace WSNet2.Core
     public enum EvType
     {
         regularEvType = 30,
+        errorEvType = 128,
         localEvType = 0x10000,
 
         PeerReady = 1,
@@ -19,6 +20,9 @@ namespace WSNet2.Core
         ClientProp,
         MasterSwitched,
         Message,
+
+        PermissionDeny = errorEvType,
+        TargetNotFound,
 
         Closed = localEvType,
     }
@@ -79,6 +83,13 @@ namespace WSNet2.Core
                     break;
                 case EvType.Message:
                     ev = new EvRPC(reader);
+                    break;
+
+                case EvType.PermissionDeny:
+                    ev = new EvPermissionDeny(reader);
+                    break;
+                case EvType.TargetNotFound:
+                    ev = new EvTargetNotFound(reader);
                     break;
 
                 default:
