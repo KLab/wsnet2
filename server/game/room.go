@@ -52,13 +52,13 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	if len(props) == 0 {
 		props = binary.MarshalDict(nil)
 	}
-	um, _, err := binary.Unmarshal(props)
+	um, _, err := binary.UnmarshalAs(props, binary.TypeDict, binary.TypeNull)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, xerrors.Errorf("Dict unmarshal failure: %w", err)
 	}
-	dict, ok := um.(binary.Dict)
-	if !ok {
-		return nil, nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
+	dict := binary.Dict{}
+	if um != nil {
+		dict = um.(binary.Dict)
 	}
 	return dict, props, nil
 }
