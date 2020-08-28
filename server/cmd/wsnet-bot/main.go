@@ -328,21 +328,32 @@ func main() {
 	done = make(chan bool)
 	go eventloop(ws, bot.userId, done)
 
+	go spawnPlayer(room.RoomInfo.Id, "99999", nil)
 	go func() {
 		time.Sleep(time.Second * 3)
 		fmt.Println("msg 007")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 7, 31, 32, 33, 34, 35})
+		payload := []byte{byte(binary.MsgTypeKick), 0, 0, 7}
+		payload = append(payload, binary.MarshalStr8("99999")...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
 		time.Sleep(time.Second)
 		fmt.Println("msg 008")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 8, 41, 42, 43, 44, 45})
+		payload = []byte{byte(binary.MsgTypeKick), 0, 0, 8}
+		payload = append(payload, binary.MarshalStr8("00000")...)
+		ws.WriteMessage(websocket.BinaryMessage, payload)
 		time.Sleep(time.Second)
 		fmt.Println("msg 009")
-		payload := []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 9}
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 9, 31, 32, 33, 34, 35})
+		time.Sleep(time.Second)
+		fmt.Println("msg 010")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 10, 41, 42, 43, 44, 45})
+		time.Sleep(time.Second)
+		fmt.Println("msg 011")
+		payload = []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 11}
 		payload = append(payload, binary.MarshalStr8("23456")...)
 		ws.WriteMessage(websocket.BinaryMessage, payload)
 		time.Sleep(time.Second)
-		fmt.Println("msg 010 (leave)")
-		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 10})
+		fmt.Println("msg 012 (leave)")
+		ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 12})
 		time.Sleep(time.Second)
 		ws.Close()
 	}()
