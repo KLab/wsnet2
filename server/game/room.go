@@ -49,8 +49,9 @@ type Room struct {
 }
 
 func initProps(props []byte) (binary.Dict, []byte, error) {
-	if len(props) == 0 {
-		props = binary.MarshalDict(nil)
+	if len(props) == 0 || binary.Type(props[0]) == binary.TypeNull {
+		dict := binary.Dict{}
+		return dict, binary.MarshalDict(dict), nil
 	}
 	um, _, err := binary.Unmarshal(props)
 	if err != nil {
