@@ -411,7 +411,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
@@ -469,7 +469,7 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 
 	if !msg.Sender.isPlayer {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
 	}
 
@@ -538,7 +538,7 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
@@ -562,7 +562,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		r.muClients.RUnlock()
 		return xerrors.Errorf("MsgKick: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}

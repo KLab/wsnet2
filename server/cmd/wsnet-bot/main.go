@@ -445,7 +445,7 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 			name := string(b[7 : 7+namelen])
 			props := b[7+namelen:]
 			fmt.Printf("[bot:%v] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
-		case binary.EvTypePermissionDeny:
+		case binary.EvTypePermissionDenied:
 			fmt.Printf("[bot:%v] %s: %v\n", userId, ty, b)
 		case binary.EvTypeTargetNotFound:
 			list, _, err := binary.UnmarshalAs(b[5:], binary.TypeList)

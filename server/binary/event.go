@@ -55,10 +55,10 @@ const (
 	EvTypeMessage
 )
 const (
-	// EvTypePermissionDeny : 権限エラー
+	// EvTypePermissionDenied : 権限エラー
 	// payload:
 	//  - RegularMsg: original msg
-	EvTypePermissionDeny EvType = errorEvType + iota
+	EvTypePermissionDenied EvType = errorEvType + iota
 
 	// EvTypeTargetNotFound : あて先不明
 	// payload:
@@ -171,14 +171,14 @@ func NewEvMessage(cliId string, body []byte) *Event {
 	return &Event{EvTypeMessage, payload}
 }
 
-// NewEvPermissionDeny : 権限エラー
+// NewEvPermissionDenied : 権限エラー
 // エラー発生の原因となったメッセージをそのまま返す
-func NewEvPermissionDeny(msg RegularMsg) *Event {
+func NewEvPermissionDenied(msg RegularMsg) *Event {
 	payload := make([]byte, 1+3+len(msg.Payload()))
 	payload[0] = byte(msg.Type())
 	put24(payload[1:], msg.SequenceNum())
 	copy(payload[5:], msg.Payload())
-	return &Event{EvTypePermissionDeny, payload}
+	return &Event{EvTypePermissionDenied, payload}
 }
 
 // NewEvTargetNotFound : あて先不明

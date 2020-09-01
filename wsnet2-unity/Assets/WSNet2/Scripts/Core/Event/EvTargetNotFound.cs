@@ -9,7 +9,7 @@ namespace WSNet2.Core
         public int MsgSeqNum { get; private set; }
         public ArraySegment<byte> Payload { get; private set; }
 
-        public EvTargetNotFound(SerialReader reader) : base(EvType.PermissionDeny, reader)
+        public EvTargetNotFound(SerialReader reader) : base(EvType.TargetNotFound, reader)
         {
             Targets = reader.ReadStrings();
             MsgType = (MsgType)reader.Get8();

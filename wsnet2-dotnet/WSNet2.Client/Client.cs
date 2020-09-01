@@ -151,8 +151,8 @@ namespace WSNet2.DotnetClient
                 {
                     switch(ev)
                     {
-                        case EvPermissionDeny permission:
-                            Console.WriteLine($"OnMsgError: permission deny: {ev.MsgType} {ev.MsgSeqNum}");
+                        case EvPermissionDenied permission:
+                            Console.WriteLine($"OnMsgError: permission denied: {ev.MsgType} {ev.MsgSeqNum}");
                             break;
                         case EvTargetNotFound notfound:
                             var targets = string.Join(",", notfound.Targets);

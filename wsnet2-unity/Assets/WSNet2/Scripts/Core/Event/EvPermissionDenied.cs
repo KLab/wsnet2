@@ -2,13 +2,13 @@ using System;
 
 namespace WSNet2.Core
 {
-    public class EvPermissionDeny : Event, EvMsgError
+    public class EvPermissionDenied : Event, EvMsgError
     {
         public MsgType MsgType { get; private set; }
         public int MsgSeqNum { get; private set; }
         public ArraySegment<byte> Payload { get; private set; }
 
-        public EvPermissionDeny(SerialReader reader) : base(EvType.PermissionDeny, reader)
+        public EvPermissionDenied(SerialReader reader) : base(EvType.PermissionDenied, reader)
         {
             MsgType = (MsgType)reader.Get8();
             MsgSeqNum = reader.Get24();

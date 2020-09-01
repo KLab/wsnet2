@@ -21,7 +21,7 @@ namespace WSNet2.Core
         MasterSwitched,
         Message,
 
-        PermissionDeny = errorEvType,
+        PermissionDenied = errorEvType,
         TargetNotFound,
 
         Closed = localEvType,
@@ -85,8 +85,8 @@ namespace WSNet2.Core
                     ev = new EvRPC(reader);
                     break;
 
-                case EvType.PermissionDeny:
-                    ev = new EvPermissionDeny(reader);
+                case EvType.PermissionDenied:
+                    ev = new EvPermissionDenied(reader);
                     break;
                 case EvType.TargetNotFound:
                     ev = new EvTargetNotFound(reader);
