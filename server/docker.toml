@@ -12,6 +12,7 @@ pprof_port = 3000
 
 default_deadline = 5
 default_loglevel = 5
+max_room_num = 999
 
 [Lobby]
 hostname = "localhost"

@@ -169,20 +169,20 @@ namespace WSNet2.DotnetClient
                     {"aaa", "private"},
                     {"ccc", false},
                 };
-                var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30);
+                var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30).WithNumber(true);
 
                 client.Create(roomOpt, cliProps, onJoined, onFailed);
             }
             else
             {
-                var roomId = args[0];
+                var number = int.Parse(args[0]);
                 if (args.Length == 1)
                 {
-                    client.Join(roomId, cliProps, onJoined, onFailed);
+                    client.Join(number, cliProps, onJoined, onFailed);
                 }
                 else
                 {
-                    client.Watch(roomId, cliProps, onJoined, onFailed);
+                    client.Watch(number, onJoined, onFailed);
                 }
             }
 
@@ -191,7 +191,15 @@ namespace WSNet2.DotnetClient
             try
             {
                 var room = await roomJoined.Task;
-                Console.WriteLine("joined room = "+room.Id);
+                Console.WriteLine($"joined room = {room.Id} [{room.Number}]");
+
+                foreach (var p in room.Players){
+                    var pp = $"  player {p.Key}: ";
+                    foreach (var kv in p.Value.Props) {
+                        pp += $"{kv.Key}:{kv.Value}, ";
+                    }
+                    Console.WriteLine(pp);
+                }
 
                 int i = 0;
 
