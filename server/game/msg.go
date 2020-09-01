@@ -23,6 +23,7 @@ var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgClientProp{}
 var _ Msg = &MsgBroadcast{}
 var _ Msg = &MsgSwitchMaster{}
+var _ Msg = &MsgKick{}
 var _ Msg = &MsgClientError{}
 
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
@@ -263,6 +264,32 @@ func msgSwitchMaster(sender *Client, msg binary.RegularMsg) (Msg, error) {
 	}, nil
 }
 
+// MsgKick : ClientをKick
+// MasterClientからのみ受け付ける.
+type MsgKick struct {
+	binary.RegularMsg
+	Sender *Client
+	Target ClientID
+}
+
+func (*MsgKick) msg() {}
+
+func (m *MsgKick) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
+func msgKick(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	target, err := binary.UnmarshalKickPayload(msg.Payload())
+	if err != nil {
+		return nil, err
+	}
+	return &MsgKick{
+		RegularMsg: msg,
+		Sender:     sender,
+		Target:     ClientID(target),
+	}, nil
+}
+
 // MsgClientError : Client内部エラー（内部で発生）
 type MsgClientError struct {
 	Sender *Client
@@ -293,6 +320,8 @@ func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 		return msgBroadcast(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeSwitchMaster:
 		return msgSwitchMaster(cli, m.(binary.RegularMsg))
+	case binary.MsgTypeKick:
+		return msgKick(cli, m.(binary.RegularMsg))
 	}
 	return nil, xerrors.Errorf("unknown msg type: %T %v", m, m)
 }

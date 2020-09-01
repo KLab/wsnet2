@@ -49,8 +49,9 @@ type Room struct {
 }
 
 func initProps(props []byte) (binary.Dict, []byte, error) {
-	if len(props) == 0 {
-		props = binary.MarshalDict(nil)
+	if len(props) == 0 || binary.Type(props[0]) == binary.TypeNull {
+		dict := binary.Dict{}
+		return dict, binary.MarshalDict(dict), nil
 	}
 	um, _, err := binary.Unmarshal(props)
 	if err != nil {
@@ -272,6 +273,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgBroadcast(m)
 	case *MsgSwitchMaster:
 		return r.msgSwitchMaster(m)
+	case *MsgKick:
+		return r.msgKick(m)
 	case *MsgClientError:
 		return r.msgClientError(m)
 	default:
@@ -551,6 +554,30 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 	r.logger.Debugf("Master switched: room=%v master:%v->%v", r.ID(), msg.Sender.ID(), r.master.Id)
 
 	r.broadcast(binary.NewEvMasterSwitched(msg.Sender.Id, r.master.Id))
+	return nil
+}
+
+func (r *Room) msgKick(msg *MsgKick) error {
+	r.muClients.RLock()
+
+	if msg.Sender != r.master {
+		// 送信元にエラー通知
+		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.muClients.RUnlock()
+		return xerrors.Errorf("MsgKick: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+	}
+
+	target, found := r.players[msg.Target]
+	if !found {
+		// 対象が居ないことを通知
+		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
+		r.muClients.RUnlock()
+		return xerrors.Errorf("MsgKick: player not found: room=%v, target=%v", r.Id, msg.Target)
+	}
+	// removeClientがmuClientsのロックを取るため呼び出し前にUnlockしておく
+	r.muClients.RUnlock()
+
+	r.removeClient(target, xerrors.Errorf("client kicked: room=%v client=%v", r.ID(), target.Id))
 	return nil
 }
 

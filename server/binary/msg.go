@@ -258,3 +258,13 @@ func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 
 	return targets, payload[l:], nil
 }
+
+// UnmarshalKickPayload parses payload of MsgTypeKick
+func UnmarshalKickPayload(payload []byte) (string, error) {
+	d, _, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return "", xerrors.Errorf("Invalid MsgKick payload (client id): %w", e)
+	}
+
+	return d.(string), nil
+}

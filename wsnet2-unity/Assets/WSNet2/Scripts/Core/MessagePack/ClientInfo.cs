@@ -16,7 +16,7 @@ namespace WSNet2.Core
         {
         }
 
-        public ClientInfo(string id, IDictionary<string, object> props)
+        public ClientInfo(string id, IDictionary<string, object> props = null)
         {
             this.Id = id;
 

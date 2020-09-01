@@ -15,6 +15,9 @@ namespace WSNet2.Core
         /// <summary>RoomID</summary>
         public string Id { get => info.id; }
 
+        /// <summary>部屋番号</summary>
+        public int Number { get => info.number; }
+
         /// <summary>検索可能</summary>
         public bool Visible { get => info.visible; }
 
