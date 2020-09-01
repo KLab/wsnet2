@@ -147,19 +147,6 @@ namespace WSNet2.DotnetClient
 
                     Console.WriteLine($"OnPlayerPropertyChanged: {p.Id} {propstr}");
                 };
-                room.OnMsgError += (ev) =>
-                {
-                    switch(ev)
-                    {
-                        case EvPermissionDenied permission:
-                            Console.WriteLine($"OnMsgError: permission denied: {ev.MsgType} {ev.MsgSeqNum}");
-                            break;
-                        case EvTargetNotFound notfound:
-                            var targets = string.Join(",", notfound.Targets);
-                            Console.WriteLine($"OnMsgError: target not found: {ev.MsgType} {ev.MsgSeqNum} {targets}");
-                            break;
-                    }
-                };
                 room.OnClosed += (_) => cts.Cancel();
                 room.OnErrorClosed += (_) => cts.Cancel();
 

@@ -2,7 +2,7 @@ using System;
 
 namespace WSNet2.Core
 {
-    public class EvTargetNotFound : Event, EvMsgError
+    public class EvTargetNotFound : Event, IEvResponse
     {
         public string[] Targets { get; private set; }
         public MsgType MsgType { get; private set; }

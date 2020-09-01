@@ -8,7 +8,7 @@ import (
 type EvType byte
 
 const regularEvType = 30
-const errorEvType = 128
+const responseEvType = 128
 const (
 	// NewEvPeerReady : Peer準備完了イベント
 	// payload:
@@ -55,10 +55,16 @@ const (
 	EvTypeMessage
 )
 const (
+	// EvTypeSucceeded:
+	// payload:
+	//  - byte: MsgType
+	//  - 24bit be: Msg sequence num
+	EvTypeSucceeded EvType = responseEvType + iota
+
 	// EvTypePermissionDenied : 権限エラー
 	// payload:
 	//  - RegularMsg: original msg
-	EvTypePermissionDenied EvType = errorEvType + iota
+	EvTypePermissionDenied
 
 	// EvTypeTargetNotFound : あて先不明
 	// payload:
@@ -169,6 +175,14 @@ func NewEvMessage(cliId string, body []byte) *Event {
 	payload = append(payload, MarshalStr8(cliId)...)
 	payload = append(payload, body...)
 	return &Event{EvTypeMessage, payload}
+}
+
+// NewEvSucceeded : 成功イベント
+func NewEvSucceeded(msg RegularMsg) *Event {
+	payload := make([]byte, 4)
+	payload[0] = byte(msg.Type())
+	put24(payload[1:], msg.SequenceNum())
+	return &Event{EvTypeSucceeded, payload}
 }
 
 // NewEvPermissionDenied : 権限エラー

@@ -94,7 +94,7 @@ namespace WSNet2.Core
         /// EvMsgErrorの派生型によってエラー種別を判定します。
         /// - EvPermissionDeny: 権限エラー
         /// - EvTargetNotFound: ターゲット不在
-        public Action<EvMsgError> OnMsgError;
+        //public Action<EvMsgError> OnMsgError;
 
         /// <summary>エラー通知</summary>
         public Action<Exception> OnError;
@@ -770,8 +770,8 @@ namespace WSNet2.Core
                 case EvClosed evClosed:
                     OnEvClosed(evClosed);
                     break;
-                case EvMsgError evMsgError:
-                    OnEvMsgError(evMsgError);
+                case IEvResponse evResponse:
+                    OnEvResponse(evResponse);
                     break;
                 default:
                     con.ReturnEventBuffer(ev);
@@ -1012,15 +1012,8 @@ namespace WSNet2.Core
         /// <summary>
         ///   Msg失敗通知
         /// </summary>
-        private void OnEvMsgError(EvMsgError ev)
+        private void OnEvResponse(IEvResponse ev)
         {
-            callbackPool.Add(() =>
-            {
-                if (OnMsgError != null)
-                {
-                    OnMsgError(ev);
-                }
-            });
         }
     }
 }
