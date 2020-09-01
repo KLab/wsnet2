@@ -770,7 +770,7 @@ namespace WSNet2.Core
                 case EvClosed evClosed:
                     OnEvClosed(evClosed);
                     break;
-                case IEvResponse evResponse:
+                case EvResponse evResponse:
                     OnEvResponse(evResponse);
                     break;
                 default:
@@ -1012,7 +1012,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   Msg失敗通知
         /// </summary>
-        private void OnEvResponse(IEvResponse ev)
+        private void OnEvResponse(EvResponse ev)
         {
         }
     }

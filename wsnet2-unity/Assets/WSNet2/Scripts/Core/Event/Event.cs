@@ -87,13 +87,9 @@ namespace WSNet2.Core
                     break;
 
                 case EvType.Succeeded:
-                    ev = new EvSucceeded(reader);
-                    break;
                 case EvType.PermissionDenied:
-                    ev = new EvPermissionDenied(reader);
-                    break;
                 case EvType.TargetNotFound:
-                    ev = new EvTargetNotFound(reader);
+                    ev = new EvResponse(type, reader);
                     break;
 
                 default:
