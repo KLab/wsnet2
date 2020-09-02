@@ -215,12 +215,25 @@ namespace WSNet2.DotnetClient
                         continue;
                     }
 
+                    if (str=="pause")
+                    {
+                        room.Pause();
+                        continue;
+                    }
+                    if (str=="restart")
+                    {
+                        room.Restart();
+                        continue;
+                    }
+
                     if (str.StartsWith("switchmaster "))
                     {
                         var newMaster = str.Substring("switchmaster ".Length);
                         Console.WriteLine($"switch master to {newMaster}");
                         try{
-                            room.SwitchMaster(room.Players[newMaster]);
+                            room.SwitchMaster(
+                                room.Players[newMaster],
+                                (t, id) => Console.WriteLine($"SwitchMaster({id}) error: {t}"));
                         }
                         catch(Exception e)
                         {
@@ -246,7 +259,33 @@ namespace WSNet2.DotnetClient
                                 {"private-modify", strs[2]},
                             };
                         }
-                        room.ChangeRoomProperty(joinable: joinable, clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
+                        room.ChangeRoomProperty(
+                            joinable: joinable,
+                            clientDeadline: deadline,
+                            publicProps: pubProps,
+                            privateProps: privProps,
+                            onErrorResponse: (t,v,j,w,sg,mp,cd,pub,priv) => {
+                                var f = !v.HasValue ? "-" : v.Value ? "V" : "x";
+                                f += !j.HasValue ? "-" : j.Value ? "J" : "x";
+                                f += !w.HasValue ? "-" : w.Value ? "W" : "x";
+                                var pubp = "";
+                                if (pub != null)
+                                {
+                                    foreach (var kv in pub)
+                                    {
+                                        pubp += $"{kv.Key}:{kv.Value},";
+                                    }
+                                }
+                                var prip = "";
+                                if (priv != null)
+                                {
+                                    foreach (var kv in priv)
+                                    {
+                                        prip += $"{kv.Key}:{kv.Value},";
+                                    }
+                                }
+                                Console.WriteLine($"OnRoomPropertyChanged {t}: flg={f} sg={sg} mp={mp} cd={cd} pub={pubp} priv={prip}");
+                            });
                         continue;
                     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace WSNet2.Core
 {
@@ -12,9 +13,28 @@ namespace WSNet2.Core
     ///     - PermissionDenied
     ///     - TargetNotFound
     ///   </para>
+    ///   <para>
+    ///     レスポンスがあるのは次のMsg
+    ///     - RoomProp
+    ///     - ClientProp
+    ///     - SwitchMaster
+    ///     - Kick
+    ///   </para>
     /// </remarks>
     public class EvResponse : Event
     {
+        public struct RoomPropPayload
+        {
+            public bool Visible;
+            public bool Joinable;
+            public bool Watchable;
+            public uint SearchGroup;
+            public ushort MaxPlayers;
+            public ushort ClientDeadline;
+            public Dictionary<string, object> PublicProps;
+            public Dictionary<string, object> PrivateProps;
+        }
+
         /// <summary>
         ///   元となるMsgのMsgType
         /// </summary>
@@ -26,7 +46,12 @@ namespace WSNet2.Core
         public int MsgSeqNum { get; private set; }
 
         /// <summary>
-        ///   元となるMsgの内容（成功時は空）
+        ///   TargetNotFoundのとき不在だったTarget
+        /// </summary>
+        public string[] Targets { get; private set; }
+
+        /// <summary>
+        ///   元となるMsgの内容（Succeededでは空）
         /// </summary>
         public ArraySegment<byte> Payload { get; private set; }
 
@@ -35,9 +60,53 @@ namespace WSNet2.Core
         /// </summary>
         public EvResponse(EvType type, SerialReader reader) : base(type, reader)
         {
+            if (type == EvType.TargetNotFound)
+            {
+                Targets = reader.ReadStrings();
+            }
+
             MsgType = (MsgType)reader.Get8();
             MsgSeqNum = reader.Get24();
-            Payload = reader.GetRest();
+
+            if (type != EvType.Succeeded)
+            {
+                Payload = reader.GetRest();
+            }
+        }
+
+        public RoomPropPayload GetRoomPropPayload()
+        {
+            var reader = Serialization.NewReader(Payload);
+            var flags = reader.ReadByte();
+            return new RoomPropPayload
+            {
+                Visible = (flags & 1) != 0,
+                Joinable = (flags & 2) != 0,
+                Watchable = (flags & 4) != 0,
+                SearchGroup = reader.ReadUInt(),
+                MaxPlayers = reader.ReadUShort(),
+                ClientDeadline = reader.ReadUShort(),
+                PublicProps = reader.ReadDict(),
+                PrivateProps = reader.ReadDict(),
+            };
+        }
+
+        public Dictionary<string, object> GetClientPropPayload()
+        {
+            var reader = Serialization.NewReader(Payload);
+            return reader.ReadDict();
+        }
+
+        public string GetSwitchMasterPayload()
+        {
+            var reader = Serialization.NewReader(Payload);
+            return reader.ReadString();
+        }
+
+        public string GetKickPayload()
+        {
+            var reader = Serialization.NewReader(Payload);
+            return reader.ReadString();
         }
     }
 }

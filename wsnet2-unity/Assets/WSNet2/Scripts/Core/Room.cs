@@ -90,12 +90,6 @@ namespace WSNet2.Core
         /// <summary>プレイヤーのプロパティの変更通知</summary>
         public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
 
-        /// <summary>Msgの処理エラー</summary>
-        /// EvMsgErrorの派生型によってエラー種別を判定します。
-        /// - EvPermissionDeny: 権限エラー
-        /// - EvTargetNotFound: ターゲット不在
-        //public Action<EvMsgError> OnMsgError;
-
         /// <summary>エラー通知</summary>
         public Action<Exception> OnError;
 
@@ -113,6 +107,7 @@ namespace WSNet2.Core
         CallbackPool callbackPool = new CallbackPool();
         Dictionary<Delegate, byte> rpcMap;
         List<Action<string, SerialReader>> rpcActions;
+        Dictionary<int, Action<EvResponse>> errorResponseHandler = new Dictionary<int, Action<EvResponse>>();
 
         Connection con;
 
@@ -538,7 +533,7 @@ namespace WSNet2.Core
         ///   Masterを移譲する
         /// </summary>
         /// <param name="newMaster">新Master</param>
-        public int SwitchMaster(Player newMaster)
+        public int SwitchMaster(Player newMaster, Action<EvType, string> onErrorResponse = null)
         {
             if (Me != Master)
             {
@@ -550,7 +545,17 @@ namespace WSNet2.Core
                 throw new Exception($"Player \"{newMaster.Id}\" is not in this room");
             }
 
-            return con.msgPool.PostSwitchMaster(newMaster.Id);
+            var seqNum = con.msgPool.PostSwitchMaster(newMaster.Id);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    onErrorResponse(ev.Type, ev.GetSwitchMasterPayload());
+                };
+            }
+
+            return seqNum;
         }
 
         /// <summary>
@@ -564,14 +569,15 @@ namespace WSNet2.Core
             uint? maxPlayers = null,
             uint? clientDeadline = null,
             IDictionary<string, object> publicProps = null,
-            IDictionary<string, object> privateProps = null)
+            IDictionary<string, object> privateProps = null,
+            Action<EvType,bool?,bool?,bool?,uint?,uint?,uint?,IDictionary<string,object>,IDictionary<string,object>> onErrorResponse = null)
         {
             if (Me != Master)
             {
                 throw new Exception("ChangeRoomProperty is for master only");
             }
 
-            return con.msgPool.PostRoomProp(
+            var seqNum = con.msgPool.PostRoomProp(
                 visible ?? Visible,
                 joinable ?? Joinable,
                 watchable ?? Watchable,
@@ -580,15 +586,45 @@ namespace WSNet2.Core
                 (ushort)(clientDeadline ?? 0),
                 publicProps ?? null,
                 privateProps ?? null);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    var payload = ev.GetRoomPropPayload();
+                    onErrorResponse(
+                        ev.Type,
+                        visible,
+                        joinable,
+                        watchable,
+                        searchGroup,
+                        maxPlayers,
+                        clientDeadline,
+                        payload.PublicProps,
+                        payload.PrivateProps);
+                };
+            }
+
+            return seqNum;
         }
 
         /// <summary>
         ///   自分自身のプロパティを変更する
         /// </summary>
         /// <param name="props">変更するプロパティの辞書</param>
-        public int ChangeMyProperty(IDictionary<string, object> props)
+        public int ChangeMyProperty(IDictionary<string, object> props, Action<EvType, IDictionary<string, object>> onErrorResponse = null)
         {
-            return con.msgPool.PostClientProp(props);
+            var seqNum = con.msgPool.PostClientProp(props);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    onErrorResponse(ev.Type, ev.GetClientPropPayload());
+                };
+            }
+
+            return seqNum;
         }
 
         /// <summary>
@@ -1014,6 +1050,19 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvResponse(EvResponse ev)
         {
+            var seqNum = ev.MsgSeqNum;
+            Action<EvResponse> handler;
+            if (errorResponseHandler.TryGetValue(seqNum, out handler))
+            {
+                callbackPool.Add(() =>
+                {
+                    errorResponseHandler.Remove(seqNum);
+                    if (ev.Type != EvType.Succeeded)
+                    {
+                        handler(ev);
+                    }
+                });
+            }
         }
     }
 }
