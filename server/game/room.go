@@ -459,6 +459,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 		}
 	}
 
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
@@ -487,6 +488,7 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
 	}
 
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvClientProp(msg.Sender.Id, msg.Payload()))
 	return nil
 }
@@ -553,6 +555,7 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 
 	r.logger.Debugf("Master switched: room=%v master:%v->%v", r.ID(), msg.Sender.ID(), r.master.Id)
 
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvMasterSwitched(msg.Sender.Id, r.master.Id))
 	return nil
 }
@@ -574,6 +577,9 @@ func (r *Room) msgKick(msg *MsgKick) error {
 		r.muClients.RUnlock()
 		return xerrors.Errorf("MsgKick: player not found: room=%v, target=%v", r.Id, msg.Target)
 	}
+
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
+
 	// removeClientがmuClientsのロックを取るため呼び出し前にUnlockしておく
 	r.muClients.RUnlock()
 
