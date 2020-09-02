@@ -191,7 +191,7 @@ func NewEvPermissionDenied(msg RegularMsg) *Event {
 	payload := make([]byte, 1+3+len(msg.Payload()))
 	payload[0] = byte(msg.Type())
 	put24(payload[1:], msg.SequenceNum())
-	copy(payload[5:], msg.Payload())
+	copy(payload[4:], msg.Payload())
 	return &Event{EvTypePermissionDenied, payload}
 }
 
