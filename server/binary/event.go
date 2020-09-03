@@ -57,19 +57,20 @@ const (
 const (
 	// EvTypeSucceeded:
 	// payload:
-	//  - byte: MsgType
 	//  - 24bit be: Msg sequence num
 	EvTypeSucceeded EvType = responseEvType + iota
 
 	// EvTypePermissionDenied : 権限エラー
 	// payload:
-	//  - RegularMsg: original msg
+	//  - 24bit be: Msg sequence num
+	//  - marshaled bytes: original msg payload
 	EvTypePermissionDenied
 
 	// EvTypeTargetNotFound : あて先不明
 	// payload:
+	//  - 24bit be: Msg sequence num
 	//  - List: client IDs
-	//  - RegularMsg: original msg
+	//  - marshaled bytes: original msg payload
 	EvTypeTargetNotFound
 )
 
@@ -179,30 +180,26 @@ func NewEvMessage(cliId string, body []byte) *Event {
 
 // NewEvSucceeded : 成功イベント
 func NewEvSucceeded(msg RegularMsg) *Event {
-	payload := make([]byte, 4)
-	payload[0] = byte(msg.Type())
-	put24(payload[1:], msg.SequenceNum())
+	payload := make([]byte, 3)
+	put24(payload, msg.SequenceNum())
 	return &Event{EvTypeSucceeded, payload}
 }
 
 // NewEvPermissionDenied : 権限エラー
 // エラー発生の原因となったメッセージをそのまま返す
 func NewEvPermissionDenied(msg RegularMsg) *Event {
-	payload := make([]byte, 1+3+len(msg.Payload()))
-	payload[0] = byte(msg.Type())
-	put24(payload[1:], msg.SequenceNum())
-	copy(payload[4:], msg.Payload())
+	payload := make([]byte, 3+len(msg.Payload()))
+	put24(payload, msg.SequenceNum())
+	copy(payload[3:], msg.Payload())
 	return &Event{EvTypePermissionDenied, payload}
 }
 
 // NewEvTargetNotFound : あて先不明
 // 不明なClientのリストとエラー発生の原因となったメッセージをそのまま返す
 func NewEvTargetNotFound(msg RegularMsg, cliIds []string) *Event {
-	payload := MarshalStrings(cliIds)
-	payload = append(payload, byte(msg.Type()))
-	seq := make([]byte, 3)
-	put24(seq, msg.SequenceNum())
-	payload = append(payload, seq...)
+	payload := make([]byte, 3, 3+len(msg.Payload()))
+	put24(payload, msg.SequenceNum())
+	payload = append(payload, MarshalStrings(cliIds)...)
 	payload = append(payload, msg.Payload()...)
 	return &Event{EvTypeTargetNotFound, payload}
 }
