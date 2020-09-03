@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
@@ -91,6 +93,7 @@ namespace Sample
             if (msg.MasterId == sender)
             {
                 state = msg;
+                events = events.Where(ev => state.Tick <= ev.Tick).ToList();
             }
         }
 
@@ -177,10 +180,20 @@ namespace Sample
                     }
                 };
 
+
+                var RPCSyncServerTick = new Action<string, long>((sender, tick) =>
+                {
+                    if (sender == WSNet2Runner.Instance.GameRoom?.Master.Id)
+                    {
+                        timer.UpdateServerTick(tick);
+                    }
+                });
+
                 /// 使用するRPCを登録する
                 /// MasterClientと同じ順番で同じRPCを登録する必要がある
                 room.RegisterRPC<GameState>(RPCSyncGameState);
                 room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
+                room.RegisterRPC(RPCSyncServerTick);
                 room.Restart();
             }
 
@@ -331,6 +344,7 @@ namespace Sample
                 {
                     WSNet2Runner.Instance.GameRoom.RPC(RPCPlayerEvent, ev);
                 }
+                simulator.UpdateGame(timer.NowTick, state, events.Where(ev => state.Tick <= ev.Tick));
             }
             else
             {
@@ -352,20 +366,16 @@ namespace Sample
                         Tick = timer.NowTick,
                     });
                 }
-
                 simulator.UpdateGame(timer.NowTick, state, events);
             }
 
-            events.Clear();
-
-            // FIXME: オンラインモードだと同期するまでにズレが発生するはずなので、座標を補完する機能が必要.
-            // オンラインモード時もローカルでもシミュレータ動作させる?
             if (state.Code == GameStateCode.InGame)
             {
                 bar1.UpdatePosition(state.Bar1);
                 bar2.UpdatePosition(state.Bar2);
                 ball.UpdatePosition(state.Ball);
             }
+            events.Clear();
         }
     }
 }

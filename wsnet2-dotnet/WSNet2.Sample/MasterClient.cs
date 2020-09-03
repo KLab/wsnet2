@@ -52,7 +52,7 @@ namespace WSNet2.Sample
                 newEvents = new List<PlayerEvent>();
                 var state = new GameState();
                 sim.Init(state);
-                state.UpdatedAt = timer.NowTick;
+                state.Tick = timer.NowTick;
                 states.Add(state);
 
                 try
@@ -68,7 +68,7 @@ namespace WSNet2.Sample
                     }
                     else
                     {
-                        Console.WriteLine("({userId}) Serve Error: {0}", e);
+                        Console.WriteLine($"({userId}) Serve Error: {e}");
                     }
                 }
                 await Task.Delay(1000);
@@ -177,7 +177,7 @@ namespace WSNet2.Sample
                 {
                     foreach (var ev in newEvents)
                     {
-                        if (states[0].UpdatedAt < ev.Tick)
+                        if (states[0].Tick < ev.Tick)
                         {
                             events.Add(ev);
                             oldestTick = Math.Min(oldestTick, ev.Tick);
@@ -192,7 +192,7 @@ namespace WSNet2.Sample
                 }
 
                 // 再計算可能な直近の GameState を探しつつ、それよりも新しいものは破棄する.
-                while (oldestTick <= states[states.Count - 1].UpdatedAt)
+                while (oldestTick <= states[states.Count - 1].Tick)
                 {
                     states.RemoveAt(states.Count - 1);
                 }
@@ -207,6 +207,8 @@ namespace WSNet2.Sample
 
                 var now = timer.NowTick;
                 var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick < now);
+                Console.WriteLine("State: {0}", state.Code.ToString());
+                Console.WriteLine("Update with {0} events", targetEvents.Count());
                 sim.UpdateGame(now, state, targetEvents);
                 states.Add(state);
 
@@ -217,7 +219,7 @@ namespace WSNet2.Sample
                     states.RemoveAt(0);
 
                     // 残ったもののうち一番古い State よりも古い PlayerEvent はもう復元に使えないので削除する.
-                    long t = states[0].UpdatedAt;
+                    long t = states[0].Tick;
                     int idx = events.FindIndex(ev => t < ev.Tick);
                     if (idx != -1) {
                         events.RemoveRange(0, idx);
@@ -225,7 +227,7 @@ namespace WSNet2.Sample
                 }
 
                 // 0.1秒ごとにゲーム状態の同期メッセージを送信する
-                if (newEventExist || 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
+                if (/* newEventExist || */ 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
                 {
                     room.RPC(RPCSyncServerTick, timer.NowTick);
                     room.RPC(RPCSyncGameState, state);
@@ -259,7 +261,7 @@ namespace WSNet2.Sample
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
         {
-            Console.WriteLine("RPCPlayerEvent from " + sender);
+            Console.WriteLine("RPCPlayerEvent sender:{0} Code:{1} ", sender, msg.Code);
             msg.PlayerId = sender;
             newEvents.Add(msg);
         }

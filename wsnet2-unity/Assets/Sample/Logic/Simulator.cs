@@ -15,6 +15,11 @@ namespace Sample.Logic
     /// </summary>
     public class GameTimer
     {
+
+        /// <summary>
+        /// 最後に受信したサーバ時間
+        /// </summary>
+        private long serverTick;
         private Stopwatch stopwatch;
 
         public GameTimer()
@@ -25,17 +30,15 @@ namespace Sample.Logic
         }
 
         /// <summary>
-        /// 最後に受信したサーバ時間
-        /// </summary>
-        private long serverTick;
-
-        /// <summary>
         /// サーバ時間を更新する
         /// </summary>
         public void UpdateServerTick(long newServerTick)
         {
-            serverTick = newServerTick;
-            stopwatch.Restart();
+            if (1.0 < new TimeSpan(Math.Abs(newServerTick - serverTick)).TotalSeconds || (newServerTick < serverTick))
+            {
+                serverTick = newServerTick;
+                stopwatch.Restart();
+            }
         }
 
         /// <summary>
@@ -64,7 +67,7 @@ namespace Sample.Logic
         /// <summary>
         /// 最後に更新した時間
         /// </summary>
-        public long UpdatedAt;
+        public long Tick;
 
         /// <summary>
         /// 何回ゲームを遊んだか
@@ -124,6 +127,7 @@ namespace Sample.Logic
         public void Serialize(SerialWriter writer)
         {
             writer.Write((int)Code);
+            writer.Write(Tick);
             writer.Write(GameCount);
             writer.Write(MasterId);
             writer.Write(Player1);
@@ -140,6 +144,7 @@ namespace Sample.Logic
         public void Deserialize(SerialReader reader, int len)
         {
             Code = (GameStateCode)reader.ReadInt();
+            Tick = reader.ReadLong();
             GameCount = reader.ReadInt();
             MasterId = reader.ReadString();
             Player1 = reader.ReadString();
@@ -159,6 +164,7 @@ namespace Sample.Logic
         {
             var o = new GameState();
             o.Code = Code;
+            o.Tick = Tick;
             o.GameCount = GameCount;
             o.MasterId = MasterId;
             o.Player1 = Player1;
@@ -474,13 +480,13 @@ namespace Sample.Logic
             state.Bar1.Height = 200;
             state.Bar1.Position.x = MinX + 50;
             state.Bar1.Position.y = 0;
-            state.Bar1.Speed = 200f;
+            state.Bar1.Speed = 400f;
 
             state.Bar2.Width = 10;
             state.Bar2.Height = 200;
             state.Bar2.Position.x = MaxX - 50;
             state.Bar2.Position.y = 0;
-            state.Bar2.Speed = 200f;
+            state.Bar2.Speed = 400f;
 
             var rnd = new Random();
             var x = (double)rnd.Next(-1000, 1000);
@@ -511,18 +517,18 @@ namespace Sample.Logic
             ResetPositions(state);
         }
 
-        void UpdateGameInternal(long tick, GameState state, PlayerEvent ev)
+        bool UpdateGameInternal(long tick, GameState state, PlayerEvent ev)
         {
-            long prevTick = state.UpdatedAt;
-            state.UpdatedAt = tick;
+            long prevTick = state.Tick;
+            state.Tick = tick;
             float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
-
+            Logger.Debug("state:{0} tick:{1} dt:{2} ev:{3} {4}", state.Code.ToString(), tick, dt, ev?.PlayerId, ev?.Code.ToString());
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
                 // マスタクライアントの参加を待っている
                 // 何もしない
-                return;
+                return false;
             }
             if (state.Code == GameStateCode.WaitingPlayer)
             {
@@ -532,7 +538,7 @@ namespace Sample.Logic
                 {
                     if (ev.PlayerId == state.Player1 || ev.PlayerId == state.Player2)
                     {
-                        return;
+                        return false;
                     }
 
                     if (string.IsNullOrEmpty(state.Player1))
@@ -544,6 +550,7 @@ namespace Sample.Logic
                         state.Player2 = ev.PlayerId;
                         // プレイヤーが集まったのでスタート準備へ
                         state.Code = GameStateCode.ReadyToStart;
+                        return true;
                     }
                 }
             }
@@ -561,12 +568,13 @@ namespace Sample.Logic
                         state.Player2Ready = 1;
                     }
                 }
-
-                if (state.Player1Ready == 1 && state.Player2Ready == 1)
+                else if (state.Player1Ready == 1 && state.Player2Ready == 1)
                 {
                     // 準備ができたのでゲーム開始
                     StartNextGame(state);
+                    return true;
                 }
+
             }
             else if (state.Code == GameStateCode.InGame)
             {
@@ -592,8 +600,10 @@ namespace Sample.Logic
                 }
             }
 
-            // dtが小さい場合は時間変化処理を実行しない.
-            if (dt < 1e-6) return;
+            if (state.Code != GameStateCode.InGame)
+            {
+                return false;
+            }
 
             // 1Pのバーの移動
             state.Bar1.Position.x = Math.Min(MaxX - state.Bar1.Width / 2, Math.Max(MinX + state.Bar1.Width / 2, state.Bar1.Position.x + state.Bar1.Direction.x * state.Bar1.Speed * dt));
@@ -667,6 +677,7 @@ namespace Sample.Logic
                 state.Score2 += 1;
                 state.Player1Ready = 0;
                 state.Player2Ready = 0;
+                return true;
             }
 
             // 2Pのゴールに入っていたら1Pに得点
@@ -676,22 +687,33 @@ namespace Sample.Logic
                 state.Score1 += 1;
                 state.Player1Ready = 0;
                 state.Player2Ready = 0;
+                return true;
             }
+
+            return false;
         }
+
+        /// <summary>
+        /// </summary>
 
         /// <summary>
         /// ゲームをシミュレーションする
         /// events は Tick で昇順ソートされており, eventsの中で最小の Tick は state の最終更新よりも後である必要がある
         /// </summary>
+        /// <param name="nowTick">最新のサーバ時刻</param>
         /// <param name="state">ゲームステート</param>
         /// <param name="events">プレイヤーの入力イベント</param>
-        public void UpdateGame(long nowTick, GameState state, IEnumerable<PlayerEvent> events)
+        /// <returns>Codeの更新が発生した場合 true</returns>
+        public bool UpdateGame(long nowTick, GameState state, IEnumerable<PlayerEvent> events)
         {
             foreach (var ev in events)
             {
-                UpdateGameInternal(ev.Tick, state, ev);
+                if (UpdateGameInternal(ev.Tick, state, ev))
+                {
+                    return true;
+                }
             }
-            UpdateGameInternal(nowTick, state, null);
+            return UpdateGameInternal(nowTick, state, null);
         }
     }
 }
