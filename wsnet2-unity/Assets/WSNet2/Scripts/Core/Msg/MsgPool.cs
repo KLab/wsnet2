@@ -159,6 +159,19 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   を強制退室メッセージを投下
+        /// </summary>
+        public int PostKick(string targetId)
+        {
+            lock(this)
+            {
+                var writer = writeMsgType(MsgType.Kick);
+                writer.Write(targetId);
+                return sequenceNum;
+            }
+        }
+
+        /// <summary>
         ///   RPCメッセージを投下
         /// </summary>
         public int PostRPC(byte id, string[] targets)

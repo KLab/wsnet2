@@ -242,6 +242,19 @@ namespace WSNet2.DotnetClient
                         continue;
                     }
 
+                    if (str.StartsWith("kick "))
+                    {
+                        var target = str.Substring("kick ".Length);
+                        Console.WriteLine($"kick {target}");
+                        try{
+                            room.Kick(room.Players[target]);
+                        }
+                        catch(Exception e){
+                            Console.WriteLine($"kick error: {e.Message}");
+                        }
+                        continue;
+                    }
+
                     if (str.StartsWith("roomprop "))
                     {
                         var strs = str.Split(' ');
