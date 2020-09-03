@@ -1050,19 +1050,19 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvResponse(EvResponse ev)
         {
-            var seqNum = ev.MsgSeqNum;
-            Action<EvResponse> handler;
-            if (errorResponseHandler.TryGetValue(seqNum, out handler))
+            callbackPool.Add(() =>
             {
-                callbackPool.Add(() =>
+                var seqNum = ev.MsgSeqNum;
+                Action<EvResponse> handler;
+                if (errorResponseHandler.TryGetValue(seqNum, out handler))
                 {
                     errorResponseHandler.Remove(seqNum);
                     if (ev.Type != EvType.Succeeded)
                     {
                         handler(ev);
                     }
-                });
-            }
+                }
+            });
         }
     }
 }
