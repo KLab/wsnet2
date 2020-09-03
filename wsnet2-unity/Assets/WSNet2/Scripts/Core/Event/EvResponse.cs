@@ -33,6 +33,19 @@ namespace WSNet2.Core
             public ushort ClientDeadline;
             public Dictionary<string, object> PublicProps;
             public Dictionary<string, object> PrivateProps;
+
+            public RoomPropPayload(SerialReader reader)
+            {
+                var flags = reader.ReadByte();
+                Visible = (flags & 1) != 0;
+                Joinable = (flags & 2) != 0;
+                Watchable = (flags & 4) != 0;
+                SearchGroup = reader.ReadUInt();
+                MaxPlayers = reader.ReadUShort();
+                ClientDeadline = reader.ReadUShort();
+                PublicProps = reader.ReadDict();
+                PrivateProps = reader.ReadDict();
+            }
         }
 
         /// <summary>
@@ -77,18 +90,7 @@ namespace WSNet2.Core
         public RoomPropPayload GetRoomPropPayload()
         {
             var reader = Serialization.NewReader(Payload);
-            var flags = reader.ReadByte();
-            return new RoomPropPayload
-            {
-                Visible = (flags & 1) != 0,
-                Joinable = (flags & 2) != 0,
-                Watchable = (flags & 4) != 0,
-                SearchGroup = reader.ReadUInt(),
-                MaxPlayers = reader.ReadUShort(),
-                ClientDeadline = reader.ReadUShort(),
-                PublicProps = reader.ReadDict(),
-                PrivateProps = reader.ReadDict(),
-            };
+            return new RoomPropPayload(reader);
         }
 
         public Dictionary<string, object> GetClientPropPayload()
