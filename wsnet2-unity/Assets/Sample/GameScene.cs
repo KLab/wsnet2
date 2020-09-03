@@ -46,6 +46,7 @@ namespace Sample
 
         GameSimulator simulator;
         GameState state;
+        GameTimer timer;
         List<PlayerEvent> events;
 
         bool isOnlineMode;
@@ -107,6 +108,7 @@ namespace Sample
 
             simulator = new GameSimulator();
             state = new GameState();
+            timer = new GameTimer();
             events = new List<PlayerEvent>();
             simulator.Init(state);
             isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
@@ -186,14 +188,18 @@ namespace Sample
             {
                 Code = PlayerEventCode.Join,
                 PlayerId = myPlayerId,
+                Tick = timer.NowTick,
             });
 
             if (!isOnlineMode)
             {
+                // オフラインモードのときは WaitingPlayer から始める
+                state.Code = GameStateCode.WaitingPlayer;
                 events.Add(new PlayerEvent
                 {
                     Code = PlayerEventCode.Join,
                     PlayerId = cpuPlayerId,
+                    Tick = timer.NowTick,
                 });
             }
         }
@@ -236,6 +242,7 @@ namespace Sample
                     {
                         Code = PlayerEventCode.Join,
                         PlayerId = myPlayerId,
+                        Tick = timer.NowTick,
                     });
                 }
             }
@@ -262,6 +269,7 @@ namespace Sample
                     {
                         Code = PlayerEventCode.Ready,
                         PlayerId = myPlayerId,
+                        Tick = timer.NowTick,
                     });
 
                     if (!isOnlineMode)
@@ -270,6 +278,7 @@ namespace Sample
                         {
                             Code = PlayerEventCode.Ready,
                             PlayerId = cpuPlayerId,
+                            Tick = timer.NowTick,
                         });
                     }
                 }
@@ -289,6 +298,7 @@ namespace Sample
                         Code = PlayerEventCode.Move,
                         PlayerId = myPlayerId,
                         MoveInput = move,
+                        Tick = timer.NowTick,
                     });
                 }
                 prevMoveInput = value;
@@ -299,6 +309,7 @@ namespace Sample
                 {
                     Code = PlayerEventCode.Ready,
                     PlayerId = myPlayerId,
+                    Tick = timer.NowTick,
                 });
 
                 if (!isOnlineMode)
@@ -307,6 +318,7 @@ namespace Sample
                     {
                         Code = PlayerEventCode.Ready,
                         PlayerId = cpuPlayerId,
+                        Tick = timer.NowTick,
                     });
                 }
             }
@@ -337,10 +349,11 @@ namespace Sample
                         Code = PlayerEventCode.Move,
                         PlayerId = cpuPlayerId,
                         MoveInput = move,
+                        Tick = timer.NowTick,
                     });
                 }
 
-                simulator.UpdateGame(state, events);
+                simulator.UpdateGame(timer.NowTick, state, events);
             }
 
             events.Clear();

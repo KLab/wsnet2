@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using WSNet2.Core;
 
 #if UNITY_5_3_OR_NEWER
@@ -10,6 +11,47 @@ using Vector3 = UnityEngine.Vector3;
 namespace Sample.Logic
 {
     /// <summary>
+    /// GameTimer
+    /// </summary>
+    public class GameTimer
+    {
+        private Stopwatch stopwatch;
+
+        public GameTimer()
+        {
+            serverTick = 0;
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+        }
+
+        /// <summary>
+        /// 最後に受信したサーバ時間
+        /// </summary>
+        private long serverTick;
+
+        /// <summary>
+        /// サーバ時間を更新する
+        /// </summary>
+        public void UpdateServerTick(long newServerTick)
+        {
+            serverTick = newServerTick;
+            stopwatch.Restart();
+        }
+
+        /// <summary>
+        /// サーバ時間を基準に現在のTickを取得
+        /// </summary>
+        public long NowTick
+        {
+            get
+            {
+                return serverTick + stopwatch.Elapsed.Ticks;
+            }
+        }
+    }
+
+
+    /// <summary>
     /// Pongゲームの状態を表すデータ
     /// </summary>
     public class GameState : IWSNetSerializable
@@ -18,6 +60,11 @@ namespace Sample.Logic
         /// ゲームの状態の種類
         /// </summary>
         public GameStateCode Code;
+
+        /// <summary>
+        /// 最後に更新した時間
+        /// </summary>
+        public long UpdatedAt;
 
         /// <summary>
         /// 何回ゲームを遊んだか
@@ -107,6 +154,24 @@ namespace Sample.Logic
             Bar2 = reader.ReadObject(Bar2);
             Ball = reader.ReadObject(Ball);
         }
+
+        public GameState Copy()
+        {
+            var o = new GameState();
+            o.Code = Code;
+            o.GameCount = GameCount;
+            o.MasterId = MasterId;
+            o.Player1 = Player1;
+            o.Player2 = Player2;
+            o.Player1Ready = Player1Ready;
+            o.Player2Ready = Player2Ready;
+            o.Score1 = Score1;
+            o.Score2 = Score2;
+            o.Bar1 = Bar1.Copy();
+            o.Bar2 = Bar2.Copy();
+            o.Ball = Ball.Copy();
+            return o;
+        }
     }
 
     /// <summary>
@@ -190,6 +255,18 @@ namespace Sample.Logic
             Speed = reader.ReadFloat();
             Radius = reader.ReadFloat();
         }
+
+        public Ball Copy()
+        {
+            var o = new Ball();
+            o.Position.x = Position.x;
+            o.Position.y = Position.y;
+            o.Direction.x = Direction.x;
+            o.Direction.y = Direction.y;
+            o.Speed = Speed;
+            o.Radius = Radius;
+            return o;
+        }
     }
 
     /// <summary>
@@ -243,6 +320,19 @@ namespace Sample.Logic
             Width = reader.ReadFloat();
             Height = reader.ReadFloat();
         }
+
+        public Bar Copy()
+        {
+            var o = new Bar();
+            o.Position.x = Position.x;
+            o.Position.y = Position.y;
+            o.Direction.x = Direction.x;
+            o.Direction.y = Direction.y;
+            o.Speed = Speed;
+            o.Width = Width;
+            o.Height = Height;
+            return o;
+        }
     }
 
     /// <summary>
@@ -285,7 +375,7 @@ namespace Sample.Logic
         /// 上移動
         /// </summary>
         Up,
-        
+
         /// <summary>
         /// 下移動
         /// </summary>
@@ -316,11 +406,17 @@ namespace Sample.Logic
         /// </summary>
         public MoveInputCode MoveInput;
 
+        /// <summary>
+        /// タイムスタンプ
+        /// </summary>
+        public long Tick;
+
         public void Serialize(SerialWriter writer)
         {
             writer.Write((int)Code);
             writer.Write(PlayerId);
             writer.Write((int)MoveInput);
+            writer.Write(Tick);
         }
 
         public void Deserialize(SerialReader reader, int len)
@@ -328,6 +424,7 @@ namespace Sample.Logic
             Code = (PlayerEventCode)reader.ReadInt();
             PlayerId = string.Intern(reader.ReadString());
             MoveInput = (MoveInputCode)reader.ReadInt();
+            Tick = reader.ReadLong();
         }
     }
 
@@ -377,13 +474,13 @@ namespace Sample.Logic
             state.Bar1.Height = 200;
             state.Bar1.Position.x = MinX + 50;
             state.Bar1.Position.y = 0;
-            state.Bar1.Speed = 3f;
+            state.Bar1.Speed = 200f;
 
             state.Bar2.Width = 10;
             state.Bar2.Height = 200;
             state.Bar2.Position.x = MaxX - 50;
             state.Bar2.Position.y = 0;
-            state.Bar2.Speed = 3f;
+            state.Bar2.Speed = 200f;
 
             var rnd = new Random();
             var x = (double)rnd.Next(-1000, 1000);
@@ -393,7 +490,7 @@ namespace Sample.Logic
             state.Ball.Position.y = 0;
             state.Ball.Direction.x = (float)(x / s);
             state.Ball.Direction.y = (float)(y / s);
-            state.Ball.Speed = 3f;
+            state.Ball.Speed = 600f;
             state.Ball.Radius = 10;
         }
 
@@ -414,183 +511,187 @@ namespace Sample.Logic
             ResetPositions(state);
         }
 
-        /// <summary>
-        /// ゲームを1ステップ進める
-        /// </summary>
-        /// <param name="state">ゲームステート</param>
-        /// <param name="events">プレイヤーの入力イベント</param>
-        public void UpdateGame(GameState state, IEnumerable<PlayerEvent> events)
+        void UpdateGameInternal(long tick, GameState state, PlayerEvent ev)
         {
+            long prevTick = state.UpdatedAt;
+            state.UpdatedAt = tick;
+            float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
+
+
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
                 // マスタクライアントの参加を待っている
                 // 何もしない
+                return;
             }
             if (state.Code == GameStateCode.WaitingPlayer)
             {
                 // プレイヤーの参加を待っている
                 // 先に参加したプレイヤーを1P, あとに参加したプレイヤーを2Pとする
-                if (events != null)
+                if (ev?.Code == PlayerEventCode.Join)
                 {
-                    foreach (var ev in events)
+                    if (ev.PlayerId == state.Player1 || ev.PlayerId == state.Player2)
                     {
-                        if (ev.Code == PlayerEventCode.Join)
-                        {
-                            if (ev.PlayerId == state.Player1 || ev.PlayerId == state.Player2)
-                            {
-                                continue;
-                            }
+                        return;
+                    }
 
-                            if (string.IsNullOrEmpty(state.Player1))
-                            {
-                                state.Player1 = ev.PlayerId;
-                            }
-                            else if (string.IsNullOrEmpty(state.Player2))
-                            {
-                                state.Player2 = ev.PlayerId;
-                                // プレイヤーが集まったのでスタート準備へ
-                                state.Code = GameStateCode.ReadyToStart;
-                            }
-                        }
+                    if (string.IsNullOrEmpty(state.Player1))
+                    {
+                        state.Player1 = ev.PlayerId;
+                    }
+                    else if (string.IsNullOrEmpty(state.Player2))
+                    {
+                        state.Player2 = ev.PlayerId;
+                        // プレイヤーが集まったのでスタート準備へ
+                        state.Code = GameStateCode.ReadyToStart;
                     }
                 }
             }
             else if (state.Code == GameStateCode.ReadyToStart || state.Code == GameStateCode.Goal)
             {
-                // 1P, 2Pが Ready 入力を送ってくるのを待っている
-                if (events != null)
+                if (ev?.Code == PlayerEventCode.Ready)
                 {
-                    foreach (var ev in events)
+                    // 1P, 2Pが Ready 入力を送ってくるのを待っている
+                    if (ev.PlayerId == state.Player1)
                     {
-                        if (ev.PlayerId == state.Player1 && ev.Code == PlayerEventCode.Ready)
-                        {
-                            state.Player1Ready = 1;
-                        }
-                        if (ev.PlayerId == state.Player2 && ev.Code == PlayerEventCode.Ready)
-                        {
-                            state.Player2Ready = 1;
-                        }
-
-                        if (state.Player1Ready == 1 && state.Player2Ready == 1)
-                        {
-                            // 準備ができたのでゲーム開始
-                            StartNextGame(state);
-                        }
+                        state.Player1Ready = 1;
                     }
+                    if (ev.PlayerId == state.Player2)
+                    {
+                        state.Player2Ready = 1;
+                    }
+                }
+
+                if (state.Player1Ready == 1 && state.Player2Ready == 1)
+                {
+                    // 準備ができたのでゲーム開始
+                    StartNextGame(state);
                 }
             }
             else if (state.Code == GameStateCode.InGame)
             {
-                if (events != null)
+                // 移動入力を処理する
+                if (ev?.Code == PlayerEventCode.Move)
                 {
-                    foreach (var ev in events)
+                    float dirY = 0;
+                    switch (ev.MoveInput)
                     {
-                        // 移動入力を処理する
-                        if (ev.Code == PlayerEventCode.Move)
-                        {
-                            float dirY = 0;
-                            switch (ev.MoveInput)
-                            {
-                                case MoveInputCode.Stop: dirY = 0; break;
-                                case MoveInputCode.Up: dirY = -1; break;
-                                case MoveInputCode.Down: dirY = 1; break;
-                            }
-
-                            if (ev.PlayerId == state.Player1)
-                            {
-                                state.Bar1.Direction.y = dirY;
-                            }
-                            if (ev.PlayerId == state.Player2)
-                            {
-                                state.Bar2.Direction.y = dirY;
-                            }
-                        }
+                        case MoveInputCode.Stop: dirY = 0; break;
+                        case MoveInputCode.Up: dirY = -1; break;
+                        case MoveInputCode.Down: dirY = 1; break;
                     }
-                }
 
-                // 1Pのバーの移動
-                state.Bar1.Position.x = Math.Min(MaxX - state.Bar1.Width / 2, Math.Max(MinX + state.Bar1.Width / 2, state.Bar1.Position.x + state.Bar1.Direction.x * state.Bar1.Speed));
-                state.Bar1.Position.y = Math.Min(MaxY - state.Bar1.Height / 2, Math.Max(MinY + state.Bar1.Height / 2, state.Bar1.Position.y + state.Bar1.Direction.y * state.Bar1.Speed));
-
-                // 2Pのバーの移動
-                state.Bar2.Position.x = Math.Min(MaxX - state.Bar2.Width / 2, Math.Max(MinX + state.Bar2.Width / 2, state.Bar2.Position.x + state.Bar2.Direction.x * state.Bar2.Speed));
-                state.Bar2.Position.y = Math.Min(MaxY - state.Bar2.Height / 2, Math.Max(MinY + state.Bar2.Height / 2, state.Bar2.Position.y + state.Bar2.Direction.y * state.Bar2.Speed));
-
-                // ボールの移動
-                state.Ball.Position.x = state.Ball.Position.x + state.Ball.Direction.x * state.Ball.Speed;
-                state.Ball.Position.y = state.Ball.Position.y + state.Ball.Direction.y * state.Ball.Speed;
-
-                // ボールが上下の壁にあたってたら移動方向を反射
-                if (state.Ball.Position.y < MinY + state.Ball.Radius || state.Ball.Position.y > MaxY - state.Ball.Radius)
-                {
-                    state.Ball.Direction.y *= -1;
-                }
-
-                // ボールが壁にめり込んでいたら戻す
-                state.Ball.Position.y = Math.Min(MaxY - state.Ball.Radius, Math.Max(MinY + state.Ball.Radius, state.Ball.Position.y));
-
-                // 1Pのバーにボールが当たってたら反射
-                {
-                    var bx = state.Ball.Position.x;
-                    var by = state.Ball.Position.y;
-                    var br = state.Ball.Radius;
-                    var px = state.Bar1.Position.x;
-                    var py = state.Bar1.Position.y;
-                    var pw = state.Bar1.Width;
-                    var ph = state.Bar1.Height;
-
-                    if (bx - br <= px + pw / 2f && bx + br >= px + pw / 2f)
+                    if (ev.PlayerId == state.Player1)
                     {
-                        if (py - ph / 2f <= by && py + ph / 2f >= by)
-                        {
-                            if (state.Ball.Direction.x < 0)
-                            {
-                                state.Ball.Direction.x *= -1;
-                            }
-                        }
+                        state.Bar1.Direction.y = dirY;
                     }
-                }
-
-                // 2Pのバーにボールが当たってたら反射
-                {
-                    var bx = state.Ball.Position.x;
-                    var by = state.Ball.Position.y;
-                    var br = state.Ball.Radius;
-                    var px = state.Bar2.Position.x;
-                    var py = state.Bar2.Position.y;
-                    var pw = state.Bar2.Width;
-                    var ph = state.Bar2.Height;
-
-                    if (bx - br <= px + pw / 2f && bx + br >= px + pw / 2f)
+                    if (ev.PlayerId == state.Player2)
                     {
-                        if (py - ph / 2f <= by && py + ph / 2f >= by)
-                        {
-                            if (state.Ball.Direction.x > 0)
-                            {
-                                state.Ball.Direction.x *= -1;
-                            }
-                        }
+                        state.Bar2.Direction.y = dirY;
                     }
-                }
-
-                // 1Pのゴールに入っていたら2Pに得点
-                if (state.Ball.Position.x < MinX + state.Ball.Radius)
-                {
-                    state.Code = GameStateCode.Goal;
-                    state.Score2 += 1;
-                    state.Player1Ready = 0;
-                    state.Player2Ready = 0;
-                }
-
-                // 2Pのゴールに入っていたら1Pに得点
-                if (MaxX + state.Ball.Radius < state.Ball.Position.x)
-                {
-                    state.Code = GameStateCode.Goal;
-                    state.Score1 += 1;
-                    state.Player1Ready = 0;
-                    state.Player2Ready = 0;
                 }
             }
+
+            // dtが小さい場合は時間変化処理を実行しない.
+            if (dt < 1e-6) return;
+
+            // 1Pのバーの移動
+            state.Bar1.Position.x = Math.Min(MaxX - state.Bar1.Width / 2, Math.Max(MinX + state.Bar1.Width / 2, state.Bar1.Position.x + state.Bar1.Direction.x * state.Bar1.Speed * dt));
+            state.Bar1.Position.y = Math.Min(MaxY - state.Bar1.Height / 2, Math.Max(MinY + state.Bar1.Height / 2, state.Bar1.Position.y + state.Bar1.Direction.y * state.Bar1.Speed * dt));
+
+            // 2Pのバーの移動
+            state.Bar2.Position.x = Math.Min(MaxX - state.Bar2.Width / 2, Math.Max(MinX + state.Bar2.Width / 2, state.Bar2.Position.x + state.Bar2.Direction.x * state.Bar2.Speed * dt));
+            state.Bar2.Position.y = Math.Min(MaxY - state.Bar2.Height / 2, Math.Max(MinY + state.Bar2.Height / 2, state.Bar2.Position.y + state.Bar2.Direction.y * state.Bar2.Speed * dt));
+
+            // ボールの移動
+            state.Ball.Position.x = state.Ball.Position.x + state.Ball.Direction.x * state.Ball.Speed * dt;
+            state.Ball.Position.y = state.Ball.Position.y + state.Ball.Direction.y * state.Ball.Speed * dt;
+
+            // ボールが上下の壁にあたってたら移動方向を反射
+            if (state.Ball.Position.y < MinY + state.Ball.Radius || state.Ball.Position.y > MaxY - state.Ball.Radius)
+            {
+                state.Ball.Direction.y *= -1;
+            }
+
+            // ボールが壁にめり込んでいたら戻す
+            state.Ball.Position.y = Math.Min(MaxY - state.Ball.Radius, Math.Max(MinY + state.Ball.Radius, state.Ball.Position.y));
+
+            // 1Pのバーにボールが当たってたら反射
+            {
+                var bx = state.Ball.Position.x;
+                var by = state.Ball.Position.y;
+                var br = state.Ball.Radius;
+                var px = state.Bar1.Position.x;
+                var py = state.Bar1.Position.y;
+                var pw = state.Bar1.Width;
+                var ph = state.Bar1.Height;
+
+                if (bx - br <= px + pw / 2f && bx + br >= px + pw / 2f)
+                {
+                    if (py - ph / 2f <= by && py + ph / 2f >= by)
+                    {
+                        if (state.Ball.Direction.x < 0)
+                        {
+                            state.Ball.Direction.x *= -1;
+                        }
+                    }
+                }
+            }
+
+            // 2Pのバーにボールが当たってたら反射
+            {
+                var bx = state.Ball.Position.x;
+                var by = state.Ball.Position.y;
+                var br = state.Ball.Radius;
+                var px = state.Bar2.Position.x;
+                var py = state.Bar2.Position.y;
+                var pw = state.Bar2.Width;
+                var ph = state.Bar2.Height;
+
+                if (bx - br <= px + pw / 2f && bx + br >= px + pw / 2f)
+                {
+                    if (py - ph / 2f <= by && py + ph / 2f >= by)
+                    {
+                        if (state.Ball.Direction.x > 0)
+                        {
+                            state.Ball.Direction.x *= -1;
+                        }
+                    }
+                }
+            }
+
+            // 1Pのゴールに入っていたら2Pに得点
+            if (state.Ball.Position.x < MinX + state.Ball.Radius)
+            {
+                state.Code = GameStateCode.Goal;
+                state.Score2 += 1;
+                state.Player1Ready = 0;
+                state.Player2Ready = 0;
+            }
+
+            // 2Pのゴールに入っていたら1Pに得点
+            if (MaxX + state.Ball.Radius < state.Ball.Position.x)
+            {
+                state.Code = GameStateCode.Goal;
+                state.Score1 += 1;
+                state.Player1Ready = 0;
+                state.Player2Ready = 0;
+            }
+        }
+
+        /// <summary>
+        /// ゲームをシミュレーションする
+        /// events は Tick で昇順ソートされており, eventsの中で最小の Tick は state の最終更新よりも後である必要がある
+        /// </summary>
+        /// <param name="state">ゲームステート</param>
+        /// <param name="events">プレイヤーの入力イベント</param>
+        public void UpdateGame(long nowTick, GameState state, IEnumerable<PlayerEvent> events)
+        {
+            foreach (var ev in events)
+            {
+                UpdateGameInternal(ev.Tick, state, ev);
+            }
+            UpdateGameInternal(nowTick, state, null);
         }
     }
 }
