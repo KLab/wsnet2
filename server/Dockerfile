@@ -1,4 +1,4 @@
-FROM golang:1.14
+FROM golang:1.15
 
 RUN wget -O /wait-for-it.sh https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh > /dev/null 2>&1 && \
     chmod +x /wait-for-it.sh
