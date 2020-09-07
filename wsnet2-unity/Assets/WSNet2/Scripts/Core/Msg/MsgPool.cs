@@ -159,7 +159,7 @@ namespace WSNet2.Core
         }
 
         /// <summary>
-        ///   を強制退室メッセージを投下
+        ///   強制退室メッセージを投下
         /// </summary>
         public int PostKick(string targetId)
         {
