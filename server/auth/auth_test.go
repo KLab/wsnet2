@@ -1,14 +1,15 @@
 package auth
 
 import (
-	"strconv"
+	"encoding/binary"
 	"testing"
 	"time"
 )
 
 func TestAuth(t *testing.T) {
-	userId := "alice"
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	userId := []byte("alice")
+	timestamp := make([]byte, 8)
+	binary.BigEndian.PutUint64(timestamp, uint64(time.Now().Unix()))
 	key := "hoge"
 	nonce, _ := GenerateNonce()
 
@@ -29,7 +30,7 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("invalid result")
 	}
 
-	invalidUserId := "bob"
+	invalidUserId := []byte("bob")
 	if ValidHMAC(mac, []byte(key), invalidUserId, timestamp, nonce) {
 		t.Fatalf("invalid result")
 	}
@@ -37,7 +38,8 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("invalid result")
 	}
 
-	invalidTimestamp := strconv.FormatInt(time.Now().Unix()+30, 10)
+	invalidTimestamp := make([]byte, 8)
+	binary.BigEndian.PutUint64(invalidTimestamp, uint64(time.Now().Unix()+30))
 	if ValidHMAC(mac, []byte(key), userId, invalidTimestamp, nonce) {
 		t.Fatalf("invalid result")
 	}

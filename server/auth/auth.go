@@ -7,12 +7,12 @@ import (
 	"encoding/hex"
 )
 
-func ValidHMAC(mac, key []byte, args ...string) bool {
+func ValidHMAC(mac, key []byte, args ...[]byte) bool {
 	mac2 := CalculateHMAC(key, args...)
 	return hmac.Equal(mac, mac2)
 }
 
-func ValidHexHMAC(hm string, key []byte, args ...string) bool {
+func ValidHexHMAC(hm string, key []byte, args ...[]byte) bool {
 	mac, err := hex.DecodeString(hm)
 	if err != nil {
 		return false
@@ -20,23 +20,23 @@ func ValidHexHMAC(hm string, key []byte, args ...string) bool {
 	return ValidHMAC(mac, key, args...)
 }
 
-func CalculateHMAC(key []byte, args ...string) []byte {
-	mac := hmac.New(sha256.New, []byte(key))
+func CalculateHMAC(key []byte, args ...[]byte) []byte {
+	mac := hmac.New(sha256.New, key)
 	for _, arg := range args {
-		mac.Write([]byte(arg))
+		mac.Write(arg)
 	}
 	return mac.Sum(nil)
 }
 
-func CalculateHexHMAC(key []byte, args ...string) string {
+func CalculateHexHMAC(key []byte, args ...[]byte) string {
 	return hex.EncodeToString(CalculateHMAC(key, args...))
 }
 
-func GenerateNonce() (string, error) {
+func GenerateNonce() ([]byte, error) {
 	buf := make([]byte, 8)
 	n, err := rand.Read(buf)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return hex.EncodeToString(buf[:n]), nil
+	return buf[:n], nil
 }
