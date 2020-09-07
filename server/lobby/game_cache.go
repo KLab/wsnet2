@@ -33,14 +33,14 @@ type GameCache struct {
 	sync.Mutex
 	db     *sqlx.DB
 	expire time.Duration
-	valid  int64
+	valid  time.Duration
 
 	servers     map[GameServerID]*GameServer
 	order       []GameServerID
 	lastUpdated time.Time
 }
 
-func NewGameCache(db *sqlx.DB, expire time.Duration, valid int64) *GameCache {
+func NewGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *GameCache {
 	return &GameCache{
 		db:      db,
 		expire:  expire,
@@ -54,7 +54,7 @@ func (c *GameCache) update() error {
 	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
 
 	var servers []GameServer
-	err := c.db.Select(&servers, query, time.Now().Unix()-c.valid)
+	err := c.db.Select(&servers, query, time.Now().Add(-c.valid).Unix())
 	if err != nil {
 		return err
 	}

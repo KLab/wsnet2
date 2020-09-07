@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -38,10 +39,21 @@ func TestLoad(t *testing.T) {
 		DefaultDeadline:   5,
 		DefaultLoglevel:   2,
 
-		HeartBeatInterval: 10,
+		HeartBeatInterval: Duration(time.Second * 10),
 	}
 	if diff := cmp.Diff(c.Game, game); diff != "" {
-		t.Fatalf("c.Db differs: (-got +want)\n%s", diff)
+		t.Fatalf("c.Game differs: (-got +want)\n%s", diff)
+	}
+
+	lobby := LobbyConf{
+		Hostname:       "wsnetlobby.localhost",
+		Net:            "tcp",
+		Port:           8080,
+		Loglevel:       2,
+		ValidHeartBeat: Duration(time.Second * 30),
+	}
+	if diff := cmp.Diff(c.Lobby, lobby); diff != "" {
+		t.Fatalf("c.Lobby differs: (-got +want)\n%s", diff)
 	}
 }
 
