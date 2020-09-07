@@ -55,3 +55,34 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("invalid result")
 	}
 }
+
+func TestAuthData(t *testing.T) {
+	key := "testappkey"
+	userId := "user001"
+	now := time.Now()
+
+	data, err := GenerateAuthData(key, userId, now)
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	err = ValidAuthData(data, key, userId, now.Truncate(time.Second))
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	err = ValidAuthData(data, key, userId, now.Add(time.Second))
+	if err == nil {
+		t.Fatalf("must be expired")
+	}
+
+	err = ValidAuthData(data, key, "user002", now.Add(-time.Second))
+	if err == nil {
+		t.Fatalf("other user must be error")
+	}
+
+	err = ValidAuthData(data, "otherkey", userId, now.Add(-time.Second))
+	if err == nil {
+		t.Fatalf("other kye must be error")
+	}
+}
