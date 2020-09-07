@@ -17,16 +17,6 @@ func TestLevel(t *testing.T) {
 	}
 }
 
-func TestGet(t *testing.T) {
-	tests := []log.Level{log.NOLOG, log.ERROR, log.INFO, log.DEBUG, log.ALL}
-	for _, l := range tests {
-		logger := log.Get(l)
-		if lv := logger.Level(); lv != l {
-			t.Fatalf("Get(%v).Level()=%v, wants %v", l, lv, l)
-		}
-	}
-}
-
 func TestStringer(t *testing.T) {
 	if s, w := log.ALL.String(), "ALL"; s != w {
 		t.Fatalf("string \"%v\" wants \"%v\"", s, w)
