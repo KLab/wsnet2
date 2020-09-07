@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -19,8 +20,6 @@ import (
 	"wsnet2/log"
 	"wsnet2/pb"
 )
-
-const expirationTime = 30
 
 func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 	errCh := make(chan error)
@@ -81,21 +80,21 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 }
 
 type header struct {
-	appId     string
-	userId    string
-	timestamp string
-	nonce     string
-	hash      string
+	appId    string
+	userId   string
+	authData string
 }
 
-func parseSpecificHeader(r *http.Request) *header {
-	return &header{
-		appId:     r.Header.Get("X-Wsnet-App"),
-		userId:    r.Header.Get("X-Wsnet-User"),
-		timestamp: r.Header.Get("X-Wsnet-Timestamp"),
-		nonce:     r.Header.Get("X-Wsnet-Nonce"),
-		hash:      r.Header.Get("X-Wsnet-Hash"),
+func parseSpecificHeader(r *http.Request) (hdr header) {
+	hdr.appId = r.Header.Get("X-Wsnet-App")
+	hdr.userId = r.Header.Get("X-Wsnet-User")
+
+	bearer := r.Header.Get("Authorization")
+	if strings.HasPrefix(bearer, "Bearer ") {
+		hdr.authData = bearer[len("Bearer "):]
 	}
+
+	return hdr
 }
 
 func renderResponse(w http.ResponseWriter, res interface{}) error {
@@ -109,25 +108,14 @@ func renderResponse(w http.ResponseWriter, res interface{}) error {
 	return nil
 }
 
-func (sv *LobbyService) authUser(h *header) error {
+func (sv *LobbyService) authUser(h header) error {
 	appKey, found := sv.roomService.GetAppKey(h.appId)
 	if !found {
 		return xerrors.Errorf("Invalid appId: %v", h.appId)
 	}
-	ts, err := strconv.ParseInt(h.timestamp, 10, 64)
-	if err != nil {
-		return xerrors.Errorf("Invalid timestamp: %w", err)
-	}
-	now := time.Now().Unix()
-	if now < ts {
-		return xerrors.Errorf("Invalid timestamp: now=%v, ts=%v", now, ts)
-	}
-	// TODO: expirationTimeはコンフィグに定義？
-	if now-ts > expirationTime {
-		return xerrors.Errorf("Expired timestamp: now=%v, ts=%v, expirationTime=%v", now, ts, expirationTime)
-	}
-	if !auth.ValidHexHMAC(h.hash, []byte(appKey), h.userId, h.timestamp, h.nonce) {
-		return xerrors.Errorf("Invalid HMAC: appId=%v, userId=%v, timestamp=%v, nonce=%v, hash=%v", h.appId, h.userId, h.timestamp, h.nonce, h.hash)
+	expired := time.Now().Add(-time.Duration(sv.conf.AuthDataExpire))
+	if err := auth.ValidAuthData(h.authData, appKey, h.userId, expired); err != nil {
+		return xerrors.Errorf("invalid authdata: %w", err)
 	}
 	return nil
 }

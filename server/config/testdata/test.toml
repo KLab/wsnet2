@@ -14,3 +14,4 @@ hostname = "wsnetlobby.localhost"
 net = "tcp"
 port = 8080
 valid_heartbeat = "30s"
+authdata_expire = "10s"

@@ -62,6 +62,8 @@ type LobbyConf struct {
 
 	// ValidHeartBeat : HeartBeatの有効期間
 	ValidHeartBeat Duration `toml:"valid_heartbeat"`
+
+	AuthDataExpire Duration `toml:"authdata_expire"`
 }
 
 type Duration time.Duration
@@ -88,6 +90,7 @@ func Load(conffile string) (*Config, error) {
 		Lobby: LobbyConf{
 			ValidHeartBeat: 5,
 			Loglevel:       2,
+			AuthDataExpire: Duration(time.Minute),
 		},
 	}
 
