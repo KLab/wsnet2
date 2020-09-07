@@ -628,6 +628,34 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   対象のプレイヤーを強制退室させる
+        /// </summary>
+        public int Kick(Player target, Action<EvType, string> onErrorResponse = null)
+        {
+            if (Me != Master)
+            {
+                throw new Exception("Kick is for master only");
+            }
+
+            if (!players.ContainsKey(target.Id))
+            {
+                throw new Exception($"Player \"{target.Id}\" is not in this room");
+            }
+
+            var seqNum = con.msgPool.PostKick(target.Id);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    onErrorResponse(ev.Type, ev.GetKickPayload());
+                };
+            }
+
+            return seqNum;
+        }
+
+        /// <summary>
         ///   RPC呼び出し
         /// </summary>
         public int RPC(Action<string> rpc, params string[] targets)
