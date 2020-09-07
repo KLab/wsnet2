@@ -101,7 +101,7 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 		}
 
 		log.Debugf("heartbeat start")
-		t := time.NewTicker(time.Duration(s.conf.HeartBeatInterval) * time.Second)
+		t := time.NewTicker(time.Duration(s.conf.HeartBeatInterval))
 		bind := map[string]interface{}{
 			"hostid": s.HostId,
 			"status": HostStatusRunning,

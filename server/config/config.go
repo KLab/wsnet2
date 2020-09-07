@@ -85,10 +85,10 @@ func Load(conffile string) (*Config, error) {
 			DefaultDeadline:   5,
 			DefaultLoglevel:   2,
 
-			HeartBeatInterval: 2,
+			HeartBeatInterval: Duration(2 * time.Second),
 		},
 		Lobby: LobbyConf{
-			ValidHeartBeat: 5,
+			ValidHeartBeat: Duration(5 * time.Second),
 			Loglevel:       2,
 			AuthDataExpire: Duration(time.Minute),
 		},
