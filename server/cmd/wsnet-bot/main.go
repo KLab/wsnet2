@@ -178,16 +178,11 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	req.Header.Add("X-Wsnet-App", b.appId)
 	req.Header.Add("X-Wsnet-User", b.userId)
 
-	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	nonce, err := auth.GenerateNonce()
+	authdata, err := auth.GenerateAuthData(b.appKey, b.userId, time.Now())
 	if err != nil {
 		return err
 	}
-	req.Header.Add("X-Wsnet-Timestamp", timestamp)
-	req.Header.Add("X-Wsnet-Nonce", nonce)
-	hash := auth.CalculateHexHMAC([]byte(b.appKey), b.userId, timestamp, nonce)
-	fmt.Printf("[bot:%v] hash: %v\n", b.userId, hash)
-	req.Header.Add("X-Wsnet-Hash", hash)
+	req.Header.Add("Authorization", "Bearer "+authdata)
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

@@ -102,13 +102,14 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 }
 
 func issueAuthToken(userId, key string) (*pb.AuthToken, error) {
-	nonce, err := auth.GenerateNonce()
+	n, err := auth.GenerateNonce()
 	if err != nil {
 		return nil, err
 	}
+	nonce := hex.EncodeToString(n)
 	return &pb.AuthToken{
 		Nonce: nonce,
-		Hash:  auth.CalculateHexHMAC([]byte(key), userId, nonce),
+		Hash:  auth.CalculateHexHMAC([]byte(key), []byte(userId), []byte(nonce)),
 	}, nil
 }
 
@@ -117,7 +118,7 @@ func (repo *Repository) ValidAuthToken(roomId, userId string, token *pb.AuthToke
 	if err != nil {
 		return false
 	}
-	if !auth.ValidHexHMAC(token.Hash, []byte(room.key), userId, token.Nonce) {
+	if !auth.ValidHexHMAC(token.Hash, []byte(room.key), []byte(userId), []byte(token.Nonce)) {
 		return false
 	}
 	return true
