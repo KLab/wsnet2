@@ -34,8 +34,8 @@ message JoinedRoomRes {
 	// websocket endpoint url
 	string url = 3;
 
-	// auth token for websocket connection
-	AuthToken token = 4;
+	// auth key for websocket connection
+	string auth_key = 4;
 
 	// room master
 	string master_id = 5;

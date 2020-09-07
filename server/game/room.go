@@ -26,8 +26,6 @@ type Room struct {
 	*pb.RoomInfo
 	repo *Repository
 
-	key string
-
 	deadline time.Duration
 
 	publicProps  binary.Dict
@@ -79,7 +77,6 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, dea
 	r := &Room{
 		RoomInfo: info,
 		repo:     repo,
-		key:      RandomHex(roomKeyLen),
 		deadline: time.Duration(deadlineSec) * time.Second,
 
 		publicProps:  pubProps,

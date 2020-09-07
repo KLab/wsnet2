@@ -202,13 +202,18 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	return nil
 }
 
-func (b *bot) DialGame(url, nonce, hash string, seq int) (*websocket.Conn, error) {
+func (b *bot) DialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 	hdr := http.Header{}
 	hdr.Add("X-Wsnet-App", b.appId)
 	hdr.Add("X-Wsnet-User", b.userId)
-	hdr.Add("X-Wsnet-Nonce", nonce)
-	hdr.Add("X-Wsnet-Hash", hash)
 	hdr.Add("X-Wsnet-LastEventSeq", strconv.Itoa(seq))
+
+	authdata, err := auth.GenerateAuthData(authKey, b.userId, time.Now())
+	if err != nil {
+		fmt.Printf("[bot:%v] generate authdata error: %v\n", b.userId, err)
+		return nil, err
+	}
+	hdr.Add("Authorization", "Bearer "+authdata)
 
 	ws, res, err := b.ws.Dial(url, hdr)
 	if err != nil {
@@ -249,7 +254,7 @@ func main() {
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpGreaterThanOrEqual, Val: binary.MarshalInt(1024)}}
 	bot.SearchRoom(1, queries)
 
-	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
+	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		fmt.Printf("dial game error: %v\n", err)
 		return
@@ -314,7 +319,7 @@ func main() {
 	time.Sleep(8 * time.Second)
 
 	fmt.Println("reconnect test")
-	ws, err = bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 2)
+	ws, err = bot.DialGame(room.Url, room.AuthKey, 2)
 	if err != nil {
 		fmt.Printf("dial game error: %v\n", err)
 		return
@@ -357,7 +362,7 @@ func main() {
 
 	time.Sleep(3 * time.Second)
 	fmt.Println("reconnect test after leave")
-	ws, err = bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 4)
+	ws, err = bot.DialGame(room.Url, room.AuthKey, 4)
 	if err != nil {
 		fmt.Printf("dial game error: %v\n", err)
 		return
@@ -377,7 +382,7 @@ func spawnPlayer(roomId, userId string, queries []lobby.PropQuery) {
 		return
 	}
 
-	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
+	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
 		return
@@ -396,7 +401,7 @@ func spawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQu
 		return
 	}
 
-	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
+	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
 		return
@@ -414,7 +419,7 @@ func spawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.Prop
 		return
 	}
 
-	ws, err := bot.DialGame(room.Url, room.Token.Nonce, room.Token.Hash, 0)
+	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
 		return
