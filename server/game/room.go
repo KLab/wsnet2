@@ -411,7 +411,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
@@ -459,6 +459,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 		}
 	}
 
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
 	return nil
 }
@@ -469,7 +470,7 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 
 	if !msg.Sender.isPlayer {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
 	}
 
@@ -487,6 +488,7 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
 	}
 
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvClientProp(msg.Sender.Id, msg.Payload()))
 	return nil
 }
@@ -538,7 +540,7 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
@@ -553,6 +555,7 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 
 	r.logger.Debugf("Master switched: master:%v->%v", msg.Sender.ID(), r.master.Id)
 
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvMasterSwitched(msg.Sender.Id, r.master.Id))
 	return nil
 }
@@ -562,7 +565,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDeny(msg))
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		r.muClients.RUnlock()
 		return xerrors.Errorf("MsgKick: sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
@@ -574,6 +577,9 @@ func (r *Room) msgKick(msg *MsgKick) error {
 		r.muClients.RUnlock()
 		return xerrors.Errorf("MsgKick: player not found: room=%v, target=%v", r.Id, msg.Target)
 	}
+
+	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
+
 	// removeClientがmuClientsのロックを取るため呼び出し前にUnlockしておく
 	r.muClients.RUnlock()
 

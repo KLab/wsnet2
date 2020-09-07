@@ -107,6 +107,7 @@ namespace WSNet2.Core
         CallbackPool callbackPool = new CallbackPool();
         Dictionary<Delegate, byte> rpcMap;
         List<Action<string, SerialReader>> rpcActions;
+        Dictionary<int, Action<EvResponse>> errorResponseHandler = new Dictionary<int, Action<EvResponse>>();
 
         Connection con;
 
@@ -523,16 +524,16 @@ namespace WSNet2.Core
         ///     OnClosedイベントを受け取って退室が完了する。
         ///   </para>
         /// </remarks>
-        public void Leave()
+        public int Leave()
         {
-            con.msgPool.PostLeave();
+            return con.msgPool.PostLeave();
         }
 
         /// <summary>
         ///   Masterを移譲する
         /// </summary>
         /// <param name="newMaster">新Master</param>
-        public void SwitchMaster(Player newMaster)
+        public int SwitchMaster(Player newMaster, Action<EvType, string> onErrorResponse = null)
         {
             if (Me != Master)
             {
@@ -544,13 +545,23 @@ namespace WSNet2.Core
                 throw new Exception($"Player \"{newMaster.Id}\" is not in this room");
             }
 
-            con.msgPool.PostSwitchMaster(newMaster.Id);
+            var seqNum = con.msgPool.PostSwitchMaster(newMaster.Id);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    onErrorResponse(ev.Type, ev.GetSwitchMasterPayload());
+                };
+            }
+
+            return seqNum;
         }
 
         /// <summary>
         ///   Roomプロパティを変更する
         /// </summary>
-        public void ChangeRoomProperty(
+        public int ChangeRoomProperty(
             bool? visible = null,
             bool? joinable = null,
             bool? watchable = null,
@@ -558,14 +569,15 @@ namespace WSNet2.Core
             uint? maxPlayers = null,
             uint? clientDeadline = null,
             IDictionary<string, object> publicProps = null,
-            IDictionary<string, object> privateProps = null)
+            IDictionary<string, object> privateProps = null,
+            Action<EvType,bool?,bool?,bool?,uint?,uint?,uint?,IDictionary<string,object>,IDictionary<string,object>> onErrorResponse = null)
         {
             if (Me != Master)
             {
                 throw new Exception("ChangeRoomProperty is for master only");
             }
 
-            con.msgPool.PostRoomProp(
+            var seqNum = con.msgPool.PostRoomProp(
                 visible ?? Visible,
                 joinable ?? Joinable,
                 watchable ?? Watchable,
@@ -574,143 +586,173 @@ namespace WSNet2.Core
                 (ushort)(clientDeadline ?? 0),
                 publicProps ?? null,
                 privateProps ?? null);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    var payload = ev.GetRoomPropPayload();
+                    onErrorResponse(
+                        ev.Type,
+                        visible,
+                        joinable,
+                        watchable,
+                        searchGroup,
+                        maxPlayers,
+                        clientDeadline,
+                        payload.PublicProps,
+                        payload.PrivateProps);
+                };
+            }
+
+            return seqNum;
         }
 
         /// <summary>
         ///   自分自身のプロパティを変更する
         /// </summary>
         /// <param name="props">変更するプロパティの辞書</param>
-        public void ChangeMyProperty(IDictionary<string, object> props)
+        public int ChangeMyProperty(IDictionary<string, object> props, Action<EvType, IDictionary<string, object>> onErrorResponse = null)
         {
-            con.msgPool.PostClientProp(props);
+            var seqNum = con.msgPool.PostClientProp(props);
+
+            if (onErrorResponse != null)
+            {
+                errorResponseHandler[seqNum] = (ev) =>
+                {
+                    onErrorResponse(ev.Type, ev.GetClientPropPayload());
+                };
+            }
+
+            return seqNum;
         }
 
         /// <summary>
         ///   RPC呼び出し
         /// </summary>
-        public void RPC(Action<string> rpc, params string[] targets)
+        public int RPC(Action<string> rpc, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), targets);
         }
-        public void RPC(Action<string, bool> rpc, bool param, params string[] targets)
+        public int RPC(Action<string, bool> rpc, bool param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, sbyte> rpc, sbyte param, params string[] targets)
+        public int RPC(Action<string, sbyte> rpc, sbyte param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, byte> rpc, byte param, params string[] targets)
+        public int RPC(Action<string, byte> rpc, byte param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, short> rpc, short param, params string[] targets)
+        public int RPC(Action<string, short> rpc, short param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, ushort> rpc, ushort param, params string[] targets)
+        public int RPC(Action<string, ushort> rpc, ushort param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, int> rpc, int param, params string[] targets)
+        public int RPC(Action<string, int> rpc, int param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, uint> rpc, uint param, params string[] targets)
+        public int RPC(Action<string, uint> rpc, uint param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, long> rpc, long param, params string[] targets)
+        public int RPC(Action<string, long> rpc, long param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, ulong> rpc, ulong param, params string[] targets)
+        public int RPC(Action<string, ulong> rpc, ulong param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, float> rpc, float param, params string[] targets)
+        public int RPC(Action<string, float> rpc, float param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, double> rpc, double param, params string[] targets)
+        public int RPC(Action<string, double> rpc, double param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, string> rpc, string param, params string[] targets)
+        public int RPC(Action<string, string> rpc, string param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
+        public int RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, List<object>> rpc, List<object> param, params string[] targets)
+        public int RPC(Action<string, List<object>> rpc, List<object> param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, object[]> rpc, object[] param, params string[] targets)
+        public int RPC(Action<string, object[]> rpc, object[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC<T>(Action<string, List<T>> rpc, List<T> param, params string[] targets) where T : class, IWSNetSerializable
+        public int RPC<T>(Action<string, List<T>> rpc, List<T> param, params string[] targets) where T : class, IWSNetSerializable
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC<T>(Action<string, T[]> rpc, T[] param, params string[] targets) where T : class, IWSNetSerializable
+        public int RPC<T>(Action<string, T[]> rpc, T[] param, params string[] targets) where T : class, IWSNetSerializable
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, Dictionary<string, object>> rpc, Dictionary<string, object> param, params string[] targets)
+        public int RPC(Action<string, Dictionary<string, object>> rpc, Dictionary<string, object> param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, bool[]> rpc, bool[] param, params string[] targets)
+        public int RPC(Action<string, bool[]> rpc, bool[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, sbyte[]> rpc, sbyte[] param, params string[] targets)
+        public int RPC(Action<string, sbyte[]> rpc, sbyte[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, byte[]> rpc, byte[] param, params string[] targets)
+        public int RPC(Action<string, byte[]> rpc, byte[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, short[]> rpc, short[] param, params string[] targets)
+        public int RPC(Action<string, short[]> rpc, short[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, ushort[]> rpc, ushort[] param, params string[] targets)
+        public int RPC(Action<string, ushort[]> rpc, ushort[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, int[]> rpc, int[] param, params string[] targets)
+        public int RPC(Action<string, int[]> rpc, int[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, uint[]> rpc, uint[] param, params string[] targets)
+        public int RPC(Action<string, uint[]> rpc, uint[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, long[]> rpc, long[] param, params string[] targets)
+        public int RPC(Action<string, long[]> rpc, long[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, ulong[]> rpc, ulong[] param, params string[] targets)
+        public int RPC(Action<string, ulong[]> rpc, ulong[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, float[]> rpc, float[] param, params string[] targets)
+        public int RPC(Action<string, float[]> rpc, float[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, double[]> rpc, double[] param, params string[] targets)
+        public int RPC(Action<string, double[]> rpc, double[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public void RPC(Action<string, string[]> rpc, string[] param, params string[] targets)
+        public int RPC(Action<string, string[]> rpc, string[] param, params string[] targets)
         {
-            con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
 
         private byte getRpcId(Delegate rpc)
@@ -763,6 +805,9 @@ namespace WSNet2.Core
                     break;
                 case EvClosed evClosed:
                     OnEvClosed(evClosed);
+                    break;
+                case EvResponse evResponse:
+                    OnEvResponse(evResponse);
                     break;
                 default:
                     con.ReturnEventBuffer(ev);
@@ -996,6 +1041,26 @@ namespace WSNet2.Core
                 if (OnClosed != null)
                 {
                     OnClosed(ev.Description);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   Msg失敗通知
+        /// </summary>
+        private void OnEvResponse(EvResponse ev)
+        {
+            callbackPool.Add(() =>
+            {
+                var seqNum = ev.MsgSeqNum;
+                Action<EvResponse> handler;
+                if (errorResponseHandler.TryGetValue(seqNum, out handler))
+                {
+                    errorResponseHandler.Remove(seqNum);
+                    if (ev.Type != EvType.Succeeded)
+                    {
+                        handler(ev);
+                    }
                 }
             });
         }
