@@ -70,6 +70,6 @@ func TestAuthData(t *testing.T) {
 
 	err = ValidAuthData(data, "otherkey", userId, now.Add(-time.Second))
 	if err == nil {
-		t.Fatalf("other kye must be error")
+		t.Fatalf("other key must be error")
 	}
 }

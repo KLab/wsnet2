@@ -210,7 +210,7 @@ namespace WSNet2.Core
 
             Buffer.BlockCopy(hash, 0, data, l+16, 32);
 
-            return Convert.ToBase64String(data, l, 8+8+32);
+            return Convert.ToBase64String(data, l, 16+32);
         }
 
         /// <summary>
