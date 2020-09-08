@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -66,7 +65,6 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 
 	unixtime := binary.BigEndian.Uint64(timedata)
 	timestamp := time.Unix(int64(unixtime), 0)
-	fmt.Printf("--- unix: %v\ntime: %v\nlimit:%v\n", unixtime, timestamp, expired)
 
 	if timestamp.Before(expired) {
 		return xerrors.Errorf("invalid authdata: expired")
