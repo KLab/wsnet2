@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/rand"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -11,30 +12,21 @@ func TestAuth(t *testing.T) {
 	timestamp := make([]byte, 8)
 	binary.BigEndian.PutUint64(timestamp, uint64(time.Now().Unix()))
 	key := "hoge"
-	nonce, _ := GenerateNonce()
+	nonce := make([]byte, 8)
+	rand.Read(nonce)
 
 	mac := CalculateHMAC([]byte(key), userId, timestamp, nonce)
 	if !ValidHMAC(mac, []byte(key), userId, timestamp, nonce) {
 		t.Fatalf("invalid hmac")
-	}
-	hm := CalculateHexHMAC([]byte(key), userId, timestamp, nonce)
-	if !ValidHexHMAC(hm, []byte(key), userId, timestamp, nonce) {
-		t.Fatalf("invalid hex hmac")
 	}
 
 	invalidKey := "fuga"
 	if ValidHMAC(mac, []byte(invalidKey), userId, timestamp, nonce) {
 		t.Fatalf("invalid result")
 	}
-	if ValidHexHMAC(hm, []byte(invalidKey), userId, timestamp, nonce) {
-		t.Fatalf("invalid result")
-	}
 
 	invalidUserId := []byte("bob")
 	if ValidHMAC(mac, []byte(key), invalidUserId, timestamp, nonce) {
-		t.Fatalf("invalid result")
-	}
-	if ValidHexHMAC(hm, []byte(key), invalidUserId, timestamp, nonce) {
 		t.Fatalf("invalid result")
 	}
 
@@ -43,15 +35,10 @@ func TestAuth(t *testing.T) {
 	if ValidHMAC(mac, []byte(key), userId, invalidTimestamp, nonce) {
 		t.Fatalf("invalid result")
 	}
-	if ValidHexHMAC(hm, []byte(key), userId, invalidTimestamp, nonce) {
-		t.Fatalf("invalid result")
-	}
 
-	invalidNonce, _ := GenerateNonce()
+	invalidNonce := make([]byte, 8)
+	rand.Read(invalidNonce)
 	if ValidHMAC(mac, []byte(key), userId, timestamp, invalidNonce) {
-		t.Fatalf("invalid result")
-	}
-	if ValidHexHMAC(hm, []byte(key), userId, timestamp, invalidNonce) {
 		t.Fatalf("invalid result")
 	}
 }

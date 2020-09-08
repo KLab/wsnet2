@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
-	"encoding/hex"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -17,33 +16,12 @@ func ValidHMAC(mac, key []byte, args ...[]byte) bool {
 	return hmac.Equal(mac, mac2)
 }
 
-func ValidHexHMAC(hm string, key []byte, args ...[]byte) bool {
-	mac, err := hex.DecodeString(hm)
-	if err != nil {
-		return false
-	}
-	return ValidHMAC(mac, key, args...)
-}
-
 func CalculateHMAC(key []byte, args ...[]byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	for _, arg := range args {
 		mac.Write(arg)
 	}
 	return mac.Sum(nil)
-}
-
-func CalculateHexHMAC(key []byte, args ...[]byte) string {
-	return hex.EncodeToString(CalculateHMAC(key, args...))
-}
-
-func GenerateNonce() ([]byte, error) {
-	buf := make([]byte, 8)
-	n, err := rand.Read(buf)
-	if err != nil {
-		return nil, err
-	}
-	return buf[:n], nil
 }
 
 // ValidAuthData validates authData.
@@ -78,11 +56,13 @@ func GenerateAuthData(key, userId string, now time.Time) (string, error) {
 	d := make([]byte, 8+8+32)
 
 	nonce := d[0:8]
-	n, err := GenerateNonce()
+	n, err := rand.Read(nonce)
 	if err != nil {
 		return "", err
 	}
-	copy(nonce, n)
+	if n != len(nonce) {
+		return "", xerrors.Errorf("invalid nonce length %v", n)
+	}
 
 	// timestamp
 	timestamp := d[8:16]
