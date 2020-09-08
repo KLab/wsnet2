@@ -14,8 +14,8 @@ namespace WSNet2.Core
         [Key("url")]
         public string url;
 
-        [Key("token")]
-        public AuthToken token;
+        [Key("auth_key")]
+        public string authKey;
 
         [Key("master_id")]
         public string masterId;
