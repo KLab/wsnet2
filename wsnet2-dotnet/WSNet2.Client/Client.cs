@@ -37,6 +37,8 @@ namespace WSNet2.DotnetClient
 
     public class DotnetClient
     {
+        static Random rand = new Random();
+
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
             while(true){
@@ -46,24 +48,40 @@ namespace WSNet2.DotnetClient
             }
         }
 
-        static AuthData genAuthData(string key, string userid)
+        static void write64be(Span<byte> dst, long n)
         {
-            var auth = new AuthData();
+            dst[0] = (byte)((n >> 56) & 0xff);
+            dst[1] = (byte)((n >> 48) & 0xff);
+            dst[2] = (byte)((n >> 40) & 0xff);
+            dst[3] = (byte)((n >> 32) & 0xff);
+            dst[4] = (byte)((n >> 24) & 0xff);
+            dst[5] = (byte)((n >> 16) & 0xff);
+            dst[6] = (byte)((n >> 8) & 0xff);
+            dst[7] = (byte)(n & 0xff);
+        }
 
-            auth.Timestamp = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds().ToString();
+        static string genAuthData(string key, string userId)
+        {
+            var l = Encoding.UTF8.GetByteCount(userId);
 
+            // userid, nonce 64bit, timestamp 64bit, hmac 256bit
+            var buf = new byte[l+8+8+32];
 
-            var rng = new RNGCryptoServiceProvider();
-            var nbuf = new byte[8];
-            rng.GetBytes(nbuf);
-            auth.Nonce = BitConverter.ToString(nbuf).Replace("-", "").ToLower();
+            // userid
+            Encoding.UTF8.GetBytes(userId, 0, userId.Length, buf, 0);
 
-            var str = userid + auth.Timestamp + auth.Nonce;
-            var hmac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
-            var hash = hmac.ComputeHash(Encoding.ASCII.GetBytes(str));
-            auth.Hash = BitConverter.ToString(hash).Replace("-", "").ToLower();
+            // nonce
+            rand.NextBytes(new Span<byte>(buf, l, 8));
 
-            return auth;
+            // timestamp
+            var t = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds();
+            write64be(new Span<byte>(buf, l+8, 8), t);
+
+            var mac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
+            int size;
+            mac.TryComputeHash(new Span<byte>(buf, 0, l+8+8), new Span<byte>(buf, l+8+8, 32), out size);
+
+            return Convert.ToBase64String(new Span<byte>(buf, l, 8+8+32));
         }
 
         static void RPCMessage(string senderId, StrMessage msg)

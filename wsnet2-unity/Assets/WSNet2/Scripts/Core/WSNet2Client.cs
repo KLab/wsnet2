@@ -6,13 +6,6 @@ using MessagePack;
 
 namespace WSNet2.Core
 {
-    public class AuthData
-    {
-        public string Timestamp { get; set; }
-        public string Nonce { get; set; }
-        public string Hash { get; set; }
-    }
-
     /// <summary>
     ///   WSNet2に接続するためのClient
     /// </summary>
@@ -21,7 +14,7 @@ namespace WSNet2.Core
         string baseUri;
         string appId;
         string userId;
-        AuthData authData;
+        string bearer;
 
         List<Room> rooms = new List<Room>();
         CallbackPool callbackPool = new CallbackPool();
@@ -33,12 +26,12 @@ namespace WSNet2.Core
         /// <param name="appId">Wsnetに登録してあるApplication ID</param>
         /// <param name="userId">プレイヤーIDとなるID</param>
         /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
-        public WSNet2Client(string baseUri, string appId, string userId, AuthData authData)
+        public WSNet2Client(string baseUri, string appId, string userId, string authData)
         {
             this.baseUri = baseUri;
             this.appId = appId;
             this.userId = userId;
-            this.authData = authData;
+            this.bearer = "Bearer " + authData;
         }
 
         /// <summary>
@@ -200,9 +193,7 @@ namespace WSNet2.Core
                 var cli = new HttpClient();
                 cli.DefaultRequestHeaders.Add("X-Wsnet-App", appId);
                 cli.DefaultRequestHeaders.Add("X-Wsnet-User", userId);
-                cli.DefaultRequestHeaders.Add("X-Wsnet-Timestamp", authData.Timestamp);
-                cli.DefaultRequestHeaders.Add("X-Wsnet-Nonce", authData.Nonce);
-                cli.DefaultRequestHeaders.Add("X-Wsnet-Hash", authData.Hash);
+                cli.DefaultRequestHeaders.Add("Authorization", bearer);
 
                 var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
                 var body = await res.Content.ReadAsByteArrayAsync();
