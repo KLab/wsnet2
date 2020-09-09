@@ -138,6 +138,7 @@ namespace WSNet2.Sample
 
             long syncStart = timer.NowTick;
             long lastSync = syncStart;
+            long gameEndTick = 0;
             long roomEmptyTick = 0;
 
             while (true)
@@ -219,6 +220,10 @@ namespace WSNet2.Sample
                     // プレイヤーの入力も破棄する
                     states.Clear();
                     events.Clear();
+                    if (state.Code == GameStateCode.End)
+                    {
+                        gameEndTick = now;
+                    }
                 }
                 states.Add(state);
 
@@ -243,6 +248,20 @@ namespace WSNet2.Sample
                     room.RPC(RPCSyncServerTick, timer.NowTick);
                     room.RPC(RPCSyncGameState, state);
                     lastSync = now;
+                }
+
+                // ゲーム終了から一定時間経ったらプレイヤーをKickする
+                if (gameEndTick != 0)
+                {
+                    if (5000 <= new TimeSpan(now - gameEndTick).TotalMilliseconds)
+                    {
+                        foreach (var p in room.Players.Values)
+                        {
+                            if (p != room.Me) {
+                                room.Kick(p);
+                            }
+                        }
+                    }
                 }
 
                 // プレイヤーが誰もいなくなった状態が一定時間続いたら部屋から抜ける

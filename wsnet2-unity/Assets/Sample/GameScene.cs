@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using WSNet2.Core;
 using Sample.Logic;
@@ -153,7 +154,9 @@ namespace Sample
 
                 room.OnClosed += (p) =>
                 {
-                    RoomLog($"OnJoined: {p}");
+                    RoomLog($"OnClosed: {p}");
+                    WSNet2Runner.Instance.GameRoom = null;
+                    SceneManager.LoadScene("Title");
                 };
 
                 room.OnOtherPlayerJoined += (p) =>
@@ -230,8 +233,26 @@ namespace Sample
         {
             Debug.Log(state.Code);
 
-            playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}";
-            playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}";
+            playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}\n";
+            playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}\n";
+            if (state.Code == GameStateCode.End)
+            {
+                if (state.Score2 < state.Score1)
+                {
+                    playerText1.text += $"\n WIN";
+                    playerText2.text += $"\n LOSE";
+                }
+                else if (state.Score1 < state.Score2)
+                {
+                    playerText1.text += $"\n LOSE";
+                    playerText2.text += $"\n WIN";
+                }
+                else
+                {
+                    playerText1.text += $"\n DRAW";
+                    playerText2.text += $"\n DRAW";
+                }
+            }
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
@@ -327,24 +348,9 @@ namespace Sample
                 }
                 prevMoveInput = value;
             }
-            else if (state.Code == GameStateCode.Goal)
+            else if (state.Code == GameStateCode.End)
             {
-                events.Add(new PlayerEvent
-                {
-                    Code = PlayerEventCode.Ready,
-                    PlayerId = myPlayerId,
-                    Tick = timer.NowTick,
-                });
-
-                if (!isOnlineMode)
-                {
-                    events.Add(new PlayerEvent
-                    {
-                        Code = PlayerEventCode.Ready,
-                        PlayerId = cpuPlayerId,
-                        Tick = timer.NowTick,
-                    });
-                }
+                return;
             }
 
             // オンラインモードならイベントをRPCで送信

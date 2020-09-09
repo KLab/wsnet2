@@ -214,9 +214,9 @@ namespace Sample.Logic
         InGame,
 
         /// <summary>
-        /// ゴール演出 プレイヤーの準備完了を待っている
+        /// ゲーム終了 プレイヤーの退室を待っている
         /// </summary>
-        Goal,
+        End,
     }
 
     /// <summary>
@@ -584,7 +584,7 @@ namespace Sample.Logic
                     }
                 }
             }
-            else if (state.Code == GameStateCode.ReadyToStart || state.Code == GameStateCode.Goal)
+            else if (state.Code == GameStateCode.ReadyToStart)
             {
                 if (ev?.Code == PlayerEventCode.Ready)
                 {
@@ -633,6 +633,12 @@ namespace Sample.Logic
                     }
                 }
             }
+            else if (state.Code == GameStateCode.End)
+            {
+                return false;
+            }
+
+
 
             if (state.Code != GameStateCode.InGame)
             {
@@ -740,6 +746,15 @@ namespace Sample.Logic
                         ResetBallPosition(ball, new Random());
                         forceSync = true;
                     }
+                }
+            }
+        
+            // 100点とったら終わり
+            if (100 <= state.Score1 || 100 <= state.Score2)
+            {
+                if (IsMaster)
+                {
+                    state.Code = GameStateCode.End;
                 }
             }
 
