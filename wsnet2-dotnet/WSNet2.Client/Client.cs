@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WSNet2.Core;
@@ -37,7 +35,7 @@ namespace WSNet2.DotnetClient
 
     public class DotnetClient
     {
-        static Random rand = new Random();
+        static AuthDataGenerator authgen = new AuthDataGenerator();
 
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
@@ -46,42 +44,6 @@ namespace WSNet2.DotnetClient
                 cli.ProcessCallback();
                 await Task.Delay(1000);
             }
-        }
-
-        static void write64be(Span<byte> dst, long n)
-        {
-            dst[0] = (byte)((n >> 56) & 0xff);
-            dst[1] = (byte)((n >> 48) & 0xff);
-            dst[2] = (byte)((n >> 40) & 0xff);
-            dst[3] = (byte)((n >> 32) & 0xff);
-            dst[4] = (byte)((n >> 24) & 0xff);
-            dst[5] = (byte)((n >> 16) & 0xff);
-            dst[6] = (byte)((n >> 8) & 0xff);
-            dst[7] = (byte)(n & 0xff);
-        }
-
-        static string genAuthData(string key, string userId)
-        {
-            var l = Encoding.UTF8.GetByteCount(userId);
-
-            // userid, nonce 64bit, timestamp 64bit, hmac 256bit
-            var buf = new byte[l+8+8+32];
-
-            // userid
-            Encoding.UTF8.GetBytes(userId, 0, userId.Length, buf, 0);
-
-            // nonce
-            rand.NextBytes(new Span<byte>(buf, l, 8));
-
-            // timestamp
-            var t = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds();
-            write64be(new Span<byte>(buf, l+8, 8), t);
-
-            var mac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
-            int size;
-            mac.TryComputeHash(new Span<byte>(buf, 0, l+8+8), new Span<byte>(buf, l+8+8, 32), out size);
-
-            return Convert.ToBase64String(new Span<byte>(buf, l, 8+8+32));
         }
 
         static void RPCMessage(string senderId, StrMessage msg)
@@ -106,7 +68,7 @@ namespace WSNet2.DotnetClient
 
             Serialization.Register<StrMessage>(0);
 
-            var authData = genAuthData("testapppkey", userid);
+            var authData = authgen.Generate("testapppkey", userid);
 
             var client = new WSNet2Client(
                 "http://localhost:8080",
