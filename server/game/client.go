@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/xerrors"
 
+	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/pb"
 )
@@ -16,6 +17,12 @@ const (
 
 	// 部屋が終了した後で再接続が来た時もバッファに残ったデータを送信できるので一定時間残す
 	ClientWaitAfterClose = time.Second * 30
+
+	ClientAuthKeyLen = 32
+
+	// ClientAuthDataDeadline : クライアントのAuthDataの有効時間
+	// client側で接続時に毎回生成するので短くて良い
+	ClientAuthDataDeadline = time.Second * 10
 )
 
 type ClientID string
@@ -41,6 +48,8 @@ type Client struct {
 	peer     *Peer
 	waitPeer chan *Peer
 	newPeer  chan *Peer
+
+	authKey string
 
 	evErr chan error
 }
@@ -76,6 +85,8 @@ func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) (*Client, error) 
 		waitPeer: make(chan *Peer, 1),
 		newPeer:  make(chan *Peer, 1),
 
+		authKey: RandomHex(ClientAuthKeyLen),
+
 		evErr: make(chan error),
 	}
 
@@ -89,6 +100,10 @@ func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) (*Client, error) 
 
 func (c *Client) ID() ClientID {
 	return ClientID(c.Id)
+}
+
+func (c *Client) ValidAuthData(authData string) error {
+	return auth.ValidAuthData(authData, c.authKey, c.Id, time.Now().Add(-ClientAuthDataDeadline))
 }
 
 // MsgLoop goroutine.

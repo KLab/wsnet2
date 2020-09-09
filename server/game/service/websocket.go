@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,7 +17,6 @@ import (
 
 	"wsnet2/game"
 	"wsnet2/log"
-	"wsnet2/pb"
 )
 
 const (
@@ -104,16 +104,6 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := &pb.AuthToken{
-		Nonce: r.Header.Get("X-Wsnet-Nonce"),
-		Hash:  r.Header.Get("X-Wsnet-Hash"),
-	}
-	if !repo.ValidAuthToken(roomId, clientId, token) {
-		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, nonce=%v, hash=%v", roomId, clientId, token.Nonce, token.Hash)
-		http.Error(w, "Unauthorized", 401)
-		return
-	}
-
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {
 		log.Debugf("WSHandler.HandleRoom: GetClient error: %v", err)
@@ -122,6 +112,16 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Debugf("client: %v", cli)
+
+	var authData string
+	if ad := r.Header.Get("Authorization"); strings.HasPrefix(ad, "Bearer ") {
+		authData = ad[len("Bearer "):]
+	}
+	if err := cli.ValidAuthData(authData); err != nil {
+		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, authdata=%v", roomId, clientId, authData)
+		http.Error(w, "Unauthorized", 401)
+		return
+	}
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()

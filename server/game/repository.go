@@ -16,7 +16,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 
-	"wsnet2/auth"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -101,28 +100,6 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 	return repos, nil
 }
 
-func issueAuthToken(userId, key string) (*pb.AuthToken, error) {
-	nonce, err := auth.GenerateNonce()
-	if err != nil {
-		return nil, err
-	}
-	return &pb.AuthToken{
-		Nonce: nonce,
-		Hash:  auth.CalculateHexHMAC([]byte(key), userId, nonce),
-	}, nil
-}
-
-func (repo *Repository) ValidAuthToken(roomId, userId string, token *pb.AuthToken) bool {
-	room, err := repo.GetRoom(roomId)
-	if err != nil {
-		return false
-	}
-	if !auth.ValidHexHMAC(token.Hash, []byte(room.key), userId, token.Nonce) {
-		return false
-	}
-	return true
-}
-
 func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
@@ -162,12 +139,6 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		return nil, xerrors.Errorf("CreateRoom timeout or context done: room=%v", room.ID())
 	}
 
-	token, err := issueAuthToken(master.Id, room.key)
-	if err != nil {
-		tx.Rollback()
-		return nil, xerrors.Errorf("CreateRoom issue auth token failed: %w", err)
-	}
-
 	cli := joined.Client
 
 	repo.mu.Lock()
@@ -182,7 +153,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	return &pb.JoinedRoomRes{
 		RoomInfo: joined.Room,
 		Players:  joined.Players,
-		Token:    token,
+		AuthKey:  cli.authKey,
 		MasterId: string(joined.MasterId),
 		Deadline: uint32(joined.Deadline / time.Second),
 	}, nil
@@ -224,10 +195,6 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 		return nil, xerrors.Errorf("JoinRoom timeout or context done: room=%v", room.ID())
 	}
 
-	token, err := issueAuthToken(client.Id, room.key)
-	if err != nil {
-		return nil, xerrors.Errorf("JoinRoom issue auth token failed: %w", err)
-	}
 	cli := joined.Client
 
 	repo.mu.Lock()
@@ -240,7 +207,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	return &pb.JoinedRoomRes{
 		RoomInfo: joined.Room,
 		Players:  joined.Players,
-		Token:    token,
+		AuthKey:  cli.authKey,
 		MasterId: string(joined.MasterId),
 		Deadline: uint32(joined.Deadline / time.Second),
 	}, nil

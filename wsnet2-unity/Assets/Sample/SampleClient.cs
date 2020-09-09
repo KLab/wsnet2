@@ -35,30 +35,11 @@ public class SampleClient : MonoBehaviour
     }
 
     WSNet2Client cli;
+    AuthDataGenerator authgen = new AuthDataGenerator();
 
     void OnStrMsgRPC(string sender, StrMessage msg)
     {
         Debug.Log("OnStrMsgRPC["+sender+"]: "+msg);
-    }
-
-
-    AuthData genAuthData(string key, string userid)
-    {
-        var auth = new AuthData();
-
-        auth.Timestamp = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds().ToString();
-
-        var rng = new RNGCryptoServiceProvider();
-        var nbuf = new byte[8];
-        rng.GetBytes(nbuf);
-        auth.Nonce = BitConverter.ToString(nbuf).Replace("-", "").ToLower();
-
-        var str = userid + auth.Timestamp + auth.Nonce;
-        var hmac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
-        var hash = hmac.ComputeHash(Encoding.ASCII.GetBytes(str));
-        auth.Hash = BitConverter.ToString(hash).Replace("-", "").ToLower();
-
-        return auth;
     }
 
     // Start is called before the first frame update
@@ -71,7 +52,7 @@ public class SampleClient : MonoBehaviour
             "http://localhost:8080",
             "testapp",
             userid,
-            genAuthData("testapppkey", userid));
+            authgen.Generate("testapppkey", userid));
 
         var pubProps = new Dictionary<string, object>(){
             {"aaa", "public"},
