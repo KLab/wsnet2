@@ -11,6 +11,10 @@ import (
 	"golang.org/x/xerrors"
 )
 
+const (
+	AllowedTimeGain = time.Second * 10
+)
+
 func ValidHMAC(mac, key []byte, args ...[]byte) bool {
 	mac2 := CalculateHMAC(key, args...)
 	return hmac.Equal(mac, mac2)
@@ -43,6 +47,10 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 
 	unixtime := binary.BigEndian.Uint64(timedata)
 	timestamp := time.Unix(int64(unixtime), 0)
+
+	if timestamp.After(time.Now().Add(AllowedTimeGain)) {
+		return xerrors.Errorf("invalid authdata: invalid timestamp")
+	}
 
 	if timestamp.Before(expired) {
 		return xerrors.Errorf("invalid authdata: expired")

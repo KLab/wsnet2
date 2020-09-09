@@ -72,4 +72,13 @@ func TestAuthData(t *testing.T) {
 	if err == nil {
 		t.Fatalf("other key must be error")
 	}
+
+	data, err = GenerateAuthData(key, userId, now.Add(time.Second*30))
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+	err = ValidAuthData(data, key, userId, now)
+	if err == nil {
+		t.Fatalf("future timestamp must be error")
+	}
 }
