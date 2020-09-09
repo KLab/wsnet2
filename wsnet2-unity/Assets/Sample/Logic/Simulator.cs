@@ -149,8 +149,6 @@ namespace Sample.Logic
             MasterId = reader.ReadString();
             Player1 = reader.ReadString();
             Player2 = reader.ReadString();
-            // Player1Ready = reader.ReadBool();
-            // Player2Ready = reader.ReadBool();
             Player1Ready = reader.ReadInt();
             Player2Ready = reader.ReadInt();
             Score1 = reader.ReadInt();
@@ -439,6 +437,12 @@ namespace Sample.Logic
     /// </summary>
     public class GameSimulator
     {
+        /// <summary>
+        /// ゲームのステートを変更する権利があるか
+        /// </summary>
+        /// <value></value>
+        public bool IsMaster { get; private set; }
+
         public int BoardWidth { get; private set; }
         public int BoardHeight { get; private set; }
         public Vector2 Center { get; private set; }
@@ -446,6 +450,11 @@ namespace Sample.Logic
         public int MaxX { get; private set; }
         public int MinY { get; private set; }
         public int MaxY { get; private set; }
+
+        public GameSimulator(bool isMaster)
+        {
+            this.IsMaster = isMaster;
+        }
 
         /// <summary>
         /// stateを初期状態に設定する
@@ -523,6 +532,7 @@ namespace Sample.Logic
             state.Tick = tick;
             float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
             Logger.Debug("state:{0} tick:{1} dt:{2} ev:{3} {4}", state.Code.ToString(), tick, dt, ev?.PlayerId, ev?.Code.ToString());
+            bool inputUpdated = false;
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
@@ -548,9 +558,13 @@ namespace Sample.Logic
                     else if (string.IsNullOrEmpty(state.Player2))
                     {
                         state.Player2 = ev.PlayerId;
-                        // プレイヤーが集まったのでスタート準備へ
-                        state.Code = GameStateCode.ReadyToStart;
-                        return true;
+
+                        if (IsMaster)
+                        {
+                            // プレイヤーが集まったのでスタート準備へ
+                            state.Code = GameStateCode.ReadyToStart;
+                            return true;
+                        }
                     }
                 }
             }
@@ -570,11 +584,13 @@ namespace Sample.Logic
                 }
                 else if (state.Player1Ready == 1 && state.Player2Ready == 1)
                 {
-                    // 準備ができたのでゲーム開始
-                    StartNextGame(state);
-                    return true;
+                    if (IsMaster)
+                    {
+                        // 準備ができたのでゲーム開始
+                        StartNextGame(state);
+                        return true;
+                    }
                 }
-
             }
             else if (state.Code == GameStateCode.InGame)
             {
@@ -589,13 +605,15 @@ namespace Sample.Logic
                         case MoveInputCode.Down: dirY = 1; break;
                     }
 
-                    if (ev.PlayerId == state.Player1)
+                    if (ev.PlayerId == state.Player1 && state.Bar1.Direction.y != dirY)
                     {
                         state.Bar1.Direction.y = dirY;
+                        inputUpdated = true;
                     }
-                    if (ev.PlayerId == state.Player2)
+                    if (ev.PlayerId == state.Player2 && state.Bar2.Direction.y != dirY)
                     {
                         state.Bar2.Direction.y = dirY;
+                        inputUpdated = true;
                     }
                 }
             }
@@ -673,24 +691,30 @@ namespace Sample.Logic
             // 1Pのゴールに入っていたら2Pに得点
             if (state.Ball.Position.x < MinX + state.Ball.Radius)
             {
-                state.Code = GameStateCode.Goal;
-                state.Score2 += 1;
-                state.Player1Ready = 0;
-                state.Player2Ready = 0;
-                return true;
+                if (IsMaster)
+                {
+                    state.Code = GameStateCode.Goal;
+                    state.Score2 += 1;
+                    state.Player1Ready = 0;
+                    state.Player2Ready = 0;
+                    return true;
+                }
             }
 
             // 2Pのゴールに入っていたら1Pに得点
             if (MaxX + state.Ball.Radius < state.Ball.Position.x)
             {
-                state.Code = GameStateCode.Goal;
-                state.Score1 += 1;
-                state.Player1Ready = 0;
-                state.Player2Ready = 0;
-                return true;
+                if (IsMaster)
+                {
+                    state.Code = GameStateCode.Goal;
+                    state.Score1 += 1;
+                    state.Player1Ready = 0;
+                    state.Player2Ready = 0;
+                    return true;
+                }
             }
 
-            return false;
+            return inputUpdated;
         }
 
         /// <summary>
@@ -703,17 +727,20 @@ namespace Sample.Logic
         /// <param name="nowTick">最新のサーバ時刻</param>
         /// <param name="state">ゲームステート</param>
         /// <param name="events">プレイヤーの入力イベント</param>
-        /// <returns>Codeの更新が発生した場合 true</returns>
+        /// <returns>プレイヤーの入力や、ステートの変更が反映され、同期をすぐに行ったほうが良い場合 true</returns>
         public bool UpdateGame(long nowTick, GameState state, IEnumerable<PlayerEvent> events)
         {
+            bool forceSync = false;
             foreach (var ev in events)
             {
-                if (UpdateGameInternal(ev.Tick, state, ev))
-                {
-                    return true;
+                var prevState = state.Code;
+                forceSync |= UpdateGameInternal(ev.Tick, state, ev);
+                if (prevState != state.Code) {
+                    return forceSync;
                 }
             }
-            return UpdateGameInternal(nowTick, state, null);
+            forceSync |= UpdateGameInternal(nowTick, state, null);
+            return forceSync;
         }
     }
 }

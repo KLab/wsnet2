@@ -45,7 +45,7 @@ namespace WSNet2.Sample
                 this.userId = userId;
                 this.searchGroup = serachGroup;
                 rand = new Random();
-                sim = new GameSimulator();
+                sim = new GameSimulator(true);
                 timer = new GameTimer();
                 states = new List<GameState>();
                 events = new List<PlayerEvent>();
@@ -209,7 +209,17 @@ namespace WSNet2.Sample
                 var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick < now);
                 Console.WriteLine("State: {0}", state.Code.ToString());
                 Console.WriteLine("Update with {0} events", targetEvents.Count());
-                sim.UpdateGame(now, state, targetEvents);
+
+                var prevStateCode = state.Code;
+                bool forceSync = sim.UpdateGame(now, state, targetEvents);
+
+                if (prevStateCode != state.Code)
+                {
+                    // ゲームの状態が変わったので、それ以前の状態には復元させない
+                    // プレイヤーの入力も破棄する
+                    states.Clear();
+                    events.Clear();
+                }
                 states.Add(state);
 
                 if (50 < states.Count)
@@ -221,13 +231,14 @@ namespace WSNet2.Sample
                     // 残ったもののうち一番古い State よりも古い PlayerEvent はもう復元に使えないので削除する.
                     long t = states[0].Tick;
                     int idx = events.FindIndex(ev => t < ev.Tick);
-                    if (idx != -1) {
+                    if (idx != -1)
+                    {
                         events.RemoveRange(0, idx);
                     }
                 }
 
                 // 0.1秒ごとにゲーム状態の同期メッセージを送信する
-                if (/* newEventExist || */ 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
+                if (forceSync || 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
                 {
                     room.RPC(RPCSyncServerTick, timer.NowTick);
                     room.RPC(RPCSyncGameState, state);

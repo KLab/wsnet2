@@ -109,12 +109,12 @@ namespace Sample
 
             moveInput.Enable();
 
-            simulator = new GameSimulator();
+            isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
+            simulator = new GameSimulator(!isOnlineMode);
             state = new GameState();
             timer = new GameTimer();
             events = new List<PlayerEvent>();
             simulator.Init(state);
-            isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
         }
 
         // Start is called before the first frame update
