@@ -122,7 +122,7 @@ namespace Sample.Logic
         /// <summary>
         /// ボールの状態
         /// </summary>
-        public Ball Ball;
+        public List<Ball> Balls;
 
         public void Serialize(SerialWriter writer)
         {
@@ -138,7 +138,7 @@ namespace Sample.Logic
             writer.Write(Score2);
             writer.Write(Bar1);
             writer.Write(Bar2);
-            writer.Write(Ball);
+            writer.Write(Balls);
         }
 
         public void Deserialize(SerialReader reader, int len)
@@ -155,7 +155,7 @@ namespace Sample.Logic
             Score2 = reader.ReadInt();
             Bar1 = reader.ReadObject(Bar1);
             Bar2 = reader.ReadObject(Bar2);
-            Ball = reader.ReadObject(Ball);
+            Balls = reader.ReadList(Balls);
         }
 
         public GameState Copy()
@@ -173,7 +173,11 @@ namespace Sample.Logic
             o.Score2 = Score2;
             o.Bar1 = Bar1.Copy();
             o.Bar2 = Bar2.Copy();
-            o.Ball = Ball.Copy();
+            o.Balls = new List<Ball>();
+            foreach (var ball in Balls)
+            {
+                o.Balls.Add(ball.Copy());
+            }
             return o;
         }
     }
@@ -480,7 +484,25 @@ namespace Sample.Logic
             state.Score2 = 0;
             state.Bar1 = new Bar();
             state.Bar2 = new Bar();
-            state.Ball = new Ball();
+            state.Balls = new List<Ball>();
+            for (int i = 0; i < 22; ++i)
+            {
+                state.Balls.Add(new Ball());
+            }
+        }
+
+        void ResetBallPosition(Ball ball)
+        {
+            var rnd = new Random();
+            var x = (double)rnd.Next(-1000, 1000);
+            var y = (double)rnd.Next(-100, 100);
+            var s = Math.Sqrt(x * x + y * y);
+            ball.Position.x = 0;
+            ball.Position.y = 0;
+            ball.Direction.x = (float)(x / s);
+            ball.Direction.y = (float)(y / s);
+            ball.Speed = 600f + (float)(100 * rnd.NextDouble());
+            ball.Radius = 10;
         }
 
         void ResetPositions(GameState state)
@@ -497,16 +519,10 @@ namespace Sample.Logic
             state.Bar2.Position.y = 0;
             state.Bar2.Speed = 400f;
 
-            var rnd = new Random();
-            var x = (double)rnd.Next(-1000, 1000);
-            var y = (double)rnd.Next(-100, 100);
-            var s = Math.Sqrt(x * x + y * y);
-            state.Ball.Position.x = 0;
-            state.Ball.Position.y = 0;
-            state.Ball.Direction.x = (float)(x / s);
-            state.Ball.Direction.y = (float)(y / s);
-            state.Ball.Speed = 600f;
-            state.Ball.Radius = 10;
+            foreach (var ball in state.Balls)
+            {
+                ResetBallPosition(ball);
+            }
         }
 
 
@@ -532,7 +548,7 @@ namespace Sample.Logic
             state.Tick = tick;
             float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
             Logger.Debug("state:{0} tick:{1} dt:{2} ev:{3} {4}", state.Code.ToString(), tick, dt, ev?.PlayerId, ev?.Code.ToString());
-            bool inputUpdated = false;
+            bool forceSync = false;
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
@@ -608,12 +624,12 @@ namespace Sample.Logic
                     if (ev.PlayerId == state.Player1 && state.Bar1.Direction.y != dirY)
                     {
                         state.Bar1.Direction.y = dirY;
-                        inputUpdated = true;
+                        forceSync = true;
                     }
                     if (ev.PlayerId == state.Player2 && state.Bar2.Direction.y != dirY)
                     {
                         state.Bar2.Direction.y = dirY;
-                        inputUpdated = true;
+                        forceSync = true;
                     }
                 }
             }
@@ -632,23 +648,33 @@ namespace Sample.Logic
             state.Bar2.Position.y = Math.Min(MaxY - state.Bar2.Height / 2, Math.Max(MinY + state.Bar2.Height / 2, state.Bar2.Position.y + state.Bar2.Direction.y * state.Bar2.Speed * dt));
 
             // ボールの移動
-            state.Ball.Position.x = state.Ball.Position.x + state.Ball.Direction.x * state.Ball.Speed * dt;
-            state.Ball.Position.y = state.Ball.Position.y + state.Ball.Direction.y * state.Ball.Speed * dt;
+            foreach (var ball in state.Balls)
+            {
+                ball.Position.x = ball.Position.x + ball.Direction.x * ball.Speed * dt;
+                ball.Position.y = ball.Position.y + ball.Direction.y * ball.Speed * dt;
+            }
 
             // ボールが上下の壁にあたってたら移動方向を反射
-            if (state.Ball.Position.y < MinY + state.Ball.Radius || state.Ball.Position.y > MaxY - state.Ball.Radius)
+            foreach (var ball in state.Balls)
             {
-                state.Ball.Direction.y *= -1;
+                if (ball.Position.y < MinY + ball.Radius || ball.Position.y > MaxY - ball.Radius)
+                {
+                    ball.Direction.y *= -1;
+                }
             }
 
             // ボールが壁にめり込んでいたら戻す
-            state.Ball.Position.y = Math.Min(MaxY - state.Ball.Radius, Math.Max(MinY + state.Ball.Radius, state.Ball.Position.y));
+            foreach (var ball in state.Balls)
+            {
+                ball.Position.y = Math.Min(MaxY - ball.Radius, Math.Max(MinY + ball.Radius, ball.Position.y));
+            }
 
             // 1Pのバーにボールが当たってたら反射
+            foreach (var ball in state.Balls)
             {
-                var bx = state.Ball.Position.x;
-                var by = state.Ball.Position.y;
-                var br = state.Ball.Radius;
+                var bx = ball.Position.x;
+                var by = ball.Position.y;
+                var br = ball.Radius;
                 var px = state.Bar1.Position.x;
                 var py = state.Bar1.Position.y;
                 var pw = state.Bar1.Width;
@@ -658,19 +684,20 @@ namespace Sample.Logic
                 {
                     if (py - ph / 2f <= by && py + ph / 2f >= by)
                     {
-                        if (state.Ball.Direction.x < 0)
+                        if (ball.Direction.x < 0)
                         {
-                            state.Ball.Direction.x *= -1;
+                            ball.Direction.x *= -1;
                         }
                     }
                 }
             }
 
             // 2Pのバーにボールが当たってたら反射
+            foreach (var ball in state.Balls)
             {
-                var bx = state.Ball.Position.x;
-                var by = state.Ball.Position.y;
-                var br = state.Ball.Radius;
+                var bx = ball.Position.x;
+                var by = ball.Position.y;
+                var br = ball.Radius;
                 var px = state.Bar2.Position.x;
                 var py = state.Bar2.Position.y;
                 var pw = state.Bar2.Width;
@@ -680,41 +707,43 @@ namespace Sample.Logic
                 {
                     if (py - ph / 2f <= by && py + ph / 2f >= by)
                     {
-                        if (state.Ball.Direction.x > 0)
+                        if (ball.Direction.x > 0)
                         {
-                            state.Ball.Direction.x *= -1;
+                            ball.Direction.x *= -1;
                         }
                     }
                 }
             }
 
             // 1Pのゴールに入っていたら2Pに得点
-            if (state.Ball.Position.x < MinX + state.Ball.Radius)
+            foreach (var ball in state.Balls)
             {
-                if (IsMaster)
+                if (ball.Position.x < MinX + ball.Radius)
                 {
-                    state.Code = GameStateCode.Goal;
-                    state.Score2 += 1;
-                    state.Player1Ready = 0;
-                    state.Player2Ready = 0;
-                    return true;
+                    if (IsMaster)
+                    {
+                        state.Score2 += 1;
+                        ResetBallPosition(ball);
+                        forceSync = true;
+                    }
                 }
             }
 
             // 2Pのゴールに入っていたら1Pに得点
-            if (MaxX + state.Ball.Radius < state.Ball.Position.x)
+            foreach (var ball in state.Balls)
             {
-                if (IsMaster)
+                if (MaxX + ball.Radius < ball.Position.x)
                 {
-                    state.Code = GameStateCode.Goal;
-                    state.Score1 += 1;
-                    state.Player1Ready = 0;
-                    state.Player2Ready = 0;
-                    return true;
+                    if (IsMaster)
+                    {
+                        state.Score1 += 1;
+                        ResetBallPosition(ball);
+                        forceSync = true;
+                    }
                 }
             }
 
-            return inputUpdated;
+            return forceSync;
         }
 
         /// <summary>
@@ -735,7 +764,8 @@ namespace Sample.Logic
             {
                 var prevState = state.Code;
                 forceSync |= UpdateGameInternal(ev.Tick, state, ev);
-                if (prevState != state.Code) {
+                if (prevState != state.Code)
+                {
                     return forceSync;
                 }
             }

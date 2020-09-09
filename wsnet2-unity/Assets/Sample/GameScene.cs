@@ -41,7 +41,7 @@ namespace Sample
 
         BarView bar1;
         BarView bar2;
-        BallView ball;
+        List<BallView> balls;
 
         BarView playerBar;
         BarView opponentBar;
@@ -101,11 +101,10 @@ namespace Sample
         {
             bar1 = Instantiate(barAsset);
             bar2 = Instantiate(barAsset);
-            ball = Instantiate(ballAsset);
+            balls = new List<BallView>();
 
             bar1.gameObject.SetActive(false);
             bar2.gameObject.SetActive(false);
-            ball.gameObject.SetActive(false);
 
             moveInput.Enable();
 
@@ -265,7 +264,6 @@ namespace Sample
                 {
                     bar1.gameObject.SetActive(true);
                     bar2.gameObject.SetActive(true);
-                    ball.gameObject.SetActive(true);
 
                     if (state.Player1 == myPlayerId)
                     {
@@ -355,8 +353,8 @@ namespace Sample
                 if (cpuBar != null)
                 {
                     MoveInputCode move = MoveInputCode.Stop;
-                    if (state.Ball.Position.y < cpuBar.Position.y) move = MoveInputCode.Up;
-                    if (state.Ball.Position.y > cpuBar.Position.y) move = MoveInputCode.Down;
+                    if (state.Balls[0].Position.y < cpuBar.Position.y) move = MoveInputCode.Up;
+                    if (state.Balls[0].Position.y > cpuBar.Position.y) move = MoveInputCode.Down;
 
                     events.Add(new PlayerEvent
                     {
@@ -373,7 +371,22 @@ namespace Sample
             {
                 bar1.UpdatePosition(state.Bar1);
                 bar2.UpdatePosition(state.Bar2);
-                ball.UpdatePosition(state.Ball);
+
+                // ボールの数を揃える
+                while (state.Balls.Count < balls.Count)
+                {
+                    Destroy(balls[balls.Count - 1].gameObject);
+                    balls.RemoveAt(balls.Count - 1);
+                }
+                while (balls.Count < state.Balls.Count)
+                {
+                    balls.Add(Instantiate(ballAsset));
+                }
+
+                for (int i = 0; i < state.Balls.Count; ++i)
+                {
+                    balls[i].UpdatePosition(state.Balls[i]);
+                }
             }
             events.Clear();
         }
