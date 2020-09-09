@@ -491,9 +491,8 @@ namespace Sample.Logic
             }
         }
 
-        void ResetBallPosition(Ball ball)
+        void ResetBallPosition(Ball ball, Random rnd)
         {
-            var rnd = new Random();
             var x = (double)rnd.Next(-1000, 1000);
             var y = (double)rnd.Next(-100, 100);
             var s = Math.Sqrt(x * x + y * y);
@@ -519,9 +518,10 @@ namespace Sample.Logic
             state.Bar2.Position.y = 0;
             state.Bar2.Speed = 400f;
 
+            var rnd = new Random();
             foreach (var ball in state.Balls)
             {
-                ResetBallPosition(ball);
+                ResetBallPosition(ball, rnd);
             }
         }
 
@@ -723,7 +723,7 @@ namespace Sample.Logic
                     if (IsMaster)
                     {
                         state.Score2 += 1;
-                        ResetBallPosition(ball);
+                        ResetBallPosition(ball, new Random());
                         forceSync = true;
                     }
                 }
@@ -737,7 +737,7 @@ namespace Sample.Logic
                     if (IsMaster)
                     {
                         state.Score1 += 1;
-                        ResetBallPosition(ball);
+                        ResetBallPosition(ball, new Random());
                         forceSync = true;
                     }
                 }

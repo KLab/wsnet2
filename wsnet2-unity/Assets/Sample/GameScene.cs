@@ -20,6 +20,16 @@ namespace Sample
         public Text roomText;
 
         /// <summary>
+        /// Player1側の文字
+        /// </summary>
+        public Text playerText1;
+
+        /// <summary>
+        /// Player2側の文字
+        /// </summary>
+        public Text playerText2;
+
+        /// <summary>
         /// ボールのアセット
         /// </summary>
         public BallView ballAsset;
@@ -219,6 +229,9 @@ namespace Sample
         void Update()
         {
             Debug.Log(state.Code);
+
+            playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}";
+            playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}";
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
