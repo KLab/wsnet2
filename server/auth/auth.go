@@ -4,39 +4,84 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
+	"encoding/binary"
+	"time"
+
+	"golang.org/x/xerrors"
 )
 
-func ValidHMAC(mac, key []byte, args ...string) bool {
+const (
+	AllowedTimeGain = time.Second * 10
+)
+
+func ValidHMAC(mac, key []byte, args ...[]byte) bool {
 	mac2 := CalculateHMAC(key, args...)
 	return hmac.Equal(mac, mac2)
 }
 
-func ValidHexHMAC(hm string, key []byte, args ...string) bool {
-	mac, err := hex.DecodeString(hm)
-	if err != nil {
-		return false
-	}
-	return ValidHMAC(mac, key, args...)
-}
-
-func CalculateHMAC(key []byte, args ...string) []byte {
-	mac := hmac.New(sha256.New, []byte(key))
+func CalculateHMAC(key []byte, args ...[]byte) []byte {
+	mac := hmac.New(sha256.New, key)
 	for _, arg := range args {
-		mac.Write([]byte(arg))
+		mac.Write(arg)
 	}
 	return mac.Sum(nil)
 }
 
-func CalculateHexHMAC(key []byte, args ...string) string {
-	return hex.EncodeToString(CalculateHMAC(key, args...))
+// ValidAuthData validates authData.
+// authData: base64 encoded [64bit nonce, 64bit timestamp, 256bit hmac]
+func ValidAuthData(authData, key, userId string, expired time.Time) error {
+	d, err := base64.StdEncoding.DecodeString(authData)
+	if err != nil {
+		return xerrors.Errorf("invalid authdata: %w", err)
+	}
+	if len(d) != 8+8+32 {
+		return xerrors.Errorf("invalid authdata: length=%v", len(d))
+	}
+
+	nonce, timedata, hmac := d[:8], d[8:16], d[16:]
+
+	if !ValidHMAC(hmac, []byte(key), []byte(userId), nonce, timedata) {
+		return xerrors.Errorf("invalid authdata: hmac mismatch")
+	}
+
+	unixtime := binary.BigEndian.Uint64(timedata)
+	timestamp := time.Unix(int64(unixtime), 0)
+
+	if timestamp.After(time.Now().Add(AllowedTimeGain)) {
+		return xerrors.Errorf("invalid authdata: invalid timestamp")
+	}
+
+	if timestamp.Before(expired) {
+		return xerrors.Errorf("invalid authdata: expired")
+	}
+
+	return nil
 }
 
-func GenerateNonce() (string, error) {
-	buf := make([]byte, 8)
-	n, err := rand.Read(buf)
+// GenerateAuthData generates base64 encoded authdata.
+func GenerateAuthData(key, userId string, now time.Time) (string, error) {
+	d := make([]byte, 8+8+32)
+
+	nonce := d[0:8]
+	n, err := rand.Read(nonce)
 	if err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(buf[:n]), nil
+	if n != len(nonce) {
+		return "", xerrors.Errorf("invalid nonce length %v", n)
+	}
+
+	// timestamp
+	timestamp := d[8:16]
+	binary.BigEndian.PutUint64(timestamp, uint64(now.Unix()))
+
+	// hmac
+	hmac := CalculateHMAC([]byte(key), []byte(userId), nonce, timestamp)
+	if len(hmac) != 32 {
+		return "", xerrors.Errorf("invalid hmac length %v", len(hmac))
+	}
+	copy(d[16:], hmac)
+
+	return base64.StdEncoding.EncodeToString(d), nil
 }

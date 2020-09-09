@@ -9,7 +9,7 @@ generate: install-go-tools $(pb.go)
 	go generate ./...
 
 clean:
-	$(RM) $(pb.go)
+	$(RM) pb/*.pb.go
 	$(RM) **/*_string.go
 
 test: generate

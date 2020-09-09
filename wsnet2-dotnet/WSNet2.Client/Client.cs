@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WSNet2.Core;
@@ -37,6 +35,8 @@ namespace WSNet2.DotnetClient
 
     public class DotnetClient
     {
+        static AuthDataGenerator authgen = new AuthDataGenerator();
+
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
             while(true){
@@ -44,26 +44,6 @@ namespace WSNet2.DotnetClient
                 cli.ProcessCallback();
                 await Task.Delay(1000);
             }
-        }
-
-        static AuthData genAuthData(string key, string userid)
-        {
-            var auth = new AuthData();
-
-            auth.Timestamp = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds().ToString();
-
-
-            var rng = new RNGCryptoServiceProvider();
-            var nbuf = new byte[8];
-            rng.GetBytes(nbuf);
-            auth.Nonce = BitConverter.ToString(nbuf).Replace("-", "").ToLower();
-
-            var str = userid + auth.Timestamp + auth.Nonce;
-            var hmac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
-            var hash = hmac.ComputeHash(Encoding.ASCII.GetBytes(str));
-            auth.Hash = BitConverter.ToString(hash).Replace("-", "").ToLower();
-
-            return auth;
         }
 
         static void RPCMessage(string senderId, StrMessage msg)
@@ -88,7 +68,7 @@ namespace WSNet2.DotnetClient
 
             Serialization.Register<StrMessage>(0);
 
-            var authData = genAuthData("testapppkey", userid);
+            var authData = authgen.Generate("testapppkey", userid);
 
             var client = new WSNet2Client(
                 "http://localhost:8080",
@@ -215,16 +195,42 @@ namespace WSNet2.DotnetClient
                         continue;
                     }
 
+                    if (str=="pause")
+                    {
+                        room.Pause();
+                        continue;
+                    }
+                    if (str=="restart")
+                    {
+                        room.Restart();
+                        continue;
+                    }
+
                     if (str.StartsWith("switchmaster "))
                     {
                         var newMaster = str.Substring("switchmaster ".Length);
                         Console.WriteLine($"switch master to {newMaster}");
                         try{
-                            room.SwitchMaster(room.Players[newMaster]);
+                            room.SwitchMaster(
+                                room.Players[newMaster],
+                                (t, id) => Console.WriteLine($"SwitchMaster({id}) error: {t}"));
                         }
                         catch(Exception e)
                         {
                             Console.WriteLine($"switch master error: {e.Message}");
+                        }
+                        continue;
+                    }
+
+                    if (str.StartsWith("kick "))
+                    {
+                        var target = str.Substring("kick ".Length);
+                        Console.WriteLine($"kick {target}");
+                        try{
+                            room.Kick(room.Players[target]);
+                        }
+                        catch(Exception e){
+                            Console.WriteLine($"kick error: {e.Message}");
                         }
                         continue;
                     }
@@ -246,7 +252,33 @@ namespace WSNet2.DotnetClient
                                 {"private-modify", strs[2]},
                             };
                         }
-                        room.ChangeRoomProperty(joinable: joinable, clientDeadline: deadline, publicProps: pubProps, privateProps: privProps);
+                        room.ChangeRoomProperty(
+                            joinable: joinable,
+                            clientDeadline: deadline,
+                            publicProps: pubProps,
+                            privateProps: privProps,
+                            onErrorResponse: (t,v,j,w,sg,mp,cd,pub,priv) => {
+                                var f = !v.HasValue ? "-" : v.Value ? "V" : "x";
+                                f += !j.HasValue ? "-" : j.Value ? "J" : "x";
+                                f += !w.HasValue ? "-" : w.Value ? "W" : "x";
+                                var pubp = "";
+                                if (pub != null)
+                                {
+                                    foreach (var kv in pub)
+                                    {
+                                        pubp += $"{kv.Key}:{kv.Value},";
+                                    }
+                                }
+                                var prip = "";
+                                if (priv != null)
+                                {
+                                    foreach (var kv in priv)
+                                    {
+                                        prip += $"{kv.Key}:{kv.Value},";
+                                    }
+                                }
+                                Console.WriteLine($"OnRoomPropertyChanged {t}: flg={f} sg={sg} mp={mp} cd={cd} pub={pubp} priv={prip}");
+                            });
                         continue;
                     }
 
@@ -275,7 +307,7 @@ namespace WSNet2.DotnetClient
                             var ids = room.Players.Keys.ToArray();
                             var target = ids[rand.Next(ids.Length)];
                             Console.WriteLine($"rpc to {target}: {str}");
-                            room.RPC(RPCString, str, target);
+                            room.RPC(RPCString, str, target, "nobody");
                             break;
                         case 2:
                             Console.WriteLine($"rpc to all: {str}");

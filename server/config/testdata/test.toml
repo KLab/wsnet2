@@ -7,4 +7,11 @@ dbname = "wsnet2"
 [Game]
 hostname = "wsnetgame.localhost"
 retry_count = 3
-heartbeat_interval = 10
+heartbeat_interval = "10s"
+
+[Lobby]
+hostname = "wsnetlobby.localhost"
+net = "tcp"
+port = 8080
+valid_heartbeat = "30s"
+authdata_expire = "10s"

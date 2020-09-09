@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"golang.org/x/xerrors"
@@ -48,7 +49,7 @@ type GameConf struct {
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
 
-	HeartBeatInterval int `toml:"heartbeat_interval"`
+	HeartBeatInterval Duration `toml:"heartbeat_interval"`
 }
 
 type LobbyConf struct {
@@ -60,7 +61,17 @@ type LobbyConf struct {
 	Loglevel uint32 `toml:"loglevel"`
 
 	// ValidHeartBeat : HeartBeatの有効期間
-	ValidHeartBeat int64 `toml:"valid_heartbeat"`
+	ValidHeartBeat Duration `toml:"valid_heartbeat"`
+
+	AuthDataExpire Duration `toml:"authdata_expire"`
+}
+
+type Duration time.Duration
+
+func (d *Duration) UnmarshalText(text []byte) error {
+	td, err := time.ParseDuration(string(text))
+	*d = Duration(td)
+	return err
 }
 
 func Load(conffile string) (*Config, error) {
@@ -74,11 +85,12 @@ func Load(conffile string) (*Config, error) {
 			DefaultDeadline:   5,
 			DefaultLoglevel:   2,
 
-			HeartBeatInterval: 2,
+			HeartBeatInterval: Duration(2 * time.Second),
 		},
 		Lobby: LobbyConf{
-			ValidHeartBeat: 5,
+			ValidHeartBeat: Duration(5 * time.Second),
 			Loglevel:       2,
+			AuthDataExpire: Duration(time.Minute),
 		},
 	}
 

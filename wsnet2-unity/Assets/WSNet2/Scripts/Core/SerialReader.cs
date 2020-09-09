@@ -28,6 +28,13 @@ namespace WSNet2.Core
             this.readFuncs = readFuncs;
         }
 
+        public ArraySegment<byte> GetRest()
+        {
+            var start = arrSeg.Offset + pos;
+            var len = arrSeg.Count - start;
+            return new ArraySegment<byte>(arrSeg.Array, start, len);
+        }
+
         public bool ReadBool()
         {
             checkLength(1);

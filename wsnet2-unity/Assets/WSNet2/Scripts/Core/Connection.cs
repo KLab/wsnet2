@@ -28,6 +28,8 @@ namespace WSNet2.Core
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
+        static AuthDataGenerator authgen = new AuthDataGenerator();
+
         public MsgPool msgPool { get; private set; }
 
         Room room;
@@ -35,7 +37,7 @@ namespace WSNet2.Core
         string clientId;
 
         Uri uri;
-        AuthToken token;
+        string authKey;
         int pingInterval;
         CancellationTokenSource pingerDelayCanceller;
 
@@ -55,7 +57,7 @@ namespace WSNet2.Core
             this.appId = joined.roomInfo.appId;
             this.clientId = clientId;
             this.uri = new Uri(joined.url);
-            this.token = joined.token;
+            this.authKey = joined.authKey;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
             this.reconnection = 0;
@@ -177,10 +179,10 @@ namespace WSNet2.Core
         private async Task<ClientWebSocket> Connect(CancellationToken ct)
         {
             var ws = new ClientWebSocket();
+            var authdata = authgen.Generate(authKey, clientId);
+            ws.Options.SetRequestHeader("Authorization", "Bearer " + authdata);
             ws.Options.SetRequestHeader("X-Wsnet-App", appId);
             ws.Options.SetRequestHeader("X-Wsnet-User", clientId);
-            ws.Options.SetRequestHeader("X-Wsnet-Nonce", token.nonce);
-            ws.Options.SetRequestHeader("X-Wsnet-Hash", token.hash);
             ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
 
             await ws.ConnectAsync(uri, ct);
