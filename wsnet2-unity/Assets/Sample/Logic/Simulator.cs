@@ -547,7 +547,7 @@ namespace Sample.Logic
             long prevTick = state.Tick;
             state.Tick = tick;
             float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
-            Logger.Debug("state:{0} tick:{1} dt:{2} ev:{3} {4}", state.Code.ToString(), tick, dt, ev?.PlayerId, ev?.Code.ToString());
+            // Logger.Debug("state:{0} tick:{1} dt:{2} ev:{3} {4}", state.Code.ToString(), tick, dt, ev?.PlayerId, ev?.Code.ToString());
             bool forceSync = false;
 
             if (state.Code == GameStateCode.WaitingGameMaster)
