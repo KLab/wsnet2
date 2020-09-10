@@ -3,6 +3,9 @@ using MessagePack;
 
 namespace WSNet2.Core
 {
+    /// <summary>
+    ///   部屋プロパティのマッチ条件クエリ
+    /// </summary>
     public class Query
     {
         public enum Op : byte
@@ -39,6 +42,14 @@ namespace WSNet2.Core
 
         static SerialWriter writer = Serialization.NewWriter(64);
 
+        /// <summary>
+        ///   マッチ条件リスト
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     二重配列：外側=OR結合、内側＝AND結合
+        ///   </para>
+        /// </remarks>
         internal List<List<Condition>> condsList;
 
         public Query()
@@ -49,8 +60,55 @@ namespace WSNet2.Core
             };
         }
 
+        /// <summary>
+        ///   queriesをAND結合して追加する
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     (A+B).And((C+D),(E+F)) = (A+B)*((C+D)*(E+F)) = (ACE+ACF+ADE+ADF+BCE+BCF+BDE+BDF)
+        ///   </para>
+        /// </remarks>
+        public Query And(params Query[] queries)
+        {
+            if (queries == null || queries.Length == 0)
+            {
+                return this;
+            }
+
+            foreach (var q in queries)
+            {
+                var cslist = condsList;
+                condsList = new List<List<Condition>>();
+
+                foreach (var cs in  cslist)
+                {
+                    foreach (var qcs in q.condsList)
+                    {
+                        var ncs = new List<Condition>(cs);
+                        ncs.AddRange(qcs);
+                        condsList.Add(ncs);
+                    }
+                }
+            }
+
+            return this;
+        }
+
+        /// <summary>
+        ///   queriesをOR結合して追加する
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     (A+B).Or((C+D),(E+F)) = (A+B)*((C+D)+(E+F)) = (AC+AD+AE+AF+BC+BD+BE+BF)
+        ///   </para>
+        /// </remarks>
         public Query Or(params Query[] queries)
         {
+            if (queries == null || queries.Length == 0)
+            {
+                return this;
+            }
+
             var cslist = condsList;
             condsList = new List<List<Condition>>();
 
@@ -60,8 +118,7 @@ namespace WSNet2.Core
                 {
                     foreach (var qcs in q.condsList)
                     {
-                        var ncs = new List<Condition>();
-                        ncs.AddRange(cs);
+                        var ncs = new List<Condition>(cs);
                         ncs.AddRange(qcs);
                         condsList.Add(ncs);
                     }
@@ -76,13 +133,31 @@ namespace WSNet2.Core
             and(new Condition(key, Op.Equal, serialize(val)));
             return this;
         }
-
         public Query Not(string key, int val)
         {
             and(new Condition(key, Op.Not, serialize(val)));
             return this;
         }
-
+        public Query LessThan(string key, int val)
+        {
+            and(new Condition(key, Op.LessThan, serialize(val)));
+            return this;
+        }
+        public Query LessEqual(string key, int val)
+        {
+            and(new Condition(key, Op.LessEqual, serialize(val)));
+            return this;
+        }
+        public Query GreaterThan(string key, int val)
+        {
+            and(new Condition(key, Op.GreaterThan, serialize(val)));
+            return this;
+        }
+        public Query GreaterEqual(string key, int val)
+        {
+            and(new Condition(key, Op.GreaterEqual, serialize(val)));
+            return this;
+        }
         public Query Between(string key, int min, int max)
         {
             and(new Condition(key, Op.GreaterEqual, serialize(min)));
@@ -96,14 +171,11 @@ namespace WSNet2.Core
             and(new Condition(key, Op.Equal, serialize(val)));
             return this;
         }
-
         public Query Not(string key, string val)
         {
             and(new Condition(key, Op.Not, serialize(val)));
             return this;
         }
-
-
 
         private void and(Condition cond)
         {
