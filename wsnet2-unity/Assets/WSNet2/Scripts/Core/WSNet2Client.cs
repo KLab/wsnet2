@@ -107,7 +107,7 @@ namespace WSNet2.Core
         {
             var param = new JoinParam(){
                 clientInfo = new ClientInfo(userId, clientProps),
-                queries = query.condsList,
+                queries = (query!=null) ? query.condsList : null,
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -126,7 +126,7 @@ namespace WSNet2.Core
         {
             var param = new JoinParam(){
                 clientInfo = new ClientInfo(userId, clientProps),
-                queries = query.condsList,
+                queries = (query!=null) ? query.condsList : null,
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -145,7 +145,7 @@ namespace WSNet2.Core
         {
             var param = new JoinParam(){
                 clientInfo = new ClientInfo(userId, clientProps),
-                queries = query.condsList,
+                queries = (query!=null) ? query.condsList : null,
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -163,7 +163,7 @@ namespace WSNet2.Core
         {
             var param = new JoinParam(){
                 clientInfo = new ClientInfo(userId),
-                queries = query.condsList,
+                queries = (query!=null) ? query.condsList : null,
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -181,7 +181,7 @@ namespace WSNet2.Core
         {
             var param = new JoinParam(){
                 clientInfo = new ClientInfo(userId),
-                queries = query.condsList,
+                queries = (query!=null) ? query.condsList : null,
             };
             var content = MessagePackSerializer.Serialize(param);
 
