@@ -101,12 +101,14 @@ namespace WSNet2.Core
         public void Join(
             string roomId,
             IDictionary<string, object> clientProps,
+            Query query,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new JoinParam();
-            param.clientInfo = new ClientInfo(userId, clientProps);
-
+            var param = new JoinParam(){
+                clientInfo = new ClientInfo(userId, clientProps),
+                queries = query.condsList,
+            };
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, onSuccess, onFailed));
@@ -115,17 +117,17 @@ namespace WSNet2.Core
         /// <summary>
         ///   部屋番号を指定して入室
         /// </summary>
-        /// <remarks>
-        ///   TODO: 検索クエリも渡せるようにする（案件側で細かい条件指定をしたい）
-        /// </remarks>
         public void Join(
             int number,
             IDictionary<string, object> clientProps,
+            Query query,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new JoinParam();
-            param.clientInfo = new ClientInfo(userId, clientProps);
+            var param = new JoinParam(){
+                clientInfo = new ClientInfo(userId, clientProps),
+                queries = query.condsList,
+            };
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, onSuccess, onFailed));
@@ -136,15 +138,15 @@ namespace WSNet2.Core
         /// </summary>
         public void RandomJoin(
             uint group,
-            PropQuery[][] queries,
+            Query query,
             IDictionary<string, object> clientProps,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            // todo: 検索クエリBuilderを提供する
-            var param = new JoinParam();
-            param.queries = queries;
-            param.clientInfo = new ClientInfo(userId, clientProps);
+            var param = new JoinParam(){
+                clientInfo = new ClientInfo(userId, clientProps),
+                queries = query.condsList,
+            };
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, onSuccess, onFailed));
@@ -155,12 +157,14 @@ namespace WSNet2.Core
         /// </summary>
         public void Watch(
             string roomId,
+            Query query,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new JoinParam();
-            param.clientInfo = new ClientInfo(userId);
-
+            var param = new JoinParam(){
+                clientInfo = new ClientInfo(userId),
+                queries = query.condsList,
+            };
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, onSuccess, onFailed));
@@ -171,12 +175,14 @@ namespace WSNet2.Core
         /// </summary>
         public void Watch(
             int number,
+            Query query,
             Func<Room, bool> onSuccess,
             Action<Exception> onFailed)
         {
-            var param = new JoinParam();
-            param.clientInfo = new ClientInfo(userId);
-
+            var param = new JoinParam(){
+                clientInfo = new ClientInfo(userId),
+                queries = query.condsList,
+            };
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, onSuccess, onFailed));
