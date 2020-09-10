@@ -13,7 +13,7 @@ namespace WSNet2.Sample
     public class Program
     {
 
-        const int MaxMasterClient = 10;
+        const int MaxMasterClient = 1;
 
         static void Main(string[] args)
         {

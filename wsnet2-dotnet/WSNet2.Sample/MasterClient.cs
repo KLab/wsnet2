@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,9 +18,11 @@ namespace WSNet2.Sample
         int searchGroup;
 
         Random rand;
+        GameTimer timer;
         GameSimulator sim;
-        GameState state;
+        List<GameState> states;
         List<PlayerEvent> events;
+        List<PlayerEvent> newEvents;
 
         /// <summary>
         /// 1クライアントとしてルームに参加してMasterClientとして振る舞う
@@ -42,10 +45,15 @@ namespace WSNet2.Sample
                 this.userId = userId;
                 this.searchGroup = serachGroup;
                 rand = new Random();
-                sim = new GameSimulator();
-                state = new GameState();
+                sim = new GameSimulator(true);
+                timer = new GameTimer();
+                states = new List<GameState>();
                 events = new List<PlayerEvent>();
+                newEvents = new List<PlayerEvent>();
+                var state = new GameState();
                 sim.Init(state);
+                state.Tick = timer.NowTick;
+                states.Add(state);
 
                 try
                 {
@@ -60,7 +68,7 @@ namespace WSNet2.Sample
                     }
                     else
                     {
-                        Console.WriteLine("({userId}) Serve Error: {0}", e);
+                        Console.WriteLine($"({userId}) Serve Error: {e}");
                     }
                 }
                 await Task.Delay(1000);
@@ -120,14 +128,18 @@ namespace WSNet2.Sample
 
             Console.WriteLine(userId + " joined " + room.Id);
 
+            var RPCSyncServerTick = new Action<string, long>((sender, tick) => { });
+
             // この順番は Unity実装と合わせる必要あり.
             room.RegisterRPC<GameState>(RPCSyncGameState);
             room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
+            room.RegisterRPC(RPCSyncServerTick);
             room.Restart();
 
-            var syncStart = DateTime.UtcNow;
-            var lastSync = syncStart;
-            var roomEmptySince = DateTime.MinValue;
+            long syncStart = timer.NowTick;
+            long lastSync = syncStart;
+            long gameEndTick = 0;
+            long roomEmptyTick = 0;
 
             while (true)
             {
@@ -137,17 +149,20 @@ namespace WSNet2.Sample
                 // ルーム Create したクライアントが Master を譲ってくれるはず
                 if (room.Master != room.Me)
                 {
-                    if (room.PublicProps.ContainsKey("gamemaster")) {
+                    if (room.PublicProps.ContainsKey("gamemaster"))
+                    {
                         // すでに別のMasterクライアントが入室していたら抜ける
                         var gm = room.PublicProps["gamemaster"].ToString();
                         Console.WriteLine($"gamemaster {gm}");
-                        if (gm != room.Me.Id) {
+                        if (gm != room.Me.Id)
+                        {
                             room.Leave();
                             break;
                         }
                     }
 
-                    foreach (var kv in room.PublicProps) {
+                    foreach (var kv in room.PublicProps)
+                    {
                         Console.WriteLine($"(pub) {kv.Key} : {kv.Value}");
                     }
 
@@ -155,34 +170,109 @@ namespace WSNet2.Sample
                     continue;
                 }
 
+                // 前回のループから今回までの間にやってきた PlayerEvent が newEvents に格納されている.
+                // 再計算可能なもののみを抽出する.
+                long oldestTick = timer.NowTick;
+                bool newEventExist = 0 < newEvents.Count;
+                if (newEventExist)
+                {
+                    foreach (var ev in newEvents)
+                    {
+                        if (states[0].Tick < ev.Tick)
+                        {
+                            events.Add(ev);
+                            oldestTick = Math.Min(oldestTick, ev.Tick);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Discard PlayerEvent: too past tick"); // TODO どうハンドルするべきか
+                        }
+                    }
+                    events.Sort((a, b) => a.Tick.CompareTo(b.Tick));
+                    newEvents.Clear();
+                }
+
+                // 再計算可能な直近の GameState を探しつつ、それよりも新しいものは破棄する.
+                while (oldestTick <= states[states.Count - 1].Tick)
+                {
+                    states.RemoveAt(states.Count - 1);
+                }
+
+                var state = states[states.Count - 1].Copy();
+
                 if (state.Code == GameStateCode.WaitingGameMaster)
                 {
                     state.Code = GameStateCode.WaitingPlayer;
                     state.MasterId = userId;
                 }
 
-                sim.UpdateGame(state, events);
-                events.Clear();
+                var now = timer.NowTick;
+                var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick < now);
+                Console.WriteLine("State: {0}", state.Code.ToString());
+                Console.WriteLine("Update with {0} events", targetEvents.Count());
 
-                var forceSync = false;
-                var now = DateTime.UtcNow;
+                var prevStateCode = state.Code;
+                bool forceSync = sim.UpdateGame(now, state, targetEvents);
+
+                if (prevStateCode != state.Code)
+                {
+                    // ゲームの状態が変わったので、それ以前の状態には復元させない
+                    // プレイヤーの入力も破棄する
+                    states.Clear();
+                    events.Clear();
+                    if (state.Code == GameStateCode.End)
+                    {
+                        gameEndTick = now;
+                    }
+                }
+                states.Add(state);
+
+                if (50 < states.Count)
+                {
+                    // 一番古い GameState を破棄する.
+                    // O(n) だが要素数少ないのでよいだろう
+                    states.RemoveAt(0);
+
+                    // 残ったもののうち一番古い State よりも古い PlayerEvent はもう復元に使えないので削除する.
+                    long t = states[0].Tick;
+                    int idx = events.FindIndex(ev => t < ev.Tick);
+                    if (idx != -1)
+                    {
+                        events.RemoveRange(0, idx);
+                    }
+                }
 
                 // 0.1秒ごとにゲーム状態の同期メッセージを送信する
-                if (forceSync || 100.0 <= now.Subtract(lastSync).TotalMilliseconds)
+                if (forceSync || 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
                 {
+                    room.RPC(RPCSyncServerTick, timer.NowTick);
                     room.RPC(RPCSyncGameState, state);
                     lastSync = now;
+                }
+
+                // ゲーム終了から一定時間経ったらプレイヤーをKickする
+                if (gameEndTick != 0)
+                {
+                    if (5000 <= new TimeSpan(now - gameEndTick).TotalMilliseconds)
+                    {
+                        foreach (var p in room.Players.Values)
+                        {
+                            if (p != room.Me) {
+                                room.Kick(p);
+                            }
+                        }
+                    }
                 }
 
                 // プレイヤーが誰もいなくなった状態が一定時間続いたら部屋から抜ける
                 if (room.Players.Count <= 1)
                 {
-                    if (roomEmptySince == DateTime.MinValue)
+                    if (roomEmptyTick == 0)
                     {
-                        roomEmptySince = now;
+                        roomEmptyTick = now;
                     }
 
-                    if (5000 <= now.Subtract(roomEmptySince).TotalMilliseconds)
+                    if (5000 <= new TimeSpan(now - roomEmptyTick).TotalMilliseconds)
                     {
                         room.Leave();
                         break;
@@ -190,7 +280,7 @@ namespace WSNet2.Sample
                 }
                 else
                 {
-                    roomEmptySince = DateTime.MaxValue;
+                    roomEmptyTick = 0;
                 }
 
                 await Task.Delay(16);
@@ -201,9 +291,9 @@ namespace WSNet2.Sample
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
         {
-            Console.WriteLine("RPCPlayerEvent from " + sender);
+            Console.WriteLine("RPCPlayerEvent sender:{0} Code:{1} ", sender, msg.Code);
             msg.PlayerId = sender;
-            events.Add(msg);
+            newEvents.Add(msg);
         }
 
         void RPCSyncGameState(string sender, GameState msg)
