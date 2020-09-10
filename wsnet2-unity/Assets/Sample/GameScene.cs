@@ -1,6 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 using WSNet2.Core;
 using Sample.Logic;
@@ -16,6 +19,16 @@ namespace Sample
         /// 画面背景の文字
         /// </summary>
         public Text roomText;
+
+        /// <summary>
+        /// Player1側の文字
+        /// </summary>
+        public Text playerText1;
+
+        /// <summary>
+        /// Player2側の文字
+        /// </summary>
+        public Text playerText2;
 
         /// <summary>
         /// ボールのアセット
@@ -39,13 +52,14 @@ namespace Sample
 
         BarView bar1;
         BarView bar2;
-        BallView ball;
+        List<BallView> balls;
 
         BarView playerBar;
         BarView opponentBar;
 
         GameSimulator simulator;
         GameState state;
+        GameTimer timer;
         List<PlayerEvent> events;
 
         bool isOnlineMode;
@@ -90,6 +104,7 @@ namespace Sample
             if (msg.MasterId == sender)
             {
                 state = msg;
+                events = events.Where(ev => state.Tick <= ev.Tick).ToList();
             }
         }
 
@@ -97,19 +112,19 @@ namespace Sample
         {
             bar1 = Instantiate(barAsset);
             bar2 = Instantiate(barAsset);
-            ball = Instantiate(ballAsset);
+            balls = new List<BallView>();
 
             bar1.gameObject.SetActive(false);
             bar2.gameObject.SetActive(false);
-            ball.gameObject.SetActive(false);
 
             moveInput.Enable();
 
-            simulator = new GameSimulator();
+            isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
+            simulator = new GameSimulator(!isOnlineMode);
             state = new GameState();
+            timer = new GameTimer();
             events = new List<PlayerEvent>();
             simulator.Init(state);
-            isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
         }
 
         // Start is called before the first frame update
@@ -139,7 +154,9 @@ namespace Sample
 
                 room.OnClosed += (p) =>
                 {
-                    RoomLog($"OnJoined: {p}");
+                    RoomLog($"OnClosed: {p}");
+                    WSNet2Runner.Instance.GameRoom = null;
+                    SceneManager.LoadScene("Title");
                 };
 
                 room.OnOtherPlayerJoined += (p) =>
@@ -175,10 +192,20 @@ namespace Sample
                     }
                 };
 
+
+                var RPCSyncServerTick = new Action<string, long>((sender, tick) =>
+                {
+                    if (sender == WSNet2Runner.Instance.GameRoom?.Master.Id)
+                    {
+                        timer.UpdateServerTick(tick);
+                    }
+                });
+
                 /// 使用するRPCを登録する
                 /// MasterClientと同じ順番で同じRPCを登録する必要がある
                 room.RegisterRPC<GameState>(RPCSyncGameState);
                 room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
+                room.RegisterRPC(RPCSyncServerTick);
                 room.Restart();
             }
 
@@ -186,14 +213,18 @@ namespace Sample
             {
                 Code = PlayerEventCode.Join,
                 PlayerId = myPlayerId,
+                Tick = timer.NowTick,
             });
 
             if (!isOnlineMode)
             {
+                // オフラインモードのときは WaitingPlayer から始める
+                state.Code = GameStateCode.WaitingPlayer;
                 events.Add(new PlayerEvent
                 {
                     Code = PlayerEventCode.Join,
                     PlayerId = cpuPlayerId,
+                    Tick = timer.NowTick,
                 });
             }
         }
@@ -201,6 +232,27 @@ namespace Sample
         void Update()
         {
             Debug.Log(state.Code);
+
+            playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}\n";
+            playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}\n";
+            if (state.Code == GameStateCode.End)
+            {
+                if (state.Score2 < state.Score1)
+                {
+                    playerText1.text += $"\n WIN";
+                    playerText2.text += $"\n LOSE";
+                }
+                else if (state.Score1 < state.Score2)
+                {
+                    playerText1.text += $"\n LOSE";
+                    playerText2.text += $"\n WIN";
+                }
+                else
+                {
+                    playerText1.text += $"\n DRAW";
+                    playerText2.text += $"\n DRAW";
+                }
+            }
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
@@ -236,6 +288,7 @@ namespace Sample
                     {
                         Code = PlayerEventCode.Join,
                         PlayerId = myPlayerId,
+                        Tick = timer.NowTick,
                     });
                 }
             }
@@ -245,7 +298,6 @@ namespace Sample
                 {
                     bar1.gameObject.SetActive(true);
                     bar2.gameObject.SetActive(true);
-                    ball.gameObject.SetActive(true);
 
                     if (state.Player1 == myPlayerId)
                     {
@@ -262,6 +314,7 @@ namespace Sample
                     {
                         Code = PlayerEventCode.Ready,
                         PlayerId = myPlayerId,
+                        Tick = timer.NowTick,
                     });
 
                     if (!isOnlineMode)
@@ -270,6 +323,7 @@ namespace Sample
                         {
                             Code = PlayerEventCode.Ready,
                             PlayerId = cpuPlayerId,
+                            Tick = timer.NowTick,
                         });
                     }
                 }
@@ -289,26 +343,14 @@ namespace Sample
                         Code = PlayerEventCode.Move,
                         PlayerId = myPlayerId,
                         MoveInput = move,
+                        Tick = timer.NowTick,
                     });
                 }
                 prevMoveInput = value;
             }
-            else if (state.Code == GameStateCode.Goal)
+            else if (state.Code == GameStateCode.End)
             {
-                events.Add(new PlayerEvent
-                {
-                    Code = PlayerEventCode.Ready,
-                    PlayerId = myPlayerId,
-                });
-
-                if (!isOnlineMode)
-                {
-                    events.Add(new PlayerEvent
-                    {
-                        Code = PlayerEventCode.Ready,
-                        PlayerId = cpuPlayerId,
-                    });
-                }
+                return;
             }
 
             // オンラインモードならイベントをRPCで送信
@@ -319,6 +361,7 @@ namespace Sample
                 {
                     WSNet2Runner.Instance.GameRoom.RPC(RPCPlayerEvent, ev);
                 }
+                simulator.UpdateGame(timer.NowTick, state, events.Where(ev => state.Tick <= ev.Tick));
             }
             else
             {
@@ -329,30 +372,42 @@ namespace Sample
                 if (cpuBar != null)
                 {
                     MoveInputCode move = MoveInputCode.Stop;
-                    if (state.Ball.Position.y < cpuBar.Position.y) move = MoveInputCode.Up;
-                    if (state.Ball.Position.y > cpuBar.Position.y) move = MoveInputCode.Down;
+                    if (state.Balls[0].Position.y < cpuBar.Position.y) move = MoveInputCode.Up;
+                    if (state.Balls[0].Position.y > cpuBar.Position.y) move = MoveInputCode.Down;
 
                     events.Add(new PlayerEvent
                     {
                         Code = PlayerEventCode.Move,
                         PlayerId = cpuPlayerId,
                         MoveInput = move,
+                        Tick = timer.NowTick,
                     });
                 }
-
-                simulator.UpdateGame(state, events);
+                simulator.UpdateGame(timer.NowTick, state, events);
             }
 
-            events.Clear();
-
-            // FIXME: オンラインモードだと同期するまでにズレが発生するはずなので、座標を補完する機能が必要.
-            // オンラインモード時もローカルでもシミュレータ動作させる?
             if (state.Code == GameStateCode.InGame)
             {
                 bar1.UpdatePosition(state.Bar1);
                 bar2.UpdatePosition(state.Bar2);
-                ball.UpdatePosition(state.Ball);
+
+                // ボールの数を揃える
+                while (state.Balls.Count < balls.Count)
+                {
+                    Destroy(balls[balls.Count - 1].gameObject);
+                    balls.RemoveAt(balls.Count - 1);
+                }
+                while (balls.Count < state.Balls.Count)
+                {
+                    balls.Add(Instantiate(ballAsset));
+                }
+
+                for (int i = 0; i < state.Balls.Count; ++i)
+                {
+                    balls[i].UpdatePosition(state.Balls[i]);
+                }
             }
+            events.Clear();
         }
     }
 }
