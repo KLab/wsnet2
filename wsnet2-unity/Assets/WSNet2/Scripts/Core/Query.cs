@@ -40,8 +40,6 @@ namespace WSNet2.Core
             }
         }
 
-        static SerialWriter writer = Serialization.NewWriter(64);
-
         /// <summary>
         ///   マッチ条件リスト
         /// </summary>
@@ -187,21 +185,23 @@ namespace WSNet2.Core
 
         private byte[] serialize(int val)
         {
+            var writer = Serialization.GetWriter();
             lock(writer)
             {
                 writer.Reset();
                 writer.Write(val);
-                return writer.ArraySegment().ToArray();
+                return writer.ToArray();
             }
         }
 
         private byte[] serialize(string val)
         {
+            var writer = Serialization.GetWriter();
             lock(writer)
             {
                 writer.Reset();
                 writer.Write(val);
-                return writer.ArraySegment().ToArray();
+                return writer.ToArray();
             }
         }
     }
