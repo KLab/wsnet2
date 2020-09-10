@@ -106,8 +106,8 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                clientInfo = new ClientInfo(userId, clientProps),
                 queries = (query!=null) ? query.condsList : null,
+                clientInfo = new ClientInfo(userId, clientProps),
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -125,8 +125,8 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                clientInfo = new ClientInfo(userId, clientProps),
                 queries = (query!=null) ? query.condsList : null,
+                clientInfo = new ClientInfo(userId, clientProps),
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -144,8 +144,8 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                clientInfo = new ClientInfo(userId, clientProps),
                 queries = (query!=null) ? query.condsList : null,
+                clientInfo = new ClientInfo(userId, clientProps),
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -162,8 +162,8 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                clientInfo = new ClientInfo(userId),
                 queries = (query!=null) ? query.condsList : null,
+                clientInfo = new ClientInfo(userId),
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -180,8 +180,8 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                clientInfo = new ClientInfo(userId),
                 queries = (query!=null) ? query.condsList : null,
+                clientInfo = new ClientInfo(userId),
             };
             var content = MessagePackSerializer.Serialize(param);
 
