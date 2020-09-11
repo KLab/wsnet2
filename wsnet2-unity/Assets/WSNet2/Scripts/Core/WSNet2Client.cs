@@ -106,7 +106,7 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                queries = (query!=null) ? query.condsList : null,
+                queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
             };
             var content = MessagePackSerializer.Serialize(param);
@@ -125,7 +125,7 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                queries = (query!=null) ? query.condsList : null,
+                queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
             };
             var content = MessagePackSerializer.Serialize(param);
@@ -144,7 +144,7 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                queries = (query!=null) ? query.condsList : null,
+                queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
             };
             var content = MessagePackSerializer.Serialize(param);
@@ -162,7 +162,7 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                queries = (query!=null) ? query.condsList : null,
+                queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
             };
             var content = MessagePackSerializer.Serialize(param);
@@ -180,7 +180,7 @@ namespace WSNet2.Core
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
-                queries = (query!=null) ? query.condsList : null,
+                queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
             };
             var content = MessagePackSerializer.Serialize(param);
