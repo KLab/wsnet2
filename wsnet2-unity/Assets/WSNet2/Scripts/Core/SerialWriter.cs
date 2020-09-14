@@ -43,6 +43,13 @@ namespace WSNet2.Core
             return new ArraySegment<byte>(buf, 0, pos);
         }
 
+        public byte[] ToArray()
+        {
+            var arr = new byte[pos];
+            Buffer.BlockCopy(buf, 0, arr, 0, pos);
+            return arr;
+        }
+
         /// <summary>
         /// Nullを書き込む
         /// </summary>

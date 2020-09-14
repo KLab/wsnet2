@@ -77,20 +77,9 @@ namespace WSNet2.Sample
 
         async Task ServeOne()
         {
-            var queries = new PropQuery[][]{
-                new PropQuery[] {
-                    new PropQuery{
-                        key = "game",
-                        op = OpType.Equal,
-                        val = WSNet2Helper.Serialize("pong"),
-                    },
-                    new PropQuery{
-                        key = "masterclient",
-                        op = OpType.Equal,
-                        val = WSNet2Helper.Serialize("waiting"),
-                    },
-                },
-            };
+            var query = new Query();
+            query.Equal("game", "pong");
+            query.Equal("masterclient", "waiting");
 
             var cts = new CancellationTokenSource();
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -107,7 +96,7 @@ namespace WSNet2.Sample
 
             client.RandomJoin(
                 (uint)searchGroup,
-                queries,
+                query,
                 props,
                 onJoined,
                 onFailed);
