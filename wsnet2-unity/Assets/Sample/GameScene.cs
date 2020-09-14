@@ -341,8 +341,8 @@ namespace Sample
                 if (value != prevMoveInput)
                 {
                     MoveInputCode move = MoveInputCode.Stop;
-                    if (0 < value) move = MoveInputCode.Up;
-                    if (value < 0) move = MoveInputCode.Down;
+                    if (0 < value) move = MoveInputCode.Down;
+                    if (value < 0) move = MoveInputCode.Up;
 
                     events.Add(new PlayerEvent
                     {

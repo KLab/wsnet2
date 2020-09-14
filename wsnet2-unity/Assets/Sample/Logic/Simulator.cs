@@ -618,8 +618,8 @@ namespace Sample.Logic
                     switch (ev.MoveInput)
                     {
                         case MoveInputCode.Stop: dirY = 0; break;
-                        case MoveInputCode.Up: dirY = -1; break;
-                        case MoveInputCode.Down: dirY = 1; break;
+                        case MoveInputCode.Up: dirY = 1; break;
+                        case MoveInputCode.Down: dirY = -1; break;
                     }
 
                     if (ev.PlayerId == state.Player1 && state.Bar1.Direction.y != dirY)

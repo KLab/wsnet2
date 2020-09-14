@@ -293,7 +293,7 @@ namespace WSNet2.Sample
                         events.Add(new PlayerEvent
                         {
                             Code = PlayerEventCode.Move,
-                            MoveInput = (MoveInputCode)rand.Next(0, 2),
+                            MoveInput = (MoveInputCode)rand.Next(0, 3),
                             PlayerId = userId,
                             Tick = now,
                         });
