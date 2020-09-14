@@ -59,9 +59,8 @@ namespace WSNet2.Sample
                 else if (runAs == "bot")
                 {
                     var userId = "bot" + rand.Next(1000, 9999).ToString();
-                    tasks[i] = Task.Run(async () =>
-                        await new BotClient().Serve(server, appId, pKey, searchGroup, userId));
-                    Thread.Sleep(1000);
+                    var bot = new BotClient();
+                    tasks[i] = bot.Serve(server, appId, pKey, searchGroup, userId);
                 }
             }
 

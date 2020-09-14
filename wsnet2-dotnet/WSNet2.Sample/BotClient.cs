@@ -58,7 +58,7 @@ namespace WSNet2.Sample
                 {
                     Console.WriteLine($"({userId}) Serve Error: {e}");
                 }
-                await Task.Delay((new Random().Next(10) + 10) * 1000);
+                await Task.Delay(1000);
             }
         }
 
@@ -192,7 +192,8 @@ namespace WSNet2.Sample
             var cts = new CancellationTokenSource();
 
             Exception closedError = null;
-            room.OnErrorClosed += (e) => {
+            room.OnErrorClosed += (e) =>
+            {
                 closedError = e;
             };
 
@@ -231,7 +232,8 @@ namespace WSNet2.Sample
 
                 Console.WriteLine("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
 
-                if (closedError != null) {
+                if (closedError != null)
+                {
                     Console.WriteLine($"Closed Error {closedError}");
                     break;
                 }
@@ -256,33 +258,32 @@ namespace WSNet2.Sample
                                 break;
                             }
                         }
+
+                        if (10000 <= new TimeSpan(timer.NowTick - syncStart).TotalMilliseconds)
+                        {
+                            Console.WriteLine("Waiting MasterClient timeout.");
+                            room.Leave();
+                            break;
+                        }
                     }
                 }
                 else if (state.Code == GameStateCode.WaitingPlayer)
                 {
-                    if (!joinSent)
+                    events.Add(new PlayerEvent
                     {
-                        events.Add(new PlayerEvent
-                        {
-                            Code = PlayerEventCode.Join,
-                            PlayerId = userId,
-                            Tick = timer.NowTick,
-                        });
-                        joinSent = true;
-                    }
+                        Code = PlayerEventCode.Join,
+                        PlayerId = userId,
+                        Tick = timer.NowTick,
+                    });
                 }
                 else if (state.Code == GameStateCode.ReadyToStart)
                 {
-                    if (!readySent)
+                    events.Add(new PlayerEvent
                     {
-                        events.Add(new PlayerEvent
-                        {
-                            Code = PlayerEventCode.Ready,
-                            PlayerId = userId,
-                            Tick = timer.NowTick,
-                        });
-                        readySent = true;
-                    }
+                        Code = PlayerEventCode.Ready,
+                        PlayerId = userId,
+                        Tick = timer.NowTick,
+                    });
                 }
                 else if (state.Code == GameStateCode.InGame)
                 {

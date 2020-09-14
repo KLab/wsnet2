@@ -547,7 +547,6 @@ namespace Sample.Logic
             long prevTick = state.Tick;
             state.Tick = tick;
             float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
-            // Logger.Debug("state:{0} tick:{1} dt:{2} ev:{3} {4}", state.Code.ToString(), tick, dt, ev?.PlayerId, ev?.Code.ToString());
             bool forceSync = false;
 
             if (state.Code == GameStateCode.WaitingGameMaster)
@@ -586,6 +585,7 @@ namespace Sample.Logic
             }
             else if (state.Code == GameStateCode.ReadyToStart)
             {
+
                 if (ev?.Code == PlayerEventCode.Ready)
                 {
                     // 1P, 2Pが Ready 入力を送ってくるのを待っている
@@ -598,7 +598,8 @@ namespace Sample.Logic
                         state.Player2Ready = 1;
                     }
                 }
-                else if (state.Player1Ready == 1 && state.Player2Ready == 1)
+
+                if (state.Player1Ready == 1 && state.Player2Ready == 1)
                 {
                     if (IsMaster)
                     {
@@ -748,7 +749,7 @@ namespace Sample.Logic
                     }
                 }
             }
-        
+
             // 100点とったら終わり
             if (100 <= state.Score1 || 100 <= state.Score2)
             {
