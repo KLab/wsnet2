@@ -39,7 +39,7 @@ namespace WSNet2
             WSNet2Client cli;
             if (clients.TryGetValue(key, out cli))
             {
-                cli.UpdateAuthData(authData);
+                cli.SetConnectionData(baseUri, authData);
                 return cli;
             }
 
