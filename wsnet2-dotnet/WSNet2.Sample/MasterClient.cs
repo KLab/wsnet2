@@ -75,8 +75,9 @@ namespace WSNet2.Sample
             }
         }
 
-        async Task ServeOne()
+        async Task<Room> JoinRandomRoom()
         {
+            Console.WriteLine($"({userId}) Trying to join random room");
             var queries = new PropQuery[][]{
                 new PropQuery[] {
                     new PropQuery{
@@ -105,12 +106,7 @@ namespace WSNet2.Sample
                 roomJoined.TrySetException(e);
             };
 
-            client.RandomJoin(
-                (uint)searchGroup,
-                queries,
-                props,
-                onJoined,
-                onFailed);
+            client.RandomJoin((uint)searchGroup, queries, props, onJoined, onFailed);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>
@@ -122,12 +118,19 @@ namespace WSNet2.Sample
                     await Task.Delay(100);
                 }
             });
-
             var room = await roomJoined.Task;
             cts.Token.ThrowIfCancellationRequested();
 
+            Console.WriteLine($"({userId}) Room joined {room.Id}");
+            return room;
+        }
+
+        async Task ServeOne()
+        {
+            var room = await JoinRandomRoom();
             Console.WriteLine(userId + " joined " + room.Id);
 
+            var cts = new CancellationTokenSource();
             var RPCSyncServerTick = new Action<string, long>((sender, tick) => { });
 
             // この順番は Unity実装と合わせる必要あり.

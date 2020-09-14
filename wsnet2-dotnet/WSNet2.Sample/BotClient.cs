@@ -222,8 +222,6 @@ namespace WSNet2.Sample
 
             long syncStart = timer.NowTick;
             long lastInputSent = syncStart;
-            bool joinSent = false;
-            bool readySent = false;
 
             while (true)
             {
