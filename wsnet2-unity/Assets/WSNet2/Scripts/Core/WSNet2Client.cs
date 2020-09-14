@@ -35,6 +35,14 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   AuthDataを更新する
+        /// </summary>
+        public void UpdateAuthData(string authData)
+        {
+            this.bearer = "Bearer " + authData;
+        }
+
+        /// <summary>
         ///   蓄積されたCallbackを処理する。
         /// </summary>
         /// <remarks>
@@ -57,6 +65,17 @@ namespace WSNet2.Core
                         rooms.RemoveAt(i);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        ///   すべての部屋から強制切断する
+        /// </summary>
+        public void ForceDisconnect()
+        {
+            foreach (var room in rooms)
+            {
+                room.ForceDisconnect();
             }
         }
 
