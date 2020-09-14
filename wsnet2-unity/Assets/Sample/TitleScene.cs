@@ -55,10 +55,10 @@ namespace Sample
         public void OnClickCreate()
         {
             Debug.Log("OnClickCreate");
-
             var pubProps = new Dictionary<string, object>(){
                 {"game", "pong"},
                 {"masterclient", "waiting"},
+                {"state", Logic.GameStateCode.WaitingGameMaster.ToString()},
             };
             var privProps = new Dictionary<string, object>(){
                 {"aaa", "private"},

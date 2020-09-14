@@ -182,13 +182,19 @@ namespace Sample
                 room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
                 {
                     RoomLog($"OnRoomPropertyChanged");
-                    foreach (var kv in publicProps)
+                    if (publicProps != null)
                     {
-                        Debug.LogFormat("(public) {0}:{1}", kv.Key, kv.Value.ToString());
+                        foreach (var kv in publicProps)
+                        {
+                            Debug.LogFormat("(public) {0}:{1}", kv.Key, kv.Value.ToString());
+                        }
                     }
-                    foreach (var kv in privateProps)
+                    if (privateProps != null)
                     {
-                        Debug.LogFormat("(private) {0}:{1}", kv.Key, kv.Value.ToString());
+                        foreach (var kv in privateProps)
+                        {
+                            Debug.LogFormat("(private) {0}:{1}", kv.Key, kv.Value.ToString());
+                        }
                     }
                 };
 
