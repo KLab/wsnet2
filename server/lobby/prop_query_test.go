@@ -1,8 +1,12 @@
 package lobby
 
 import (
+	"bytes"
 	"math"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/vmihailenco/msgpack/v4"
 
 	"wsnet2/binary"
 )
@@ -517,5 +521,37 @@ func TestPropQueriesMatch(t *testing.T) {
 		if actual := test.queries.match(props); actual != test.expected {
 			t.Fatalf("mismatch: %v %v, actual=%v, expected=%v", props, test, actual, test.expected)
 		}
+	}
+}
+
+func TestPropQueryMsgpack(t *testing.T) {
+	// mapでもarrayでもデコードできることを確認したかった（できた）
+	body, err := msgpack.Marshal(
+		[]interface{}{
+			[]interface{}{
+				[]interface{}{"key1", byte(OpEqual), []byte{byte(binary.TypeTrue)}},
+			},
+			[]interface{}{
+				// []interface{}{"key2", byte(OpNot), []byte{byte(binary.TypeByte), 0}},
+				map[string]interface{}{"Key": "key2", "Op": byte(OpNot), "Val": []byte{byte(binary.TypeByte), 0}},
+			},
+		})
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	var actual [][]PropQuery
+	err = msgpack.NewDecoder(bytes.NewReader(body)).UseJSONTag(true).Decode(&actual)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+
+	expect := [][]PropQuery{
+		{{"key1", OpEqual, []byte{byte(binary.TypeTrue)}}},
+		{{"key2", OpNot, []byte{byte(binary.TypeByte), 0}}},
+	}
+
+	if diff := cmp.Diff(actual, expect); diff != "" {
+		t.Fatalf("Unmarshal (-got +want)\n%s", diff)
 	}
 }

@@ -158,11 +158,12 @@ namespace WSNet2.DotnetClient
                 var number = int.Parse(args[0]);
                 if (args.Length == 1)
                 {
-                    client.Join(number, cliProps, onJoined, onFailed);
+                    client.Join(number, cliProps, null, onJoined, onFailed);
                 }
                 else
                 {
-                    client.Watch(number, onJoined, onFailed);
+                    var query = new Query().GreaterEqual("bbb", (int)20);
+                    client.Watch(number, query, onJoined, onFailed);
                 }
             }
 
@@ -171,7 +172,15 @@ namespace WSNet2.DotnetClient
             try
             {
                 var room = await roomJoined.Task;
-                Console.WriteLine($"joined room = {room.Id} [{room.Number}]");
+                var rp = "";
+                var rpp = "";
+                foreach (var kv in room.PublicProps){
+                    rp += $"{kv.Key}:{kv.Value},";
+                }
+                foreach (var kv in room.PrivateProps){
+                    rpp += $"{kv.Key}:{kv.Value},";
+                }
+                Console.WriteLine($"joined room = {room.Id} [{room.Number}]; pub[{rp}] priv[{rpp}]");
 
                 foreach (var p in room.Players){
                     var pp = $"  player {p.Key}: ";

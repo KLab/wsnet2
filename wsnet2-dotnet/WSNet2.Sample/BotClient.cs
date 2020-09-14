@@ -65,20 +65,9 @@ namespace WSNet2.Sample
         async Task<Room> JoinRandomRoom()
         {
             Console.WriteLine($"({userId}) Trying to join random room");
-            var queries = new PropQuery[][]{
-                new PropQuery[] {
-                    new PropQuery{
-                        key = "game",
-                        op = OpType.Equal,
-                        val = WSNet2Helper.Serialize("pong"),
-                    },
-                    new PropQuery{
-                        key = "state",
-                        op = OpType.Equal,
-                        val = WSNet2Helper.Serialize(GameStateCode.WaitingPlayer.ToString()),
-                    },
-                },
-            };
+            var query = new Query();
+            query.Equal("game", "pong");
+            query.Equal("state", GameStateCode.WaitingPlayer.ToString());
 
             var cts = new CancellationTokenSource();
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -93,7 +82,12 @@ namespace WSNet2.Sample
                 roomJoined.TrySetException(e);
             };
 
-            client.RandomJoin((uint)searchGroup, queries, props, onJoined, onFailed);
+            client.RandomJoin(
+                (uint)searchGroup,
+                query,
+                props,
+                onJoined,
+                onFailed);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>

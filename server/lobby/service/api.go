@@ -16,9 +16,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/auth"
-	"wsnet2/lobby"
 	"wsnet2/log"
-	"wsnet2/pb"
 )
 
 func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
@@ -120,11 +118,6 @@ func (sv *LobbyService) authUser(h header) error {
 	return nil
 }
 
-type CreateParam struct {
-	RoomOption pb.RoomOption
-	ClientInfo pb.ClientInfo
-}
-
 // 部屋を作成する
 // Method: POST
 // Path: /rooms
@@ -165,11 +158,6 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
 		return
 	}
-}
-
-type JoinParam struct {
-	Queries    []lobby.PropQueries
-	ClientInfo pb.ClientInfo
 }
 
 type JoinVars map[string]string
@@ -307,12 +295,6 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
 		return
 	}
-}
-
-type SearchParam struct {
-	SearchGroup uint32
-	Queries     []lobby.PropQueries
-	Limit       uint32
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {

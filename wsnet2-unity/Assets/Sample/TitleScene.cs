@@ -98,20 +98,13 @@ namespace Sample
                 {"userId", userIdInput.text},
             };
 
-            var queries = new PropQuery[][]{
-                new PropQuery[] {
-                    new PropQuery{
-                        key = "game",
-                        op = OpType.Equal,
-                        val = Logic.WSNet2Helper.Serialize("pong"),
-                    },
-                },
-            };
+            var query = new Query();
+            query.Equal("game", "pong");
 
             prepareWSNet2Client();
             WSNet2Runner.Instance.Client.RandomJoin(
                 SearchGroup,
-                queries,
+                query,
                 cliProps,
                 (room) =>
                 {
