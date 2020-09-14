@@ -85,9 +85,9 @@ namespace WSNet2.Sample
                         val = WSNet2Helper.Serialize("pong"),
                     },
                     new PropQuery{
-                        key = "masterclient",
+                        key = "state",
                         op = OpType.Equal,
-                        val = WSNet2Helper.Serialize("waiting"),
+                        val = WSNet2Helper.Serialize(GameStateCode.WaitingGameMaster.ToString()),
                     },
                 },
             };
@@ -150,29 +150,13 @@ namespace WSNet2.Sample
                 // ルーム Create したクライアントが Master を譲ってくれるはず
                 if (room.Master != room.Me)
                 {
-                    if (room.PublicProps.ContainsKey("gamemaster"))
-                    {
-                        // すでに別のMasterクライアントが入室していたら抜ける
-                        var gm = room.PublicProps["gamemaster"].ToString();
-                        if (gm != room.Me.Id)
-                        {
-                            room.Leave();
-                            break;
-                        }
-                    }
-
                     if ((string)room.PublicProps["state"] != GameStateCode.WaitingGameMaster.ToString())
                     {
                         room.Leave();
                         break;
                     }
 
-                    Console.WriteLine($"Waiting switch master");
-                    foreach (var kv in room.PublicProps)
-                    {
-                        Console.WriteLine($"(pub) {kv.Key} : {kv.Value}");
-                    }
-
+                    Console.WriteLine($"Waiting switch master from {room.Master.Id}");
                     await Task.Delay(1000);
                     continue;
                 }
@@ -216,10 +200,19 @@ namespace WSNet2.Sample
 
                 var now = timer.NowTick;
                 var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick <= now);
+                var tooFutureEvents = events.Where(ev => now < ev.Tick);
+
+                if (0 < tooFutureEvents.Count())
+                {
+                    foreach (var ev in tooFutureEvents)
+                    {
+                        Console.WriteLine("Too future Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
+                    }
+                }
 
                 if (0 < targetEvents.Count())
                 {
-                    Console.WriteLine("Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
+                    // Console.WriteLine("Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
                 }
 
                 var prevStateCode = state.Code;
@@ -233,11 +226,15 @@ namespace WSNet2.Sample
 
                 if (prevStateCode != state.Code)
                 {
+                    // ステートの更新が発生したので、以前の状態には戻さない
+                    states.Clear();
+
                     if (state.Code == GameStateCode.End)
                     {
                         gameEndTick = now;
                     }
                 }
+
                 states.Add(state);
 
                 if (50 < states.Count)

@@ -58,7 +58,7 @@ namespace WSNet2.Sample
                 {
                     Console.WriteLine($"({userId}) Serve Error: {e}");
                 }
-                await Task.Delay(1000);
+                await Task.Delay((new Random().Next(10) + 10) * 1000);
             }
         }
 
@@ -176,7 +176,7 @@ namespace WSNet2.Sample
             }
             catch (Exception e)
             {
-                Console.WriteLine($"({userId}) Failed to join room {e}");
+                // Console.WriteLine($"({userId}) Failed to join room {e}");
             }
 
             if (room == null)
@@ -190,6 +190,12 @@ namespace WSNet2.Sample
         {
             var room = await JoinOrCreateRoom();
             var cts = new CancellationTokenSource();
+
+            Exception closedError = null;
+            room.OnErrorClosed += (e) => {
+                closedError = e;
+            };
+
             var RPCSyncServerTick = new Action<string, long>((sender, tick) =>
             {
                 if (room.Master.Id == sender)
@@ -222,6 +228,13 @@ namespace WSNet2.Sample
             {
                 cts.Token.ThrowIfCancellationRequested();
                 client.ProcessCallback();
+
+                Console.WriteLine("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
+
+                if (closedError != null) {
+                    Console.WriteLine($"Closed Error {closedError}");
+                    break;
+                }
 
                 if (state.Code == GameStateCode.WaitingGameMaster)
                 {
@@ -294,11 +307,12 @@ namespace WSNet2.Sample
 
                 foreach (var ev in events)
                 {
+                    Console.WriteLine("send {0} to {1}", ev.Code, room.Master.Id);
                     room.RPC(RPCPlayerEvent, ev, new string[] { room.Master.Id });
                 }
                 events.Clear();
 
-                await Task.Delay(16);
+                await Task.Delay(100);
             }
 
             Console.WriteLine(userId + " left from " + room.Id);
