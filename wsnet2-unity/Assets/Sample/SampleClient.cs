@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
+using WSNet2;
 using WSNet2.Core;
 
 public class SampleClient : MonoBehaviour
@@ -48,7 +49,7 @@ public class SampleClient : MonoBehaviour
         Serialization.Register<StrMessage>(1);
 
         var userid = "id0001";
-        cli = new WSNet2Client(
+        cli = WSNet2Service.Instance.GetClient(
             "http://localhost:8080",
             "testapp",
             userid,
@@ -77,12 +78,6 @@ public class SampleClient : MonoBehaviour
                 return true;
             },
             (e) => Debug.Log("create failed: "+ e));
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        cli.ProcessCallback();
     }
 
     IEnumerator HandleRoom(Room room)

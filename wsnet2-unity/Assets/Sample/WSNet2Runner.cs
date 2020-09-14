@@ -1,4 +1,3 @@
-
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -57,14 +56,6 @@ namespace Sample
         void Start()
         {
             Debug.Log("WSNet2Runner.Start");
-        }
-
-        void Update()
-        {
-            if (Client != null)
-            {
-                Client.ProcessCallback();
-            }
         }
     }
 }
