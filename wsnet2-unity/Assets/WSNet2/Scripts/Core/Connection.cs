@@ -32,6 +32,8 @@ namespace WSNet2.Core
 
         public MsgPool msgPool { get; private set; }
 
+        CancellationTokenSource canceller;
+
         Room room;
         string appId;
         string clientId;
@@ -53,6 +55,7 @@ namespace WSNet2.Core
         /// </summary>
         public Connection(Room room, string clientId, JoinedResponse joined)
         {
+            this.canceller = new CancellationTokenSource();
             this.room = room;
             this.appId = joined.roomInfo.appId;
             this.clientId = clientId;
@@ -74,6 +77,14 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   強制切断
+        /// </summary>
+        public void Cancel()
+        {
+            canceller.Cancel();
+        }
+
+        /// <summary>
         ///   websocket接続をはじめる
         /// </summary>
         /// <remarks>
@@ -89,7 +100,11 @@ namespace WSNet2.Core
                 Exception lastException;
                 var retryInterval = Task.Delay(RetryIntervalMilliSec);
 
-                var cts = new CancellationTokenSource();
+                if (canceller.IsCancellationRequested) {
+                    return;
+                }
+
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(canceller.Token);
 
                 // Receiverの中でEvPeerReadyを受け取ったらSender/Pingerを起動する
                 // SenderのTaskをawaitしたいのでこれで受け取る
@@ -136,6 +151,10 @@ namespace WSNet2.Core
                     senderTaskSource.TrySetCanceled();
                     pingerTaskSource.TrySetCanceled();
                     cts.Cancel();
+                }
+
+                if (canceller.IsCancellationRequested) {
+                    return;
                 }
 
                 if (++reconnection > MaxReconnection)

@@ -28,9 +28,17 @@ namespace WSNet2.Core
         /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
         public WSNet2Client(string baseUri, string appId, string userId, string authData)
         {
-            this.baseUri = baseUri;
             this.appId = appId;
             this.userId = userId;
+            this.SetConnectionData(baseUri, authData);
+        }
+
+        /// <summary>
+        ///   接続情報を更新
+        /// </summary>
+        public void SetConnectionData(string baseUri, string authData)
+        {
+            this.baseUri = baseUri;
             this.bearer = "Bearer " + authData;
         }
 
@@ -57,6 +65,17 @@ namespace WSNet2.Core
                         rooms.RemoveAt(i);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        ///   すべての部屋から強制切断する
+        /// </summary>
+        public void ForceDisconnect()
+        {
+            foreach (var room in rooms)
+            {
+                room.ForceDisconnect();
             }
         }
 
