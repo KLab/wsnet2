@@ -189,6 +189,19 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   強制切断
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     OnClosedなどは呼ばれない.
+        ///   </para>
+        /// </remarks>
+        internal void ForceDisconnect()
+        {
+            con.Cancel();
+        }
+
+        /// <summary>
         ///   RPCを登録
         /// </summary>
         public int RegisterRPC(Action<string> rpc)

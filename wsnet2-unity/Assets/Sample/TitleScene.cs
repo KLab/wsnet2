@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using WSNet2;
 using WSNet2.Core;
 
 namespace Sample
@@ -146,7 +147,7 @@ namespace Sample
             Debug.Log($"userId {userIdInput.text}");
 
             WSNet2Runner.CreateInstance();
-            WSNet2Runner.Instance.Client = new WSNet2Client(
+            WSNet2Runner.Instance.Client = WSNet2Service.Instance.GetClient(
                 lobbyInput.text,
                 appIdInput.text,
                 userIdInput.text,
