@@ -13,6 +13,11 @@ import (
 	"wsnet2/log"
 )
 
+var (
+	WSNet2Version string = "LOCAL"
+	WSNet2Commit  string = "LOCAL"
+)
+
 func main() {
 	defer log.InitLogger()()
 
@@ -25,6 +30,9 @@ func main() {
 	}
 
 	log.SetLevel(log.Level(conf.Game.DefaultLoglevel))
+	log.Infof("WSNet2-Game")
+	log.Infof("WSNet2Version: %v", WSNet2Version)
+	log.Infof("WSNet2Commit: %v", WSNet2Commit)
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 

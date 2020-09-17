@@ -22,6 +22,11 @@ var (
 	appKey = "testapppkey"
 )
 
+var (
+	WSNet2Version string = "LOCAL"
+	WSNet2Commit  string = "LOCAL"
+)
+
 type bot struct {
 	appId  string
 	appKey string
@@ -226,6 +231,10 @@ func (b *bot) DialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 }
 
 func main() {
+	fmt.Println("WSNet2-Bot")
+	fmt.Println("WSNet2Version:", WSNet2Version)
+	fmt.Println("WSNet2Commit:", WSNet2Commit)
+
 	bot := NewBot(appID, appKey, "12345")
 
 	room, err := bot.CreateRoom()

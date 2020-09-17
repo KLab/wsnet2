@@ -1,0 +1,13 @@
+#!/bin/bash -eu
+cd $(dirname "$0")
+readonly RID=${RID:-linux-x64}
+readonly PUBLISH_DIR=$(pwd)/bin
+readonly COMMIT=$(git rev-parse --short HEAD)
+
+for proj in WSNet2.Client WSNet2.Core.Test WSNet2.Sample; do
+  pushd ${proj}
+    dotnet clean
+    dotnet publish -c Release -r ${RID} -o ${PUBLISH_DIR}/${proj}-${COMMIT} \
+      --self-contained=true -p:UseAppHost=true -p:PublishReadyToRun=true 
+  popd
+done
