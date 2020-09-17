@@ -614,6 +614,7 @@ func MarshalChars(vals []rune) []byte {
 	put16(buf[1:], count)
 
 	for i := 0; i < count; i++ {
+		// todo: support surrogate pair
 		v := clamp(int(vals[i]), 0, math.MaxUint16)
 		put16(buf[3+i*2:], v)
 	}
@@ -632,6 +633,7 @@ func unmarshalChars(src []byte) ([]rune, int, error) {
 	}
 	vals := make([]rune, count)
 	for i := 0; i < count; i++ {
+		// todo: support surrogate pair
 		vals[i] = rune(get16(src[3+i*2:]))
 	}
 	return vals, l, nil
