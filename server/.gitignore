@@ -16,3 +16,4 @@
 
 /pb/*.pb.go
 *_string.go
+bin/
