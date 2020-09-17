@@ -37,7 +37,7 @@ namespace WSNet2.Sample
         {
             while (true)
             {
-                var authData = WSNet2Helper.GenAuthData("testapppkey", userId);
+                var authData = WSNet2Helper.GenAuthData(pKey, userId);
                 client = new WSNet2Client(server, appId, userId, authData);
                 props = new Dictionary<string, object>(){
                     {"name", userId},
@@ -75,11 +75,12 @@ namespace WSNet2.Sample
             }
         }
 
-        async Task ServeOne()
+        async Task<Room> JoinRandomRoom()
         {
+            Console.WriteLine($"({userId}) Trying to join random room");
             var query = new Query();
             query.Equal("game", "pong");
-            query.Equal("masterclient", "waiting");
+            query.Equal("state", GameStateCode.WaitingGameMaster.ToString());
 
             var cts = new CancellationTokenSource();
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -111,12 +112,19 @@ namespace WSNet2.Sample
                     await Task.Delay(100);
                 }
             });
-
             var room = await roomJoined.Task;
             cts.Token.ThrowIfCancellationRequested();
 
+            Console.WriteLine($"({userId}) Room joined {room.Id}");
+            return room;
+        }
+
+        async Task ServeOne()
+        {
+            var room = await JoinRandomRoom();
             Console.WriteLine(userId + " joined " + room.Id);
 
+            var cts = new CancellationTokenSource();
             var RPCSyncServerTick = new Action<string, long>((sender, tick) => { });
 
             // この順番は Unity実装と合わせる必要あり.
@@ -127,6 +135,7 @@ namespace WSNet2.Sample
 
             long syncStart = timer.NowTick;
             long lastSync = syncStart;
+            long lastPrint = syncStart;
             long gameEndTick = 0;
             long roomEmptyTick = 0;
 
@@ -138,24 +147,14 @@ namespace WSNet2.Sample
                 // ルーム Create したクライアントが Master を譲ってくれるはず
                 if (room.Master != room.Me)
                 {
-                    if (room.PublicProps.ContainsKey("gamemaster"))
+                    if ((string)room.PublicProps["state"] != GameStateCode.WaitingGameMaster.ToString())
                     {
-                        // すでに別のMasterクライアントが入室していたら抜ける
-                        var gm = room.PublicProps["gamemaster"].ToString();
-                        Console.WriteLine($"gamemaster {gm}");
-                        if (gm != room.Me.Id)
-                        {
-                            room.Leave();
-                            break;
-                        }
+                        room.Leave();
+                        break;
                     }
 
-                    foreach (var kv in room.PublicProps)
-                    {
-                        Console.WriteLine($"(pub) {kv.Key} : {kv.Value}");
-                    }
-
-                    await Task.Delay(100);
+                    Console.WriteLine($"Waiting switch master from {room.Master.Id}");
+                    await Task.Delay(1000);
                     continue;
                 }
 
@@ -174,7 +173,8 @@ namespace WSNet2.Sample
                         }
                         else
                         {
-                            Console.WriteLine("Discard PlayerEvent: too past tick"); // TODO どうハンドルするべきか
+                            Console.WriteLine("Discard PlayerEvent: too past tick. Code:{0} Player:{1} ServerTick{2} EventTick:{3}",
+                                ev.Code, ev.PlayerId, states[0].Tick, ev.Tick); // TODO どうハンドルするべきか
                         }
                     }
                     events.Sort((a, b) => a.Tick.CompareTo(b.Tick));
@@ -196,24 +196,42 @@ namespace WSNet2.Sample
                 }
 
                 var now = timer.NowTick;
-                var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick < now);
-                Console.WriteLine("State: {0}", state.Code.ToString());
-                Console.WriteLine("Update with {0} events", targetEvents.Count());
+                var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick <= now);
+                var tooFutureEvents = events.Where(ev => now < ev.Tick);
+
+                if (0 < tooFutureEvents.Count())
+                {
+                    foreach (var ev in tooFutureEvents)
+                    {
+                        Console.WriteLine("Too future Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
+                    }
+                }
+
+                if (0 < targetEvents.Count())
+                {
+                    // Console.WriteLine("Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
+                }
 
                 var prevStateCode = state.Code;
                 bool forceSync = sim.UpdateGame(now, state, targetEvents);
 
+                if (1000 <= new TimeSpan(now - lastPrint).TotalMilliseconds)
+                {
+                    Console.WriteLine("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
+                    lastPrint = now;
+                }
+
                 if (prevStateCode != state.Code)
                 {
-                    // ゲームの状態が変わったので、それ以前の状態には復元させない
-                    // プレイヤーの入力も破棄する
+                    // ステートの更新が発生したので、以前の状態には戻さない
                     states.Clear();
-                    events.Clear();
+
                     if (state.Code == GameStateCode.End)
                     {
                         gameEndTick = now;
                     }
                 }
+
                 states.Add(state);
 
                 if (50 < states.Count)
@@ -239,6 +257,14 @@ namespace WSNet2.Sample
                     lastSync = now;
                 }
 
+                // ステートが更新されていたら public props に反映
+                if ((string)room.PublicProps["state"] != state.Code.ToString())
+                {
+                    room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                       { "state", state.Code.ToString()}
+                    });
+                }
+
                 // ゲーム終了から一定時間経ったらプレイヤーをKickする
                 if (gameEndTick != 0)
                 {
@@ -246,7 +272,8 @@ namespace WSNet2.Sample
                     {
                         foreach (var p in room.Players.Values)
                         {
-                            if (p != room.Me) {
+                            if (p != room.Me)
+                            {
                                 room.Kick(p);
                             }
                         }
@@ -280,7 +307,6 @@ namespace WSNet2.Sample
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
         {
-            Console.WriteLine("RPCPlayerEvent sender:{0} Code:{1} ", sender, msg.Code);
             msg.PlayerId = sender;
             newEvents.Add(msg);
         }
