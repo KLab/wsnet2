@@ -161,6 +161,19 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(v, r);
         }
 
+        [TestCase('\0', new byte[]{(byte)Type.Char, 0x00, 0x00})]
+        [TestCase('\u006A', new byte[]{(byte)Type.Char, 0x00, 0x6A})]
+        [TestCase('あ', new byte[]{(byte)Type.Char, 0x30, 0x42})]
+        public void TestChar(char v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadChar();
+            Assert.AreEqual(v, r);
+        }
+
         [TestCase(short.MinValue, new byte[]{(byte)Type.Short, 0x00, 0x00})]
         [TestCase(0, new byte[]{(byte)Type.Short, 0x80, 0x00})]
         [TestCase(short.MaxValue, new byte[]{(byte)Type.Short, 0xff, 0xff})]
@@ -576,6 +589,20 @@ namespace WSNet2.Core.Test
 
             var reader = Serialization.NewReader(writer.ArraySegment());
             var r = reader.ReadBytes();
+            Assert.AreEqual(v, r);
+        }
+
+        [TestCase(new char[]{}, new byte[]{(byte)Type.Chars, 0x00, 0x00})]
+        [TestCase(new char[]{'\0', 'j', 'あ'},
+                  new byte[]{(byte)Type.Chars, 0x00, 0x03, 0x00, 0x00, 0x00, 0x6A, 0x30, 0x42})]
+        [TestCase(null, new byte[]{(byte)Type.Null})]
+        public void TestChars(char[] v, byte[] expect)
+        {
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = reader.ReadChars();
             Assert.AreEqual(v, r);
         }
 

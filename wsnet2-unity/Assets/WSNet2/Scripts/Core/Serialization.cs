@@ -112,6 +112,7 @@ namespace WSNet2.Core
         True,
         SByte,
         Byte,
+        Char,
         Short,
         UShort,
         Int,
@@ -120,6 +121,7 @@ namespace WSNet2.Core
         ULong,
         Float,
         Double,
+        Decimal,
         Str8,
         Str16,
         Obj,
@@ -129,6 +131,7 @@ namespace WSNet2.Core
         Bools,
         SBytes,
         Bytes,
+        Chars,
         Shorts,
         UShorts,
         Ints,
@@ -137,6 +140,7 @@ namespace WSNet2.Core
         ULongs,
         Floats,
         Doubles,
+        Decimals,
     }
 
     [Serializable()]

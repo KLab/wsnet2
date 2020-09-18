@@ -55,6 +55,12 @@ namespace WSNet2.Core
             return (byte)Get8();
         }
 
+        public char ReadChar()
+        {
+            checkType(Type.Char);
+            return (char)Get16();
+        }
+
         public short ReadShort()
         {
             checkType(Type.Short);
@@ -352,6 +358,28 @@ namespace WSNet2.Core
             for (var i = 0; i < count; i++)
             {
                 vals[i] = (byte)Get8();
+            }
+
+            return vals;
+        }
+
+        public char[] ReadChars(char[] recycle = null)
+        {
+            if (checkType(Type.Chars, Type.Null) == Type.Null)
+            {
+                return null;
+            }
+
+            var count = Get16();
+            var vals = recycle;
+            if (vals == null || vals.Length != count)
+            {
+                vals = new char[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                vals[i] = (char)Get16();
             }
 
             return vals;

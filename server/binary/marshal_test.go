@@ -129,6 +129,30 @@ func TestMarshalInteger(t *testing.T) {
 	}
 }
 
+func TestMarshalChar(t *testing.T) {
+	tests := []struct {
+		val rune
+		buf []byte
+	}{
+		{0, []byte{byte(TypeChar), 0x00, 0x00}},
+		{'j', []byte{byte(TypeChar), 0x00, 0x6a}},
+		{'あ', []byte{byte(TypeChar), 0x30, 0x42}},
+	}
+	for _, test := range tests {
+		b := MarshalChar(test.val)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalULong:\n%#v\n%#v", b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		if r != test.val || l != len(test.buf) {
+			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, test.val, len(test.buf))
+		}
+	}
+}
+
 func TestMarshalULong(t *testing.T) {
 	tests := []struct {
 		val uint64
@@ -624,6 +648,38 @@ func TestMarshalIntegers(t *testing.T) {
 		if l != len(test.buf) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%#v): Unmarshal len=%v wants %v", fname, test.in, l, len(test.buf))
+		}
+	}
+}
+
+func TestMarshalChars(t *testing.T) {
+	tests := []struct {
+		val []rune
+		buf []byte
+	}{
+		{[]rune{}, []byte{byte(TypeChars), 0, 0}},
+		{
+			[]rune{'\u0000', '\u006a', 'あ'},
+			[]byte{byte(TypeChars), 0, 3, 0x00, 0x00, 0x00, 0x6a, 0x30, 0x42},
+		},
+		{nil, []byte{byte(TypeNull)}},
+	}
+	for _, test := range tests {
+		b := MarshalChars(test.val)
+		if diff := cmp.Diff(b, test.buf); diff != "" {
+			t.Fatalf("MarshalULongs(%#v): Marshal (-got +want)\n%s", test.val, diff)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("Unmarshal error: %v", e)
+		}
+		if !(test.val == nil && r == nil) {
+			if diff := cmp.Diff(r, test.val); diff != "" {
+				t.Fatalf("Unmarshal (-got +want)\n%s", diff)
+			}
+		}
+		if l != len(test.buf) {
+			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
 		}
 	}
 }

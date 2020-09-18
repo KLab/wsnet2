@@ -96,6 +96,18 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Char値を書き込む
+        /// </summary>
+        /// <param name="v">値</param>
+        public void Write(char v)
+        {
+            expand(3);
+            buf[pos] = (byte)Type.Char;
+            pos++;
+            Put16(v);
+        }
+
+        /// <summary>
         ///   Short値を書き込む
         /// </summary>
         /// <param name="v">値</param>
@@ -460,6 +472,35 @@ namespace WSNet2.Core
             foreach (var val in vals)
             {
                 Put8(val);
+            }
+        }
+
+        /// <summary>
+        ///   char配列を書き込む
+        /// </summary>
+        public void Write(char[] vals)
+        {
+            if (vals == null)
+            {
+                Write();
+                return;
+            }
+
+            var count = vals.Length;
+            if (count > ushort.MaxValue)
+            {
+                var msg = string.Format("Too long array: {0}", count);
+                throw new SerializationException(msg);
+            }
+
+            expand(3 + count*2);
+            buf[pos] = (byte)Type.Chars;
+            pos++;
+            Put16(count);
+
+            foreach (var val in vals)
+            {
+                Put16(val);
             }
         }
 

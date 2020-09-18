@@ -10,36 +10,40 @@ import (
 type Type byte
 
 const (
-	TypeNull   Type = iota // C#:null
-	TypeFalse              // C#:bool (false)
-	TypeTrue               // C#:bool (true)
-	TypeSByte              // C#:sbyte
-	TypeByte               // C#:byte
-	TypeShort              // C#:short (16bit)
-	TypeUShort             // C#:ushort
-	TypeInt                // C#:int (32bit)
-	TypeUInt               // C#:uint
-	TypeLong               // C#:long (64bit)
-	TypeULong              // C#:ulong
-	TypeFloat              // C#:float
-	TypeDouble             // C#:double
-	TypeStr8               // C#:string; lenght < 256
-	TypeStr16              // C#:string; lenght >= 256
-	TypeObj                // C#:object
-	TypeList               // C#:List<object>; count < 256
-	TypeDict               // C#:Dictionary<string, object>; count < 256; key length < 256
+	TypeNull    Type = iota // C#:null
+	TypeFalse               // C#:bool (false)
+	TypeTrue                // C#:bool (true)
+	TypeSByte               // C#:sbyte
+	TypeByte                // C#:byte
+	TypeChar                // C#:char
+	TypeShort               // C#:short (16bit)
+	TypeUShort              // C#:ushort
+	TypeInt                 // C#:int (32bit)
+	TypeUInt                // C#:uint
+	TypeLong                // C#:long (64bit)
+	TypeULong               // C#:ulong
+	TypeFloat               // C#:float
+	TypeDouble              // C#:double
+	TypeDecimal             // C#:decimal
+	TypeStr8                // C#:string; lenght < 256
+	TypeStr16               // C#:string; lenght >= 256
+	TypeObj                 // C#:object
+	TypeList                // C#:List<object>; count < 256
+	TypeDict                // C#:Dictionary<string, object>; count < 256; key length < 256
 
-	TypeBools   // C#:bool[]
-	TypeSBytes  // C#:sbyte[]
-	TypeBytes   // C#:byte[]
-	TypeShorts  // C#:short[]
-	TypeUShorts // C#:ushort[]
-	TypeInts    // C#:int[]
-	TypeUInts   // C#:uint[]
-	TypeLongs   // C#:long[]
-	TypeULongs  // C#:ulong[]
-	TypeFloats  // C#:float[]
-	TypeDoubles // C#:double[]
+	TypeBools    // C#:bool[]
+	TypeSBytes   // C#:sbyte[]
+	TypeBytes    // C#:byte[]
+	TypeChars    // C#:char[]
+	TypeShorts   // C#:short[]
+	TypeUShorts  // C#:ushort[]
+	TypeInts     // C#:int[]
+	TypeUInts    // C#:uint[]
+	TypeLongs    // C#:long[]
+	TypeULongs   // C#:ulong[]
+	TypeFloats   // C#:float[]
+	TypeDoubles  // C#:double[]
+	TypeDecimals // C#:decimal[]
 )
 
 type Obj struct {
@@ -97,6 +101,24 @@ func unmarshalSByte(src []byte) (int, int, error) {
 		return 0, 0, xerrors.Errorf("Unmarshal SByte error: not enough data (%v)", len(src))
 	}
 	return get8(src[1:]) + math.MinInt8, 2, nil
+}
+
+// MarshalChar marshals 16bit code-point.
+//
+// if the val is larger than \uffff, it is replaced to \uffff.
+func MarshalChar(val rune) []byte {
+	v := clamp(int(val), 0, math.MaxUint16)
+	buf := make([]byte, 3)
+	buf[0] = byte(TypeChar)
+	put16(buf[1:], v)
+	return buf
+}
+
+func unmarshalChar(src []byte) (rune, int, error) {
+	if len(src) < 3 {
+		return 0, 0, xerrors.Errorf("Unmarshal Char error: not enough data (%v)", len(src))
+	}
+	return rune(get16(src[1:])), 3, nil
 }
 
 // MarshalUShort marshals unsigned 16bit integer
@@ -573,6 +595,50 @@ func unmarshalBytes(src []byte) ([]int, int, error) {
 	return vals, l, nil
 }
 
+// MarshalChars marshals 16bit code-point array
+// format:
+//  - TypeChars
+//  - 16bit count
+//  - repeat: 16bit BE integer...
+func MarshalChars(vals []rune) []byte {
+	if vals == nil {
+		return MarshalNull()
+	}
+
+	count := len(vals)
+	if count > math.MaxUint16 {
+		count = math.MaxUint16
+	}
+	buf := make([]byte, 3+(count*2))
+	buf[0] = byte(TypeChars)
+	put16(buf[1:], count)
+
+	for i := 0; i < count; i++ {
+		// todo: support surrogate pair
+		v := clamp(int(vals[i]), 0, math.MaxUint16)
+		put16(buf[3+i*2:], v)
+	}
+
+	return buf
+}
+
+func unmarshalChars(src []byte) ([]rune, int, error) {
+	if len(src) < 3 {
+		return nil, 0, xerrors.Errorf("Unmarshal UShorts error: not enough data (%v)", len(src))
+	}
+	count := get16(src[1:])
+	l := 3 + count*2
+	if len(src) < l {
+		return nil, 0, xerrors.Errorf("Unmarshal UShorts error: not enough data (%v)", len(src))
+	}
+	vals := make([]rune, count)
+	for i := 0; i < count; i++ {
+		// todo: support surrogate pair
+		vals[i] = rune(get16(src[3+i*2:]))
+	}
+	return vals, l, nil
+}
+
 // MarshalShorts marshals signed 16bit integer array
 // format:
 //  - TypeShorts
@@ -978,6 +1044,8 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalByte(src)
 	case TypeSByte:
 		return unmarshalSByte(src)
+	case TypeChar:
+		return unmarshalChar(src)
 	case TypeUShort:
 		return unmarshalUShort(src)
 	case TypeShort:
@@ -1010,6 +1078,8 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 		return unmarshalSBytes(src)
 	case TypeBytes:
 		return unmarshalBytes(src)
+	case TypeChars:
+		return unmarshalChars(src)
 	case TypeShorts:
 		return unmarshalShorts(src)
 	case TypeUShorts:
