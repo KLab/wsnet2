@@ -2,8 +2,8 @@
 DROP TABLE IF EXISTS `game_server`;
 CREATE TABLE `game_server` (
   `id`          INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-  `hostname`    VARCHAR(255) NOT NULL,
-  `public_name` VARCHAR(255) NOT NULL,
+  `hostname`    VARCHAR(191) NOT NULL,
+  `public_name` VARCHAR(191) NOT NULL,
   `grpc_port`   INTEGER NOT NULL,
   `ws_port`     INTEGER NOT NULL,
   `status`      TINYINT NOT NULL,
@@ -14,8 +14,8 @@ CREATE TABLE `game_server` (
 DROP TABLE IF EXISTS `app`;
 CREATE TABLE app (
   `id`   VARCHAR(32) COLLATE ascii_bin PRIMARY KEY,
-  `name` VARCHAR(255) COLLATE utf8mb4_bin,
-  `key`  VARCHAR(255) COLLATE ascii_bin
+  `name` VARCHAR(191) COLLATE utf8mb4_bin,
+  `key`  VARCHAR(191) COLLATE ascii_bin
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE IF EXISTS `room`;
