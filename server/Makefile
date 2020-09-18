@@ -25,13 +25,13 @@ install-go-tools:
 
 build: generate
 	mkdir -p bin
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet-lobby cmd/wsnet-lobby/main.go
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet-game cmd/wsnet-game/main.go 
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet-bot cmd/wsnet-bot/main.go 
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-lobby cmd/wsnet2-lobby/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-game cmd/wsnet2-game/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot cmd/wsnet2-bot/main.go
 
 build-commit: generate
 	mkdir -p bin
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet-lobby-$(COMMIT) cmd/wsnet-lobby/main.go
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet-game-$(COMMIT) cmd/wsnet-game/main.go 
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet-bot-$(COMMIT) cmd/wsnet-bot/main.go 
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-lobby-$(COMMIT) cmd/wsnet2-lobby/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-game-$(COMMIT) cmd/wsnet2-game/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot-$(COMMIT) cmd/wsnet2-bot/main.go
 

@@ -25,7 +25,7 @@ services:
     volumes:
       - ./:/work
     working_dir: /work
-    command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet-\{lobby,bot\}" -d 3s -- go run cmd/wsnet-game/main.go docker.toml'
+    command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet2-\{lobby,bot\}" -d 3s -- go run cmd/wsnet2-game/main.go docker.toml'
     entrypoint: /wait-for-it.sh wsnet2-db:3306 --
     ports:
       - 19000:19000
@@ -40,7 +40,7 @@ services:
     volumes:
       - ./:/work
     working_dir: /work
-    command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet-\{game,bot\}" -d 3s -- go run cmd/wsnet-lobby/main.go docker.toml'
+    command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet2-\{game,bot\}" -d 3s -- go run cmd/wsnet2-lobby/main.go docker.toml'
     entrypoint: /wait-for-it.sh wsnet2-db:3306 --
     ports:
       - 8080:8080
