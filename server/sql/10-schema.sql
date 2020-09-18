@@ -2,7 +2,7 @@
 DROP TABLE IF EXISTS `game_server`;
 CREATE TABLE `game_server` (
   `id`          INTEGER UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-  `hostname`    VARCHAR(255) NOT NULL,
+  `hostname`    VARCHAR(191) NOT NULL,
   `public_name` VARCHAR(255) NOT NULL,
   `grpc_port`   INTEGER NOT NULL,
   `ws_port`     INTEGER NOT NULL,
