@@ -143,14 +143,14 @@ func (db *DbConf) DSN() string {
 // 優先順位
 //  1: Configファイル
 //  2: 環境変数
-//     - WSNET_GAME_HOSTNAME
-//     - WSNET_GAME_PUBLICNAME
+//     - WSNET2_GAME_HOSTNAME
+//     - WSNET2_GAME_PUBLICNAME
 //  3: os.Hostname()
 //  4: "localhost"
 //
 func (game *GameConf) setHost() {
 	if game.Hostname == "" {
-		if h := os.Getenv("WSNET_GAME_HOSTNAME"); h != "" {
+		if h := os.Getenv("WSNET2_GAME_HOSTNAME"); h != "" {
 			game.Hostname = h
 		} else if h, err := os.Hostname(); err == nil {
 			game.Hostname = h
@@ -159,7 +159,7 @@ func (game *GameConf) setHost() {
 		}
 	}
 	if game.PublicName == "" {
-		if h := os.Getenv("WSNET_GAME_PUBLICNAME"); h != "" {
+		if h := os.Getenv("WSNET2_GAME_PUBLICNAME"); h != "" {
 			game.PublicName = h
 		} else if h, err := os.Hostname(); err == nil {
 			game.PublicName = h
