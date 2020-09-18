@@ -121,7 +121,7 @@ func (db *DbConf) loadAuthfile(conffile string) error {
 	if err != nil {
 		return err
 	}
-	ss := strings.SplitN(string(content), ":", 2)
+	ss := strings.SplitN(strings.TrimSpace(string(content)), ":", 2)
 	if len(ss) != 2 {
 		return xerrors.Errorf("Db authfile format error: %q", string(content))
 	}
