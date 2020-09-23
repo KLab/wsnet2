@@ -39,7 +39,6 @@ namespace WSNet2.Core
         {
             checkLength(1);
             var t = checkType(Type.True, Type.False);
-            pos++;
             return t == Type.True;
         }
 
