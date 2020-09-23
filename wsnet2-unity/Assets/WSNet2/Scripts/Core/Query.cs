@@ -235,6 +235,20 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Charの条件を追加
+        /// </summary>
+        public Query Equal(string key, char val)
+        {
+            and(new Condition(key, Op.Equal, serialize(val)));
+            return this;
+        }
+        public Query Not(string key, char val)
+        {
+            and(new Condition(key, Op.Not, serialize(val)));
+            return this;
+        }
+
+        /// <summary>
         ///   shortの条件を追加
         /// </summary>
         public Query Equal(string key, short val)
@@ -611,6 +625,17 @@ namespace WSNet2.Core
         }
 
         private byte[] serialize(byte val)
+        {
+            var writer = Serialization.GetWriter();
+            lock(writer)
+            {
+                writer.Reset();
+                writer.Write(val);
+                return writer.ToArray();
+            }
+        }
+
+        private byte[] serialize(char val)
         {
             var writer = Serialization.GetWriter();
             lock(writer)
