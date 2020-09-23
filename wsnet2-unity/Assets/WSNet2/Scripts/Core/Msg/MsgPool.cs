@@ -209,6 +209,15 @@ namespace WSNet2.Core
                 return sequenceNum;
             }
         }
+        public int PostRPC(byte id, char param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+                return sequenceNum;
+            }
+        }
         public int PostRPC(byte id, short param, string[] targets)
         {
             lock(this)
@@ -336,6 +345,15 @@ namespace WSNet2.Core
             }
         }
         public int PostRPC(byte id, byte[] param, string[] targets)
+        {
+            lock(this)
+            {
+                var writer = writeRPCHeader(id, targets);
+                writer.Write(param);
+                return sequenceNum;
+            }
+        }
+        public int PostRPC(byte id, char[] param, string[] targets)
         {
             lock(this)
             {

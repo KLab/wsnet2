@@ -220,6 +220,10 @@ namespace WSNet2.Core
         {
             return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadByte()));
         }
+        public int RegisterRPC(Action<string, char> rpc)
+        {
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadChar()));
+        }
         public int RegisterRPC(Action<string, short> rpc)
         {
             return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadShort()));
@@ -362,6 +366,19 @@ namespace WSNet2.Core
             return registerRPC(rpc, (senderId, reader) =>
             {
                 cacheObject = reader.ReadBytes(cacheObject);
+                rpc(senderId, cacheObject);
+            });
+        }
+        public int RegisterRPC(Action<string, char[]> rpc, char[] cacheObject = null)
+        {
+            if (cacheObject == null)
+            {
+                return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadChars()));
+            }
+
+            return registerRPC(rpc, (senderId, reader) =>
+            {
+                cacheObject = reader.ReadChars(cacheObject);
                 rpc(senderId, cacheObject);
             });
         }
@@ -687,6 +704,10 @@ namespace WSNet2.Core
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
+        public int RPC(Action<string, char> rpc, char param, params string[] targets)
+        {
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+        }
         public int RPC(Action<string, short> rpc, short param, params string[] targets)
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
@@ -756,6 +777,10 @@ namespace WSNet2.Core
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
         public int RPC(Action<string, byte[]> rpc, byte[] param, params string[] targets)
+        {
+            return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
+        }
+        public int RPC(Action<string, char[]> rpc, char[] param, params string[] targets)
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
