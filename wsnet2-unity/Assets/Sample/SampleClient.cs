@@ -9,7 +9,7 @@ using WSNet2.Core;
 
 public class SampleClient : MonoBehaviour
 {
-    public class StrMessage : IWSNetSerializable
+    public class StrMessage : IWSNet2Serializable
     {
         string str;
 

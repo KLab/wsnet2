@@ -260,7 +260,7 @@ namespace WSNet2.Core
         {
             return registerRPC(rpc, (senderId, reader) => rpc(senderId, reader.ReadString()));
         }
-        public int RegisterRPC<T>(Action<string, T> rpc, T cacheObject = null) where T : class, IWSNetSerializable, new()
+        public int RegisterRPC<T>(Action<string, T> rpc, T cacheObject = null) where T : class, IWSNet2Serializable, new()
         {
             if (cacheObject == null)
             {
@@ -291,7 +291,7 @@ namespace WSNet2.Core
                 rpc,
                 (senderId, reader) => rpc(senderId, (cacheObject = reader.ReadArray(cacheObject))));
         }
-        public int RegisterRPC<T>(Action<string, List<T>> rpc, List<T> cacheObject = null) where T : class, IWSNetSerializable, new()
+        public int RegisterRPC<T>(Action<string, List<T>> rpc, List<T> cacheObject = null) where T : class, IWSNet2Serializable, new()
         {
             if (cacheObject == null)
             {
@@ -304,7 +304,7 @@ namespace WSNet2.Core
                 rpc(senderId, cacheObject);
             });
         }
-        public int RegisterRPC<T>(Action<string, T[]> rpc, T[] cacheObject = null) where T : class, IWSNetSerializable, new()
+        public int RegisterRPC<T>(Action<string, T[]> rpc, T[] cacheObject = null) where T : class, IWSNet2Serializable, new()
         {
             if (cacheObject == null)
             {
@@ -744,7 +744,7 @@ namespace WSNet2.Core
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public int RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNetSerializable
+        public int RPC<T>(Action<string, T> rpc, T param, params string[] targets) where T : class, IWSNet2Serializable
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
@@ -756,11 +756,11 @@ namespace WSNet2.Core
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public int RPC<T>(Action<string, List<T>> rpc, List<T> param, params string[] targets) where T : class, IWSNetSerializable
+        public int RPC<T>(Action<string, List<T>> rpc, List<T> param, params string[] targets) where T : class, IWSNet2Serializable
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }
-        public int RPC<T>(Action<string, T[]> rpc, T[] param, params string[] targets) where T : class, IWSNetSerializable
+        public int RPC<T>(Action<string, T[]> rpc, T[] param, params string[] targets) where T : class, IWSNet2Serializable
         {
             return con.msgPool.PostRPC(getRpcId(rpc), param, targets);
         }

@@ -57,7 +57,7 @@ namespace Sample.Logic
     /// <summary>
     /// Pongゲームの状態を表すデータ
     /// </summary>
-    public class GameState : IWSNetSerializable
+    public class GameState : IWSNet2Serializable
     {
         /// <summary>
         /// ゲームの状態の種類
@@ -222,7 +222,7 @@ namespace Sample.Logic
     /// <summary>
     /// ボールのデータ
     /// </summary>
-    public class Ball : IWSNetSerializable
+    public class Ball : IWSNet2Serializable
     {
         /// <summary>
         /// 位置
@@ -280,7 +280,7 @@ namespace Sample.Logic
     /// <summary>
     /// バーのデータ
     /// </summary>
-    public class Bar : IWSNetSerializable
+    public class Bar : IWSNet2Serializable
     {
         /// <summary>
         /// 位置
@@ -394,7 +394,7 @@ namespace Sample.Logic
     /// プレイヤー入力を表す
     /// Code の種類によって入力の種類を識別する
     /// </summary>
-    public class PlayerEvent : IWSNetSerializable
+    public class PlayerEvent : IWSNet2Serializable
     {
         /// <summary>
         /// プレイヤー入力の種類

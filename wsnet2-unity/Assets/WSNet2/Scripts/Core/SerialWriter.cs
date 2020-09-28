@@ -268,7 +268,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <Typeparam name="T">型</param>
         /// <param name="v">値</param>
-        public void Write<T>(T v) where T : class, IWSNetSerializable
+        public void Write<T>(T v) where T : class, IWSNet2Serializable
         {
             if (v == null)
             {
@@ -860,7 +860,7 @@ namespace WSNet2.Core
                 case string e:
                     Write(e);
                     break;
-                case IWSNetSerializable e:
+                case IWSNet2Serializable e:
                     Write(e);
                     break;
                 case IDictionary<string, object> e:
