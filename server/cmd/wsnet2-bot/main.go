@@ -62,7 +62,7 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 		RoomOption: pb.RoomOption{
 			Visible:     true,
 			Joinable:    true,
-			Watchable:   false,
+			Watchable:   true,
 			WithNumber:  true,
 			MaxPlayers:  6,
 			SearchGroup: 1,
@@ -87,6 +87,14 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 }
 
 func (b *bot) JoinRoom(roomId string, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
+	return b.joinRoom(false, roomId, queries)
+}
+
+func (b *bot) WatchRoom(roomId string, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
+	return b.joinRoom(true, roomId, queries)
+}
+
+func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
 	param := &service.JoinParam{
 		Queries: []lobby.PropQueries{queries},
 		ClientInfo: pb.ClientInfo{
@@ -97,7 +105,12 @@ func (b *bot) JoinRoom(roomId string, queries []lobby.PropQuery) (*pb.JoinedRoom
 
 	room := &pb.JoinedRoomRes{}
 
-	url := fmt.Sprintf("http://localhost:8080/rooms/join/id/%s", roomId)
+	var url string
+	if watch {
+		url = fmt.Sprintf("http://localhost:8080/rooms/watch/id/%s", roomId)
+	} else {
+		url = fmt.Sprintf("http://localhost:8080/rooms/join/id/%s", roomId)
+	}
 	err := b.doLobbyRequest("POST", url, param, room)
 	if err != nil {
 		return nil, err
@@ -279,6 +292,7 @@ func main() {
 	go spawnPlayerByNumber(room.RoomInfo.Number, "45678", nil)
 	go spawnPlayerByNumber(room.RoomInfo.Number, "56789", queries)
 	go spawnPlayerAtRandom("67890", 1, queries)
+	go spawnWatcher(room.RoomInfo.Id, "w1")
 
 	go func() {
 		time.Sleep(time.Second * 1)
@@ -394,6 +408,25 @@ func spawnPlayer(roomId, userId string, queries []lobby.PropQuery) {
 	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		fmt.Printf("[bot:%v] dial game error: %v\n", userId, err)
+		return
+	}
+
+	done := make(chan bool)
+	go eventloop(ws, userId, done)
+}
+
+func spawnWatcher(roomId, userId string) {
+	bot := NewBot(appID, appKey, userId)
+
+	room, err := bot.WatchRoom(roomId, nil)
+	if err != nil {
+		fmt.Printf("[bot:%v] watch room error: %v\n", userId, err)
+		return
+	}
+
+	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
+	if err != nil {
+		fmt.Printf("[bot:%v] dial watch error: %v\n", userId, err)
 		return
 	}
 
