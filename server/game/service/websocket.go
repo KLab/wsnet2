@@ -88,11 +88,11 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	roomId := vars["id"]
-	appId := r.Header.Get("X-Wsnet-App")
-	clientId := r.Header.Get("X-Wsnet-User")
-	lastEvSeq, err := strconv.Atoi(r.Header.Get("X-Wsnet-LastEventSeq"))
+	appId := r.Header.Get("Wsnet2-App")
+	clientId := r.Header.Get("Wsnet2-User")
+	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
-		log.Debugf("WSHandler.HandleRoom invalid header: X-Wsnet-LastEventSeq", r.Header.Get("X-Wsnet-LastEventSeq"))
+		log.Debugf("WSHandler.HandleRoom invalid header: Wsnet2-LastEventSeq", r.Header.Get("Wsnet2-LastEventSeq"))
 		http.Error(w, "Bad Request", 400)
 		return
 	}

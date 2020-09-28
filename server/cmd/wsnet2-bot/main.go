@@ -180,8 +180,8 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	req, err := http.NewRequest(method, url, &p)
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
-	req.Header.Add("X-Wsnet-App", b.appId)
-	req.Header.Add("X-Wsnet-User", b.userId)
+	req.Header.Add("Wsnet2-App", b.appId)
+	req.Header.Add("Wsnet2-User", b.userId)
 
 	authdata, err := auth.GenerateAuthData(b.appKey, b.userId, time.Now())
 	if err != nil {
@@ -209,9 +209,9 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 
 func (b *bot) DialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 	hdr := http.Header{}
-	hdr.Add("X-Wsnet-App", b.appId)
-	hdr.Add("X-Wsnet-User", b.userId)
-	hdr.Add("X-Wsnet-LastEventSeq", strconv.Itoa(seq))
+	hdr.Add("Wsnet2-App", b.appId)
+	hdr.Add("Wsnet2-User", b.userId)
+	hdr.Add("Wsnet2-LastEventSeq", strconv.Itoa(seq))
 
 	authdata, err := auth.GenerateAuthData(authKey, b.userId, time.Now())
 	if err != nil {

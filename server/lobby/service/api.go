@@ -84,8 +84,8 @@ type header struct {
 }
 
 func parseSpecificHeader(r *http.Request) (hdr header) {
-	hdr.appId = r.Header.Get("X-Wsnet-App")
-	hdr.userId = r.Header.Get("X-Wsnet-User")
+	hdr.appId = r.Header.Get("Wsnet2-App")
+	hdr.userId = r.Header.Get("Wsnet2-User")
 
 	bearer := r.Header.Get("Authorization")
 	if strings.HasPrefix(bearer, "Bearer ") {

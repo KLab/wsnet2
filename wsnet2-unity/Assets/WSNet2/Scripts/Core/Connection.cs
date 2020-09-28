@@ -200,9 +200,9 @@ namespace WSNet2.Core
             var ws = new ClientWebSocket();
             var authdata = authgen.Generate(authKey, clientId);
             ws.Options.SetRequestHeader("Authorization", "Bearer " + authdata);
-            ws.Options.SetRequestHeader("X-Wsnet-App", appId);
-            ws.Options.SetRequestHeader("X-Wsnet-User", clientId);
-            ws.Options.SetRequestHeader("X-Wsnet-LastEventSeq", evSeqNum.ToString());
+            ws.Options.SetRequestHeader("Wsnet2-App", appId);
+            ws.Options.SetRequestHeader("Wsnet2-User", clientId);
+            ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
 
             await ws.ConnectAsync(uri, ct);
             return ws;
