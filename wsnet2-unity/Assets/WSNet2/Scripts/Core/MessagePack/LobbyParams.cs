@@ -23,5 +23,16 @@ namespace WSNet2.Core
         public ClientInfo clientInfo;
     }
 
-    // TODO: SearchParam
+    [MessagePackObject]
+    public class SearchParam
+    {
+        [Key("group")]
+        public uint group;
+
+        [Key("query")]
+        public List<List<Query.Condition>> queries;
+
+        [Key("limit")]
+        public int limit;
+    }
 }
