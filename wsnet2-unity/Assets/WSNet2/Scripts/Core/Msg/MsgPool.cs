@@ -299,7 +299,7 @@ namespace WSNet2.Core
                 return sequenceNum;
             }
         }
-        public int PostRPC<T>(byte id, T param, string[] targets) where T : class, IWSNetSerializable
+        public int PostRPC<T>(byte id, T param, string[] targets) where T : class, IWSNet2Serializable
         {
             lock(this)
             {

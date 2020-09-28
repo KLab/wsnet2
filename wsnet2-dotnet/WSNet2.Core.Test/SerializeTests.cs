@@ -7,7 +7,7 @@ namespace WSNet2.Core.Test
     /// <summary>
     ///   シリアライズ可能なオブジェクトの例
     /// </summary>
-    class Obj1 : IWSNetSerializable, IEquatable<Obj1>
+    class Obj1 : IWSNet2Serializable, IEquatable<Obj1>
     {
         public static int NewCount = 0;
 
@@ -51,7 +51,7 @@ namespace WSNet2.Core.Test
     /// <summary>
     ///   ネストしたシリアライズ可能なオブジェクト
     /// </summary>
-    class Obj2 : IWSNetSerializable, IEquatable<Obj2>
+    class Obj2 : IWSNet2Serializable, IEquatable<Obj2>
     {
         public short S;
         public Obj1 Obj;

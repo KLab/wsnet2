@@ -142,7 +142,7 @@ namespace WSNet2.Core
             return str;
         }
 
-        public T ReadObject<T>(T recycle = default) where T : class, IWSNetSerializable, new()
+        public T ReadObject<T>(T recycle = default) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.Obj, Type.Null) == Type.Null)
             {
@@ -219,7 +219,7 @@ namespace WSNet2.Core
             return list;
         }
 
-        public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
+        public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
             {
@@ -242,7 +242,7 @@ namespace WSNet2.Core
             return list;
         }
 
-        public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNetSerializable, new()
+        public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
             {

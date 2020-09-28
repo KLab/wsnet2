@@ -7,7 +7,7 @@ using WSNet2.Core;
 
 namespace WSNet2.DotnetClient
 {
-    public class StrMessage : IWSNetSerializable
+    public class StrMessage : IWSNet2Serializable
     {
         string str;
 

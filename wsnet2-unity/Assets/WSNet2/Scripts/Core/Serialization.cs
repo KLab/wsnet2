@@ -66,7 +66,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <typeparam name="T">型</typeparam>
         /// <param name="classID">クラス識別子</param>
-        public static void Register<T>(byte classID) where T : class, IWSNetSerializable, new()
+        public static void Register<T>(byte classID) where T : class, IWSNet2Serializable, new()
         {
             var t = typeof(T);
             if (registeredTypes.ContainsKey(t))
@@ -89,7 +89,7 @@ namespace WSNet2.Core
     /// <summary>
     /// Websocketで送受信するカスタム型はこのインターフェイスを実装する
     /// </summary>
-    public interface IWSNetSerializable
+    public interface IWSNet2Serializable
     {
         /// <summary>
         /// Serializeする.

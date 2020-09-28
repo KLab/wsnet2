@@ -10,7 +10,7 @@ namespace Sample.Logic
     {
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
-        public static byte[] Serialize<T>(T v) where T : class, IWSNetSerializable
+        public static byte[] Serialize<T>(T v) where T : class, IWSNet2Serializable
         {
             // FIXME: もう少し便利な方法が提供してほしい
             var w = WSNet2.Core.Serialization.GetWriter();
