@@ -14,6 +14,15 @@ default_deadline = 5
 default_loglevel = 5
 max_room_num = 999
 
+[Hub]
+grpc_port = 19001
+websocket_port = 8001
+pprof_port = 3001
+
+default_deadline = 5
+default_loglevel = 5
+max_room_num = 999
+
 [Lobby]
 hostname = "localhost"
 net = "tcp"
