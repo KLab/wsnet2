@@ -53,5 +53,5 @@ CREATE TABLE hub (
   `id`     VARCHAR(32) PRIMARY KEY,
   `host_id` INTEGER UNSIGNED NOT NULL,
   `watchers` INTEGER UNSIGNED NOT NULL,
-  `created` DATETIME,
+  `created` DATETIME
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
