@@ -214,7 +214,7 @@ namespace WSNet2.Core
             uint group,
             Query query,
             int limit,
-            Action<RoomInfo[]> onSuccess,
+            Action<PublicRoom[]> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new SearchParam(){
@@ -278,13 +278,18 @@ namespace WSNet2.Core
 
         private async Task search(
             byte[] content,
-            Action<RoomInfo[]> onSuccess,
+            Action<PublicRoom[]> onSuccess,
             Action<Exception> onFailed)
         {
             try
             {
                 var body = await post("/rooms/search", content);
-                var rooms = MessagePackSerializer.Deserialize<RoomInfo[]>(body);
+                var rinfos= MessagePackSerializer.Deserialize<RoomInfo[]>(body);
+                var rooms = new PublicRoom[rinfos.Length];
+                for (var i=0; i<rinfos.Length; i++)
+                {
+                    rooms[i] = new PublicRoom(rinfos[i]);
+                }
 
                 callbackPool.Add(() => onSuccess(rooms));
             }

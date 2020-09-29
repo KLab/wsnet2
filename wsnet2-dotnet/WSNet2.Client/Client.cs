@@ -97,7 +97,7 @@ namespace WSNet2.DotnetClient
             var query = new Query();
             query.Between("bbb", 20, 80);
 
-            var roomsrc = new TaskCompletionSource<RoomInfo[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var roomsrc = new TaskCompletionSource<PublicRoom[]>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             client.Search(
                 SearchGroup,
@@ -105,25 +105,23 @@ namespace WSNet2.DotnetClient
                 10,
                 (rs) => {
                     Console.WriteLine($"onSuccess: {rs.Length}");
-                    rooms.TrySetResult(rs);
+                    roomsrc.TrySetResult(rs);
                 },
                 (e) => {
                     Console.WriteLine($"onFailed: {e}");
-                    rooms.TrySetCanceled();
+                    roomsrc.TrySetCanceled();
                 });
 
             var rooms = await roomsrc.Task;
             Console.WriteLine("rooms:");
-            foreach (var room in await rooms)
+            foreach (var room in rooms)
             {
                 var props = "";
-                // todo: RoomInfoのままだとここがしんどいのでクラス用意する
-                var reader = Serialization.NewReader(new ArraySegment<byte>(room.publicProps));
-                foreach (var kv in reader.ReadDict())
+                foreach (var kv in room.PublicProps)
                 {
                     props += $"{kv.Key}:{kv.Value},";
                 }
-                Console.WriteLine($"{room.id} {room.number:D3} [{props}]");
+                Console.WriteLine($"{room.Id} #{room.Number:D3} {room.Players}/{room.MaxPlayers} [{props}] {room.Created}");
             }
         }
 

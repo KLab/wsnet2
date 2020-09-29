@@ -56,6 +56,14 @@ namespace WSNet2.Core
         /// <summary>
         ///   SerialReader
         /// </summary>
+        public static SerialReader NewReader(byte[] buf)
+        {
+            return NewReader(new ArraySegment<byte>(buf));
+        }
+
+        /// <summary>
+        ///   SerialReader
+        /// </summary>
         public static SerialReader NewReader(ArraySegment<byte> buf)
         {
             return new SerialReader(buf, registeredTypes, readFuncs);
