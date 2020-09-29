@@ -216,8 +216,8 @@ namespace WSNet2.Core
             try
             {
                 var cli = new HttpClient();
-                cli.DefaultRequestHeaders.Add("X-Wsnet-App", appId);
-                cli.DefaultRequestHeaders.Add("X-Wsnet-User", userId);
+                cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
+                cli.DefaultRequestHeaders.Add("Wsnet2-User", userId);
                 cli.DefaultRequestHeaders.Add("Authorization", bearer);
 
                 var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
