@@ -39,9 +39,8 @@ func New(db *sqlx.DB, conf *config.GameConf) (*HubService, error) {
 	if err != nil {
 		return nil, err
 	}
-	_ = hostId
 
-	return &HubService{db: db, conf: conf}, nil
+	return &HubService{HostId: hostId, db: db, conf: conf}, nil
 }
 
 func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
