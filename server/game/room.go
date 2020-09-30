@@ -20,8 +20,6 @@ const (
 	roomKeyLen = 16
 )
 
-type RoomID string
-
 type Room struct {
 	*pb.RoomInfo
 	repo *Repository
@@ -587,4 +585,26 @@ func (r *Room) msgKick(msg *MsgKick) error {
 func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.Err)
 	return nil
+}
+
+// IRoom実装
+
+func (r *Room) Deadline() time.Duration {
+	return r.deadline
+}
+
+func (r *Room) WaitGroup() *sync.WaitGroup {
+	return &r.wgClient
+}
+
+func (r *Room) Logger() *zap.SugaredLogger {
+	return r.logger
+}
+
+func (r *Room) SendMessage(msg Msg) {
+	r.msgCh <- msg
+}
+
+func (r *Room) Repo() IRepo {
+	return r.repo
 }
