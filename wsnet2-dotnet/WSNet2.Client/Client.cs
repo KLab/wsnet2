@@ -35,6 +35,8 @@ namespace WSNet2.DotnetClient
 
     public class DotnetClient
     {
+        const uint SearchGroup = 100;
+
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
@@ -60,8 +62,78 @@ namespace WSNet2.DotnetClient
             Console.WriteLine($"OnRPCString [{senderId}]: {str}");
         }
 
+        enum Cmd
+        {
+            create,
+            join,
+            search,
+            watch,
+        }
+
+        static void printHelp()
+        {
+            var cmds = string.Join(", ", Enum.GetNames(typeof(Cmd)));
+            Console.WriteLine("Usage: dotnet run <command> [params...]");
+            Console.WriteLine($"Command: {cmds}");
+        }
+
+        static Cmd? getCmd(string[] args)
+        {
+            if (args.Length > 0) {
+                var arg = args[0];
+                foreach(var c in Enum.GetValues(typeof(Cmd)))
+                {
+                    if (arg == c.ToString())
+                    {
+                        return (Cmd)c;
+                    }
+                }
+            }
+            return null;
+        }
+
+        static async Task Search(WSNet2Client client)
+        {
+            var query = new Query();
+            query.Between("bbb", 20, 80);
+
+            var roomsrc = new TaskCompletionSource<PublicRoom[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            client.Search(
+                SearchGroup,
+                query,
+                10,
+                (rs) => {
+                    Console.WriteLine($"onSuccess: {rs.Length}");
+                    roomsrc.TrySetResult(rs);
+                },
+                (e) => {
+                    Console.WriteLine($"onFailed: {e}");
+                    roomsrc.TrySetCanceled();
+                });
+
+            var rooms = await roomsrc.Task;
+            Console.WriteLine("rooms:");
+            foreach (var room in rooms)
+            {
+                var props = "";
+                foreach (var kv in room.PublicProps)
+                {
+                    props += $"{kv.Key}:{kv.Value},";
+                }
+                Console.WriteLine($"{room.Id} #{room.Number:D3} {room.Players}/{room.MaxPlayers} [{props}] {room.Created}");
+            }
+        }
+
         static async Task Main(string[] args)
         {
+            var cmd = getCmd(args);
+            if (cmd==null)
+            {
+                printHelp();
+                return;
+            }
+
             var rand = new Random();
             var userid = $"user{rand.Next(99):000}";
             Console.WriteLine($"user id: {userid}");
@@ -76,11 +148,19 @@ namespace WSNet2.DotnetClient
                 userid,
                 authData);
 
+            var cts = new CancellationTokenSource();
+            _ = Task.Run(async () => await callbackrunner(client, cts.Token));
+
+            if (cmd.Value == Cmd.search)
+            {
+                await Search(client);
+                cts.Cancel();
+                return;
+            }
+
             var cliProps = new Dictionary<string, object>(){
                 {"name", userid},
             };
-
-            var cts = new CancellationTokenSource();
 
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
             Func<Room,bool> onJoined = (Room room) => {
@@ -138,7 +218,7 @@ namespace WSNet2.DotnetClient
             };
             Action<Exception> onFailed = (Exception e) => roomJoined.TrySetException(e);
 
-            if (args.Length == 0)
+            if (cmd == Cmd.create)
             {
                 // create room
                 var pubProps = new Dictionary<string, object>(){
@@ -149,25 +229,21 @@ namespace WSNet2.DotnetClient
                     {"aaa", "private"},
                     {"ccc", false},
                 };
-                var roomOpt = new RoomOption(10, 100, pubProps, privProps).WithClientDeadline(30).WithNumber(true);
+                var roomOpt = new RoomOption(10, SearchGroup, pubProps, privProps).WithClientDeadline(30).WithNumber(true);
 
                 client.Create(roomOpt, cliProps, onJoined, onFailed);
             }
-            else
+            else if(cmd == Cmd.join)
             {
-                var number = int.Parse(args[0]);
-                if (args.Length == 1)
-                {
-                    client.Join(number, cliProps, null, onJoined, onFailed);
-                }
-                else
-                {
-                    var query = new Query().GreaterEqual("bbb", (int)20);
-                    client.Watch(number, query, onJoined, onFailed);
-                }
+                var number = int.Parse(args[1]);
+                client.Join(number, cliProps, null, onJoined, onFailed);
             }
-
-            _ = Task.Run(async () => await callbackrunner(client, cts.Token));
+            else // watch
+            {
+                var number = int.Parse(args[1]);
+                var query = new Query().GreaterEqual("bbb", (int)20);
+                client.Watch(number, query, onJoined, onFailed);
+            }
 
             try
             {
