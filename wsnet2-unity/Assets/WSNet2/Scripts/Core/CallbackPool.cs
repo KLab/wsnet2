@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 
 namespace WSNet2.Core
 {
@@ -16,20 +17,14 @@ namespace WSNet2.Core
     /// </remarks>
     public class CallbackPool
     {
-        // TODO: delegateだと途中で例外投げるやつがいたとき困るのでQueueにしたい
-        Action current;
-        Action next;
-        object processLock = new object();
+        ConcurrentQueue<Action> queue = new ConcurrentQueue<Action>();
 
         /// <summary>
         ///   callbackをpoolに追加
         /// </summary>
         public void Add(Action callback)
         {
-            lock(this)
-            {
-                current += callback;
-            }
+            queue.Enqueue(callback);
         }
 
         /// <summary>
@@ -37,20 +32,10 @@ namespace WSNet2.Core
         /// </summary>
         public void Process()
         {
-            lock(processLock){
-                lock(this)
-                {
-                    // 実行中も別スレッドからAddできるようにプールを入れ替える
-                    var tmp = current;
-                    current = next;
-                    next = tmp;
-                }
-
-                if (next != null)
-                {
-                    next();
-                    next = null;
-                }
+            Action callback;
+            while(queue.TryDequeue(out callback))
+            {
+                callback();
             }
         }
     }
