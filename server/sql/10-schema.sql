@@ -33,5 +33,6 @@ CREATE TABLE room (
   `watchers` INTEGER UNSIGNED NOT NULL,
   `props` BLOB,
   `created` DATETIME,
+  UNIQUE KEY `idx_number` (`number`),
   KEY `idx_search_group` (`app_id`, `search_group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
