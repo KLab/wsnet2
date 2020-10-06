@@ -55,6 +55,16 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 	//TODO: 実装
 	return nil, status.Errorf(codes.Unimplemented, "method Watch not implemented")
 
+	/* gameに接続してからhubを作るか、hubを作ってからgameに接続するか。
+	hubの実装をシンプルにすることを考えると、gameに接続してからその接続に紐付いたhubを作るのが良い。
+	しかし並行して同じ部屋に対するWatchリクエストが来たときの排他制御が面倒になる。
+
+	Hub側で非同期にgame接続した上で、game接続完了待ちAPIを用意することで、同じ部屋へのWatchリクエストが
+	並行に来ても大丈夫になる。
+	*/
+
+	//sv.repo.GetOrCreateHub(in.AppId, in.RoomId, in.ClientInfo.Id)
+
 	/* memo
 	room.id は app_idと組にしなくてもユニークなので hub では気にする必要がない？
 	hub -> game で Watch 接続するためには認証を通らないといけない

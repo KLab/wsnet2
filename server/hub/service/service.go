@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"wsnet2/config"
+	"wsnet2/hub"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -29,6 +30,7 @@ type HubService struct {
 	HostId int64
 
 	conf *config.GameConf
+	repo *hub.Repository
 
 	db          *sqlx.DB
 	preparation sync.WaitGroup
@@ -40,7 +42,12 @@ func New(db *sqlx.DB, conf *config.GameConf) (*HubService, error) {
 		return nil, err
 	}
 
-	return &HubService{HostId: hostId, db: db, conf: conf}, nil
+	repo, err := hub.NewRepository(db, conf, uint32(hostId))
+	if err != nil {
+		return nil, err
+	}
+
+	return &HubService{HostId: hostId, conf: conf, repo: repo, db: db}, nil
 }
 
 func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
