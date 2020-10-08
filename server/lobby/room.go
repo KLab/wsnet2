@@ -153,7 +153,7 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND joinable = 1", appId, roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinById: Failed to get room: %w", err)
 	}
@@ -181,7 +181,7 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND joinable = 1", appId, roomNumber)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinByNumber: Failed to get room: %w", err)
 	}
@@ -267,7 +267,7 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND watchable = 1", appId, roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("WatchById: failed to get room: %w", err)
 	}
@@ -295,7 +295,7 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND watchable = 1", appId, roomNumber)
 	if err != nil {
 		return nil, xerrors.Errorf("WatchByNumber: Failed to get room: %w", err)
 	}
