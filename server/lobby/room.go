@@ -12,14 +12,16 @@ import (
 
 	"wsnet2/binary"
 	"wsnet2/config"
+	"wsnet2/grpcutil"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
 
 type RoomService struct {
-	db   *sqlx.DB
-	conf *config.LobbyConf
-	apps map[string]*pb.App
+	db       *sqlx.DB
+	conf     *config.LobbyConf
+	apps     map[string]*pb.App
+	grpcPool *grpcutil.Pool
 
 	roomCache *RoomCache
 	gameCache *GameCache
@@ -36,6 +38,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		db:        db,
 		conf:      conf,
 		apps:      make(map[string]*pb.App),
+		grpcPool:  grpcutil.NewPool(grpc.WithInsecure()),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
@@ -64,12 +67,11 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 
@@ -121,12 +123,11 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 
@@ -235,12 +236,11 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 
