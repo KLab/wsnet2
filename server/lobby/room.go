@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -22,7 +23,7 @@ type RoomService struct {
 	apps map[string]*pb.App
 
 	roomCache *RoomCache
-	gameCache *GameCache
+	gameCache *common.GameCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -37,7 +38,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		conf:      conf,
 		apps:      make(map[string]*pb.App),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
-		gameCache: NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
 		rs.apps[app.Id] = &apps[i]
