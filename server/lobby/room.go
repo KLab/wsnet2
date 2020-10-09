@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/config"
-	"wsnet2/grpcutil"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -21,7 +21,7 @@ type RoomService struct {
 	db       *sqlx.DB
 	conf     *config.LobbyConf
 	apps     map[string]*pb.App
-	grpcPool *grpcutil.Pool
+	grpcPool *common.Pool
 
 	roomCache *RoomCache
 	gameCache *GameCache
@@ -38,7 +38,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		db:        db,
 		conf:      conf,
 		apps:      make(map[string]*pb.App),
-		grpcPool:  grpcutil.NewPool(grpc.WithInsecure()),
+		grpcPool:  common.NewPool(grpc.WithInsecure()),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}

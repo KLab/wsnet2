@@ -1,4 +1,4 @@
-package grpcutil
+package common
 
 import (
 	"sync"
