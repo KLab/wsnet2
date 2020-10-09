@@ -6,20 +6,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-type Pool struct {
+type GrpcPool struct {
 	mu   sync.Mutex
 	opts []grpc.DialOption
 	pool map[string]*grpc.ClientConn
 }
 
-func NewPool(options ...grpc.DialOption) *Pool {
-	return &Pool{
+func NewGrpcPool(options ...grpc.DialOption) *GrpcPool {
+	return &GrpcPool{
 		opts: options,
 		pool: make(map[string]*grpc.ClientConn),
 	}
 }
 
-func (p *Pool) Get(target string) (*grpc.ClientConn, error) {
+func (p *GrpcPool) Get(target string) (*grpc.ClientConn, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
