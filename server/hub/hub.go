@@ -1,11 +1,14 @@
 package hub
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc"
 
 	"wsnet2/binary"
 	"wsnet2/game"
@@ -15,6 +18,7 @@ import (
 type Hub struct {
 	ID       RoomID
 	repo     *Repository
+	appId    AppID
 	clientId string
 
 	deadline time.Duration
@@ -41,7 +45,35 @@ func (h *Hub) connectGame() error {
 		return xerrors.Errorf("connectGame: Failed to get room: %w", err)
 	}
 
-	return xerrors.New("not implemented")
+	gs, err := h.repo.gameCache.Get(room.HostId)
+	if err != nil {
+		return xerrors.Errorf("connectGame: Failed to get game server: %w", err)
+	}
+
+	grpcAddr := fmt.Sprintf("%s:%d", gs.Hostname, gs.GRPCPort)
+	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	if err != nil {
+		return xerrors.Errorf("connectGame: Failed to dial to game server: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewGameClient(conn)
+	req := &pb.JoinRoomReq{
+		AppId:  h.appId,
+		RoomId: string(h.ID),
+		ClientInfo: &pb.ClientInfo{
+			Id: h.clientId,
+		},
+	}
+
+	res, err := client.Watch(context.TODO(), req)
+	if err != nil {
+		return xerrors.Errorf("connectGame: Failed to 'Watch' request to game server: %w", err)
+	}
+
+	h.logger.Info("Joined room: %v", res)
+
+	return nil
 }
 
 func (h *Hub) Start() {

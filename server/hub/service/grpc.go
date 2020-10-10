@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"wsnet2/hub"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -52,9 +53,6 @@ func (sv *HubService) serveGRPC(ctx context.Context) <-chan error {
 func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
 	log.Infof("Watch request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
 
-	//TODO: 実装
-	return nil, status.Errorf(codes.Unimplemented, "method Watch not implemented")
-
 	/* gameに接続してからhubを作るか、hubを作ってからgameに接続するか。
 	hubの実装をシンプルにすることを考えると、gameに接続してからその接続に紐付いたhubを作るのが良い。
 	しかし並行して同じ部屋に対するWatchリクエストが来たときの排他制御が面倒になる。
@@ -63,7 +61,7 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 	並行に来ても大丈夫になる。
 	*/
 
-	//sv.repo.GetOrCreateHub(in.AppId, in.RoomId, in.ClientInfo.Id)
+	sv.repo.GetOrCreateHub(in.AppId, hub.RoomID(in.RoomId))
 
 	/* memo
 	room.id は app_idと組にしなくてもユニークなので hub では気にする必要がない？
@@ -81,4 +79,7 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		log.Infof("Join room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
 		return res, nil
 	*/
+
+	// まだレスポンスは返せない
+	return nil, status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
