@@ -23,6 +23,7 @@ type RoomService struct {
 
 	roomCache *RoomCache
 	gameCache *GameCache
+	hubCache  *HubCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -38,6 +39,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		apps:      make(map[string]*pb.App),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		hubCache:  NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
 		rs.apps[app.Id] = &apps[i]
@@ -228,13 +230,13 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 	return filter(rooms, props, queries, limit), nil
 }
 
-func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
-	game, err := rs.gameCache.Get(hostId)
+func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	hub, err := rs.hubCache.Rand()
 	if err != nil {
-		return nil, xerrors.Errorf("watch: failed to get game server: %w", err)
+		return nil, xerrors.Errorf("watch: failed to get hub server: %w", err)
 	}
 
-	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
+	grpcAddr := fmt.Sprintf("%s:%d", hub.Hostname, hub.GRPCPort)
 	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
@@ -283,7 +285,7 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 	}
 	room = filtered[0]
 
-	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(appId, room.Id, clientInfo)
 }
 
 func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
@@ -311,5 +313,5 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 	}
 	room = filtered[0]
 
-	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(appId, room.Id, clientInfo)
 }
