@@ -65,7 +65,7 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 
 	// hub->game 接続に使うclientId. このhubを作成するトリガーになったclientIdは使わない
 	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
-	clientId := fmt.Sprintf("hub:%s:%s", r.hostId, roomId)
+	clientId := fmt.Sprintf("hub:%d:%s", r.hostId, roomId)
 
 	// todo: log.CurrentLevel()
 	logger := log.Get(log.DEBUG).With(
