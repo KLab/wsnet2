@@ -39,7 +39,7 @@ services:
     build: .
     image: wsnet2-arelo
     environment:
-      WSNET2_GAME_HOSTNAME: wsnet2-game
+      WSNET2_GAME_HOSTNAME: wsnet2-hub
       WSNET2_GAME_PUBLICNAME: localhost
     volumes:
       - ./:/work
