@@ -15,7 +15,13 @@ import (
 	"wsnet2/pb"
 )
 
+type Player struct {
+	*pb.ClientInfo
+	props binary.Dict
+}
+
 type Hub struct {
+	*pb.RoomInfo
 	ID       RoomID
 	repo     *Repository
 	appId    AppID
@@ -31,6 +37,7 @@ type Hub struct {
 	wgClient sync.WaitGroup
 
 	muClients sync.RWMutex
+	players   map[ClientID]*Player
 	watchers  map[ClientID]*game.Client
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
@@ -72,6 +79,34 @@ func (h *Hub) connectGame() error {
 	}
 
 	h.logger.Info("Joined room: %v", res)
+
+	pubProps, iProps, err := game.InitProps(res.RoomInfo.PublicProps)
+	if err != nil {
+		return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	res.RoomInfo.PublicProps = iProps
+	privProps, iProps, err := game.InitProps(res.RoomInfo.PrivateProps)
+	if err != nil {
+		return xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+	}
+	res.RoomInfo.PrivateProps = iProps
+
+	h.RoomInfo = res.RoomInfo
+	h.publicProps = pubProps
+	h.privateProps = privProps
+
+	h.players = make(map[ClientID]*Player)
+	for _, c := range res.Players {
+		props, iProps, err := game.InitProps(c.Props)
+		if err != nil {
+			return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		}
+		c.Props = iProps
+		h.players[ClientID(c.Id)] = &Player{
+			ClientInfo: c,
+			props:      props,
+		}
+	}
 
 	return nil
 }

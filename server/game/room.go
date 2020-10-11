@@ -44,7 +44,7 @@ type Room struct {
 	logger *zap.SugaredLogger
 }
 
-func initProps(props []byte) (binary.Dict, []byte, error) {
+func InitProps(props []byte) (binary.Dict, []byte, error) {
 	if len(props) == 0 || binary.Type(props[0]) == binary.TypeNull {
 		dict := binary.Dict{}
 		return dict, binary.MarshalDict(dict), nil
@@ -61,12 +61,12 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 }
 
 func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
-	pubProps, iProps, err := initProps(info.PublicProps)
+	pubProps, iProps, err := InitProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 	}
 	info.PublicProps = iProps
-	privProps, iProps, err := initProps(info.PrivateProps)
+	privProps, iProps, err := InitProps(info.PrivateProps)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
 	}
