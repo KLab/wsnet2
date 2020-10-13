@@ -52,6 +52,8 @@ DROP TABLE IF EXISTS `hub`;
 CREATE TABLE hub (
   `id`     VARCHAR(32) PRIMARY KEY,
   `host_id` INTEGER UNSIGNED NOT NULL,
+  `room_id` VARCHAR(32) NOT NULL,
   `watchers` INTEGER UNSIGNED NOT NULL,
-  `created` DATETIME
+  `created` DATETIME,
+  KEY `idx_room` (`room_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
