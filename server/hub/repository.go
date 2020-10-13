@@ -23,7 +23,6 @@ type ClientID = game.ClientID
 type Repository struct {
 	hostId uint32
 
-	app  pb.App /* 1つのrepositoryで異なるappのroomを扱うなら不要？ */
 	conf *config.GameConf
 	db   *sqlx.DB
 
