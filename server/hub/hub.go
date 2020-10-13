@@ -3,13 +3,17 @@ package hub
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
+	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/game"
 	"wsnet2/pb"
@@ -45,22 +49,44 @@ type Hub struct {
 	logger *zap.SugaredLogger
 }
 
-func (h *Hub) connectGame() error {
+func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
+	hdr := http.Header{}
+	hdr.Add("Wsnet2-App", h.appId)
+	hdr.Add("Wsnet2-User", h.clientId)
+	hdr.Add("Wsnet2-LastEventSeq", strconv.Itoa(seq))
+
+	authdata, err := auth.GenerateAuthData(authKey, h.clientId, time.Now())
+	if err != nil {
+		return nil, xerrors.Errorf("dialGame: generate authdata error: %w\n", err)
+	}
+	hdr.Add("Authorization", "Bearer "+authdata)
+
+	ws, res, err := h.repo.ws.Dial(url, hdr)
+	if err != nil {
+		return nil, xerrors.Errorf("dialGame: dial error: %v, %w\n", res, err)
+	}
+
+	h.logger.Infof("dialGame: response: %v\n", res)
+
+	return ws, nil
+}
+
+func (h *Hub) connectGame() (*websocket.Conn, error) {
 	var room pb.RoomInfo
 	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.ID)
 	if err != nil {
-		return xerrors.Errorf("connectGame: Failed to get room: %w", err)
+		return nil, xerrors.Errorf("connectGame: Failed to get room: %w", err)
 	}
 
 	gs, err := h.repo.gameCache.Get(room.HostId)
 	if err != nil {
-		return xerrors.Errorf("connectGame: Failed to get game server: %w", err)
+		return nil, xerrors.Errorf("connectGame: Failed to get game server: %w", err)
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", gs.Hostname, gs.GRPCPort)
 	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
 	if err != nil {
-		return xerrors.Errorf("connectGame: Failed to dial to game server: %w", err)
+		return nil, xerrors.Errorf("connectGame: Failed to dial to game server: %w", err)
 	}
 	defer conn.Close()
 
@@ -75,19 +101,19 @@ func (h *Hub) connectGame() error {
 
 	res, err := client.Watch(context.TODO(), req)
 	if err != nil {
-		return xerrors.Errorf("connectGame: Failed to 'Watch' request to game server: %w", err)
+		return nil, xerrors.Errorf("connectGame: Failed to 'Watch' request to game server: %w", err)
 	}
 
 	h.logger.Info("Joined room: %v", res)
 
 	pubProps, iProps, err := game.InitProps(res.RoomInfo.PublicProps)
 	if err != nil {
-		return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		return nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 	}
 	res.RoomInfo.PublicProps = iProps
 	privProps, iProps, err := game.InitProps(res.RoomInfo.PrivateProps)
 	if err != nil {
-		return xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+		return nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
 	}
 	res.RoomInfo.PrivateProps = iProps
 
@@ -99,7 +125,7 @@ func (h *Hub) connectGame() error {
 	for _, c := range res.Players {
 		props, iProps, err := game.InitProps(c.Props)
 		if err != nil {
-			return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+			return nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 		}
 		c.Props = iProps
 		h.players[ClientID(c.Id)] = &Player{
@@ -108,17 +134,38 @@ func (h *Hub) connectGame() error {
 		}
 	}
 
-	return nil
+	h.logger.Debugf("URL: %v\n", res.Url)
+	h.logger.Debugf("AuthKey: %v\n", res.AuthKey)
+	ws, err := h.dialGame(res.Url, res.AuthKey, 0)
+	if err != nil {
+		return nil, xerrors.Errorf("connectGame: Failed to dial game server: %w", err)
+	}
+
+	return ws, nil
 }
 
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
 	defer h.logger.Debug("hub end")
 
-	if err := h.connectGame(); err != nil {
-		h.logger.Error("Failed to connect game server")
+	ws, err := h.connectGame()
+	if err != nil {
+		h.logger.Errorf("Failed to connect game server: %v\n", err)
+		return
 	}
 
-	//TODO: 実装
-	time.Sleep(time.Minute)
+	h.logger.Infof("Established")
+
+	for {
+		_, b, err := ws.ReadMessage()
+		if err != nil {
+			h.logger.Errorf("ReadMessage error: %v\n", err)
+			return
+		}
+
+		switch ty := binary.EvType(b[0]); ty {
+		default:
+			h.logger.Debugf("ReadMessage: %v, %v\n", ty, b)
+		}
+	}
 }
