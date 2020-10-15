@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
+	"golang.org/x/xerrors"
 
 	"wsnet2/config"
 	"wsnet2/game"
@@ -74,16 +76,60 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 	).Sugar()
 
 	hub = &Hub{
-		ID:       RoomID(roomId),
+		id:       RoomID(roomId),
 		repo:     r,
 		appId:    appId,
 		clientId: clientId,
+
+		players:  make(map[ClientID]*Player),
+		watchers: make(map[ClientID]*game.Client),
 
 		logger: logger,
 		// todo: hubをもっと埋める
 	}
 
+	hub.wgConnect.Add(1)
 	go hub.Start()
 
 	return hub, nil
+}
+
+func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, info *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	hub, err := r.GetOrCreateHub(appId, roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchRoom: Failed to get hub server: %w", err)
+	}
+
+	ch := hub.Watch(info)
+	var joined game.JoinedInfo
+	select {
+	case j, ok := <-ch:
+		if !ok {
+			return nil, xerrors.Errorf("WatchRoom chan closed: room=%v", roomId)
+		}
+		joined = j
+	case <-ctx.Done():
+		return nil, xerrors.Errorf("WatchRoom timeout or context done: room=%v", roomId)
+	}
+
+	cli := joined.Client
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.clients[cli.ID()]; !ok {
+		r.clients[cli.ID()] = make(map[RoomID]*game.Client)
+	}
+	r.clients[cli.ID()][roomId] = cli
+
+	return &pb.JoinedRoomRes{
+		RoomInfo: joined.Room,
+		Players:  joined.Players,
+		AuthKey:  cli.AuthKey(),
+		MasterId: string(joined.MasterId),
+		Deadline: uint32(joined.Deadline / time.Second),
+	}, nil
+}
+
+func (r *Repository) RemoveClient(c *game.Client) {
+
 }

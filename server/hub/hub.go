@@ -26,7 +26,7 @@ type Player struct {
 
 type Hub struct {
 	*pb.RoomInfo
-	ID       RoomID
+	id       RoomID
 	repo     *Repository
 	appId    AppID
 	clientId string
@@ -36,6 +36,8 @@ type Hub struct {
 	publicProps  binary.Dict
 	privateProps binary.Dict
 
+	wgConnect sync.WaitGroup
+
 	msgCh    chan game.Msg
 	done     chan struct{}
 	wgClient sync.WaitGroup
@@ -43,10 +45,44 @@ type Hub struct {
 	muClients sync.RWMutex
 	players   map[ClientID]*Player
 	watchers  map[ClientID]*game.Client
+	master    ClientID
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
 	logger *zap.SugaredLogger
+}
+
+func (h *Hub) ID() RoomID {
+	return h.id
+}
+
+func (h *Hub) Repo() game.IRepo {
+	return h.repo
+}
+
+func (h *Hub) Deadline() time.Duration {
+	return h.deadline
+}
+
+func (h *Hub) WaitGroup() *sync.WaitGroup {
+	return &h.wgClient
+}
+
+func (h *Hub) Logger() *zap.SugaredLogger {
+	return h.logger
+}
+
+func (h *Hub) Done() <-chan struct{} {
+	return h.done
+}
+
+func (h *Hub) Timeout(c *game.Client) {
+
+	// TODO: 実装
+}
+
+func (h *Hub) SendMessage(msg game.Msg) {
+	// TODO: 実装
 }
 
 func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
@@ -73,7 +109,7 @@ func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 
 func (h *Hub) connectGame() (*websocket.Conn, error) {
 	var room pb.RoomInfo
-	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.ID)
+	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.id)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to get room: %w", err)
 	}
@@ -93,7 +129,7 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	client := pb.NewGameClient(conn)
 	req := &pb.JoinRoomReq{
 		AppId:  h.appId,
-		RoomId: string(h.ID),
+		RoomId: string(h.id),
 		ClientInfo: &pb.ClientInfo{
 			Id: h.clientId,
 		},
@@ -134,6 +170,8 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 		}
 	}
 
+	h.wgConnect.Done()
+
 	h.logger.Debugf("URL: %v\n", res.Url)
 	h.logger.Debugf("AuthKey: %v\n", res.AuthKey)
 	ws, err := h.dialGame(res.Url, res.AuthKey, 0)
@@ -168,4 +206,25 @@ func (h *Hub) Start() {
 			h.logger.Debugf("ReadMessage: %v, %v\n", ty, b)
 		}
 	}
+}
+
+func (h *Hub) Watch(info *pb.ClientInfo) <-chan game.JoinedInfo {
+	ch := make(chan game.JoinedInfo)
+	go func() {
+		h.wgConnect.Wait()
+		client, err := game.NewWatcher(info, h)
+		if err != nil {
+			return
+		}
+		h.muClients.Lock()
+		h.watchers[client.ID()] = client
+		rinfo := h.RoomInfo.Clone()
+		players := make([]*pb.ClientInfo, 0, len(h.players))
+		for _, c := range h.players {
+			players = append(players, c.ClientInfo.Clone())
+		}
+		h.muClients.Unlock()
+		ch <- game.JoinedInfo{rinfo, players, client, h.master, h.deadline}
+	}()
+	return ch
 }

@@ -102,6 +102,10 @@ func (c *Client) ID() ClientID {
 	return ClientID(c.Id)
 }
 
+func (c *Client) AuthKey() string {
+	return c.authKey
+}
+
 func (c *Client) ValidAuthData(authData string) error {
 	return auth.ValidAuthData(authData, c.authKey, c.Id, time.Now().Add(-ClientAuthDataDeadline))
 }
