@@ -102,8 +102,16 @@ func (c *Client) ID() ClientID {
 	return ClientID(c.Id)
 }
 
+func (c *Client) RoomID() RoomID {
+	return c.room.ID()
+}
+
 func (c *Client) AuthKey() string {
 	return c.authKey
+}
+
+func (c *Client) NodeCount() uint32 {
+	return c.nodeCount
 }
 
 func (c *Client) ValidAuthData(authData string) error {

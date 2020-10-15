@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 
+	"wsnet2/binary"
 	"wsnet2/config"
 	"wsnet2/game"
 	"wsnet2/lobby"
@@ -81,8 +82,12 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		appId:    appId,
 		clientId: clientId,
 
+		msgCh: make(chan game.Msg, game.RoomMsgChSize),
+		done:  make(chan struct{}),
+
 		players:  make(map[ClientID]*Player),
 		watchers: make(map[ClientID]*game.Client),
+		lastMsg:  make(binary.Dict),
 
 		logger: logger,
 		// todo: hubをもっと埋める
@@ -94,13 +99,30 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 	return hub, nil
 }
 
-func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, info *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (r *Repository) RemoveHub(hub *Hub) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	rid := hub.ID()
+	delete(r.hubs, rid)
+	log.Debugf("hub removed from repository: room=%v", rid)
+}
+
+func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	hub, err := r.GetOrCreateHub(appId, roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("WatchRoom: Failed to get hub server: %w", err)
 	}
 
-	ch := hub.Watch(info)
+	if err := hub.waitConnect(ctx); err != nil {
+		return nil, xerrors.Errorf("WatchRoom: wait connect error: %w", err)
+	}
+
+	ch := make(chan game.JoinedInfo)
+	hub.msgCh <- &game.MsgWatch{
+		Info:   client,
+		Joined: ch,
+	}
+
 	var joined game.JoinedInfo
 	select {
 	case j, ok := <-ch:
@@ -130,6 +152,16 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	}, nil
 }
 
-func (r *Repository) RemoveClient(c *game.Client) {
-
+func (r *Repository) RemoveClient(cli *game.Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	cid := cli.ID()
+	rid := cli.RoomID()
+	if cmap, ok := r.clients[cid]; ok {
+		delete(cmap, rid)
+		if len(cmap) == 0 {
+			delete(r.clients, cid)
+		}
+	}
+	log.Debugf("client removed from repository: room=%v, client=%v", rid, cid)
 }

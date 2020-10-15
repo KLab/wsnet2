@@ -85,6 +85,43 @@ func (h *Hub) SendMessage(msg game.Msg) {
 	// TODO: 実装
 }
 
+func (h *Hub) writeLastMsg(cid ClientID) {
+	millisec := uint64(time.Now().UnixNano()) / 1000000
+	h.lastMsg[string(cid)] = binary.MarshalULong(millisec)
+}
+
+/// UpdateLastMsg : PlayerがMsgを受信したとき更新する.
+/// 既に登録されているPlayerのみ書き込み (watcherを含めないため)
+func (h *Hub) updateLastMsg(cid ClientID) {
+	id := string(cid)
+	if _, ok := h.lastMsg[id]; ok {
+		h.writeLastMsg(cid)
+	}
+}
+
+func (h *Hub) removeClient(c *game.Client, err error) {
+	h.removeWatcher(c, err)
+}
+
+func (h *Hub) removeWatcher(c *game.Client, err error) {
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	cid := c.ID()
+
+	if _, ok := h.watchers[cid]; !ok {
+		h.logger.Debugf("Watcher may be aleady left: client=%v", cid)
+		return
+	}
+
+	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
+	delete(h.watchers, cid)
+
+	h.RoomInfo.Watchers -= c.NodeCount()
+
+	c.Removed(err)
+}
+
 func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 	hdr := http.Header{}
 	hdr.Add("Wsnet2-App", h.appId)
@@ -192,6 +229,7 @@ func (h *Hub) Start() {
 		return
 	}
 
+	go h.MsgLoop()
 	h.logger.Infof("Established")
 
 	for {
@@ -208,23 +246,114 @@ func (h *Hub) Start() {
 	}
 }
 
-func (h *Hub) Watch(info *pb.ClientInfo) <-chan game.JoinedInfo {
-	ch := make(chan game.JoinedInfo)
+func (h *Hub) waitConnect(ctx context.Context) error {
+	h.logger.Debugf("waitConnect: start")
+	ch := make(chan struct{})
 	go func() {
+		h.logger.Debugf("wgConnect.Wati()")
 		h.wgConnect.Wait()
-		client, err := game.NewWatcher(info, h)
-		if err != nil {
+		h.logger.Debugf("ch <- struct{}{}")
+		ch <- struct{}{}
+	}()
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			return xerrors.Errorf("Hub chan closed: room=%v", h.id)
+		}
+	case <-ctx.Done():
+		return xerrors.Errorf("timeout or context done: room=%v", h.id)
+	}
+	h.logger.Debugf("waitConnect: end")
+	return nil
+}
+
+// MsgLoop goroutine dispatch messages.
+func (h *Hub) MsgLoop() {
+	h.logger.Debug("Hub.MsgLoop() start.")
+Loop:
+	for {
+		select {
+		case <-h.Done():
+			h.logger.Info("Hub closed.")
+			break Loop
+		case msg := <-h.msgCh:
+			h.logger.Debugf("Hub msg: %T %v", msg, msg)
+			h.updateLastMsg(msg.SenderID())
+			if err := h.dispatch(msg); err != nil {
+				h.logger.Errorf("Hub msg error: %v", err)
+			}
+		}
+	}
+	h.repo.RemoveHub(h)
+
+	h.drainMsg()
+	h.logger.Debug("Hub.MsgLoop() finish")
+}
+
+// drainMsg drain msgCh until all clients closed.
+// clientのgoroutineがmsgChに書き込むところで停止するのを防ぐ
+func (h *Hub) drainMsg() {
+	ch := make(chan struct{})
+	go func() {
+		h.wgClient.Wait()
+		ch <- struct{}{}
+	}()
+
+	for {
+		select {
+		case msg := <-h.msgCh:
+			h.logger.Debugf("Discard msg: %T %v", msg, msg)
+		case <-ch:
 			return
 		}
-		h.muClients.Lock()
-		h.watchers[client.ID()] = client
-		rinfo := h.RoomInfo.Clone()
-		players := make([]*pb.ClientInfo, 0, len(h.players))
-		for _, c := range h.players {
-			players = append(players, c.ClientInfo.Clone())
-		}
-		h.muClients.Unlock()
-		ch <- game.JoinedInfo{rinfo, players, client, h.master, h.deadline}
-	}()
-	return ch
+	}
+}
+
+func (h *Hub) dispatch(msg game.Msg) error {
+	switch m := msg.(type) {
+	case *game.MsgWatch:
+		return h.msgWatch(m)
+	case *game.MsgClientError:
+		return h.msgClientError(m)
+	default:
+		return xerrors.Errorf("unknown msg type: %T %v", m, m)
+	}
+}
+
+func (h *Hub) msgWatch(msg *game.MsgWatch) error {
+	if !h.Watchable {
+		close(msg.Joined)
+		return xerrors.Errorf("Room is not watchable. room=%v, client=%v", h.ID(), msg.Info.Id)
+	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	client, err := game.NewWatcher(msg.Info, h)
+	if err != nil {
+		close(msg.Joined)
+		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", h.ID(), msg.Info.Id, err)
+	}
+	h.watchers[client.ID()] = client
+	h.RoomInfo.Watchers += client.NodeCount()
+
+	rinfo := h.RoomInfo.Clone()
+	players := make([]*pb.ClientInfo, 0, len(h.players))
+	for _, c := range h.players {
+		players = append(players, c.ClientInfo.Clone())
+	}
+
+	msg.Joined <- game.JoinedInfo{
+		Room:     rinfo,
+		Players:  players,
+		Client:   client,
+		MasterId: h.master,
+		Deadline: h.deadline,
+	}
+	return nil
+}
+
+func (h *Hub) msgClientError(msg *game.MsgClientError) error {
+	h.removeClient(msg.Sender, msg.Err)
+	return nil
 }
