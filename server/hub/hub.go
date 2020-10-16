@@ -36,9 +36,8 @@ type Hub struct {
 	publicProps  binary.Dict
 	privateProps binary.Dict
 
-	wgConnect sync.WaitGroup
-
 	msgCh    chan game.Msg
+	ready    chan struct{}
 	done     chan struct{}
 	wgClient sync.WaitGroup
 
@@ -207,10 +206,8 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 		}
 	}
 
-	h.wgConnect.Done()
+	close(h.ready)
 
-	h.logger.Debugf("URL: %v\n", res.Url)
-	h.logger.Debugf("AuthKey: %v\n", res.AuthKey)
 	ws, err := h.dialGame(res.Url, res.AuthKey, 0)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to dial game server: %w", err)
@@ -222,15 +219,23 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
 	defer h.logger.Debug("hub end")
+	defer close(h.done)
+
+	go func() {
+		select {
+		case <-h.ready:
+			h.MsgLoop()
+		case <-h.Done():
+			h.repo.RemoveHub(h)
+			h.drainMsg()
+		}
+	}()
 
 	ws, err := h.connectGame()
 	if err != nil {
 		h.logger.Errorf("Failed to connect game server: %v\n", err)
 		return
 	}
-
-	go h.MsgLoop()
-	h.logger.Infof("Established")
 
 	for {
 		_, b, err := ws.ReadMessage()
@@ -244,27 +249,6 @@ func (h *Hub) Start() {
 			h.logger.Debugf("ReadMessage: %v, %v\n", ty, b)
 		}
 	}
-}
-
-func (h *Hub) waitConnect(ctx context.Context) error {
-	h.logger.Debugf("waitConnect: start")
-	ch := make(chan struct{})
-	go func() {
-		h.logger.Debugf("wgConnect.Wati()")
-		h.wgConnect.Wait()
-		h.logger.Debugf("ch <- struct{}{}")
-		ch <- struct{}{}
-	}()
-	select {
-	case _, ok := <-ch:
-		if !ok {
-			return xerrors.Errorf("Hub chan closed: room=%v", h.id)
-		}
-	case <-ctx.Done():
-		return xerrors.Errorf("timeout or context done: room=%v", h.id)
-	}
-	h.logger.Debugf("waitConnect: end")
-	return nil
 }
 
 // MsgLoop goroutine dispatch messages.

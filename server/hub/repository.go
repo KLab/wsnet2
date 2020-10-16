@@ -83,6 +83,7 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		clientId: clientId,
 
 		msgCh: make(chan game.Msg, game.RoomMsgChSize),
+		ready: make(chan struct{}),
 		done:  make(chan struct{}),
 
 		players:  make(map[ClientID]*Player),
@@ -93,7 +94,6 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		// todo: hubをもっと埋める
 	}
 
-	hub.wgConnect.Add(1)
 	go hub.Start()
 
 	return hub, nil
@@ -108,19 +108,23 @@ func (r *Repository) RemoveHub(hub *Hub) {
 }
 
 func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
 	hub, err := r.GetOrCreateHub(appId, roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("WatchRoom: Failed to get hub server: %w", err)
 	}
 
-	if err := hub.waitConnect(ctx); err != nil {
-		return nil, xerrors.Errorf("WatchRoom: wait connect error: %w", err)
-	}
-
 	ch := make(chan game.JoinedInfo)
-	hub.msgCh <- &game.MsgWatch{
+	msg := &game.MsgWatch{
 		Info:   client,
 		Joined: ch,
+	}
+	select {
+	case hub.msgCh <- msg:
+	case <-hub.Done():
+		return nil, xerrors.Errorf("WatchRoom: hub closed: %v", hub.ID())
 	}
 
 	var joined game.JoinedInfo
