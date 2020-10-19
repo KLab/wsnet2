@@ -94,6 +94,8 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		// todo: hubをもっと埋める
 	}
 
+	r.hubs[roomId] = hub
+
 	go hub.Start()
 
 	return hub, nil
