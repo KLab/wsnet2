@@ -136,6 +136,8 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 			return nil, xerrors.Errorf("WatchRoom chan closed: room=%v", roomId)
 		}
 		joined = j
+	case <-hub.Done():
+		return nil, xerrors.Errorf("WatchRoom: hub closed: %v", hub.ID())
 	case <-ctx.Done():
 		return nil, xerrors.Errorf("WatchRoom timeout or context done: room=%v", roomId)
 	}
