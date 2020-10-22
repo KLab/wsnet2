@@ -335,6 +335,16 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
+	if _, ok := r.players[msg.SenderID()]; ok {
+		close(msg.Joined)
+		return xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+	}
+	// hub経由で観戦している場合は考慮しない
+	if _, ok := r.watchers[msg.SenderID()]; ok {
+		close(msg.Joined)
+		return xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
+	}
+
 	if r.MaxPlayers == uint32(len(r.players)) {
 		close(msg.Joined)
 		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
@@ -372,6 +382,16 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
+
+	if _, ok := r.players[msg.SenderID()]; ok {
+		close(msg.Joined)
+		return xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
+	}
+	// hub経由で観戦している場合は考慮しない
+	if _, ok := r.watchers[msg.SenderID()]; ok {
+		close(msg.Joined)
+		return xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+	}
 
 	client, err := NewWatcher(msg.Info, r)
 	if err != nil {
