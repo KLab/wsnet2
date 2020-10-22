@@ -85,6 +85,9 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		appId:    appId,
 		clientId: clientId,
 
+		// TODO: RoomOptionから持ってくる
+		deadline: time.Duration(30) * time.Second,
+
 		msgCh: make(chan game.Msg, game.RoomMsgChSize),
 		ready: make(chan struct{}),
 		done:  make(chan struct{}),
@@ -175,4 +178,14 @@ func (r *Repository) RemoveClient(cli *game.Client) {
 		}
 	}
 	log.Debugf("client removed from repository: room=%v, client=%v", rid, cid)
+}
+
+func (r *Repository) GetClient(roomId, userId string) (*game.Client, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	cli, ok := r.clients[ClientID(userId)][RoomID(roomId)]
+	if !ok {
+		return nil, xerrors.Errorf("client not found: room=%v, client=%v", roomId, userId)
+	}
+	return cli, nil
 }

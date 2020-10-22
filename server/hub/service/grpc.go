@@ -18,10 +18,6 @@ import (
 func (sv *HubService) serveGRPC(ctx context.Context) <-chan error {
 	errCh := make(chan error)
 
-	// FIXME: とりあえずの設定（あとで消す）
-	sv.wsURLFormat = fmt.Sprintf("%s://%s:%d/room/%%s",
-		"ws", sv.conf.PublicName, sv.conf.WebsocketPort)
-
 	sv.preparation.Add(1)
 	go func() {
 		laddr := fmt.Sprintf(":%d", sv.conf.GRPCPort)

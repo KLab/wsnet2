@@ -77,7 +77,7 @@ func (s *HubService) Serve(ctx context.Context) error {
 	case err = <-s.heartbeat(ctx):
 	case err = <-s.servePprof(ctx):
 	case err = <-s.serveGRPC(ctx):
-		//case err = <-s.serveWebSocket(ctx):
+	case err = <-s.serveWebSocket(ctx):
 	}
 	return err
 }
