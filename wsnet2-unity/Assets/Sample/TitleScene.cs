@@ -72,14 +72,14 @@ namespace Sample
             roomOpt.WithClientDeadline(Deadline);
 
             prepareWSNet2Client();
-            WSNet2Runner.Instance.Client.Create(
+            G.Client.Create(
                 roomOpt,
                 cliProps,
                 (room) =>
                 {
                     room.Pause();
                     Debug.Log("created: room=" + room.Id);
-                    WSNet2Runner.Instance.GameRoom = room;
+                    G.GameRoom = room;
                     SceneManager.LoadScene("Game");
                     return true;
                 },
@@ -102,7 +102,7 @@ namespace Sample
             query.Equal("game", "pong");
 
             prepareWSNet2Client();
-            WSNet2Runner.Instance.Client.RandomJoin(
+            G.Client.RandomJoin(
                 SearchGroup,
                 query,
                 cliProps,
@@ -110,7 +110,7 @@ namespace Sample
                 {
                     room.Pause();
                     Debug.Log("join: room=" + room.Id);
-                    WSNet2Runner.Instance.GameRoom = room;
+                    G.GameRoom = room;
                     SceneManager.LoadScene("Game");
                     return true;
                 },
@@ -139,8 +139,8 @@ namespace Sample
             Debug.Log($"appKey {appKeyInput.text}");
             Debug.Log($"userId {userIdInput.text}");
 
-            WSNet2Runner.CreateInstance();
-            WSNet2Runner.Instance.Client = WSNet2Service.Instance.GetClient(
+            Logic.WSNet2Helper.RegisterTypes();
+            G.Client = WSNet2Service.Instance.GetClient(
                 lobbyInput.text,
                 appIdInput.text,
                 userIdInput.text,

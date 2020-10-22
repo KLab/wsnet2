@@ -81,16 +81,22 @@ namespace Sample.Logic
             return authgen.Generate(key, userid);
         }
 
+        static bool RegisterTypesOnce = false;
+
         /// <summary>
         /// WSNet2のシリアライザでシリアライズする独自型の登録を行う
         /// プロセス開始後1度だけ呼び出すこと
         /// </summary>
         public static void RegisterTypes()
         {
-            Serialization.Register<Sample.Logic.GameState>(10);
-            Serialization.Register<Sample.Logic.Bar>(11);
-            Serialization.Register<Sample.Logic.Ball>(12);
-            Serialization.Register<Sample.Logic.PlayerEvent>(20);
+            if (!RegisterTypesOnce)
+            {
+                RegisterTypesOnce = true;
+                Serialization.Register<Sample.Logic.GameState>(10);
+                Serialization.Register<Sample.Logic.Bar>(11);
+                Serialization.Register<Sample.Logic.Ball>(12);
+                Serialization.Register<Sample.Logic.PlayerEvent>(20);
+            }
         }
     }
 }
