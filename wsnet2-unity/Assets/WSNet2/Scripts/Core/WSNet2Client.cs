@@ -102,7 +102,7 @@ namespace WSNet2.Core
         public void Create(
             RoomOption roomOption,
             IDictionary<string, object> clientProps,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new CreateParam();
@@ -121,7 +121,7 @@ namespace WSNet2.Core
             string roomId,
             IDictionary<string, object> clientProps,
             Query query,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
@@ -140,7 +140,7 @@ namespace WSNet2.Core
             int number,
             IDictionary<string, object> clientProps,
             Query query,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
@@ -159,7 +159,7 @@ namespace WSNet2.Core
             uint group,
             Query query,
             IDictionary<string, object> clientProps,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
@@ -177,7 +177,7 @@ namespace WSNet2.Core
         public void Watch(
             string roomId,
             Query query,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
@@ -195,7 +195,7 @@ namespace WSNet2.Core
         public void Watch(
             int number,
             Query query,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             var param = new JoinParam(){
@@ -248,7 +248,7 @@ namespace WSNet2.Core
         private async Task connectToRoom(
             string path,
             byte[] content,
-            Func<Room, bool> onSuccess,
+            Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
             try
@@ -259,10 +259,7 @@ namespace WSNet2.Core
 
                 callbackPool.Add(() =>
                 {
-                    if (!onSuccess(room))
-                    {
-                        return;
-                    }
+                    onSuccess(room);
                     lock(rooms)
                     {
                         rooms.Add(room);
