@@ -10,11 +10,12 @@ import (
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/game"
-	"wsnet2/lobby"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -26,10 +27,11 @@ type ClientID = game.ClientID
 type Repository struct {
 	hostId uint32
 
-	conf *config.GameConf
-	db   *sqlx.DB
+	conf     *config.GameConf
+	db       *sqlx.DB
+	grpcPool *common.GrpcPool
 
-	gameCache *lobby.GameCache
+	gameCache *common.GameCache
 	ws        *websocket.Dialer
 
 	mu      sync.RWMutex
@@ -39,11 +41,12 @@ type Repository struct {
 
 func NewRepository(db *sqlx.DB, conf *config.GameConf, hostId uint32) (*Repository, error) {
 	repo := &Repository{
-		hostId: hostId,
-		conf:   conf,
-		db:     db,
+		hostId:   hostId,
+		conf:     conf,
+		db:       db,
+		grpcPool: common.NewGrpcPool(grpc.WithInsecure()),
 
-		gameCache: lobby.NewGameCache(db, time.Second*1, time.Duration(time.Second*5)), /* TODO: 第三引数はconfigから持ってくる（ValidHeartBeat） */
+		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(time.Second*5)), /* TODO: 第三引数はconfigから持ってくる（ValidHeartBeat） */
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
 			ReadBufferSize:  1024,

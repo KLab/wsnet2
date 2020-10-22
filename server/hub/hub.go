@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
-	"google.golang.org/grpc"
 
 	"wsnet2/auth"
 	"wsnet2/binary"
@@ -156,7 +155,7 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", gs.Hostname, gs.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	conn, err := h.repo.grpcPool.Get(grpcAddr)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to dial to game server: %w", err)
 	}
