@@ -14,6 +14,7 @@ import (
 
 	"wsnet2/auth"
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/game"
 	"wsnet2/pb"
 )
@@ -177,12 +178,12 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 
 	h.logger.Info("Joined room: %v", res)
 
-	pubProps, iProps, err := game.InitProps(res.RoomInfo.PublicProps)
+	pubProps, iProps, err := common.InitProps(res.RoomInfo.PublicProps)
 	if err != nil {
 		return nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 	}
 	res.RoomInfo.PublicProps = iProps
-	privProps, iProps, err := game.InitProps(res.RoomInfo.PrivateProps)
+	privProps, iProps, err := common.InitProps(res.RoomInfo.PrivateProps)
 	if err != nil {
 		return nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
 	}
@@ -194,7 +195,7 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 
 	h.players = make(map[ClientID]*Player)
 	for _, c := range res.Players {
-		props, iProps, err := game.InitProps(c.Props)
+		props, iProps, err := common.InitProps(c.Props)
 		if err != nil {
 			return nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 		}
