@@ -25,10 +25,12 @@ namespace WSNet2
         static WSNet2Service instance;
 
         Dictionary<string, WSNet2Client> clients;
+        Dictionary<string, WSNet2Client> newClients;
 
         void Initialize()
         {
             clients = new Dictionary<string, WSNet2Client>();
+            newClients = new Dictionary<string, WSNet2Client>();
             DontDestroyOnLoad(this.gameObject);
         }
 
@@ -43,21 +45,30 @@ namespace WSNet2
                 return cli;
             }
 
+            if (newClients.TryGetValue(key, out cli))
+            {
+                cli.SetConnectionData(baseUri, authData);
+                return cli;
+            }
+
             cli = new WSNet2Client(baseUri, appId, userId, authData);
-            clients[key] = cli;
+            newClients[key] = cli;
             return cli;
         }
 
         void Update()
         {
+            mergeNewClients();
             foreach (var cli in clients.Values)
             {
                 cli.ProcessCallback();
             }
+            mergeNewClients();
         }
 
         void OnDestroy()
         {
+            mergeNewClients();
             foreach (var cli in clients.Values)
             {
                 cli.ForceDisconnect();
@@ -66,5 +77,13 @@ namespace WSNet2
             instance = null;
         }
 
+        void mergeNewClients() {
+            // Note: ProcessCallback 内で clients の追加を直接行うと InvalidOperationException が発生する
+            foreach (var kv in newClients)
+            {
+                clients[kv.Key] = kv.Value;
+            }
+            newClients.Clear();
+        }
     }
 }
