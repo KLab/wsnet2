@@ -92,7 +92,7 @@ func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]pb.RoomInfo, [
 		if c.queries[appId] == nil {
 			c.queries[appId] = make(map[uint32]*roomCacheQuery)
 		}
-		q = newRoomCacheQuery(c.db, c.expire, "SELECT * FROM room WHERE app_id = ? AND search_group = ? LIMIT 1000", appId, searchGroup)
+		q = newRoomCacheQuery(c.db, c.expire, "SELECT * FROM room WHERE app_id = ? AND search_group = ? AND visible = 1 LIMIT 1000", appId, searchGroup)
 		c.queries[appId][searchGroup] = q
 	}
 	c.Unlock()

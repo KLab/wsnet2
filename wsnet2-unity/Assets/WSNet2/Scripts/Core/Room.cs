@@ -130,10 +130,10 @@ namespace WSNet2.Core
             this.Running = true;
             this.Closed = false;
 
-            var reader = Serialization.NewReader(new ArraySegment<byte>(info.publicProps));
+            var reader = Serialization.NewReader(info.publicProps);
             publicProps = reader.ReadDict();
 
-            reader = Serialization.NewReader(new ArraySegment<byte>(info.privateProps));
+            reader = Serialization.NewReader(info.privateProps);
             privateProps = reader.ReadDict();
 
             players = new Dictionary<string, Player>(joined.players.Length);

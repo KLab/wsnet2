@@ -490,7 +490,7 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 		case binary.EvTypePermissionDenied:
 			fmt.Printf("[bot:%v] %s: %v\n", userId, ty, b)
 		case binary.EvTypeTargetNotFound:
-			list, _, err := binary.UnmarshalAs(b[5:], binary.TypeList)
+			list, _, err := binary.UnmarshalAs(b[5:], binary.TypeList, binary.TypeNull)
 			if err != nil {
 				fmt.Printf("[bot:%v] %s: error: %v\n", userId, ty, err)
 				break
