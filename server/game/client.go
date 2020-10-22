@@ -9,6 +9,7 @@ import (
 
 	"wsnet2/auth"
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/pb"
 )
 
@@ -63,7 +64,7 @@ func NewWatcher(info *pb.ClientInfo, room IRoom) (*Client, error) {
 }
 
 func newClient(info *pb.ClientInfo, room IRoom, isPlayer bool) (*Client, error) {
-	props, iProps, err := InitProps(info.Props)
+	props, iProps, err := common.InitProps(info.Props)
 	if err != nil {
 		return nil, xerrors.Errorf("Props unmarshal error: %w", err)
 	}
