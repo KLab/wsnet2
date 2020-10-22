@@ -18,6 +18,17 @@ namespace WSNet2.Core
     public class CallbackPool
     {
         ConcurrentQueue<Action> queue = new ConcurrentQueue<Action>();
+        Func<bool> isRunning;
+
+        public CallbackPool()
+        {
+            isRunning = () => true;
+        }
+
+        public CallbackPool(Func<bool> isRunning)
+        {
+            this.isRunning = isRunning;
+        }
 
         /// <summary>
         ///   callbackをpoolに追加
@@ -32,9 +43,15 @@ namespace WSNet2.Core
         /// </summary>
         public void Process()
         {
-            Action callback;
-            while(queue.TryDequeue(out callback))
+            while (isRunning())
             {
+                Action callback;
+
+                if (!queue.TryDequeue(out callback))
+                {
+                    return;
+                }
+
                 callback();
             }
         }
