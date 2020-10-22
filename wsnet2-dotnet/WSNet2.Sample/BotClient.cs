@@ -71,11 +71,10 @@ namespace WSNet2.Sample
 
             var cts = new CancellationTokenSource();
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Func<Room, bool> onJoined = (Room room) =>
+            Action<Room> onJoined = (Room room) =>
             {
                 room.Pause();
                 roomJoined.TrySetResult(room);
-                return true;
             };
             Action<Exception> onFailed = (Exception e) =>
             {
@@ -115,11 +114,10 @@ namespace WSNet2.Sample
             uint Deadline = 3;
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            Func<Room, bool> onJoined = (Room room) =>
+            Action<Room> onJoined = (Room room) =>
             {
                 room.Pause();
                 roomJoined.TrySetResult(room);
-                return true;
             };
             Action<Exception> onFailed = (Exception e) =>
             {
