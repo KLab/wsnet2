@@ -6,7 +6,6 @@ password = "wsnetpass"
 dbname = "wsnet2"
 
 [Game]
-public_name = "wsnet2-game"
 grpc_port = 19000
 websocket_port = 8000
 pprof_port = 3000

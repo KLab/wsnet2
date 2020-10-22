@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -208,7 +209,10 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 
 	close(h.ready)
 
-	ws, err := h.dialGame(res.Url, res.AuthKey, 0)
+	// Hub -> Game は Hostname で接続する
+	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
+	h.logger.Debugf("Dial Game: %v\n", url)
+	ws, err := h.dialGame(url, res.AuthKey, 0)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to dial game server: %w", err)
 	}
