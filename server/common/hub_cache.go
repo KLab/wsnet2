@@ -1,4 +1,4 @@
-package lobby
+package common
 
 import (
 	"math/rand"

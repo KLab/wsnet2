@@ -25,7 +25,7 @@ type RoomService struct {
 
 	roomCache *RoomCache
 	gameCache *common.GameCache
-	hubCache  *HubCache
+	hubCache  *common.HubCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -42,7 +42,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		grpcPool:  common.NewGrpcPool(grpc.WithInsecure()),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
-		hubCache:  NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		hubCache:  common.NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
 		rs.apps[app.Id] = &apps[i]
