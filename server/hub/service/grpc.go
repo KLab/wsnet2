@@ -10,12 +10,17 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"wsnet2/hub"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
 
 func (sv *HubService) serveGRPC(ctx context.Context) <-chan error {
 	errCh := make(chan error)
+
+	// FIXME: とりあえずの設定（あとで消す）
+	sv.wsURLFormat = fmt.Sprintf("%s://%s:%d/room/%%s",
+		"ws", sv.conf.PublicName, sv.conf.WebsocketPort)
 
 	sv.preparation.Add(1)
 	go func() {
@@ -52,33 +57,13 @@ func (sv *HubService) serveGRPC(ctx context.Context) <-chan error {
 func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
 	log.Infof("Watch request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
 
-	//TODO: 実装
-	return nil, status.Errorf(codes.Unimplemented, "method Watch not implemented")
+	res, err := sv.repo.WatchRoom(ctx, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo)
+	if err != nil {
+		log.Infof("watch room error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "WatchRoom failed: %s", err)
+	}
 
-	/* gameに接続してからhubを作るか、hubを作ってからgameに接続するか。
-	hubの実装をシンプルにすることを考えると、gameに接続してからその接続に紐付いたhubを作るのが良い。
-	しかし並行して同じ部屋に対するWatchリクエストが来たときの排他制御が面倒になる。
-
-	Hub側で非同期にgame接続した上で、game接続完了待ちAPIを用意することで、同じ部屋へのWatchリクエストが
-	並行に来ても大丈夫になる。
-	*/
-
-	//sv.repo.GetOrCreateHub(in.AppId, in.RoomId, in.ClientInfo.Id)
-
-	/* memo
-	room.id は app_idと組にしなくてもユニークなので hub では気にする必要がない？
-	hub -> game で Watch 接続するためには認証を通らないといけない
-	*/
-
-	/*
-		res, err := repo.WatchRoom(ctx, in.RoomId, in.ClientInfo)
-		if err != nil {
-			log.Infof("join room error: %+v", err)
-			return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
-		}
-
-		res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)
-		log.Infof("Join room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
-		return res, nil
-	*/
+	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)
+	log.Infof("Watch room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
+	return res, nil
 }

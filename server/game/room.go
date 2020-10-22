@@ -8,6 +8,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -44,29 +45,13 @@ type Room struct {
 	logger *zap.SugaredLogger
 }
 
-func initProps(props []byte) (binary.Dict, []byte, error) {
-	if len(props) == 0 || binary.Type(props[0]) == binary.TypeNull {
-		dict := binary.Dict{}
-		return dict, binary.MarshalDict(dict), nil
-	}
-	um, _, err := binary.Unmarshal(props)
-	if err != nil {
-		return nil, nil, err
-	}
-	dict, ok := um.(binary.Dict)
-	if !ok {
-		return nil, nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
-	}
-	return dict, props, nil
-}
-
 func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
-	pubProps, iProps, err := initProps(info.PublicProps)
+	pubProps, iProps, err := common.InitProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
 	}
 	info.PublicProps = iProps
-	privProps, iProps, err := initProps(info.PrivateProps)
+	privProps, iProps, err := common.InitProps(info.PrivateProps)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
 	}

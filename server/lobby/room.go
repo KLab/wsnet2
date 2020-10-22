@@ -11,18 +11,21 @@ import (
 	"google.golang.org/grpc"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
 
 type RoomService struct {
-	db   *sqlx.DB
-	conf *config.LobbyConf
-	apps map[string]*pb.App
+	db       *sqlx.DB
+	conf     *config.LobbyConf
+	apps     map[string]*pb.App
+	grpcPool *common.GrpcPool
 
 	roomCache *RoomCache
-	gameCache *GameCache
+	gameCache *common.GameCache
+	hubCache  *common.HubCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -36,8 +39,10 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		db:        db,
 		conf:      conf,
 		apps:      make(map[string]*pb.App),
+		grpcPool:  common.NewGrpcPool(grpc.WithInsecure()),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
-		gameCache: NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		hubCache:  common.NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
 		rs.apps[app.Id] = &apps[i]
@@ -64,12 +69,11 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 
@@ -121,12 +125,11 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 
@@ -153,7 +156,7 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND joinable = 1", appId, roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinById: Failed to get room: %w", err)
 	}
@@ -181,7 +184,7 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND joinable = 1", appId, roomNumber)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinByNumber: Failed to get room: %w", err)
 	}
@@ -228,19 +231,18 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 	return filter(rooms, props, queries, limit), nil
 }
 
-func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
-	game, err := rs.gameCache.Get(hostId)
+func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+	hub, err := rs.hubCache.Rand()
 	if err != nil {
-		return nil, xerrors.Errorf("watch: failed to get game server: %w", err)
+		return nil, xerrors.Errorf("watch: failed to get hub server: %w", err)
 	}
 
-	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := grpc.Dial(grpcAddr, grpc.WithInsecure())
+	grpcAddr := fmt.Sprintf("%s:%d", hub.Hostname, hub.GRPCPort)
+	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		log.Errorf("client connection error: %v", err)
 		return nil, err
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 
@@ -267,7 +269,7 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ?", appId, roomId)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND watchable = 1", appId, roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("WatchById: failed to get room: %w", err)
 	}
@@ -283,7 +285,7 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 	}
 	room = filtered[0]
 
-	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(appId, room.Id, clientInfo)
 }
 
 func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
@@ -295,7 +297,7 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 	}
 
 	var room pb.RoomInfo
-	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ?", appId, roomNumber)
+	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND watchable = 1", appId, roomNumber)
 	if err != nil {
 		return nil, xerrors.Errorf("WatchByNumber: Failed to get room: %w", err)
 	}
@@ -311,5 +313,5 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 	}
 	room = filtered[0]
 
-	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(appId, room.Id, clientInfo)
 }

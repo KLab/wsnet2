@@ -207,6 +207,44 @@ namespace WSNet2.Core
             Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, onSuccess, onFailed));
         }
 
+        /// <summary>
+        ///   部屋検索
+        /// </summary>
+        public void Search(
+            uint group,
+            Query query,
+            int limit,
+            Action<PublicRoom[]> onSuccess,
+            Action<Exception> onFailed)
+        {
+            var param = new SearchParam(){
+                group = group,
+                queries = query?.condsList,
+                limit = limit,
+            };
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => search(content, onSuccess, onFailed));
+        }
+
+        private async Task<byte[]> post(string path, byte[] content)
+        {
+            var cli = new HttpClient();
+            cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
+            cli.DefaultRequestHeaders.Add("Wsnet2-User", userId);
+            cli.DefaultRequestHeaders.Add("Authorization", bearer);
+
+            var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
+            var body = await res.Content.ReadAsByteArrayAsync();
+            if (!res.IsSuccessStatusCode)
+            {
+                var msg = System.Text.Encoding.UTF8.GetString(body);
+                throw new Exception($"wsnet2 {path} failed: code={res.StatusCode} {msg}");
+            }
+
+            return body;
+        }
+
         private async Task connectToRoom(
             string path,
             byte[] content,
@@ -215,19 +253,7 @@ namespace WSNet2.Core
         {
             try
             {
-                var cli = new HttpClient();
-                cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
-                cli.DefaultRequestHeaders.Add("Wsnet2-User", userId);
-                cli.DefaultRequestHeaders.Add("Authorization", bearer);
-
-                var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
-                var body = await res.Content.ReadAsByteArrayAsync();
-                if (!res.IsSuccessStatusCode)
-                {
-                    var msg = System.Text.Encoding.UTF8.GetString(body);
-                    throw new Exception($"Connect to room failed: code={res} {msg}");
-                }
-
+                var body = await post(path, content);
                 var joinedResponse = MessagePackSerializer.Deserialize<JoinedResponse>(body);
                 var room = new Room(joinedResponse, userId);
 
@@ -250,6 +276,27 @@ namespace WSNet2.Core
             }
         }
 
-    }
+        private async Task search(
+            byte[] content,
+            Action<PublicRoom[]> onSuccess,
+            Action<Exception> onFailed)
+        {
+            try
+            {
+                var body = await post("/rooms/search", content);
+                var rinfos= MessagePackSerializer.Deserialize<RoomInfo[]>(body);
+                var rooms = new PublicRoom[rinfos.Length];
+                for (var i=0; i<rinfos.Length; i++)
+                {
+                    rooms[i] = new PublicRoom(rinfos[i]);
+                }
 
+                callbackPool.Add(() => onSuccess(rooms));
+            }
+            catch (Exception e)
+            {
+                callbackPool.Add(() => onFailed(e));
+            }
+        }
+    }
 }

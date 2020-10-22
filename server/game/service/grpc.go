@@ -120,13 +120,13 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 
 	res, err := repo.WatchRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
-		log.Infof("join room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
+		log.Infof("watch room error: %+v", err)
+		return nil, status.Errorf(codes.Internal, "WatchRoom failed: %s", err)
 	}
 
 	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)
 
-	log.Infof("Join room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
+	log.Infof("Watch room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
 
 	return res, nil
 }

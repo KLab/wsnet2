@@ -34,6 +34,8 @@ type HubService struct {
 
 	db          *sqlx.DB
 	preparation sync.WaitGroup
+
+	wsURLFormat string
 }
 
 func New(db *sqlx.DB, conf *config.GameConf) (*HubService, error) {
