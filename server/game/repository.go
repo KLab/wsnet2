@@ -2,11 +2,8 @@ package game
 
 import (
 	"context"
-	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math"
-	"math/big"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -32,9 +29,6 @@ var (
 )
 
 func init() {
-	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	rand.Seed(seed.Int64())
-
 	initQueries()
 }
 
