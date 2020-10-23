@@ -317,6 +317,16 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	h.muClients.Lock()
 	defer h.muClients.Unlock()
 
+	if _, ok := h.players[msg.SenderID()]; ok {
+		close(msg.Joined)
+		return xerrors.Errorf("Player already exists. room=%v, client=%v", h.ID(), msg.SenderID())
+	}
+	// 他のhub経由で観戦している場合は考慮しない（Gameでの直接観戦も同様）
+	if _, ok := h.watchers[msg.SenderID()]; ok {
+		close(msg.Joined)
+		return xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", h.ID(), msg.SenderID())
+	}
+
 	client, err := game.NewWatcher(msg.Info, h)
 	if err != nil {
 		close(msg.Joined)
