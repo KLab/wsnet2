@@ -11,6 +11,7 @@ heartbeat_interval = "10s"
 
 [Lobby]
 hostname = "wsnetlobby.localhost"
+unixpath = "/tmp/sock"
 net = "tcp"
 port = 8080
 valid_heartbeat = "30s"

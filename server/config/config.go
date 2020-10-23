@@ -54,6 +54,7 @@ type GameConf struct {
 
 type LobbyConf struct {
 	Hostname  string
+	UnixPath  string
 	Net       string
 	Port      int
 	PprofPort int `toml:"pprof_port"`

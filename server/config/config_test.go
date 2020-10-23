@@ -47,6 +47,7 @@ func TestLoad(t *testing.T) {
 
 	lobby := LobbyConf{
 		Hostname:       "wsnetlobby.localhost",
+		UnixPath:       "/tmp/sock",
 		Net:            "tcp",
 		Port:           8080,
 		Loglevel:       2,
