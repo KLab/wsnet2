@@ -81,7 +81,6 @@ namespace Sample
                     Debug.Log("created: room=" + room.Id);
                     G.GameRoom = room;
                     SceneManager.LoadScene("Game");
-                    return true;
                 },
                 (e) => Debug.Log("create failed: " + e)
             );
@@ -112,7 +111,6 @@ namespace Sample
                     Debug.Log("join: room=" + room.Id);
                     G.GameRoom = room;
                     SceneManager.LoadScene("Game");
-                    return true;
                 },
                 (e) => Debug.Log("join failed: " + e)
             );
