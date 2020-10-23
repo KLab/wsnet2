@@ -75,7 +75,6 @@ public class SampleClient : MonoBehaviour
                 room.RegisterRPC<StrMessage>(OnStrMsgRPC);
                 Debug.Log("created: room="+room.Id);
                 StartCoroutine(HandleRoom(room));
-                return true;
             },
             (e) => Debug.Log("create failed: "+ e));
     }
