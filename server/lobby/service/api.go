@@ -100,15 +100,16 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 	return hdr
 }
 
-func renderResponse(w http.ResponseWriter, res interface{}) error {
+func renderResponse(w http.ResponseWriter, res interface{}) {
 	var body bytes.Buffer
 	err := msgpack.NewEncoder(&body).UseJSONTag(true).Encode(res)
 	if err != nil {
-		return err
+		log.Errorf("Failed to marshal response: %v", err)
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/x-msgpack")
 	w.Write(body.Bytes())
-	return nil
 }
 
 func (sv *LobbyService) authUser(h header) error {
@@ -157,12 +158,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, room)
 }
 
 type JoinVars map[string]string
@@ -218,12 +214,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, room)
 }
 
 func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
@@ -256,12 +247,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, room)
 }
 
 func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Request) {
@@ -294,12 +280,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, room)
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
@@ -331,12 +312,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 	}
 	log.Debugf("%#v", rooms)
 
-	err = renderResponse(w, rooms)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, rooms)
 }
 
 func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) {
@@ -369,12 +345,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, room)
 }
 
 func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.Request) {
@@ -407,10 +378,5 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderResponse(w, room)
 }
