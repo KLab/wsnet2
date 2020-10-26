@@ -64,7 +64,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 	res, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
+		return nil, status.Errorf(err.Code(), "CreateRoom failed: %s", err)
 	}
 
 	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)

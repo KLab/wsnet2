@@ -1,11 +1,13 @@
 package game
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/binary"
 	"wsnet2/config"
@@ -62,15 +64,15 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
+func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		return nil, nil, withCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PublicProps = iProps
 	privProps, iProps, err := initProps(info.PrivateProps)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+		return nil, nil, withCode(xerrors.Errorf("PrivateProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PrivateProps = iProps
 
@@ -95,12 +97,24 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, dea
 
 	go r.MsgLoop()
 
-	ch := make(chan JoinedInfo)
-	r.msgCh <- &MsgCreate{masterInfo, ch}
+	jch := make(chan *JoinedInfo, 1)
+	ech := make(chan ErrorWithCode, 1)
+	r.msgCh <- &MsgCreate{masterInfo, jch, ech}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
 
-	return r, ch, nil
+	select {
+	case <-ctx.Done():
+		return nil, nil, withCode(
+			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v", r.ID()),
+			codes.DeadlineExceeded)
+	case ewc := <-ech:
+		return nil, nil, withCode(
+			xerrors.Errorf("NewRoom msgCreate: %w", ewc),
+			ewc.Code())
+	case joined := <-jch:
+		return r, joined, nil
+	}
 }
 
 func (r *Room) ID() RoomID {
@@ -302,14 +316,14 @@ func (r *Room) broadcast(ev *binary.Event) {
 	}
 }
 
-func (r *Room) msgCreate(msg *MsgCreate) error {
+func (r *Room) msgCreate(msg *MsgCreate) ErrorWithCode {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	master, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+		return withCode(
+			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err), err.Code())
 	}
 	r.master = master
 	r.players[master.ID()] = master
@@ -318,7 +332,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	players := []*pb.ClientInfo{cinfo}
-	msg.Joined <- JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
+	msg.Joined <- &JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 
 	r.writeLastMsg(master.ID())

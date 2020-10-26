@@ -15,6 +15,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/config"
 	"wsnet2/log"
@@ -100,19 +101,21 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 	return repos, nil
 }
 
-func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
+	// TODO: room数チェック. RLockをとる
+
 	tx, err := repo.db.Beginx()
 	if err != nil {
-		return nil, xerrors.Errorf("begin error: %w", err)
+		return nil, withCode(xerrors.Errorf("begin error: %w", err), codes.Internal)
 	}
 
-	info, err := repo.newRoomInfo(ctx, tx, op)
+	info, ewc := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {
 		tx.Rollback()
-		return nil, err
+		return nil, ewc
 	}
 
 	loglevel := log.CurrentLevel()
@@ -120,29 +123,18 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		loglevel = log.Level(op.LogLevel)
 	}
 
-	room, ch, err := NewRoom(repo, info, master, op.ClientDeadline, repo.conf, loglevel)
+	room, joined, ewc := NewRoom(ctx, repo, info, master, op.ClientDeadline, repo.conf, loglevel)
 	if err != nil {
 		tx.Rollback()
-		return nil, xerrors.Errorf("NewRoom error: %w", err)
-	}
-
-	var joined JoinedInfo
-	select {
-	case j, ok := <-ch:
-		if !ok {
-			tx.Rollback()
-			return nil, xerrors.Errorf("CreateRoom joind chan closed: room=%v", room.ID())
-		}
-		joined = j
-	case <-ctx.Done():
-		tx.Rollback()
-		return nil, xerrors.Errorf("CreateRoom timeout or context done: room=%v", room.ID())
+		return nil, withCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
 	}
 
 	cli := joined.Client
 
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
+	// FIXME: ここで最終的なRoom数制限チェック
+
 	repo.rooms[room.ID()] = room
 	if _, ok := repo.clients[cli.ID()]; !ok {
 		repo.clients[cli.ID()] = make(map[RoomID]*Client)
@@ -213,7 +205,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	}, nil
 }
 
-func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
+func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, ErrorWithCode) {
 	ri := &pb.RoomInfo{
 		AppId:        repo.app.Id,
 		HostId:       repo.hostId,
@@ -234,7 +226,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	for n := 0; n < retryCount; n++ {
 		select {
 		case <-ctx.Done():
-			return nil, xerrors.Errorf("ctx done: %w", ctx.Err())
+			return nil, withCode(xerrors.Errorf("ctx done: %w", ctx.Err()), codes.DeadlineExceeded)
 		default:
 		}
 
@@ -249,7 +241,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		}
 	}
 
-	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
+	return nil, withCode(xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err), codes.Internal)
 }
 
 func (repo *Repository) updateRoomInfo(room *Room) {

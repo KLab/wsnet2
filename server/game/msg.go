@@ -39,7 +39,8 @@ type JoinedInfo struct {
 // gRPCリクエストよりwsnet内で発生
 type MsgCreate struct {
 	Info   *pb.ClientInfo
-	Joined chan<- JoinedInfo
+	Joined chan<- *JoinedInfo
+	Err    chan<- ErrorWithCode
 }
 
 func (*MsgCreate) msg() {}
