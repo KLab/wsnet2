@@ -220,6 +220,24 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	return ws, nil
 }
 
+func (h *Hub) pinger(conn *websocket.Conn) {
+	// FIXME: 送信間隔はdeadlineから算出する
+	//        deadlineの更新にも対応できるように
+	t := time.NewTicker(time.Second * 2)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			msg := binary.NewMsgPing(time.Now())
+			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				return
+			}
+		case <-h.Done():
+			return
+		}
+	}
+}
+
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
 	defer h.logger.Debug("hub end")
@@ -240,6 +258,8 @@ func (h *Hub) Start() {
 		h.logger.Errorf("Failed to connect game server: %v\n", err)
 		return
 	}
+
+	go h.pinger(ws)
 
 	for {
 		_, b, err := ws.ReadMessage()
