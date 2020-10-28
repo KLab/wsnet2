@@ -114,7 +114,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}
 
 	info, ewc := repo.newRoomInfo(ctx, tx, op)
-	if err != nil {
+	if ewc != nil {
 		tx.Rollback()
 		return nil, ewc
 	}
@@ -125,7 +125,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}
 
 	room, joined, ewc := NewRoom(ctx, repo, info, master, op.ClientDeadline, repo.conf, loglevel)
-	if err != nil {
+	if ewc != nil {
 		tx.Rollback()
 		return nil, withCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
 	}
@@ -142,6 +142,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}
 	repo.clients[cli.ID()][room.ID()] = cli
 
+	// FIXME: エラーハンドリング
 	tx.Commit()
 	return &pb.JoinedRoomRes{
 		RoomInfo: joined.Room,

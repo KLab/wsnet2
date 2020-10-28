@@ -99,6 +99,8 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 
 	jch := make(chan *JoinedInfo, 1)
 	ech := make(chan ErrorWithCode, 1)
+
+	// FIXME: ctx.Done()とrace
 	r.msgCh <- &MsgCreate{masterInfo, jch, ech}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
@@ -107,7 +109,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 	case <-ctx.Done():
 		return nil, nil, withCode(
 			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v", r.ID()),
-			codes.Unavailable)
+			codes.DeadlineExceeded)
 	case ewc := <-ech:
 		return nil, nil, withCode(
 			xerrors.Errorf("NewRoom msgCreate: %w", ewc),
@@ -316,14 +318,14 @@ func (r *Room) broadcast(ev *binary.Event) {
 	}
 }
 
-func (r *Room) msgCreate(msg *MsgCreate) ErrorWithCode {
+func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	master, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		return withCode(
-			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err), err.Code())
+		msg.Err <- err
+		return xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err)
 	}
 	r.master = master
 	r.players[master.ID()] = master

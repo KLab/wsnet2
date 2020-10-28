@@ -68,7 +68,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 	if err != nil {
 		return nil, withStatus(
 			xerrors.Errorf("Create: failed to get game server: %w", err),
-			http.StatusServiceUnavailable, "No game server found")
+			http.StatusInternalServerError, "No game server found")
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
