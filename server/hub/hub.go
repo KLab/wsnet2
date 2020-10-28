@@ -32,7 +32,8 @@ type Hub struct {
 	appId    AppID
 	clientId string
 
-	deadline time.Duration
+	deadline    time.Duration
+	newDeadline chan time.Duration
 
 	publicProps  binary.Dict
 	privateProps binary.Dict
@@ -221,9 +222,13 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	return ws, nil
 }
 
+func calcPingInterval(deadline time.Duration) time.Duration {
+	return deadline / 3
+}
+
 func (h *Hub) pinger(conn *websocket.Conn) {
-	// TODO: deadlineの更新に対応できるように
-	t := time.NewTicker(h.deadline / 3)
+	deadline := h.deadline
+	t := time.NewTicker(calcPingInterval(deadline))
 	defer t.Stop()
 	for {
 		select {
@@ -232,6 +237,9 @@ func (h *Hub) pinger(conn *websocket.Conn) {
 			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
 				return
 			}
+		case newDeadline := <-h.newDeadline:
+			h.logger.Debugf("pinger: update deadline: %v to %v\n", deadline, newDeadline)
+			t.Reset(calcPingInterval(newDeadline))
 		case <-h.Done():
 			return
 		}
