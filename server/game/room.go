@@ -100,20 +100,24 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 	jch := make(chan *JoinedInfo, 1)
 	ech := make(chan ErrorWithCode, 1)
 
-	// FIXME: ctx.Done()とrace
-	r.msgCh <- &MsgCreate{masterInfo, jch, ech}
+	select {
+	case <-ctx.Done():
+		return nil, nil, withCode(
+			xerrors.Errorf("NewRoom write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
+			codes.DeadlineExceeded)
+	case r.msgCh <- &MsgCreate{masterInfo, jch, ech}:
+	}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
 
 	select {
 	case <-ctx.Done():
 		return nil, nil, withCode(
-			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v", r.ID()),
+			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case ewc := <-ech:
 		return nil, nil, withCode(
-			xerrors.Errorf("NewRoom msgCreate: %w", ewc),
-			ewc.Code())
+			xerrors.Errorf("NewRoom msgCreate: %w", ewc), ewc.Code())
 	case joined := <-jch:
 		return r, joined, nil
 	}
