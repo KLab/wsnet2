@@ -276,9 +276,24 @@ func (h *Hub) Start() {
 			return
 		}
 
+		var ev *binary.Event
 		switch ty := binary.EvType(b[0]); ty {
+		case binary.EvTypePong:
+			h.logger.Debugf("Pong: %v, %v\n", ty, b)
+		case binary.EvTypePeerReady:
+			h.logger.Debugf("PeerReady: %v, %v\n", ty, b)
 		default:
 			h.logger.Debugf("ReadMessage: %v, %v\n", ty, b)
+			payload := b[5:]
+			ev = &binary.Event{
+				Type:    ty,
+				Payload: payload,
+			}
+		}
+		if ev != nil {
+			h.muClients.Lock()
+			h.broadcast(ev)
+			h.muClients.Unlock()
 		}
 	}
 }
@@ -333,6 +348,26 @@ func (h *Hub) dispatch(msg game.Msg) error {
 		return h.msgClientError(m)
 	default:
 		return xerrors.Errorf("unknown msg type: %T %v", m, m)
+	}
+}
+
+// sendTo : 特定クライアントに送信.
+// muClients のロックを取得してから呼び出す.
+// 送信できない場合続行不能なので退室させる.
+func (h *Hub) sendTo(c *game.Client, ev *binary.Event) error {
+	err := c.Send(ev)
+	if err != nil {
+		// removeClient locks muClients so that must be called another goroutine.
+		go h.removeClient(c, err)
+	}
+	return err
+}
+
+// broadcast : 全員に送信.
+// muClients のロックを取得してから呼び出すこと
+func (h *Hub) broadcast(ev *binary.Event) {
+	for _, c := range h.watchers {
+		_ = h.sendTo(c, ev)
 	}
 }
 
