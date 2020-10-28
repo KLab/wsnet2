@@ -191,6 +191,7 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	res.RoomInfo.PrivateProps = iProps
 
 	h.RoomInfo = res.RoomInfo
+	h.deadline = time.Duration(res.Deadline) * time.Second
 	h.publicProps = pubProps
 	h.privateProps = privProps
 
@@ -221,9 +222,8 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 }
 
 func (h *Hub) pinger(conn *websocket.Conn) {
-	// FIXME: 送信間隔はdeadlineから算出する
-	//        deadlineの更新にも対応できるように
-	t := time.NewTicker(time.Second * 2)
+	// TODO: deadlineの更新に対応できるように
+	t := time.NewTicker(h.deadline / 3)
 	defer t.Stop()
 	for {
 		select {
