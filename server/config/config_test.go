@@ -35,6 +35,8 @@ func TestLoad(t *testing.T) {
 		RetryCount: 3,
 		MaxRoomNum: 999999,
 
+		MaxRooms: 123,
+
 		DefaultMaxPlayers: 10,
 		DefaultDeadline:   5,
 		DefaultLoglevel:   2,
