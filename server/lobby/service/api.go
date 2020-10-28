@@ -181,25 +181,25 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 type JoinVars map[string]string
 
-func (vars JoinVars) roomId() (string, bool) {
-	id, found := vars["roomId"]
-	return id, found
+func (vars JoinVars) roomId() string {
+	id := vars["roomId"]
+	return id
 }
 
-func (vars JoinVars) roomNumber() (number int32, found bool) {
+func (vars JoinVars) roomNumber() (number int32) {
 	if v, found := vars["roomNumber"]; found {
 		n, _ := strconv.ParseInt(v, 10, 32)
 		number = int32(n)
 	}
-	return number, found
+	return number
 }
 
-func (vars JoinVars) searchGroup() (sg uint32, found bool) {
+func (vars JoinVars) searchGroup() (sg uint32) {
 	if v, found := vars["searchGroup"]; found {
 		n, _ := strconv.ParseUint(v, 10, 32)
 		sg = uint32(n)
 	}
-	return sg, found
+	return sg
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
@@ -222,7 +222,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomId, _ := vars.roomId()
+	roomId := vars.roomId()
 
 	room, err := sv.roomService.JoinById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
@@ -255,7 +255,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomNumber, _ := vars.roomNumber()
+	roomNumber := vars.roomNumber()
 
 	room, err := sv.roomService.JoinByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
@@ -288,7 +288,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	searchGroup, _ := vars.searchGroup()
+	searchGroup := vars.searchGroup()
 
 	room, err := sv.roomService.JoinAtRandom(h.appId, searchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
@@ -353,7 +353,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomId, _ := vars.roomId()
+	roomId := vars.roomId()
 
 	room, err := sv.roomService.WatchById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
@@ -386,7 +386,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomNumber, _ := vars.roomNumber()
+	roomNumber := vars.roomNumber()
 
 	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
