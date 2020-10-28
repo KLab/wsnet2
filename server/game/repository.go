@@ -105,8 +105,12 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
-	// TODO: room数チェック. RLockをとる
-	// withCode(xerrors.Errorf(...), codes.ResourceExhausted)
+	repo.mu.RLock()
+	if len(repo.rooms) >= repo.conf.MaxRooms {
+		return nil, withCode(
+			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
+	}
+	repo.mu.RUnlock()
 
 	tx, err := repo.db.Beginx()
 	if err != nil {
@@ -134,7 +138,17 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
-	// FIXME: ここで最終的なRoom数制限チェック
+
+	if len(repo.rooms) >= repo.conf.MaxRooms {
+		tx.Rollback()
+		return nil, withCode(
+			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, withCode(
+			xerrors.Errorf("failed to commit new room: %w", err), codes.Internal)
+	}
 
 	repo.rooms[room.ID()] = room
 	if _, ok := repo.clients[cli.ID()]; !ok {
@@ -142,8 +156,6 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}
 	repo.clients[cli.ID()][room.ID()] = cli
 
-	// FIXME: エラーハンドリング
-	tx.Commit()
 	return &pb.JoinedRoomRes{
 		RoomInfo: joined.Room,
 		Players:  joined.Players,
