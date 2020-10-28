@@ -58,7 +58,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
 		log.Infof("invalid app_id: %v", in.AppId)
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.NotFound, "Invalid app_id: %v", in.AppId)
 	}
 
 	res, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)

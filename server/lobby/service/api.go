@@ -14,6 +14,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vmihailenco/msgpack/v4"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"wsnet2/auth"
 	"wsnet2/log"
@@ -144,7 +146,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
 		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
@@ -152,8 +154,24 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	room, err := sv.roomService.Create(h.appId, &param.RoomOption, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to create room: %v", err)
-		http.Error(w, "Failed to create room", http.StatusInternalServerError)
+		log.Errorf("Failed to create room: %+v", err)
+		msg := "Failed to create room"
+		code := http.StatusInternalServerError
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound: // appid not found
+				code = http.StatusInternalServerError
+			case codes.Unavailable: // ctx timeout
+				code = http.StatusServiceUnavailable
+			case codes.InvalidArgument:
+				msg = "Invalid Argument"
+				code = http.StatusBadRequest
+			case codes.ResourceExhausted:
+				msg = "Reached to the max room number"
+				code = http.StatusServiceUnavailable
+			}
+		}
+		http.Error(w, msg, code)
 		return
 	}
 	log.Debugf("%#v", room)

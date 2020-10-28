@@ -107,7 +107,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 	case <-ctx.Done():
 		return nil, nil, withCode(
 			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v", r.ID()),
-			codes.DeadlineExceeded)
+			codes.Unavailable)
 	case ewc := <-ech:
 		return nil, nil, withCode(
 			xerrors.Errorf("NewRoom msgCreate: %w", ewc),

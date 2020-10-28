@@ -106,6 +106,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	defer cancel()
 
 	// TODO: room数チェック. RLockをとる
+	// withCode(xerrors.Errorf(...), codes.ResourceExhausted)
 
 	tx, err := repo.db.Beginx()
 	if err != nil {
