@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"wsnet2/binary"
 	"wsnet2/common"
@@ -58,19 +61,20 @@ func (rs *RoomService) GetAppKey(appId string) (string, bool) {
 
 func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
-		return nil, xerrors.Errorf("Unknown appId: %v", appId)
+		return nil, withStatus(xerrors.Errorf("Unknown appId: %v", appId), http.StatusBadRequest, "")
 	}
 
 	game, err := rs.gameCache.Rand()
 	if err != nil {
-		return nil, xerrors.Errorf("Join: failed to get game server: %w", err)
+		return nil, withStatus(
+			xerrors.Errorf("Create: failed to get game server: %w", err),
+			http.StatusServiceUnavailable, "No game server found")
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
 	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
-		log.Errorf("client connection error: %v", err)
-		return nil, err
+		return nil, xerrors.Errorf("Create: gRPC client connection error: %w", err)
 	}
 
 	client := pb.NewGameClient(conn)
@@ -83,7 +87,15 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 
 	res, err := client.Create(context.TODO(), req)
 	if err != nil {
-		log.Errorf("create room error: %v", err)
+		err = xerrors.Errorf("Create: gRPC Create: %w", err)
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.InvalidArgument:
+				err = withStatus(err, http.StatusBadRequest, "Invalid Argument")
+			case codes.ResourceExhausted:
+				err = withStatus(err, http.StatusServiceUnavailable, "Reached to the max room number")
+			}
+		}
 		return nil, err
 	}
 

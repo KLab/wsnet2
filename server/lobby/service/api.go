@@ -14,10 +14,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vmihailenco/msgpack/v4"
 	"golang.org/x/xerrors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"wsnet2/auth"
+	"wsnet2/lobby"
 	"wsnet2/log"
 )
 
@@ -156,22 +155,14 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		log.Errorf("Failed to create room: %+v", err)
 		msg := "Failed to create room"
-		code := http.StatusInternalServerError
-		if st, ok := status.FromError(err); ok {
-			switch st.Code() {
-			case codes.NotFound: // appid not found
-				code = http.StatusInternalServerError
-			case codes.Unavailable: // ctx timeout
-				code = http.StatusServiceUnavailable
-			case codes.InvalidArgument:
-				msg = "Invalid Argument"
-				code = http.StatusBadRequest
-			case codes.ResourceExhausted:
-				msg = "Reached to the max room number"
-				code = http.StatusServiceUnavailable
+		st := http.StatusInternalServerError
+		if ews, ok := err.(lobby.ErrorWithStatus); ok {
+			st = ews.Status()
+			if m := ews.Message(); m != "" {
+				msg = m
 			}
 		}
-		http.Error(w, msg, code)
+		http.Error(w, msg, st)
 		return
 	}
 	log.Debugf("%#v", room)

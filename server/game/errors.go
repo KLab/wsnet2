@@ -18,7 +18,10 @@ type errorWithCode struct {
 	code codes.Code
 }
 
-func withCode(err error, code codes.Code) *errorWithCode {
+func withCode(err error, code codes.Code) ErrorWithCode {
+	if err == nil {
+		return nil
+	}
 	return &errorWithCode{err, code}
 }
 
