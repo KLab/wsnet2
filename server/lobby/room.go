@@ -91,7 +91,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 		if st, ok := status.FromError(err); ok {
 			switch st.Code() {
 			case codes.InvalidArgument:
-				err = withStatus(err, http.StatusBadRequest, "Invalid Argument")
+				err = withStatus(err, http.StatusBadRequest, "Invalid argument")
 			case codes.ResourceExhausted:
 				err = withStatus(err, http.StatusServiceUnavailable, "Reached to the max room number")
 			}
@@ -161,6 +161,8 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 				err = withStatus(err, http.StatusOK, "Room full")
 			case codes.AlreadyExists: // 既に入室している
 				err = withStatus(err, http.StatusConflict, "")
+			case codes.InvalidArgument:
+				err = withStatus(err, http.StatusBadRequest, "Invalid argument")
 			}
 		}
 		return nil, err
