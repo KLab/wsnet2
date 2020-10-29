@@ -208,17 +208,30 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
 		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	roomId := vars.roomId()
+	if roomId == "" {
+		log.Errorf("Invalid room id")
+		http.Error(w, "Invalid room id", http.StatusBadRequest)
+		return
+	}
 
 	room, err := sv.roomService.JoinById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		log.Errorf("Failed to join room: %+v", err)
+		msg := "Failed to join room"
+		st := http.StatusInternalServerError
+		if ews, ok := err.(lobby.ErrorWithStatus); ok {
+			st = ews.Status()
+			if m := ews.Message(); m != "" {
+				msg = m
+			}
+		}
+		http.Error(w, msg, st)
 		return
 	}
 	log.Debugf("%#v", room)
@@ -241,12 +254,17 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
 		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	roomNumber := vars.roomNumber()
+	if roomNumber == 0 {
+		log.Errorf("Invalid room number: 0")
+		http.Error(w, "Invalid room number", http.StatusBadRequest)
+		return
+	}
 
 	room, err := sv.roomService.JoinByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {

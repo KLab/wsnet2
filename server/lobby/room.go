@@ -137,8 +137,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
 	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
-		log.Errorf("client connection error: %v", err)
-		return nil, err
+		return nil, xerrors.Errorf("join: gRPC client connection error: %w", err)
 	}
 
 	client := pb.NewGameClient(conn)
@@ -151,7 +150,19 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 
 	res, err := client.Join(context.TODO(), req)
 	if err != nil {
-		log.Errorf("join room error: %v", err)
+		err = xerrors.Errorf("join: gRPC Join: %w", err)
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound: // roomが既に消えた
+				err = withStatus(err, http.StatusOK, "No joinable room found")
+			case codes.FailedPrecondition: // joinableでなくなっていた
+				err = withStatus(err, http.StatusOK, "No joinable room found")
+			case codes.ResourceExhausted: // 満室
+				err = withStatus(err, http.StatusOK, "Room full")
+			case codes.AlreadyExists: // 既に入室している
+				err = withStatus(err, http.StatusConflict, "")
+			}
+		}
 		return nil, err
 	}
 
@@ -168,7 +179,9 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND joinable = 1", appId, roomId)
 	if err != nil {
-		return nil, xerrors.Errorf("JoinById: Failed to get room: %w", err)
+		return nil, withStatus(
+			xerrors.Errorf("JoinById: Failed to get room: app=%v room=%v: %w", appId, roomId, err),
+			http.StatusOK, "No joinable room found")
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -178,7 +191,9 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 
 	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
 	if len(filtered) == 0 {
-		return nil, xerrors.Errorf("JoinById: filter result is empty")
+		return nil, withStatus(
+			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
+			http.StatusOK, "No joinable room found")
 	}
 	room = filtered[0]
 
@@ -189,14 +204,13 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
-	if roomNumber == 0 {
-		return nil, xerrors.Errorf("Invalid room number: %v", roomNumber)
-	}
 
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND joinable = 1", appId, roomNumber)
 	if err != nil {
-		return nil, xerrors.Errorf("JoinByNumber: Failed to get room: %w", err)
+		return nil, withStatus(
+			xerrors.Errorf("JoinByNumber: Failed to get room: app=%v number=%v: %w", appId, roomNumber, err),
+			http.StatusOK, "No joinable room found")
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -206,7 +220,9 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 
 	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
 	if len(filtered) == 0 {
-		return nil, xerrors.Errorf("JoinByNumber: filter result is empty")
+		return nil, withStatus(
+			xerrors.Errorf("JoinByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
+			http.StatusOK, "No joinable room found")
 	}
 	room = filtered[0]
 
