@@ -275,24 +275,17 @@ func (h *Hub) Start() {
 			h.logger.Errorf("ReadMessage error: %v\n", err)
 			return
 		}
-
-		var ev *binary.Event
-		switch ty := binary.EvType(b[0]); ty {
-		case binary.EvTypePong:
-			h.logger.Debugf("Pong: %v, %v\n", ty, b)
-		case binary.EvTypePeerReady:
-			h.logger.Debugf("PeerReady: %v, %v\n", ty, b)
-		default:
-			h.logger.Debugf("ReadMessage: %v, %v\n", ty, b)
-			payload := b[5:]
-			ev = &binary.Event{
-				Type:    ty,
-				Payload: payload,
-			}
+		ev, seq, err := binary.UnmarshalEvent(b)
+		if err != nil {
+			h.logger.Errorf("UnmarshalEvent error: %v\n", err)
+			return
 		}
-		if ev != nil {
+		if sysev, ok := ev.(*binary.SystemEvent); ok {
+			h.logger.Debugf("SystemEvent: %v, %v\n", sysev.Type(), sysev.Payload())
+		} else {
+			h.logger.Debugf("RegularEvent: %v, seq=%v, %v\n", ev.Type(), seq, ev.Payload())
 			h.muClients.Lock()
-			h.broadcast(ev)
+			h.broadcast(ev.(*binary.RegularEvent))
 			h.muClients.Unlock()
 		}
 	}
@@ -354,7 +347,7 @@ func (h *Hub) dispatch(msg game.Msg) error {
 // sendTo : 特定クライアントに送信.
 // muClients のロックを取得してから呼び出す.
 // 送信できない場合続行不能なので退室させる.
-func (h *Hub) sendTo(c *game.Client, ev *binary.Event) error {
+func (h *Hub) sendTo(c *game.Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
 		// removeClient locks muClients so that must be called another goroutine.
@@ -365,7 +358,7 @@ func (h *Hub) sendTo(c *game.Client, ev *binary.Event) error {
 
 // broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
-func (h *Hub) broadcast(ev *binary.Event) {
+func (h *Hub) broadcast(ev *binary.RegularEvent) {
 	for _, c := range h.watchers {
 		_ = h.sendTo(c, ev)
 	}
