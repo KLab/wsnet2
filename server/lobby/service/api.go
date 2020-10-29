@@ -18,6 +18,7 @@ import (
 	"wsnet2/auth"
 	"wsnet2/lobby"
 	"wsnet2/log"
+	"wsnet2/pb"
 )
 
 func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
@@ -101,7 +102,7 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 	return hdr
 }
 
-func renderResponse(w http.ResponseWriter, res interface{}) {
+func renderResponse(w http.ResponseWriter, res *LobbyResponse) {
 	var body bytes.Buffer
 	err := msgpack.NewEncoder(&body).UseJSONTag(true).Encode(res)
 	if err != nil {
@@ -111,6 +112,32 @@ func renderResponse(w http.ResponseWriter, res interface{}) {
 	}
 	w.Header().Set("Content-Type", "application/x-msgpack")
 	w.Write(body.Bytes())
+}
+
+func renderJoinedRoomResponse(w http.ResponseWriter, room *pb.JoinedRoomRes) {
+	log.Debugf("joined room: %#v", room)
+	renderResponse(w, &LobbyResponse{Msg: "OK", Room: room})
+}
+
+func renderSearchRoomResponse(w http.ResponseWriter, rooms []pb.RoomInfo) {
+	log.Debugf("search found rooms: %#v", rooms)
+	renderResponse(w, &LobbyResponse{Msg: "OK", Rooms: rooms})
+}
+
+func renderErrorResponse(w http.ResponseWriter, msg string, status int, err error) {
+	if ews, ok := err.(lobby.ErrorWithStatus); ok {
+		status = ews.Status()
+		if m := ews.Message(); m != "" {
+			msg = m
+		}
+	}
+	if status == http.StatusOK {
+		log.Debugf("Failed with status OK: %+v", err)
+		renderResponse(w, &LobbyResponse{Msg: msg})
+		return
+	}
+	log.Errorf("ErrorResponse: %d %s: %+v", status, msg, err)
+	http.Error(w, msg, status)
 }
 
 func (sv *LobbyService) authUser(h header) error {
@@ -136,16 +163,14 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	log.Infof("handleCreateRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param CreateParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
@@ -153,21 +178,11 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	room, err := sv.roomService.Create(h.appId, &param.RoomOption, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to create room: %+v", err)
-		msg := "Failed to create room"
-		st := http.StatusInternalServerError
-		if ews, ok := err.(lobby.ErrorWithStatus); ok {
-			st = ews.Status()
-			if m := ews.Message(); m != "" {
-				msg = m
-			}
-		}
-		http.Error(w, msg, st)
+		renderErrorResponse(w, "Failed to create room", http.StatusInternalServerError, err)
 		return
 	}
-	log.Debugf("%#v", room)
 
-	renderResponse(w, room)
+	renderJoinedRoomResponse(w, room)
 }
 
 type JoinVars map[string]string
@@ -199,44 +214,32 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	log.Infof("handleJoinRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	roomId := vars.roomId()
 	if roomId == "" {
-		log.Errorf("Invalid room id")
-		http.Error(w, "Invalid room id", http.StatusBadRequest)
+		renderErrorResponse(
+			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"))
 		return
 	}
 
 	room, err := sv.roomService.JoinById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to join room: %+v", err)
-		msg := "Failed to join room"
-		st := http.StatusInternalServerError
-		if ews, ok := err.(lobby.ErrorWithStatus); ok {
-			st = ews.Status()
-			if m := ews.Message(); m != "" {
-				msg = m
-			}
-		}
-		http.Error(w, msg, st)
+		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
 	}
-	log.Debugf("%#v", room)
 
-	renderResponse(w, room)
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
@@ -245,36 +248,32 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	roomNumber := vars.roomNumber()
 	if roomNumber == 0 {
-		log.Errorf("Invalid room number: 0")
-		http.Error(w, "Invalid room number", http.StatusBadRequest)
+		renderErrorResponse(
+			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"))
 		return
 	}
 
 	room, err := sv.roomService.JoinByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
 	}
-	log.Debugf("%#v", room)
 
-	renderResponse(w, room)
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Request) {
@@ -305,9 +304,8 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 		http.Error(w, "Failed to join room", http.StatusInternalServerError)
 		return
 	}
-	log.Debugf("%#v", room)
 
-	renderResponse(w, room)
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +337,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 	}
 	log.Debugf("%#v", rooms)
 
-	renderResponse(w, rooms)
+	renderSearchRoomResponse(w, rooms)
 }
 
 func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) {
@@ -372,7 +370,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	}
 	log.Debugf("%#v", room)
 
-	renderResponse(w, room)
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.Request) {
@@ -405,5 +403,5 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 	log.Debugf("%#v", room)
 
-	renderResponse(w, room)
+	renderJoinedRoomResponse(w, room)
 }
