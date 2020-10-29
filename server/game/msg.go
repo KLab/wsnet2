@@ -53,7 +53,8 @@ func (m *MsgCreate) SenderID() ClientID {
 // gRPCリクエストよりwsnet内で発生
 type MsgJoin struct {
 	Info   *pb.ClientInfo
-	Joined chan<- JoinedInfo
+	Joined chan<- *JoinedInfo
+	Err    chan<- ErrorWithCode
 }
 
 func (*MsgJoin) msg() {}
@@ -66,7 +67,8 @@ func (m *MsgJoin) SenderID() ClientID {
 // gRPCリクエストよりwsnet内で発生
 type MsgWatch struct {
 	Info   *pb.ClientInfo
-	Joined chan<- JoinedInfo
+	Joined chan<- *JoinedInfo
+	Err    chan<- ErrorWithCode
 }
 
 func (*MsgWatch) msg() {}

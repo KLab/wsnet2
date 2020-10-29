@@ -165,40 +165,49 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}, nil
 }
 
-func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
 	return repo.joinRoom(ctx, id, client, true)
 }
 
-func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
 	return repo.joinRoom(ctx, id, client, false)
 }
 
-func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, isPlayer bool) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, isPlayer bool) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, xerrors.Errorf("JoinRoom: %w", err)
+		return nil, withCode(xerrors.Errorf("joinRoom: %w", err), codes.NotFound)
 	}
-	ch := make(chan JoinedInfo)
+
+	jch := make(chan *JoinedInfo, 1)
+	errch := make(chan ErrorWithCode, 1)
 	var msg Msg
 	if isPlayer {
-		msg = &MsgJoin{client, ch}
+		msg = &MsgJoin{client, jch, errch}
 	} else {
-		msg = &MsgWatch{client, ch}
+		msg = &MsgWatch{client, jch, errch}
 	}
-	room.msgCh <- msg
 
-	var joined JoinedInfo
 	select {
-	case j, ok := <-ch:
-		if !ok {
-			return nil, xerrors.Errorf("JoinRoom joind chan closed: room=%v", room.ID())
-		}
-		joined = j
 	case <-ctx.Done():
-		return nil, xerrors.Errorf("JoinRoom timeout or context done: room=%v", room.ID())
+		return nil, withCode(
+			xerrors.Errorf("joinRoom write msg timeout or context done: room=%v client=%v", room.Id, client.Id),
+			codes.DeadlineExceeded)
+	case room.msgCh <- msg:
+	}
+
+	var joined *JoinedInfo
+	select {
+	case <-ctx.Done():
+		return nil, withCode(
+			xerrors.Errorf("joinRoom timeout or context done: room=%v", room.ID()),
+			codes.DeadlineExceeded)
+	case ewc := <-errch:
+		return nil, withCode(xerrors.Errorf("joinRoom: %w", ewc), ewc.Code())
+	case joined = <-jch:
 	}
 
 	cli := joined.Client

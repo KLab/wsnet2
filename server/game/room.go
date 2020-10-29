@@ -348,32 +348,39 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 
 func (r *Room) msgJoin(msg *MsgJoin) error {
 	if !r.Joinable {
-		close(msg.Joined)
-		return xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		err := xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		msg.Err <- withCode(err, codes.FailedPrecondition)
+		return err
 	}
 
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	if _, ok := r.players[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 
 	if r.MaxPlayers == uint32(len(r.players)) {
-		close(msg.Joined)
-		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
+		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
+		msg.Err <- withCode(err, codes.ResourceExhausted)
+		return err
 	}
 
 	client, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+		err = withCode(
+			xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err),
+			err.Code())
+		msg.Err <- err
+		return err
 	}
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
@@ -386,7 +393,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	for _, c := range r.players {
 		players = append(players, c.ClientInfo.Clone())
 	}
-	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
+	msg.Joined <- &JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 
 	r.writeLastMsg(client.ID())
@@ -428,7 +435,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		players = append(players, c.ClientInfo.Clone())
 	}
 
-	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
+	msg.Joined <- &JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	return nil
 }
 
