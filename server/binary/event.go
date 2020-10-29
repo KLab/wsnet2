@@ -2,6 +2,8 @@ package binary
 
 import (
 	"wsnet2/pb"
+
+	"golang.org/x/xerrors"
 )
 
 //go:generate stringer -type=EvType
@@ -124,6 +126,14 @@ func NewEvPeerReady(seqNum int) *SystemEvent {
 	}
 }
 
+func UnmarshalEvPeerReadyPayload(payload []byte) (int, error) {
+	if len(payload) < 3 {
+		return 0, xerrors.Errorf("data length not enough: %v", len(payload))
+	}
+
+	return get24(payload), nil
+}
+
 // NewEvPong : Pongイベント
 // payload:
 // - unsigned 64bit-be: timestamp on ping sent.
@@ -140,6 +150,43 @@ func NewEvPong(pingtime uint64, watchers uint32, lastMsg Dict) *SystemEvent {
 	}
 }
 
+type EvPongPayload struct {
+	Timestamp uint64
+	Watchers  uint32
+	LastMsg   Dict
+}
+
+func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
+	pp := EvPongPayload{}
+
+	// timestamp
+	d, l, e := UnmarshalAs(payload, TypeULong)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvPong payload (timestamp): %w", e)
+	}
+	pp.Timestamp = d.(uint64)
+	payload = payload[l:]
+
+	// watchers
+	d, l, e = UnmarshalAs(payload, TypeUInt)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvPong payload (watchers): %w", e)
+	}
+	pp.Watchers = d.(uint32)
+	payload = payload[l:]
+
+	// lastmsg
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvPong payload (lastmsg): %w", e)
+	}
+	if d != nil {
+		pp.LastMsg = d.(Dict)
+	}
+
+	return &pp, nil
+}
+
 // NewEvJoind : 入室イベント
 func NewEvJoined(cli *pb.ClientInfo) *Event {
 	payload := MarshalStr8(cli.Id)
@@ -148,11 +195,65 @@ func NewEvJoined(cli *pb.ClientInfo) *Event {
 	return &Event{EvTypeJoined, payload}
 }
 
+type EvJoinedPayload struct {
+	ClientId    string
+	ClientProps Dict
+}
+
+func UnmarshalEvJoinedPayload(payload []byte) (*EvJoinedPayload, error) {
+	um := EvJoinedPayload{}
+
+	// client id
+	d, l, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvJoined payload (client id): %w", e)
+	}
+	um.ClientId = d.(string)
+	payload = payload[l:]
+
+	// client props
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvJoined payload (client props): %w", e)
+	}
+	if d != nil {
+		um.ClientProps = d.(Dict)
+	}
+
+	return &um, nil
+}
+
 func NewEvLeft(cliId, masterId string) *Event {
 	payload := MarshalStr8(cliId)
 	payload = append(payload, MarshalStr8(masterId)...)
 
 	return &Event{EvTypeLeft, payload}
+}
+
+type EvLeftPayload struct {
+	ClientId string
+	MasterId string
+}
+
+func UnmarshalEvLeftPayload(payload []byte) (*EvLeftPayload, error) {
+	um := EvLeftPayload{}
+
+	// client id
+	d, l, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvLeft payload (client id): %w", e)
+	}
+	um.ClientId = d.(string)
+	payload = payload[l:]
+
+	// master id
+	d, l, e = UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvLeft payload (master id): %w", e)
+	}
+	um.MasterId = d.(string)
+
+	return &um, nil
 }
 
 func NewEvRoomProp(cliId string, rpp *MsgRoomPropPayload) *Event {
@@ -167,8 +268,45 @@ func NewEvClientProp(cliId string, props []byte) *Event {
 	return &Event{EvTypeClientProp, payload}
 }
 
+type EvClientPropPayload struct {
+	ClientId    string
+	ClientProps Dict
+}
+
+func UnmarshalEvClientPropPayload(payload []byte) (*EvClientPropPayload, error) {
+	um := EvClientPropPayload{}
+
+	// client id
+	d, l, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvClientProp payload (client id): %w", e)
+	}
+	um.ClientId = d.(string)
+	payload = payload[l:]
+
+	// client props
+	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvClientProp payload (client props): %w", e)
+	}
+	if d != nil {
+		um.ClientProps = d.(Dict)
+	}
+
+	return &um, nil
+}
+
 func NewEvMasterSwitched(cliId, masterId string) *Event {
 	return &Event{EvTypeMasterSwitched, MarshalStr8(masterId)}
+}
+
+func UnmarshalEvMasterSwitchedPayload(payload []byte) (string, error) {
+	d, _, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return "", xerrors.Errorf("Invalid EvMasterSwitched payload (master id): %w", e)
+	}
+
+	return d.(string), nil
 }
 
 func NewEvMessage(cliId string, body []byte) *Event {
