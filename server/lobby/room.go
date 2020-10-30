@@ -240,9 +240,17 @@ func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []
 	rand.Shuffle(len(rooms), func(i, j int) { rooms[i], rooms[j] = rooms[j], rooms[i] })
 
 	for _, room := range rooms {
+		// TODO: contextでtimeout判定いれる
 		res, err := rs.join(appId, room.Id, clientInfo, room.HostId)
 		if err == nil {
 			return res, nil
+		}
+		if ews, ok := err.(ErrorWithStatus); ok {
+			switch ews.Status() {
+			case http.StatusBadRequest:
+				// 別の部屋でもBadRequestになるので打ち切る
+				return nil, ews
+			}
 		}
 		log.Debugf("JoinAtRandom: failed to join room: room=%v %v", room.Id, err)
 	}

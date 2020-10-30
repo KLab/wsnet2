@@ -65,5 +65,9 @@ POST /rooms/join/random/{searchGroup}
 | ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
 | リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleJoinAtRandom() | - |
 | GameCacheからの取得失敗 | InternalServerError | - | lobby/room_cache.go: roomCacheQuery.do() | - |
+| Player PropsのUnmarshal失敗 | BadRequest | InvalidArgument | game/client.go: newClient() | - |
 | 入室可能な部屋がない | **200 OK** | - | lobby/room.go: JoinAtRandom() | - |
+
+※InvalidArgument以外のgRPCエラーは無視し別の部屋への入室を試行します
+
 
