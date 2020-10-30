@@ -205,7 +205,7 @@ func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvPong payload (watchers): %w", e)
 	}
-	pp.Watchers = d.(uint32)
+	pp.Watchers = uint32(d.(int))
 	payload = payload[l:]
 
 	// lastmsg
@@ -228,20 +228,15 @@ func NewEvJoined(cli *pb.ClientInfo) *RegularEvent {
 	return &RegularEvent{EvTypeJoined, payload}
 }
 
-type EvJoinedPayload struct {
-	ClientId    string
-	ClientProps Dict
-}
-
-func UnmarshalEvJoinedPayload(payload []byte) (*EvJoinedPayload, error) {
-	um := EvJoinedPayload{}
+func UnmarshalEvJoinedPayload(payload []byte) (*pb.ClientInfo, error) {
+	um := pb.ClientInfo{}
 
 	// client id
 	d, l, e := UnmarshalAs(payload, TypeStr8)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvJoined payload (client id): %w", e)
 	}
-	um.ClientId = d.(string)
+	um.Id = d.(string)
 	payload = payload[l:]
 
 	// client props
@@ -249,9 +244,7 @@ func UnmarshalEvJoinedPayload(payload []byte) (*EvJoinedPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvJoined payload (client props): %w", e)
 	}
-	if d != nil {
-		um.ClientProps = d.(Dict)
-	}
+	um.Props = payload
 
 	return &um, nil
 }
@@ -293,6 +286,35 @@ func NewEvRoomProp(cliId string, rpp *MsgRoomPropPayload) *RegularEvent {
 	return &RegularEvent{EvTypeRoomProp, rpp.EventPayload}
 }
 
+type EvRoomPropPayload struct {
+	Visible        bool
+	Joinable       bool
+	Watchable      bool
+	SearchGroup    uint32
+	MaxPlayer      uint32
+	ClientDeadline uint32
+	PublicProps    Dict
+	PrivateProps   Dict
+}
+
+func UnmarshalEvRoomPropPayload(payload []byte) (*EvRoomPropPayload, error) {
+	msg, err := UnmarshalRoomPropPayload(payload)
+	if err != nil {
+		return nil, xerrors.Errorf("Invalid EvRoomProp payload: %w", err)
+	}
+
+	return &EvRoomPropPayload{
+		Visible:        msg.Visible,
+		Joinable:       msg.Joinable,
+		Watchable:      msg.Watchable,
+		SearchGroup:    msg.SearchGroup,
+		MaxPlayer:      msg.MaxPlayer,
+		ClientDeadline: msg.ClientDeadline,
+		PublicProps:    msg.PublicProps,
+		PrivateProps:   msg.PrivateProps,
+	}, nil
+}
+
 func NewEvClientProp(cliId string, props []byte) *RegularEvent {
 	payload := make([]byte, 0, len(cliId)+1+len(props))
 	payload = append(payload, MarshalStr8(cliId)...)
@@ -302,8 +324,8 @@ func NewEvClientProp(cliId string, props []byte) *RegularEvent {
 }
 
 type EvClientPropPayload struct {
-	ClientId    string
-	ClientProps Dict
+	Id    string
+	Props Dict
 }
 
 func UnmarshalEvClientPropPayload(payload []byte) (*EvClientPropPayload, error) {
@@ -314,7 +336,7 @@ func UnmarshalEvClientPropPayload(payload []byte) (*EvClientPropPayload, error) 
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvClientProp payload (client id): %w", e)
 	}
-	um.ClientId = d.(string)
+	um.Id = d.(string)
 	payload = payload[l:]
 
 	// client props
@@ -323,7 +345,7 @@ func UnmarshalEvClientPropPayload(payload []byte) (*EvClientPropPayload, error) 
 		return nil, xerrors.Errorf("Invalid EvClientProp payload (client props): %w", e)
 	}
 	if d != nil {
-		um.ClientProps = d.(Dict)
+		um.Props = d.(Dict)
 	}
 
 	return &um, nil

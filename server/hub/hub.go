@@ -50,6 +50,8 @@ type Hub struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
+	seq int
+
 	logger *zap.SugaredLogger
 }
 
@@ -275,20 +277,203 @@ func (h *Hub) Start() {
 			h.logger.Errorf("ReadMessage error: %v\n", err)
 			return
 		}
-		ev, seq, err := binary.UnmarshalEvent(b)
+		ev, _, err := binary.UnmarshalEvent(b)
 		if err != nil {
 			h.logger.Errorf("UnmarshalEvent error: %v\n", err)
 			return
 		}
-		if sysev, ok := ev.(*binary.SystemEvent); ok {
-			h.logger.Debugf("SystemEvent: %v, %v\n", sysev.Type(), sysev.Payload())
-		} else {
-			h.logger.Debugf("RegularEvent: %v, seq=%v, %v\n", ev.Type(), seq, ev.Payload())
-			h.muClients.Lock()
-			h.broadcast(ev.(*binary.RegularEvent))
-			h.muClients.Unlock()
+		if err := h.dispatchEvent(ev); err != nil {
+			h.logger.Errorf("event errro: %v\n", err)
 		}
 	}
+}
+
+func (h *Hub) dispatchEvent(ev binary.Event) error {
+	switch ev.Type() {
+	case binary.EvTypePong:
+		return h.evPong(ev)
+	case binary.EvTypePeerReady:
+		return h.evPeerReady(ev)
+	case binary.EvTypeJoined:
+		return h.evJoined(ev)
+	case binary.EvTypeLeft:
+		return h.evLeft(ev)
+	case binary.EvTypeRoomProp:
+		return h.evRoomProp(ev)
+	case binary.EvTypeMasterSwitched:
+		return h.evMasterSwitched(ev)
+	case binary.EvTypeMessage:
+		return h.evMessage(ev)
+	}
+	return nil
+}
+
+func (h *Hub) evPong(ev binary.Event) error {
+	pong, err := binary.UnmarshalEvPongPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
+	}
+	// TODO: ロック取る
+	h.RoomInfo.Watchers = pong.Watchers
+	h.lastMsg = pong.LastMsg
+	return nil
+}
+
+func (h *Hub) evPeerReady(ev binary.Event) error {
+	seq, err := binary.UnmarshalEvPeerReadyPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
+	}
+	// TODO: ロック取る
+	h.seq = seq
+	return nil
+}
+
+func (h *Hub) evJoined(ev binary.Event) error {
+	ci, err := binary.UnmarshalEvJoinedPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvJoined payload error: %w", err)
+	}
+	props, iProps, err := common.InitProps(ci.Props)
+	if err != nil {
+		return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	ci.Props = iProps
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	h.players[ClientID(ci.Id)] = &Player{
+		ClientInfo: ci,
+		props:      props,
+	}
+
+	h.broadcast(ev.(*binary.RegularEvent))
+
+	return nil
+}
+
+func (h *Hub) evLeft(ev binary.Event) error {
+	left, err := binary.UnmarshalEvLeftPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvLeft payload error: %w", err)
+	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	delete(h.players, game.ClientID(left.ClientId))
+	h.master = game.ClientID(left.MasterId)
+
+	h.broadcast(ev.(*binary.RegularEvent))
+
+	return nil
+}
+
+func (h *Hub) evRoomProp(ev binary.Event) error {
+	rpp, err := binary.UnmarshalEvRoomPropPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvRoomProp payload error: %w", err)
+	}
+
+	// TODO: ロック取る
+
+	h.RoomInfo.Visible = rpp.Visible
+	h.RoomInfo.Joinable = rpp.Joinable
+	h.RoomInfo.Watchable = rpp.Watchable
+	h.RoomInfo.SearchGroup = rpp.SearchGroup
+	h.RoomInfo.MaxPlayers = rpp.MaxPlayer
+
+	if len(rpp.PublicProps) > 0 {
+		for k, v := range rpp.PublicProps {
+			if _, ok := h.publicProps[k]; ok && len(v) == 0 {
+				delete(h.publicProps, k)
+			} else {
+				h.publicProps[k] = v
+			}
+		}
+		h.RoomInfo.PublicProps = binary.MarshalDict(h.publicProps)
+		h.logger.Debugf("Hub update PublicProps: %v", h.publicProps)
+	}
+
+	if len(rpp.PrivateProps) > 0 {
+		for k, v := range rpp.PrivateProps {
+			if _, ok := h.privateProps[k]; ok && len(v) == 0 {
+				delete(h.privateProps, k)
+			} else {
+				h.privateProps[k] = v
+			}
+		}
+		h.RoomInfo.PrivateProps = binary.MarshalDict(h.privateProps)
+		h.logger.Debugf("Hub update PrivateProps: %v", h.privateProps)
+	}
+
+	if rpp.ClientDeadline != 0 {
+		deadline := time.Duration(rpp.ClientDeadline) * time.Second
+		if deadline != h.deadline {
+			h.logger.Debugf("Hub notify new deadline: %v", deadline)
+			h.deadline = deadline
+			h.newDeadline <- deadline
+		}
+	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	h.broadcast(ev.(*binary.RegularEvent))
+
+	return nil
+}
+
+func (h *Hub) evClientProp(ev binary.Event) error {
+	cpp, err := binary.UnmarshalEvClientPropPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvClientProp payload error: %w", err)
+	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	h.logger.Debugf("EvClientProp: client=%v, props=%v", cpp.Id, cpp.Props)
+	if len(cpp.Props) > 0 {
+		c, found := h.players[ClientID(cpp.Id)]
+		if !found {
+			return xerrors.Errorf("player not found: client=%v", cpp.Id)
+		}
+		for k, v := range cpp.Props {
+			if _, ok := c.props[k]; ok && len(v) == 0 {
+				delete(c.props, k)
+			} else {
+				c.props[k] = v
+			}
+		}
+		c.ClientInfo.Props = binary.MarshalDict(c.props)
+		h.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
+	}
+
+	h.broadcast(ev.(*binary.RegularEvent))
+
+	return nil
+}
+
+func (h *Hub) evMasterSwitched(ev binary.Event) error {
+	master, err := binary.UnmarshalEvMasterSwitchedPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvMasterSwitched payload error: %w", err)
+	}
+
+	h.muClients.Lock()
+	h.master = ClientID(master)
+	h.broadcast(ev.(*binary.RegularEvent))
+	h.muClients.Unlock()
+	return nil
+}
+
+func (h *Hub) evMessage(ev binary.Event) error {
+	h.muClients.Lock()
+	h.broadcast(ev.(*binary.RegularEvent))
+	h.muClients.Unlock()
+	return nil
 }
 
 // MsgLoop goroutine dispatch messages.
