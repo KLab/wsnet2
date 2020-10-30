@@ -53,3 +53,17 @@ POST /rooms/join/number/{roomNumber}
 | 満室 | **200 OK** | ResourceExhausted | game/room.go: msgJoin() | - |
 | Player PropsのUnmarshal失敗 | BadRequest | InvalidArgument | game/client.go: newClient() | - |
 
+
+## Random Join
+
+POST /rooms/join/random/{searchGroup}
+
+### エラーレスポンス
+| 概要 | HTTP Status | gRPC Code | 発生箇所  | 備考 |
+|------|-------------|-----------|-----------|------|
+| レスポンスのmsgpackエンコード失敗 | InternalServerError | - | lobby/service/api.go: renderResponse() | - |
+| ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
+| リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleJoinAtRandom() | - |
+| GameCacheからの取得失敗 | InternalServerError | - | lobby/room_cache.go: roomCacheQuery.do() | - |
+| 入室可能な部屋がない | **200 OK** | - | lobby/room.go: JoinAtRandom() | - |
+

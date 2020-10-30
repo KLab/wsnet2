@@ -282,16 +282,14 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	log.Infof("handleJoinRoomAtRandom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -300,8 +298,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 
 	room, err := sv.roomService.JoinAtRandom(h.appId, searchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
 	}
 

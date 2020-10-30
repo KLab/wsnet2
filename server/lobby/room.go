@@ -234,7 +234,7 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	rooms, err := rs.Search(appId, searchGroup, queries, 1000)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("JoinAtRandom: %w", err)
 	}
 
 	rand.Shuffle(len(rooms), func(i, j int) { rooms[i], rooms[j] = rooms[j], rooms[i] })
@@ -244,10 +244,12 @@ func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []
 		if err == nil {
 			return res, nil
 		}
-		log.Debugf("JoinAtRandom: failed to join room: %v", err)
+		log.Debugf("JoinAtRandom: failed to join room: room=%v %v", room.Id, err)
 	}
 
-	return nil, xerrors.Errorf("JoinAtRandom: Failed to join all rooms")
+	return nil, withStatus(
+		xerrors.Errorf("JoinAtRandom: Failed to join all rooms"),
+		http.StatusOK, "No joinable room found")
 }
 
 func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int) ([]pb.RoomInfo, error) {
