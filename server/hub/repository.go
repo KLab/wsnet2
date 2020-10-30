@@ -88,6 +88,7 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		newDeadline: make(chan time.Duration, 1),
 
 		msgCh: make(chan game.Msg, game.RoomMsgChSize),
+		evCh:  make(chan binary.Event, 1), // FIXME: 値をちゃんと考える
 		ready: make(chan struct{}),
 		done:  make(chan struct{}),
 

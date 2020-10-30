@@ -39,6 +39,7 @@ type Hub struct {
 	privateProps binary.Dict
 
 	msgCh    chan game.Msg
+	evCh     chan binary.Event // TODO: drainとかちゃんと考える
 	ready    chan struct{}
 	done     chan struct{}
 	wgClient sync.WaitGroup
@@ -256,7 +257,7 @@ func (h *Hub) Start() {
 	go func() {
 		select {
 		case <-h.ready:
-			h.MsgLoop()
+			h.ProcessLoop()
 		case <-h.Done():
 			h.repo.RemoveHub(h)
 			h.drainMsg()
@@ -282,9 +283,7 @@ func (h *Hub) Start() {
 			h.logger.Errorf("UnmarshalEvent error: %v\n", err)
 			return
 		}
-		if err := h.dispatchEvent(ev); err != nil {
-			h.logger.Errorf("event errro: %v\n", err)
-		}
+		h.evCh <- ev
 	}
 }
 
@@ -313,7 +312,6 @@ func (h *Hub) evPong(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
 	}
-	// TODO: ロック取る
 	h.RoomInfo.Watchers = pong.Watchers
 	h.lastMsg = pong.LastMsg
 	return nil
@@ -324,7 +322,6 @@ func (h *Hub) evPeerReady(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
 	}
-	// TODO: ロック取る
 	h.seq = seq
 	return nil
 }
@@ -375,8 +372,6 @@ func (h *Hub) evRoomProp(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvRoomProp payload error: %w", err)
 	}
-
-	// TODO: ロック取る
 
 	h.RoomInfo.Visible = rpp.Visible
 	h.RoomInfo.Joinable = rpp.Joinable
@@ -477,7 +472,7 @@ func (h *Hub) evMessage(ev binary.Event) error {
 }
 
 // MsgLoop goroutine dispatch messages.
-func (h *Hub) MsgLoop() {
+func (h *Hub) ProcessLoop() {
 	h.logger.Debug("Hub.MsgLoop() start.")
 Loop:
 	for {
@@ -490,6 +485,11 @@ Loop:
 			h.updateLastMsg(msg.SenderID())
 			if err := h.dispatch(msg); err != nil {
 				h.logger.Errorf("Hub msg error: %v", err)
+			}
+		case ev := <-h.evCh:
+			h.logger.Debugf("Hub event: %T %v", ev, ev)
+			if err := h.dispatchEvent(ev); err != nil {
+				h.logger.Errorf("Hub event error: %v", err)
 			}
 		}
 	}
