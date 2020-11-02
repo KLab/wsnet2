@@ -289,7 +289,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		renderErrorResponse(w, "Failed to read request body", http.StatusInternalServerError, err)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
@@ -311,16 +311,14 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param SearchParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
@@ -328,8 +326,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 
 	rooms, err := sv.roomService.Search(h.appId, param.SearchGroup, param.Queries, int(param.Limit))
 	if err != nil {
-		log.Errorf("Failed to search room: %v", err)
-		http.Error(w, "Failed to search room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to search room", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", rooms)

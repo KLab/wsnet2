@@ -3,8 +3,7 @@ WSNet2 Lobby API
 
 ## Create Room
 
-ednpoint
-: POST /rooms
+POST /rooms
 
 ### エラーレスポンス
 | 概要 | HTTP Status | gRPC Code | 発生箇所  | 備考 |
@@ -69,5 +68,19 @@ POST /rooms/join/random/{searchGroup}
 | 入室可能な部屋がない | **200 OK** | - | lobby/room.go: JoinAtRandom() | - |
 
 ※InvalidArgument以外のgRPCエラーは無視し別の部屋への入室を試行します
+
+## Search Rooms
+
+POST /rooms/search
+
+### エラーレスポンス
+| 概要 | HTTP Status | gRPC Code | 発生箇所  | 備考 |
+|------|-------------|-----------|-----------|------|
+| レスポンスのmsgpackエンコード失敗 | InternalServerError | - | lobby/service/api.go: renderResponse() | - |
+| ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
+| リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleSearchRoom() | - |
+| GameCacheからの取得失敗 | InternalServerError | - | lobby/room_cache.go: roomCacheQuery.do() | - |
+
+※該当する部屋が無かった場合は、200 OKでroomsが空配列になります
 
 
