@@ -189,20 +189,8 @@ func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 	return ws, nil
 }
 
-func (h *Hub) connectGame() (*websocket.Conn, error) {
-	var room pb.RoomInfo
-	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.id)
-	if err != nil {
-		return nil, xerrors.Errorf("connectGame: Failed to get room: %w", err)
-	}
-
-	gs, err := h.repo.gameCache.Get(room.HostId)
-	if err != nil {
-		return nil, xerrors.Errorf("connectGame: Failed to get game server: %w", err)
-	}
-
-	grpcAddr := fmt.Sprintf("%s:%d", gs.Hostname, gs.GRPCPort)
-	conn, err := h.repo.grpcPool.Get(grpcAddr)
+func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
+	conn, err := h.repo.grpcPool.Get(addr)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to dial to game server: %w", err)
 	}
@@ -224,46 +212,7 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 
 	h.logger.Info("Joined room: %v", res)
 
-	pubProps, iProps, err := common.InitProps(res.RoomInfo.PublicProps)
-	if err != nil {
-		return nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
-	}
-	res.RoomInfo.PublicProps = iProps
-	privProps, iProps, err := common.InitProps(res.RoomInfo.PrivateProps)
-	if err != nil {
-		return nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
-	}
-	res.RoomInfo.PrivateProps = iProps
-
-	h.RoomInfo = res.RoomInfo
-	h.deadline = time.Duration(res.Deadline) * time.Second
-	h.publicProps = pubProps
-	h.privateProps = privProps
-
-	h.players = make(map[ClientID]*Player)
-	for _, c := range res.Players {
-		props, iProps, err := common.InitProps(c.Props)
-		if err != nil {
-			return nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
-		}
-		c.Props = iProps
-		h.players[ClientID(c.Id)] = &Player{
-			ClientInfo: c,
-			props:      props,
-		}
-	}
-
-	close(h.ready)
-
-	// Hub -> Game は Hostname で接続する
-	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
-	h.logger.Debugf("Dial Game: %v\n", url)
-	ws, err := h.dialGame(url, res.AuthKey, 0)
-	if err != nil {
-		return nil, xerrors.Errorf("connectGame: Failed to dial game server: %w", err)
-	}
-
-	return ws, nil
+	return res, nil
 }
 
 func calcPingInterval(deadline time.Duration) time.Duration {
@@ -290,24 +239,82 @@ func (h *Hub) pinger(conn *websocket.Conn) {
 	}
 }
 
+func (h *Hub) copyInitialValues(res *pb.JoinedRoomRes) error {
+	pubProps, iProps, err := common.InitProps(res.RoomInfo.PublicProps)
+	if err != nil {
+		return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	res.RoomInfo.PublicProps = iProps
+	privProps, iProps, err := common.InitProps(res.RoomInfo.PrivateProps)
+	if err != nil {
+		return xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+	}
+	res.RoomInfo.PrivateProps = iProps
+
+	h.RoomInfo = res.RoomInfo
+	h.deadline = time.Duration(res.Deadline) * time.Second
+	h.publicProps = pubProps
+	h.privateProps = privProps
+
+	h.players = make(map[ClientID]*Player)
+	for _, c := range res.Players {
+		props, iProps, err := common.InitProps(c.Props)
+		if err != nil {
+			return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		}
+		c.Props = iProps
+		h.players[ClientID(c.Id)] = &Player{
+			ClientInfo: c,
+			props:      props,
+		}
+	}
+
+	return nil
+}
+
+func (h *Hub) getGameServer() (*common.GameServer, error) {
+	var room pb.RoomInfo
+	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.id)
+	if err != nil {
+		return nil, xerrors.Errorf("Failed to get room: %w", err)
+	}
+	return h.repo.gameCache.Get(room.HostId)
+}
+
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
 	defer h.logger.Debug("hub end")
 	defer close(h.done)
 
-	go func() {
-		select {
-		case <-h.ready:
-			h.ProcessLoop()
-		case <-h.Done():
-			h.repo.RemoveHub(h)
-			h.drainMsg()
-		}
-	}()
+	go h.ProcessLoop()
 
-	ws, err := h.connectGame()
+	gs, err := h.getGameServer()
 	if err != nil {
-		h.logger.Errorf("Failed to connect game server: %v\n", err)
+		h.logger.Errorf("Failed to get game server: %v\n", err)
+		return
+	}
+
+	res, err := h.requestWatch(fmt.Sprintf("%s:%d", gs.Hostname, gs.GRPCPort))
+	if err != nil {
+		h.logger.Errorf("Failed to Watch request: %v\n", err)
+		return
+	}
+
+	if err := h.copyInitialValues(res); err != nil {
+		h.logger.Errorf("Failed to copy initial values: %v\n", err)
+		return
+	}
+
+	// msgChの受け入れ準備完了
+	h.ready <- struct{}{}
+
+	// Hub -> Game は Hostname で接続する
+	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
+	h.logger.Debugf("Dial Game: %v\n", url)
+
+	ws, err := h.dialGame(url, res.AuthKey, 0)
+	if err != nil {
+		h.logger.Errorf("Failed to dial game server: %v\n", err)
 		return
 	}
 
@@ -514,14 +521,18 @@ func (h *Hub) evMessage(ev binary.Event) error {
 
 // MsgLoop goroutine dispatch messages.
 func (h *Hub) ProcessLoop() {
-	h.logger.Debug("Hub.MsgLoop() start.")
+	h.logger.Debug("Hub.ProcessLoop() start.")
+	var msgCh <-chan game.Msg
 Loop:
 	for {
 		select {
 		case <-h.Done():
 			h.logger.Info("Hub closed.")
 			break Loop
-		case msg := <-h.msgCh:
+		case <-h.ready:
+			h.logger.Info("Hub ready.")
+			msgCh = h.msgCh
+		case msg := <-msgCh:
 			h.logger.Debugf("Hub msg: %T %v", msg, msg)
 			h.updateLastMsg(msg.SenderID())
 			if err := h.dispatch(msg); err != nil {
@@ -537,7 +548,7 @@ Loop:
 	h.repo.RemoveHub(h)
 
 	h.drainMsg()
-	h.logger.Debug("Hub.MsgLoop() finish")
+	h.logger.Debug("Hub.ProcessLoop() finish")
 }
 
 // drainMsg drain msgCh until all clients closed.
