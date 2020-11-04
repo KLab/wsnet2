@@ -32,7 +32,8 @@ type Hub struct {
 	appId    AppID
 	clientId string
 
-	deadline time.Duration
+	deadline    time.Duration
+	newDeadline chan time.Duration
 
 	publicProps  binary.Dict
 	privateProps binary.Dict
@@ -191,6 +192,7 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	res.RoomInfo.PrivateProps = iProps
 
 	h.RoomInfo = res.RoomInfo
+	h.deadline = time.Duration(res.Deadline) * time.Second
 	h.publicProps = pubProps
 	h.privateProps = privProps
 
@@ -220,6 +222,30 @@ func (h *Hub) connectGame() (*websocket.Conn, error) {
 	return ws, nil
 }
 
+func calcPingInterval(deadline time.Duration) time.Duration {
+	return deadline / 3
+}
+
+func (h *Hub) pinger(conn *websocket.Conn) {
+	deadline := h.deadline
+	t := time.NewTicker(calcPingInterval(deadline))
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			msg := binary.NewMsgPing(time.Now())
+			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				return
+			}
+		case newDeadline := <-h.newDeadline:
+			h.logger.Debugf("pinger: update deadline: %v to %v\n", deadline, newDeadline)
+			t.Reset(calcPingInterval(newDeadline))
+		case <-h.Done():
+			return
+		}
+	}
+}
+
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
 	defer h.logger.Debug("hub end")
@@ -240,6 +266,8 @@ func (h *Hub) Start() {
 		h.logger.Errorf("Failed to connect game server: %v\n", err)
 		return
 	}
+
+	go h.pinger(ws)
 
 	for {
 		_, b, err := ws.ReadMessage()

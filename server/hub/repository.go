@@ -85,8 +85,7 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		appId:    appId,
 		clientId: clientId,
 
-		// TODO: RoomOptionから持ってくる
-		deadline: time.Duration(30) * time.Second,
+		newDeadline: make(chan time.Duration, 1),
 
 		msgCh: make(chan game.Msg, game.RoomMsgChSize),
 		ready: make(chan struct{}),
