@@ -17,6 +17,7 @@ import (
 	"wsnet2/binary"
 	"wsnet2/common"
 	"wsnet2/game"
+	"wsnet2/log"
 	"wsnet2/pb"
 )
 
@@ -54,6 +55,46 @@ type Hub struct {
 	seq int
 
 	logger *zap.SugaredLogger
+}
+
+func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
+	// hub->game 接続に使うclientId. このhubを作成するトリガーになったclientIdは使わない
+	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
+	clientId := fmt.Sprintf("hub:%d:%s", repo.hostId, roomId)
+
+	// todo: log.CurrentLevel()
+	logger := log.Get(log.DEBUG).With(
+		zap.String("type", "hub"),
+		zap.String("room", string(roomId)),
+		zap.String("clientId", clientId),
+	).Sugar()
+
+	hub := &Hub{
+		id:       RoomID(roomId),
+		repo:     repo,
+		appId:    appId,
+		clientId: clientId,
+
+		newDeadline: make(chan time.Duration, 1),
+
+		publicProps:  make(binary.Dict),
+		privateProps: make(binary.Dict),
+
+		msgCh: make(chan game.Msg, game.RoomMsgChSize),
+		evCh:  make(chan binary.Event, 1), // FIXME: 値をちゃんと考える
+		ready: make(chan struct{}),
+		done:  make(chan struct{}),
+
+		players:  make(map[ClientID]*Player),
+		watchers: make(map[ClientID]*game.Client),
+
+		lastMsg: make(binary.Dict),
+
+		logger: logger,
+		// todo: hubをもっと埋める
+	}
+
+	return hub
 }
 
 func (h *Hub) ID() RoomID {

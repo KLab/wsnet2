@@ -2,17 +2,14 @@ package hub
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
-	"wsnet2/binary"
 	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/game"
@@ -68,38 +65,7 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 		return hub, nil
 	}
 
-	// hub->game 接続に使うclientId. このhubを作成するトリガーになったclientIdは使わない
-	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
-	clientId := fmt.Sprintf("hub:%d:%s", r.hostId, roomId)
-
-	// todo: log.CurrentLevel()
-	logger := log.Get(log.DEBUG).With(
-		zap.String("type", "hub"),
-		zap.String("room", string(roomId)),
-		zap.String("clientId", clientId),
-	).Sugar()
-
-	hub = &Hub{
-		id:       RoomID(roomId),
-		repo:     r,
-		appId:    appId,
-		clientId: clientId,
-
-		newDeadline: make(chan time.Duration, 1),
-
-		msgCh: make(chan game.Msg, game.RoomMsgChSize),
-		evCh:  make(chan binary.Event, 1), // FIXME: 値をちゃんと考える
-		ready: make(chan struct{}),
-		done:  make(chan struct{}),
-
-		players:  make(map[ClientID]*Player),
-		watchers: make(map[ClientID]*game.Client),
-		lastMsg:  make(binary.Dict),
-
-		logger: logger,
-		// todo: hubをもっと埋める
-	}
-
+	hub = NewHub(r, appId, roomId)
 	r.hubs[roomId] = hub
 
 	go hub.Start()
