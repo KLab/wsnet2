@@ -540,7 +540,7 @@ func (h *Hub) evTargetNotFound(ev binary.Event) error {
 	return nil
 }
 
-// MsgLoop goroutine dispatch messages.
+// ProcessLoop goroutine dispatch messages and events.
 func (h *Hub) ProcessLoop() {
 	h.logger.Debug("Hub.ProcessLoop() start.")
 	defer func() {
