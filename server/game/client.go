@@ -59,7 +59,7 @@ func NewPlayer(info *pb.ClientInfo, room *Room) (*Client, ErrorWithCode) {
 	return newClient(info, room, true)
 }
 
-func NewWatcher(info *pb.ClientInfo, room *Room) (*Client, error) {
+func NewWatcher(info *pb.ClientInfo, room *Room) (*Client, ErrorWithCode) {
 	return newClient(info, room, false)
 }
 

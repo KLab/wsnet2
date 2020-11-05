@@ -377,7 +377,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	client, err := NewPlayer(msg.Info, r)
 	if err != nil {
 		err = withCode(
-			xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err),
+			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err
 		return err
@@ -403,27 +403,33 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 func (r *Room) msgWatch(msg *MsgWatch) error {
 	if !r.Watchable {
-		close(msg.Joined)
-		return xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		msg.Err <- withCode(err, codes.FailedPrecondition)
+		return err
 	}
 
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	if _, ok := r.players[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 
 	client, err := NewWatcher(msg.Info, r)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+		err = withCode(
+			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
+			err.Code())
+		msg.Err <- err
+		return err
 	}
 	r.watchers[client.ID()] = client
 	r.RoomInfo.Watchers += client.nodeCount

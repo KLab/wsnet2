@@ -340,26 +340,28 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	log.Infof("handleWatchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	roomId := vars.roomId()
+	if roomId == "" {
+		renderErrorResponse(
+			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"))
+		return
+	}
 
 	room, err := sv.roomService.WatchById(h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to watch room: %v", err)
-		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", room)
@@ -373,26 +375,28 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	log.Infof("handleWatchRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	roomNumber := vars.roomNumber()
+	if roomNumber == 0 {
+		renderErrorResponse(
+			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"))
+		return
+	}
 
 	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to watch room: %v", err)
-		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", room)

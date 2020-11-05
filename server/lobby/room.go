@@ -61,7 +61,7 @@ func (rs *RoomService) GetAppKey(appId string) (string, bool) {
 
 func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
-		return nil, withStatus(xerrors.Errorf("Unknown appId: %v", appId), http.StatusBadRequest, "")
+		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
 
 	game, err := rs.gameCache.Rand()
@@ -160,7 +160,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 			case codes.ResourceExhausted: // 満室
 				err = withStatus(err, http.StatusOK, "Room full")
 			case codes.AlreadyExists: // 既に入室している
-				err = withStatus(err, http.StatusConflict, "")
+				err = withStatus(err, http.StatusConflict, "Already exists")
 			case codes.InvalidArgument:
 				err = withStatus(err, http.StatusBadRequest, "Invalid argument")
 			}
@@ -278,8 +278,7 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
 	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
-		log.Errorf("client connection error: %v", err)
-		return nil, err
+		return nil, xerrors.Errorf("watch: gRPC client connection error: %w", err)
 	}
 
 	client := pb.NewGameClient(conn)
@@ -292,11 +291,23 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 
 	res, err := client.Watch(context.TODO(), req)
 	if err != nil {
-		log.Errorf("watch room error: %v", err)
+		err = xerrors.Errorf("watch: gRPC Watch: %w", err)
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound: // roomが既に消えた
+				err = withStatus(err, http.StatusOK, "No watchable room found")
+			case codes.FailedPrecondition: // watchableでなくなっていた
+				err = withStatus(err, http.StatusOK, "No watchable room found")
+			case codes.AlreadyExists: // 既に入室している
+				err = withStatus(err, http.StatusConflict, "Already exists")
+			case codes.InvalidArgument:
+				err = withStatus(err, http.StatusBadRequest, "Invalid argument")
+			}
+		}
 		return nil, err
 	}
 
-	log.Infof("Joined room: %v", res)
+	log.Infof("Watcher joined room: %v", res)
 
 	return res, nil
 }
@@ -309,7 +320,9 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND watchable = 1", appId, roomId)
 	if err != nil {
-		return nil, xerrors.Errorf("WatchById: failed to get room: %w", err)
+		return nil, withStatus(
+			xerrors.Errorf("WatchById: failed to get room: app=%v room=%v %w", appId, roomId, err),
+			http.StatusOK, "No watchable room found")
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -319,7 +332,9 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 
 	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
 	if len(filtered) == 0 {
-		return nil, xerrors.Errorf("WatchById: filter result is empty")
+		return nil, withStatus(
+			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
+			http.StatusOK, "No joinable room found")
 	}
 	room = filtered[0]
 
@@ -330,14 +345,13 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
-	if roomNumber == 0 {
-		return nil, xerrors.Errorf("Invalid room number: %v", roomNumber)
-	}
 
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND watchable = 1", appId, roomNumber)
 	if err != nil {
-		return nil, xerrors.Errorf("WatchByNumber: Failed to get room: %w", err)
+		return nil, withStatus(
+			xerrors.Errorf("WatchByNumber: failed to get room: app=%v number=%v %w", appId, roomNumber, err),
+			http.StatusOK, "No watchable room found")
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -347,7 +361,9 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 
 	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
 	if len(filtered) == 0 {
-		return nil, xerrors.Errorf("WatchByNumber: filter result is empty")
+		return nil, withStatus(
+			xerrors.Errorf("WatchByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
+			http.StatusOK, "No joinable room found")
 	}
 	room = filtered[0]
 

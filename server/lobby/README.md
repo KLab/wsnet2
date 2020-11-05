@@ -5,6 +5,10 @@ WSNet2 Lobby API
 
 POST /rooms
 
+### リクエスト
+
+### 成功レスポンス
+
 ### エラーレスポンス
 | 概要 | HTTP Status | gRPC Code | 発生箇所  | 備考 |
 |------|-------------|-----------|-----------|------|
@@ -36,9 +40,9 @@ POST /rooms/join/number/{roomNumber}
 | ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
 | リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleCreateRoom() | - |
 | RoomIDが空 | BadRequest | - | lobby/service/api.go: handleJoinRoom() | - |
-| RoomNumberが空 | BadRequest | - | lobby/service/api.go: handleJoinRoomByNumber() | - |
+| RoomNumberが空または0 | BadRequest | - | lobby/service/api.go: handleJoinRoomByNumber() | - |
 | appIdのAppが無い | InternalServerError | - | lobby/room.go: RoomService.JoinBy{Id,Number}() | ユーザ認証失敗しているはずなので起こらない |
-| Roomが見つからない | **200 OK** | - | lobby/room.go: RoomService.JoinBy{Id,Number}() | - |
+| 入室可能なRoomが見つからない | **200 OK** | - | lobby/room.go: RoomService.JoinBy{Id,Number}() | - |
 | プロパティクエリ条件に合致しない | **200 OK** | - | lobby/room.go: RoomService.JoinBy{Id,Number}() | - |
 | publicPropsのデコード失敗 | InternalServerError | - | obby/room.go: RoomService.JoinBy{Id,Number}() | - |
 | gameサーバ取得失敗 | InternalServerError | - | lobby/game_cache.go: GameCache.Get() | - |
@@ -48,7 +52,7 @@ POST /rooms/join/number/{roomNumber}
 | gRPCタイムアウト | InternalServerError | Deadlineexceeded | game/repository.go: Repository.joinRoom() | game側で設定したタイムアウト |
 | Roomが既に消えた | **200 OK** | NotFound | game/repository.go: Repository.joinRoom() | lobbyでのチェック後に消えたパターン |
 | Joinableでない | **200 OK** | FailedPrecondition | game/room.go: msgJoin() | lobbyでのチェック後に折られた |
-| 既に入室済み | Conflict | AlreadyExists | game/room.go: msgJoin() | - |
+| 既に入室済み | Conflict | AlreadyExists | game/room.go: msgJoin() | Watcherとして既存も含む |
 | 満室 | **200 OK** | ResourceExhausted | game/room.go: msgJoin() | - |
 | Player PropsのUnmarshal失敗 | BadRequest | InvalidArgument | game/client.go: newClient() | - |
 
@@ -65,9 +69,10 @@ POST /rooms/join/random/{searchGroup}
 | リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleJoinAtRandom() | - |
 | GameCacheからの取得失敗 | InternalServerError | - | lobby/room_cache.go: roomCacheQuery.do() | - |
 | Player PropsのUnmarshal失敗 | BadRequest | InvalidArgument | game/client.go: newClient() | - |
-| 入室可能な部屋がない | **200 OK** | - | lobby/room.go: JoinAtRandom() | - |
+| 入室可能な部屋が見つからない | **200 OK** | - | lobby/room.go: JoinAtRandom() | - |
 
 ※InvalidArgument以外のgRPCエラーは無視し別の部屋への入室を試行します
+
 
 ## Search Rooms
 
@@ -83,4 +88,31 @@ POST /rooms/search
 
 ※該当する部屋が無かった場合は、200 OKでroomsが空配列になります
 
+
+## Watch Room
+
+POST /rooms/watch/id/{roomId}
+POST /rooms/watch/number/{roomNumber}
+
+### エラーレスポンス
+| 概要 | HTTP Status | gRPC Code | 発生箇所  | 備考 |
+|------|-------------|-----------|-----------|------|
+| レスポンスのmsgpackエンコード失敗 | InternalServerError | - | lobby/service/api.go: renderResponse() | - |
+| ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
+| リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleWatchRoom{,ByRoomNumber}() | - |
+| RoomIDが空 | BadRequest | - | lobby/service/api.go: handleWatchRoom() | - |
+| RoomNumberが空または0 | BadRequest | - | lobby/service/api.go: handleWatchRoomByNumber() | - |
+| appIdのAppが無い | InternalServerError | - | lobby/room.go: RoomService.WatchBy{Id,Number}() | ユーザ認証失敗しているはずなので起こらない |
+| 観戦可能なRoomが見つからない | **200 OK** | - | lobby/room.go: RoomService.WatchBy{Id,Number}() | - |
+| publicPropsのデコード失敗 | InternalServerError | - | obby/room.go: RoomService.WatchBy{Id,Number}() | - |
+| プロパティクエリ条件に合致しない | **200 OK** | - | lobby/room.go: RoomService.WatchBy{Id,Number}() | - |
+| gameサーバ取得失敗 | InternalServerError | - | lobby/game_cache.go: GameCache.Get() | - |
+| gRPC ClientをPoolから取得失敗 | InternalServerError | - | lobby/room.go: RoomService.watch() | - |
+| gRPCタイムアウト | InternalServerError | DeadlineExceeded | lobby/room.go: RoomService.watch() | lobby側で設定したタイムアウト |
+| appIdのAppが無い | InternalServerError | Internal | game/service/grpc.go: GameService.Watch() | ユーザ認証失敗しているはずなので起こらない |
+| gRPCタイムアウト | InternalServerError | Deadlineexceeded | game/repository.go: Repository.joinRoom() | game側で設定したタイムアウト |
+| Roomが既に消えた | **200 OK** | NotFound | game/repository.go: Repository.joinRoom() | lobbyでのチェック後に消えたパターン |
+| Watchableでない | **200 OK** | FailedPrecondition | game/room.go: msgWatch() | lobbyでのチェック後に折られた |
+| 既に入室済み | Conflict | AlreadyExists | game/room.go: msgWatch() | Playerとして既存も含む |
+| Player PropsのUnmarshal失敗 | BadRequest | InvalidArgument | game/client.go: newClient() | - |
 
