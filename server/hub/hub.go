@@ -194,7 +194,6 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to dial to game server: %w", err)
 	}
-	defer conn.Close()
 
 	client := pb.NewGameClient(conn)
 	req := &pb.JoinRoomReq{
