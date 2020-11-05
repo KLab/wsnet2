@@ -521,17 +521,27 @@ func (h *Hub) evMessage(ev binary.Event) error {
 // MsgLoop goroutine dispatch messages.
 func (h *Hub) ProcessLoop() {
 	h.logger.Debug("Hub.ProcessLoop() start.")
-	var msgCh <-chan game.Msg
+	defer func() {
+		h.repo.RemoveHub(h)
+		h.drainMsg()
+		h.logger.Debug("Hub.ProcessLoop() finish")
+	}()
+
+	select {
+	case <-h.ready:
+		h.logger.Info("Hub ready")
+	case <-h.Done():
+		h.logger.Info("Hub closed before ready")
+		return
+	}
+
 Loop:
 	for {
 		select {
 		case <-h.Done():
 			h.logger.Info("Hub closed.")
 			break Loop
-		case <-h.ready:
-			h.logger.Info("Hub ready.")
-			msgCh = h.msgCh
-		case msg := <-msgCh:
+		case msg := <-h.msgCh:
 			h.logger.Debugf("Hub msg: %T %v", msg, msg)
 			h.updateLastMsg(msg.SenderID())
 			if err := h.dispatch(msg); err != nil {
@@ -544,10 +554,6 @@ Loop:
 			}
 		}
 	}
-	h.repo.RemoveHub(h)
-
-	h.drainMsg()
-	h.logger.Debug("Hub.ProcessLoop() finish")
 }
 
 // drainMsg drain msgCh until all clients closed.
