@@ -87,8 +87,9 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 
 	res, err := client.Create(context.TODO(), req)
 	if err != nil {
+		st, ok := status.FromError(err)
 		err = xerrors.Errorf("Create: gRPC Create: %w", err)
-		if st, ok := status.FromError(err); ok {
+		if ok {
 			switch st.Code() {
 			case codes.InvalidArgument:
 				err = withStatus(err, http.StatusBadRequest, "Invalid argument")
@@ -150,8 +151,9 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 
 	res, err := client.Join(context.TODO(), req)
 	if err != nil {
+		st, ok := status.FromError(err)
 		err = xerrors.Errorf("join: gRPC Join: %w", err)
-		if st, ok := status.FromError(err); ok {
+		if ok {
 			switch st.Code() {
 			case codes.NotFound: // roomが既に消えた
 				err = withStatus(err, http.StatusOK, "No joinable room found")
@@ -291,8 +293,9 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 
 	res, err := client.Watch(context.TODO(), req)
 	if err != nil {
+		st, ok := status.FromError(err)
 		err = xerrors.Errorf("watch: gRPC Watch: %w", err)
-		if st, ok := status.FromError(err); ok {
+		if ok {
 			switch st.Code() {
 			case codes.NotFound: // roomが既に消えた
 				err = withStatus(err, http.StatusOK, "No watchable room found")
