@@ -350,8 +350,15 @@ func (h *Hub) dispatchEvent(ev binary.Event) error {
 		return h.evMasterSwitched(ev)
 	case binary.EvTypeMessage:
 		return h.evMessage(ev)
+	case binary.EvTypeSucceeded:
+		return h.evSucceeded(ev)
+	case binary.EvTypePermissionDenied:
+		return h.evPermissionDenied(ev)
+	case binary.EvTypeTargetNotFound:
+		return h.evTargetNotFound(ev)
+	default:
+		return xerrors.Errorf("unknown event type: %T %v", ev, ev)
 	}
-	return nil
 }
 
 func (h *Hub) evPong(ev binary.Event) error {
@@ -515,6 +522,21 @@ func (h *Hub) evMessage(ev binary.Event) error {
 	h.muClients.Lock()
 	h.broadcast(ev.(*binary.RegularEvent))
 	h.muClients.Unlock()
+	return nil
+}
+
+func (h *Hub) evSucceeded(ev binary.Event) error {
+	// TODO: 実装
+	return nil
+}
+
+func (h *Hub) evPermissionDenied(ev binary.Event) error {
+	// TODO: 実装
+	return nil
+}
+
+func (h *Hub) evTargetNotFound(ev binary.Event) error {
+	// TODO: 実装
 	return nil
 }
 
