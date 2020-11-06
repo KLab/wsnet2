@@ -67,6 +67,7 @@ POST /rooms/join/random/{searchGroup}
 | レスポンスのmsgpackエンコード失敗 | InternalServerError | - | lobby/service/api.go: renderResponse() | - |
 | ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
 | リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleJoinAtRandom() | - |
+| タイムアウト | InternalServerError | - | lobby/room.go: RoomService.JoinAtRandom() | lobby側で設定したタイムアウト |
 | GameCacheからの取得失敗 | InternalServerError | - | lobby/room_cache.go: roomCacheQuery.do() | - |
 | Player PropsのUnmarshal失敗 | BadRequest | InvalidArgument | game/client.go: newClient() | - |
 | 入室可能な部屋が見つからない | **200 OK** | - | lobby/room.go: JoinAtRandom() | - |
