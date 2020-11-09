@@ -10,10 +10,10 @@ import (
 func TestWriteRead(t *testing.T) {
 	buf := NewEvBuf(5)
 
-	evs := []*binary.Event{
-		{Type: 0},
-		{Type: 1},
-		{Type: 2},
+	evs := []*binary.RegularEvent{
+		binary.NewRegularEvent(0, nil),
+		binary.NewRegularEvent(1, nil),
+		binary.NewRegularEvent(2, nil),
 	}
 
 	for _, ev := range evs {
@@ -40,12 +40,12 @@ func TestWriteRead(t *testing.T) {
 	}
 	seq += len(r)
 
-	evs = []*binary.Event{
-		{Type: 3},
-		{Type: 4},
-		{Type: 5},
-		{Type: 6},
-		{Type: 7},
+	evs = []*binary.RegularEvent{
+		binary.NewRegularEvent(3, nil),
+		binary.NewRegularEvent(4, nil),
+		binary.NewRegularEvent(5, nil),
+		binary.NewRegularEvent(6, nil),
+		binary.NewRegularEvent(7, nil),
 	}
 	for _, m := range evs {
 		if e := buf.Write(m); e != nil {
@@ -63,7 +63,7 @@ func TestWriteRead(t *testing.T) {
 
 func TestEvBufOverFlow(t *testing.T) {
 	buf := NewEvBuf(2)
-	ev := &binary.Event{Type: 0}
+	ev := binary.NewRegularEvent(0, nil)
 
 	if e := buf.Write(ev); e != nil {
 		t.Fatalf("Write error: %v", e)
@@ -79,11 +79,11 @@ func TestEvBufOverFlow(t *testing.T) {
 func TestReadWithRewind(t *testing.T) {
 	buf := NewEvBuf(5)
 
-	evs := []*binary.Event{
-		{Type: 1},
-		{Type: 2},
-		{Type: 3},
-		{Type: 4},
+	evs := []*binary.RegularEvent{
+		binary.NewRegularEvent(1, nil),
+		binary.NewRegularEvent(2, nil),
+		binary.NewRegularEvent(3, nil),
+		binary.NewRegularEvent(4, nil),
 	}
 	for _, m := range evs {
 		if e := buf.Write(m); e != nil {
@@ -92,10 +92,10 @@ func TestReadWithRewind(t *testing.T) {
 	}
 	buf.Read(0)
 
-	evs = []*binary.Event{
-		{Type: 5},
-		{Type: 6},
-		{Type: 7},
+	evs = []*binary.RegularEvent{
+		binary.NewRegularEvent(5, nil),
+		binary.NewRegularEvent(6, nil),
+		binary.NewRegularEvent(7, nil),
 	}
 	for _, m := range evs {
 		if e := buf.Write(m); e != nil {
@@ -107,11 +107,11 @@ func TestReadWithRewind(t *testing.T) {
 	if e != nil {
 		t.Fatalf("Read(3) error: %v", e)
 	}
-	wants := []*binary.Event{
-		{Type: 4},
-		{Type: 5},
-		{Type: 6},
-		{Type: 7},
+	wants := []*binary.RegularEvent{
+		binary.NewRegularEvent(4, nil),
+		binary.NewRegularEvent(5, nil),
+		binary.NewRegularEvent(6, nil),
+		binary.NewRegularEvent(7, nil),
 	}
 	if !reflect.DeepEqual(r, wants) {
 		t.Fatalf("Read(3) %v, wants %v", r, wants)

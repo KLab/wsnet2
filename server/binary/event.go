@@ -94,6 +94,10 @@ type RegularEvent struct {
 func (ev *RegularEvent) Type() EvType    { return ev.etype }
 func (ev *RegularEvent) Payload() []byte { return ev.payload }
 
+func NewRegularEvent(etype EvType, payload []byte) *RegularEvent {
+	return &RegularEvent{etype, payload}
+}
+
 func (ev *RegularEvent) Marshal(seqNum int) []byte {
 	buf := make([]byte, len(ev.payload)+5)
 	buf[0] = byte(ev.etype)
