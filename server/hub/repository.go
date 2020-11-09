@@ -68,7 +68,10 @@ func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
 	hub = NewHub(r, appId, roomId)
 	r.hubs[roomId] = hub
 
-	go hub.Start()
+	go func() {
+		hub.Start()
+		r.RemoveHub(hub)
+	}()
 
 	return hub, nil
 }

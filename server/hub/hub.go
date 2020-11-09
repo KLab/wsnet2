@@ -281,10 +281,10 @@ func (h *Hub) getGameServer() (*common.GameServer, error) {
 
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
-	defer h.logger.Debug("hub end")
-	defer close(h.done)
-
-	go h.ProcessLoop()
+	defer func() {
+		close(h.done)
+		h.logger.Debug("hub end")
+	}()
 
 	gs, err := h.getGameServer()
 	if err != nil {
@@ -303,8 +303,7 @@ func (h *Hub) Start() {
 		return
 	}
 
-	// msgChの受け入れ準備完了
-	h.ready <- struct{}{}
+	go h.ProcessLoop()
 
 	// Hub -> Game は Hostname で接続する
 	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
@@ -336,20 +335,6 @@ func (h *Hub) Start() {
 // ProcessLoop goroutine dispatch messages and events.
 func (h *Hub) ProcessLoop() {
 	h.logger.Debug("Hub.ProcessLoop() start")
-	defer func() {
-		h.repo.RemoveHub(h)
-		h.drainMsg()
-		h.logger.Debug("Hub.ProcessLoop() finish")
-	}()
-
-	select {
-	case <-h.ready:
-		h.logger.Info("Hub ready")
-	case <-h.Done():
-		h.logger.Info("Hub closed before ready")
-		return
-	}
-
 Loop:
 	for {
 		select {
@@ -369,6 +354,8 @@ Loop:
 			}
 		}
 	}
+	h.drainMsg()
+	h.logger.Debug("Hub.ProcessLoop() finish")
 }
 
 // drainMsg drain msgCh until all clients closed.
