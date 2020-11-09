@@ -226,6 +226,7 @@ func (h *Hub) pinger(conn *websocket.Conn) {
 		case <-t.C:
 			msg := binary.NewMsgPing(time.Now())
 			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
 				return
 			}
 		case newDeadline := <-h.newDeadline:
