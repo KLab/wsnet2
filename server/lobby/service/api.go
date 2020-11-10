@@ -158,7 +158,7 @@ func (sv *LobbyService) authUser(h header) error {
 // POST Params: {"max_player": 0, "with_room_number": true}
 // Response: 200 OK
 func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(sv.conf.ApiTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
 	defer cancel()
 
 	h := parseSpecificHeader(r)
@@ -212,7 +212,7 @@ func (vars JoinVars) searchGroup() (sg uint32) {
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(sv.conf.ApiTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
 	defer cancel()
 
 	h := parseSpecificHeader(r)
@@ -249,7 +249,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(sv.conf.ApiTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
 	defer cancel()
 
 	h := parseSpecificHeader(r)
@@ -286,7 +286,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 }
 
 func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(sv.conf.ApiTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
 	defer cancel()
 
 	h := parseSpecificHeader(r)
@@ -347,7 +347,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 }
 
 func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(sv.conf.ApiTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
 	defer cancel()
 
 	h := parseSpecificHeader(r)
@@ -385,7 +385,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(sv.conf.ApiTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
 	defer cancel()
 
 	h := parseSpecificHeader(r)
