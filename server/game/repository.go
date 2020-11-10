@@ -220,6 +220,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		Visible:      op.Visible,
 		Joinable:     op.Joinable,
 		Watchable:    op.Watchable,
+		Number:       &pb.RoomNumber{},
 		SearchGroup:  op.SearchGroup,
 		MaxPlayers:   op.MaxPlayers,
 		Players:      1,
@@ -240,7 +241,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 
 		ri.Id = RandomHex(lenId)
 		if op.WithNumber {
-			ri.Number = rand.Int31n(maxNumber) + 1 // [1..maxNumber]
+			ri.Number.Number = rand.Int31n(maxNumber) + 1 // [1..maxNumber]
 		}
 
 		_, err = tx.NamedExecContext(ctx, roomInsertQuery, ri)

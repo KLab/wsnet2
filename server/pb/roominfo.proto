@@ -28,7 +28,7 @@ message RoomInfo {
 
 	// unique room number. 0 means not set.
 	// @inject_tag: db:"number"
-	int32 number = 7;
+	RoomNumber number = 7;
 
 	// @inject_tag: db:"search_group"
 	uint32 search_group = 8;
@@ -54,4 +54,9 @@ message RoomInfo {
 
 	// @inject_tag: db:"created"
 	Timestamp created = 15;
+}
+
+// RoomNumber をnullableにするための型
+message RoomNumber {
+	int32 number = 1;
 }

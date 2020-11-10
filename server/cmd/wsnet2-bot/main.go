@@ -289,8 +289,8 @@ func main() {
 
 	go spawnPlayer(room.RoomInfo.Id, "23456", nil)
 	go spawnPlayer(room.RoomInfo.Id, "34567", queries)
-	go spawnPlayerByNumber(room.RoomInfo.Number, "45678", nil)
-	go spawnPlayerByNumber(room.RoomInfo.Number, "56789", queries)
+	go spawnPlayerByNumber(room.RoomInfo.Number.Number, "45678", nil)
+	go spawnPlayerByNumber(room.RoomInfo.Number.Number, "56789", queries)
 	go spawnPlayerAtRandom("67890", 1, queries)
 	go spawnWatcher(room.RoomInfo.Id, "w1")
 

@@ -97,8 +97,8 @@ func TestNewRoomInfo(t *testing.T) {
 	if ri.Id == id1 || ri.Id != id2 {
 		t.Fatalf("ri.Id = %v, wants %v", ri.Id, id2)
 	}
-	if ri.Number == num1 || ri.Number != num2 {
-		t.Fatalf("ri.Number = %v, wants %v", ri.Number, num2)
+	if ri.Number.Number == num1 || ri.Number.Number != num2 {
+		t.Fatalf("ri.Number = %v, wants %v", ri.Number.Number, num2)
 	}
 
 	if err := mock.ExpectationsWereMet(); err != nil {
