@@ -4,6 +4,6 @@ import "wsnet2/pb"
 
 type LobbyResponse struct {
 	Msg   string            `json:"msg"`
-	Room  *pb.JoinedRoomRes `json:"room,ommitempty"`
-	Rooms []pb.RoomInfo     `json:"rooms,ommitempty"`
+	Room  *pb.JoinedRoomRes `json:"room,omitempty"`
+	Rooms []pb.RoomInfo     `json:"rooms,omitempty"`
 }
