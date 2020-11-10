@@ -16,7 +16,9 @@ type JoinParam struct {
 }
 
 type SearchParam struct {
-	SearchGroup uint32              `json:"group"`
-	Queries     []lobby.PropQueries `json:"query"`
-	Limit       uint32              `json:"limit"`
+	SearchGroup    uint32              `json:"group"`
+	Queries        []lobby.PropQueries `json:"query"`
+	Limit          uint32              `json:"limit"`
+	CheckJoinable  bool                `json:"joinable,omitempty"`
+	CheckWatchable bool                `json:"watchable,omitempty"`
 }
