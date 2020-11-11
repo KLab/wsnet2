@@ -158,6 +158,9 @@ func (sv *LobbyService) authUser(h header) error {
 // POST Params: {"max_player": 0, "with_room_number": true}
 // Response: 200 OK
 func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleCreateRoom: appID=%s, userID=%s", h.appId, h.userId)
@@ -176,7 +179,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	// TODO: 必要に応じて一部のパラメータを上書き？
 
-	room, err := sv.roomService.Create(h.appId, &param.RoomOption, &param.ClientInfo)
+	room, err := sv.roomService.Create(ctx, h.appId, &param.RoomOption, &param.ClientInfo)
 	if err != nil {
 		renderErrorResponse(w, "Failed to create room", http.StatusInternalServerError, err)
 		return
@@ -209,6 +212,9 @@ func (vars JoinVars) searchGroup() (sg uint32) {
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleJoinRoom: appID=%s, userID=%s", h.appId, h.userId)
@@ -233,7 +239,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := sv.roomService.JoinById(h.appId, roomId, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
@@ -243,6 +249,9 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
@@ -267,7 +276,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	room, err := sv.roomService.JoinByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
@@ -277,6 +286,9 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 }
 
 func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleJoinRoomAtRandom: appID=%s, userID=%s", h.appId, h.userId)
@@ -296,7 +308,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	vars := JoinVars(mux.Vars(r))
 	searchGroup := vars.searchGroup()
 
-	room, err := sv.roomService.JoinAtRandom(h.appId, searchGroup, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
@@ -335,6 +347,9 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 }
 
 func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleWatchRoom: appID=%s, userID=%s", h.appId, h.userId)
@@ -359,7 +374,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	room, err := sv.roomService.WatchById(h.appId, roomId, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
 		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return
@@ -370,6 +385,9 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 }
 
 func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleWatchRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
@@ -394,7 +412,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
 		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return

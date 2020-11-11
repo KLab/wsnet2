@@ -59,7 +59,7 @@ func (rs *RoomService) GetAppKey(appId string) (string, bool) {
 	return app.Key, true
 }
 
-func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.RoomOption, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -85,7 +85,7 @@ func (rs *RoomService) Create(appId string, roomOption *pb.RoomOption, clientInf
 		MasterInfo: clientInfo,
 	}
 
-	res, err := client.Create(context.TODO(), req)
+	res, err := client.Create(ctx, req)
 	if err != nil {
 		st, ok := status.FromError(err)
 		err = xerrors.Errorf("Create: gRPC Create: %w", err)
@@ -129,7 +129,7 @@ func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, lim
 	return filtered
 }
 
-func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
 	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
 		return nil, xerrors.Errorf("join: failed to get game server: %w", err)
@@ -149,7 +149,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 		ClientInfo: clientInfo,
 	}
 
-	res, err := client.Join(context.TODO(), req)
+	res, err := client.Join(ctx, req)
 	if err != nil {
 		st, ok := status.FromError(err)
 		err = xerrors.Errorf("join: gRPC Join: %w", err)
@@ -175,7 +175,7 @@ func (rs *RoomService) join(appId, roomId string, clientInfo *pb.ClientInfo, hos
 	return res, nil
 }
 
-func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -201,10 +201,10 @@ func (rs *RoomService) JoinById(appId, roomId string, queries []PropQueries, cli
 	}
 	room = filtered[0]
 
-	return rs.join(appId, room.Id, clientInfo, room.HostId)
+	return rs.join(ctx, appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -230,10 +230,10 @@ func (rs *RoomService) JoinByNumber(appId string, roomNumber int32, queries []Pr
 	}
 	room = filtered[0]
 
-	return rs.join(appId, room.Id, clientInfo, room.HostId)
+	return rs.join(ctx, appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	rooms, err := rs.Search(appId, searchGroup, queries, 1000)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinAtRandom: %w", err)
@@ -242,8 +242,13 @@ func (rs *RoomService) JoinAtRandom(appId string, searchGroup uint32, queries []
 	rand.Shuffle(len(rooms), func(i, j int) { rooms[i], rooms[j] = rooms[j], rooms[i] })
 
 	for _, room := range rooms {
-		// TODO: contextでtimeout判定いれる
-		res, err := rs.join(appId, room.Id, clientInfo, room.HostId)
+		select {
+		case <-ctx.Done():
+			return nil, xerrors.Errorf("JoinAtRandom: timeout")
+		default:
+		}
+
+		res, err := rs.join(ctx, appId, room.Id, clientInfo, room.HostId)
 		if err == nil {
 			return res, nil
 		}
@@ -271,7 +276,7 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 	return filter(rooms, props, queries, limit), nil
 }
 
-func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
 	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
 		return nil, xerrors.Errorf("watch: failed to get game server: %w", err)
@@ -291,7 +296,7 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 		ClientInfo: clientInfo,
 	}
 
-	res, err := client.Watch(context.TODO(), req)
+	res, err := client.Watch(ctx, req)
 	if err != nil {
 		st, ok := status.FromError(err)
 		err = xerrors.Errorf("watch: gRPC Watch: %w", err)
@@ -315,7 +320,7 @@ func (rs *RoomService) watch(appId, roomId string, clientInfo *pb.ClientInfo, ho
 	return res, nil
 }
 
-func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -341,10 +346,10 @@ func (rs *RoomService) WatchById(appId, roomId string, queries []PropQueries, cl
 	}
 	room = filtered[0]
 
-	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(ctx, appId, room.Id, clientInfo, room.HostId)
 }
 
-func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
 	if _, found := rs.apps[appId]; !found {
 		return nil, xerrors.Errorf("Unknown appId: %v", appId)
 	}
@@ -370,5 +375,5 @@ func (rs *RoomService) WatchByNumber(appId string, roomNumber int32, queries []P
 	}
 	room = filtered[0]
 
-	return rs.watch(appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(ctx, appId, room.Id, clientInfo, room.HostId)
 }
