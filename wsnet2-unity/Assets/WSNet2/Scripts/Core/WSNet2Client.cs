@@ -217,10 +217,27 @@ namespace WSNet2.Core
             Action<PublicRoom[]> onSuccess,
             Action<Exception> onFailed)
         {
+            Search(group, query, limit, false, false, onSuccess, onFailed);
+        }
+
+        /// <summary>
+        ///   部屋検索
+        /// </summary>
+        public void Search(
+            uint group,
+            Query query,
+            int limit,
+            bool checkJoinable,
+            bool checkWatchable,
+            Action<PublicRoom[]> onSuccess,
+            Action<Exception> onFailed)
+        {
             var param = new SearchParam(){
                 group = group,
                 queries = query?.condsList,
                 limit = limit,
+                checkJoinable = checkJoinable,
+                checkWatchable = checkWatchable,
             };
             var content = MessagePackSerializer.Serialize(param);
 
@@ -285,11 +302,11 @@ namespace WSNet2.Core
             try
             {
                 var res = await post("/rooms/search", content);
-                var rinfos= res.rooms;
-                var rooms = new PublicRoom[rinfos.Length];
-                for (var i=0; i<rinfos.Length; i++)
+                var count = res.rooms == null ? 0 : res.rooms.Length;
+                var rooms = new PublicRoom[count];
+                for (var i=0; i<count; i++)
                 {
-                    rooms[i] = new PublicRoom(rinfos[i]);
+                    rooms[i] = new PublicRoom(res.rooms[i]);
                 }
 
                 callbackPool.Add(() => onSuccess(rooms));
