@@ -265,7 +265,7 @@ func (r *Room) dispatch(msg Msg) error {
 // sendTo : 特定クライアントに送信.
 // muClients のロックを取得してから呼び出す.
 // 送信できない場合続行不能なので退室させる.
-func (r *Room) sendTo(c *Client, ev *binary.Event) error {
+func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
 		// removeClient locks muClients so that must be called another goroutine.
@@ -276,7 +276,7 @@ func (r *Room) sendTo(c *Client, ev *binary.Event) error {
 
 // broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
-func (r *Room) broadcast(ev *binary.Event) {
+func (r *Room) broadcast(ev *binary.RegularEvent) {
 	for _, c := range r.players {
 		_ = r.sendTo(c, ev)
 	}

@@ -250,8 +250,8 @@ func (c *Client) Removed(cause error) {
 }
 
 // RoomのMsgLoopから呼ばれる
-func (c *Client) Send(e *binary.Event) error {
-	c.room.Logger().Debugf("client.send: client=%v %v", c.Id, e.Type)
+func (c *Client) Send(e *binary.RegularEvent) error {
+	c.room.Logger().Debugf("client.send: client=%v %v", c.Id, e.Type())
 	return c.evbuf.Write(e)
 }
 
