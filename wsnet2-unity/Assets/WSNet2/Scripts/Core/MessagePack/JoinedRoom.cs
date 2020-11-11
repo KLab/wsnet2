@@ -3,7 +3,7 @@ using MessagePack;
 namespace WSNet2.Core
 {
     [MessagePackObject]
-    public class JoinedResponse
+    public class JoinedRoom
     {
         [Key("room_info")]
         public RoomInfo roomInfo;

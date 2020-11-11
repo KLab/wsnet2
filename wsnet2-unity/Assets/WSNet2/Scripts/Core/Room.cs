@@ -116,7 +116,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
-        public Room(JoinedResponse joined, string myId)
+        public Room(JoinedRoom joined, string myId)
         {
             this.myId = myId;
             this.info = joined.roomInfo;

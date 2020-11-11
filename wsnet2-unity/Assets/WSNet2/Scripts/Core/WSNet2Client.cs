@@ -227,7 +227,7 @@ namespace WSNet2.Core
             Task.Run(() => search(content, onSuccess, onFailed));
         }
 
-        private async Task<byte[]> post(string path, byte[] content)
+        private async Task<LobbyResponse> post(string path, byte[] content)
         {
             var cli = new HttpClient();
             cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
@@ -242,7 +242,7 @@ namespace WSNet2.Core
                 throw new Exception($"wsnet2 {path} failed: code={res.StatusCode} {msg}");
             }
 
-            return body;
+            return MessagePackSerializer.Deserialize<LobbyResponse>(body);
         }
 
         private async Task connectToRoom(
@@ -253,9 +253,13 @@ namespace WSNet2.Core
         {
             try
             {
-                var body = await post(path, content);
-                var joinedResponse = MessagePackSerializer.Deserialize<JoinedResponse>(body);
-                var room = new Room(joinedResponse, userId);
+                var res = await post(path, content);
+                if (res.room == null)
+                {
+                    throw new RoomNotFoundException(res.msg);
+                }
+
+                var room = new Room(res.room, userId);
 
                 callbackPool.Add(() =>
                 {
@@ -280,8 +284,8 @@ namespace WSNet2.Core
         {
             try
             {
-                var body = await post("/rooms/search", content);
-                var rinfos= MessagePackSerializer.Deserialize<RoomInfo[]>(body);
+                var res = await post("/rooms/search", content);
+                var rinfos= res.rooms;
                 var rooms = new PublicRoom[rinfos.Length];
                 for (var i=0; i<rinfos.Length; i++)
                 {

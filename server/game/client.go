@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/auth"
 	"wsnet2/binary"
@@ -54,18 +55,20 @@ type Client struct {
 	evErr chan error
 }
 
-func NewPlayer(info *pb.ClientInfo, room *Room) (*Client, error) {
+func NewPlayer(info *pb.ClientInfo, room *Room) (*Client, ErrorWithCode) {
 	return newClient(info, room, true)
 }
 
-func NewWatcher(info *pb.ClientInfo, room *Room) (*Client, error) {
+func NewWatcher(info *pb.ClientInfo, room *Room) (*Client, ErrorWithCode) {
 	return newClient(info, room, false)
 }
 
-func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) (*Client, error) {
+func newClient(info *pb.ClientInfo, room *Room, isPlayer bool) (*Client, ErrorWithCode) {
 	props, iProps, err := initProps(info.Props)
 	if err != nil {
-		return nil, xerrors.Errorf("Props unmarshal error: %w", err)
+		return nil, withCode(
+			xerrors.Errorf("Props unmarshal error: %w", err),
+			codes.InvalidArgument)
 	}
 	info.Props = iProps
 	c := &Client{
