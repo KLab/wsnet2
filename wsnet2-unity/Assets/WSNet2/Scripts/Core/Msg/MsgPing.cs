@@ -18,7 +18,7 @@ namespace WSNet2.Core
             Value = new ArraySegment<byte>(buf);
         }
 
-        public void SetTimestamp()
+        public ulong SetTimestamp()
         {
             var now = DateTime.UtcNow;
             var unix = (ulong)((DateTimeOffset)now).ToUnixTimeMilliseconds();
@@ -31,6 +31,8 @@ namespace WSNet2.Core
             buf[6] = (byte)((unix & 0xff0000) >> 16);
             buf[7] = (byte)((unix & 0xff00) >> 8);
             buf[8] = (byte)(unix & 0xff);
+
+            return unix;
         }
     }
 }

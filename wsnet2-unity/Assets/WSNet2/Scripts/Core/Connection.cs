@@ -47,7 +47,8 @@ namespace WSNet2.Core
 
         Uri uri;
         string authKey;
-        int pingInterval;
+        volatile int pingInterval;
+        volatile uint lastPingTime;
         CancellationTokenSource pingerDelayCanceller;
 
         TaskCompletionSource<Task> senderTaskSource;
@@ -250,6 +251,10 @@ namespace WSNet2.Core
                     case EvType.Closed:
                         room.handleEvent(ev);
                         return;
+                    case EvType.Pong:
+                        onPong(ev as EvPong);
+                        room.handleEvent(ev);
+                        break;
                     default:
                         room.handleEvent(ev);
                         break;
@@ -335,16 +340,39 @@ namespace WSNet2.Core
                 ct.ThrowIfCancellationRequested();
 
                 var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
-                msg.SetTimestamp();
+                var time = unchecked((uint)msg.SetTimestamp());
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
+                lastPingTime = time;
                 try
                 {
                     await interval;
+                    // 対応するPongが返ってきていたらlastPingTimeは書き換わっている
+                    if (lastPingTime == time)
+                    {
+                        throw new Exception("Pong unreceived");
+                    }
                 }
                 catch(TaskCanceledException)
                 {
                     // pingerDelayCancellerによるcancelは無視
                 }
+            }
+        }
+
+        /// <summary>
+        ///   Pong受信時の処理
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     lastPingTimeのPingに対応するPongを受け取ったらlastPingTimeを異なる値に変更
+        ///   </para>
+        /// </remarks>
+        private void onPong(EvPong ev)
+        {
+            var time = unchecked((uint)ev.PingTimestamp);
+            if (lastPingTime == time)
+            {
+                lastPingTime ^= uint.MaxValue;
             }
         }
 
