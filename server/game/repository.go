@@ -78,6 +78,9 @@ type Repository struct {
 }
 
 func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*Repository, error) {
+	if _, err := db.Exec("DELETE FROM `room` WHERE host_id=?", hostId); err != nil {
+		return nil, xerrors.Errorf("delete room error: %w", err)
+	}
 	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)
