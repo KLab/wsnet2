@@ -41,9 +41,11 @@ type GameConf struct {
 	TLSKey  string `toml:"tls_key"`
 
 	RetryCount int `toml:"retry_count"`
+	// MaxRoomNum : 部屋番号最大値
 	MaxRoomNum int `toml:"max_room_num"`
 
-	// TODO: MaxRooms 最大部屋数
+	// MaxRooms : 最大部屋数
+	MaxRooms int `toml:"max_rooms"`
 
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
@@ -81,6 +83,8 @@ func Load(conffile string) (*Config, error) {
 		Game: GameConf{
 			RetryCount: 5,
 			MaxRoomNum: 999999,
+
+			MaxRooms: 1000,
 
 			DefaultMaxPlayers: 10,
 			DefaultDeadline:   5,

@@ -52,7 +52,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   コンストラクタ
         /// </summary>
-        public Connection(Room room, string clientId, JoinedResponse joined)
+        public Connection(Room room, string clientId, JoinedRoom joined)
         {
             this.canceller = new CancellationTokenSource();
             this.room = room;

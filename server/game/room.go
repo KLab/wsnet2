@@ -1,11 +1,13 @@
 package game
 
 import (
+	"context"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/binary"
 	"wsnet2/config"
@@ -62,15 +64,15 @@ func initProps(props []byte) (binary.Dict, []byte, error) {
 	return dict, props, nil
 }
 
-func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, <-chan JoinedInfo, error) {
+func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
 	pubProps, iProps, err := initProps(info.PublicProps)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("PublicProps unmarshal error: %w", err)
+		return nil, nil, withCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PublicProps = iProps
 	privProps, iProps, err := initProps(info.PrivateProps)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("PrivateProps unmarshal error: %w", err)
+		return nil, nil, withCode(xerrors.Errorf("PrivateProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PrivateProps = iProps
 
@@ -95,12 +97,30 @@ func NewRoom(repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, dea
 
 	go r.MsgLoop()
 
-	ch := make(chan JoinedInfo)
-	r.msgCh <- &MsgCreate{masterInfo, ch}
+	jch := make(chan *JoinedInfo, 1)
+	ech := make(chan ErrorWithCode, 1)
+
+	select {
+	case <-ctx.Done():
+		return nil, nil, withCode(
+			xerrors.Errorf("NewRoom write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
+			codes.DeadlineExceeded)
+	case r.msgCh <- &MsgCreate{masterInfo, jch, ech}:
+	}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
 
-	return r, ch, nil
+	select {
+	case <-ctx.Done():
+		return nil, nil, withCode(
+			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
+			codes.DeadlineExceeded)
+	case ewc := <-ech:
+		return nil, nil, withCode(
+			xerrors.Errorf("NewRoom msgCreate: %w", ewc), ewc.Code())
+	case joined := <-jch:
+		return r, joined, nil
+	}
 }
 
 func (r *Room) ID() RoomID {
@@ -308,8 +328,8 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 
 	master, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+		msg.Err <- err
+		return xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err)
 	}
 	r.master = master
 	r.players[master.ID()] = master
@@ -318,7 +338,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
 	players := []*pb.ClientInfo{cinfo}
-	msg.Joined <- JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
+	msg.Joined <- &JoinedInfo{rinfo, players, master, master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 
 	r.writeLastMsg(master.ID())
@@ -328,32 +348,39 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 
 func (r *Room) msgJoin(msg *MsgJoin) error {
 	if !r.Joinable {
-		close(msg.Joined)
-		return xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		err := xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		msg.Err <- withCode(err, codes.FailedPrecondition)
+		return err
 	}
 
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	if _, ok := r.players[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 
 	if r.MaxPlayers == uint32(len(r.players)) {
-		close(msg.Joined)
-		return xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
+		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
+		msg.Err <- withCode(err, codes.ResourceExhausted)
+		return err
 	}
 
 	client, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewPlayer error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+		err = withCode(
+			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
+			err.Code())
+		msg.Err <- err
+		return err
 	}
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
@@ -366,7 +393,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	for _, c := range r.players {
 		players = append(players, c.ClientInfo.Clone())
 	}
-	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
+	msg.Joined <- &JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	r.broadcast(binary.NewEvJoined(cinfo))
 
 	r.writeLastMsg(client.ID())
@@ -376,27 +403,33 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 func (r *Room) msgWatch(msg *MsgWatch) error {
 	if !r.Watchable {
-		close(msg.Joined)
-		return xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
+		msg.Err <- withCode(err, codes.FailedPrecondition)
+		return err
 	}
 
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
 	if _, ok := r.players[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
+		msg.Err <- withCode(err, codes.AlreadyExists)
+		return err
 	}
 
 	client, err := NewWatcher(msg.Info, r)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", r.ID(), msg.Info.Id, err)
+		err = withCode(
+			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
+			err.Code())
+		msg.Err <- err
+		return err
 	}
 	r.watchers[client.ID()] = client
 	r.RoomInfo.Watchers += client.nodeCount
@@ -408,7 +441,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		players = append(players, c.ClientInfo.Clone())
 	}
 
-	msg.Joined <- JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
+	msg.Joined <- &JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
 	return nil
 }
 
