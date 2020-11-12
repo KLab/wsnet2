@@ -302,7 +302,7 @@ namespace WSNet2.Core
             try
             {
                 var res = await post("/rooms/search", content);
-                var count = res.rooms == null ? 0 : res.rooms.Length;
+                var count = res.rooms?.Length ?? 0;
                 var rooms = new PublicRoom[count];
                 for (var i=0; i<count; i++)
                 {
