@@ -106,11 +106,12 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	defer cancel()
 
 	repo.mu.RLock()
-	if len(repo.rooms) >= repo.conf.MaxRooms {
+	rooms := len(repo.rooms)
+	repo.mu.RUnlock()
+	if rooms >= repo.conf.MaxRooms {
 		return nil, withCode(
 			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
 	}
-	repo.mu.RUnlock()
 
 	tx, err := repo.db.Beginx()
 	if err != nil {
