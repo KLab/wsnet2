@@ -67,6 +67,8 @@ type LobbyConf struct {
 	ValidHeartBeat Duration `toml:"valid_heartbeat"`
 
 	AuthDataExpire Duration `toml:"authdata_expire"`
+
+	ApiTimeout Duration `api_timeout`
 }
 
 type Duration time.Duration
@@ -96,6 +98,7 @@ func Load(conffile string) (*Config, error) {
 			ValidHeartBeat: Duration(5 * time.Second),
 			Loglevel:       2,
 			AuthDataExpire: Duration(time.Minute),
+			ApiTimeout:     Duration(5 * time.Second),
 		},
 	}
 

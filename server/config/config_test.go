@@ -55,6 +55,7 @@ func TestLoad(t *testing.T) {
 		Loglevel:       2,
 		ValidHeartBeat: Duration(time.Second * 30),
 		AuthDataExpire: Duration(time.Second * 10),
+		ApiTimeout:     Duration(time.Second * 5),
 	}
 	if diff := cmp.Diff(c.Lobby, lobby); diff != "" {
 		t.Fatalf("c.Lobby differs: (-got +want)\n%s", diff)
