@@ -105,21 +105,28 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 	return res, nil
 }
 
-func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int) []pb.RoomInfo {
+func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int, checkJoinable, checkWatchable bool) []*pb.RoomInfo {
 	if limit == 0 || limit > len(rooms) {
 		limit = len(rooms)
 	}
-	// queriesが空の場合には全件マッチさせる
-	if len(queries) == 0 {
-		return rooms[0:limit]
-	}
-	filtered := make([]pb.RoomInfo, 0, limit)
-	for i, r := range rooms {
-		// queriesの何れかとマッチするか判定（OR）
-		for _, q := range queries {
-			if q.match(props[i]) {
-				filtered = append(filtered, r)
-				break
+	filtered := make([]*pb.RoomInfo, 0, limit)
+	for i := range rooms {
+		if checkJoinable && !rooms[i].Joinable {
+			continue
+		}
+		if checkWatchable && !rooms[i].Watchable {
+			continue
+		}
+		if len(queries) == 0 {
+			// queriesが空の場合にはマッチさせる
+			filtered = append(filtered, &rooms[i])
+		} else {
+			// queriesの何れかとマッチするか判定（OR）
+			for _, q := range queries {
+				if q.match(props[i]) {
+					filtered = append(filtered, &rooms[i])
+					break
+				}
 			}
 		}
 		if len(filtered) >= limit {
@@ -193,15 +200,14 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 		return nil, xerrors.Errorf("JoinById: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, true, false)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
 			http.StatusOK, "No joinable room found")
 	}
-	room = filtered[0]
 
-	return rs.join(ctx, appId, room.Id, clientInfo, room.HostId)
+	return rs.join(ctx, appId, filtered[0].Id, clientInfo, filtered[0].HostId)
 }
 
 func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
@@ -222,26 +228,26 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 		return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, true, false)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("JoinByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
 			http.StatusOK, "No joinable room found")
 	}
-	room = filtered[0]
 
-	return rs.join(ctx, appId, room.Id, clientInfo, room.HostId)
+	return rs.join(ctx, appId, filtered[0].Id, clientInfo, filtered[0].HostId)
 }
 
 func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
-	rooms, err := rs.Search(appId, searchGroup, queries, 1000)
+	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
 	if err != nil {
-		return nil, xerrors.Errorf("JoinAtRandom: %w", err)
+		return nil, xerrors.Errorf("JoinAtRandom: RoomCache error: %w", err)
 	}
+	filtered := filter(rooms, props, queries, 1000, true, false)
 
-	rand.Shuffle(len(rooms), func(i, j int) { rooms[i], rooms[j] = rooms[j], rooms[i] })
+	rand.Shuffle(len(filtered), func(i, j int) { filtered[i], filtered[j] = filtered[j], filtered[i] })
 
-	for _, room := range rooms {
+	for _, room := range filtered {
 		select {
 		case <-ctx.Done():
 			return nil, xerrors.Errorf("JoinAtRandom: timeout")
@@ -267,13 +273,13 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 		http.StatusOK, "No joinable room found")
 }
 
-func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int) ([]pb.RoomInfo, error) {
+func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
 	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
 	}
 
-	return filter(rooms, props, queries, limit), nil
+	return filter(rooms, props, queries, limit, joinable, watchable), nil
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
@@ -338,15 +344,14 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 		return nil, xerrors.Errorf("WatchById: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, false, true)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
 			http.StatusOK, "No joinable room found")
 	}
-	room = filtered[0]
 
-	return rs.watch(ctx, appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, filtered[0].HostId)
 }
 
 func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
@@ -367,13 +372,12 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 		return nil, xerrors.Errorf("WatchByNumber: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1)
+	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, false, true)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("WatchByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
 			http.StatusOK, "No joinable room found")
 	}
-	room = filtered[0]
 
-	return rs.watch(ctx, appId, room.Id, clientInfo, room.HostId)
+	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, filtered[0].HostId)
 }

@@ -180,7 +180,7 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 	return room, nil
 }
 
-func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
+func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.RoomInfo, error) {
 	param := &service.SearchParam{
 		SearchGroup: searchGroup,
 		Queries:     []lobby.PropQueries{queries},

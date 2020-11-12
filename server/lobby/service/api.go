@@ -119,7 +119,7 @@ func renderJoinedRoomResponse(w http.ResponseWriter, room *pb.JoinedRoomRes) {
 	renderResponse(w, &LobbyResponse{Msg: "OK", Room: room})
 }
 
-func renderSearchRoomResponse(w http.ResponseWriter, rooms []pb.RoomInfo) {
+func renderSearchRoomResponse(w http.ResponseWriter, rooms []*pb.RoomInfo) {
 	log.Debugf("search found rooms: %#v", rooms)
 	renderResponse(w, &LobbyResponse{Msg: "OK", Rooms: rooms})
 }
@@ -336,7 +336,8 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Debugf("%#v", param)
 
-	rooms, err := sv.roomService.Search(h.appId, param.SearchGroup, param.Queries, int(param.Limit))
+	rooms, err := sv.roomService.Search(
+		h.appId, param.SearchGroup, param.Queries, int(param.Limit), param.CheckJoinable, param.CheckWatchable)
 	if err != nil {
 		renderErrorResponse(w, "Failed to search room", http.StatusInternalServerError, err)
 		return
