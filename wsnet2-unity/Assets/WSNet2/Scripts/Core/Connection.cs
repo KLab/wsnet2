@@ -28,6 +28,13 @@ namespace WSNet2.Core
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
+        /// <summary>最大Ping間隔 (milli seconds)</summary>
+        /// Playerの最終Msg時刻のやりとりのため、ある程度で上限を設ける
+        const int MaxPingIntervalMilliSec = 10000;
+
+        /// <summary>最小Ping間隔 (milli seconds)</summary>
+        const int MinPingIntervalMilliSec = 1000;
+
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         public MsgPool msgPool { get; private set; }
@@ -346,12 +353,14 @@ namespace WSNet2.Core
         /// </summary>
         /// <remarks>
         ///   <para>
-        ///     deadlineの半分の時間停止していても切断しないような間隔とする.
+        ///     旧wsnetではdeadlineは通常25秒、Ping間隔は5秒固定だったので、
+        ///     deadline/5を基準として最大最小間隔を超えない値にする。
         ///   </para>
         /// </remarks>
         private int calcPingInterval(uint deadline)
         {
-            return (int)deadline * 1000 / 3;
+            var ms = (int)deadline * 1000 / 5;
+            return Math.Clamp(ms, MinPingIntervalMilliSec, MaxPingIntervalMilliSec);
         }
     }
 }
