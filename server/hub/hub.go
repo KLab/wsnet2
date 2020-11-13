@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/auth"
 	"wsnet2/binary"
@@ -410,27 +411,33 @@ func (h *Hub) broadcast(ev *binary.RegularEvent) {
 
 func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	if !h.Watchable {
-		close(msg.Joined)
-		return xerrors.Errorf("Room is not watchable. room=%v, client=%v", h.ID(), msg.Info.Id)
+		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", h.ID(), msg.Info.Id)
+		msg.Err <- game.WithCode(err, codes.FailedPrecondition)
+		return err
 	}
 
 	h.muClients.Lock()
 	defer h.muClients.Unlock()
 
 	if _, ok := h.players[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Player already exists. room=%v, client=%v", h.ID(), msg.SenderID())
+		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", h.ID(), msg.SenderID())
+		msg.Err <- game.WithCode(err, codes.AlreadyExists)
+		return err
 	}
 	// 他のhub経由で観戦している場合は考慮しない（Gameでの直接観戦も同様）
 	if _, ok := h.watchers[msg.SenderID()]; ok {
-		close(msg.Joined)
-		return xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", h.ID(), msg.SenderID())
+		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", h.ID(), msg.SenderID())
+		msg.Err <- game.WithCode(err, codes.AlreadyExists)
+		return err
 	}
 
 	client, err := game.NewWatcher(msg.Info, h)
 	if err != nil {
-		close(msg.Joined)
-		return xerrors.Errorf("NewWatcher error. room=%v, client=%v, err=%w", h.ID(), msg.Info.Id, err)
+		err = game.WithCode(
+			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", h.ID(), msg.Info.Id, err),
+			err.Code())
+		msg.Err <- err
+		return err
 	}
 	h.watchers[client.ID()] = client
 	h.RoomInfo.Watchers += client.NodeCount()
@@ -441,7 +448,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		players = append(players, c.ClientInfo.Clone())
 	}
 
-	msg.Joined <- game.JoinedInfo{
+	msg.Joined <- &game.JoinedInfo{
 		Room:     rinfo,
 		Players:  players,
 		Client:   client,

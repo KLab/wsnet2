@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/common"
 	"wsnet2/config"
@@ -84,39 +85,47 @@ func (r *Repository) RemoveHub(hub *Hub) {
 	log.Debugf("hub removed from repository: room=%v", rid)
 }
 
-func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo) (*pb.JoinedRoomRes, game.ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	hub, err := r.GetOrCreateHub(appId, roomId)
 	if err != nil {
-		return nil, xerrors.Errorf("WatchRoom: Failed to get hub server: %w", err)
+		return nil, game.WithCode(xerrors.Errorf("WatchRoom: %w", err), codes.NotFound)
 	}
 
-	ch := make(chan game.JoinedInfo)
+	jch := make(chan *game.JoinedInfo, 1)
+	errch := make(chan game.ErrorWithCode, 1)
 	msg := &game.MsgWatch{
 		Info:   client,
-		Joined: ch,
+		Joined: jch,
+		Err:    errch,
 	}
 	select {
-	case hub.msgCh <- msg:
 	case <-hub.Done():
-		return nil, xerrors.Errorf("WatchRoom: hub closed: %v", hub.ID())
+		return nil, game.WithCode(
+			xerrors.Errorf("WatchRoom hub closed: room=%v client=%v", roomId, client.Id),
+			codes.Internal)
 	case <-ctx.Done():
-		return nil, xerrors.Errorf("WatchRoom timeout or context done: room=%v", roomId)
+		return nil, game.WithCode(
+			xerrors.Errorf("WatchRoom write msg timeout or context done: room=%v client=%v", roomId, client.Id),
+			codes.DeadlineExceeded)
+	case hub.msgCh <- msg:
 	}
 
-	var joined game.JoinedInfo
+	var joined *game.JoinedInfo
 	select {
-	case j, ok := <-ch:
-		if !ok {
-			return nil, xerrors.Errorf("WatchRoom chan closed: room=%v", roomId)
-		}
-		joined = j
 	case <-hub.Done():
-		return nil, xerrors.Errorf("WatchRoom: hub closed: %v", hub.ID())
+		return nil, game.WithCode(
+			xerrors.Errorf("WatchRoom hub closed: room=%v client=%v", roomId, client.Id),
+			codes.Internal)
 	case <-ctx.Done():
-		return nil, xerrors.Errorf("WatchRoom timeout or context done: room=%v", roomId)
+		return nil, game.WithCode(
+			xerrors.Errorf("WatchRoom timeout or context done: room=%v client=%v", roomId, client.Id),
+			codes.DeadlineExceeded)
+	case ewc := <-errch:
+		return nil, game.WithCode(xerrors.Errorf("WatchRoom: %w", ewc), ewc.Code())
+	case joined = <-jch:
 	}
 
 	cli := joined.Client

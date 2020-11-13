@@ -7,7 +7,6 @@ import (
 
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"wsnet2/hub"
@@ -56,10 +55,12 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 	res, err := sv.repo.WatchRoom(ctx, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo)
 	if err != nil {
 		log.Infof("watch room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "WatchRoom failed: %s", err)
+		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)
 	}
 
 	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)
+
 	log.Infof("Watch room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
+
 	return res, nil
 }
