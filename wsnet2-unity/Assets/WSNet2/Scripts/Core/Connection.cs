@@ -340,7 +340,7 @@ namespace WSNet2.Core
                 ct.ThrowIfCancellationRequested();
 
                 var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
-                var time = unchecked((uint)msg.SetTimestamp());
+                var time = (uint)msg.SetTimestamp();
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                 lastPingTime = time;
                 try
@@ -369,7 +369,7 @@ namespace WSNet2.Core
         /// </remarks>
         private void onPong(EvPong ev)
         {
-            var time = unchecked((uint)ev.PingTimestamp);
+            var time = (uint)ev.PingTimestamp;
             if (lastPingTime == time)
             {
                 lastPingTime ^= uint.MaxValue;
@@ -388,7 +388,8 @@ namespace WSNet2.Core
         private int calcPingInterval(uint deadline)
         {
             var ms = (int)deadline * 1000 / 5;
-            return Math.Clamp(ms, MinPingIntervalMilliSec, MaxPingIntervalMilliSec);
+            return (ms < MinPingIntervalMilliSec) ? MinPingIntervalMilliSec
+                : (ms > MaxPingIntervalMilliSec) ? MaxPingIntervalMilliSec : ms;
         }
     }
 }
