@@ -15,6 +15,7 @@ import (
 type Config struct {
 	Db    DbConf `toml:"Database"`
 	Game  GameConf
+	Hub   GameConf // とりあえずGameConfを使い回す
 	Lobby LobbyConf
 }
 
@@ -94,6 +95,16 @@ func Load(conffile string) (*Config, error) {
 
 			HeartBeatInterval: Duration(2 * time.Second),
 		},
+		Hub: GameConf{
+			RetryCount: 5,
+			MaxRoomNum: 999999,
+
+			DefaultMaxPlayers: 10,
+			DefaultDeadline:   5,
+			DefaultLoglevel:   2,
+
+			HeartBeatInterval: Duration(2 * time.Second),
+		},
 		Lobby: LobbyConf{
 			ValidHeartBeat: Duration(5 * time.Second),
 			Loglevel:       2,
@@ -113,6 +124,7 @@ func Load(conffile string) (*Config, error) {
 	}
 
 	c.Game.setHost()
+	c.Hub.setHost()
 
 	return c, nil
 }

@@ -1,6 +1,8 @@
 package binary
 
 import (
+	"time"
+
 	"golang.org/x/xerrors"
 )
 
@@ -17,6 +19,7 @@ import (
 type Msg interface {
 	Type() MsgType
 	Payload() []byte
+	Marshal() []byte
 }
 
 type RegularMsg interface {
@@ -92,6 +95,12 @@ type nonregularMsg struct {
 
 func (m *nonregularMsg) Type() MsgType   { return m.mtype }
 func (m *nonregularMsg) Payload() []byte { return m.payload }
+func (m *nonregularMsg) Marshal() []byte {
+	data := make([]byte, 1+len(m.payload))
+	data[0] = byte(m.mtype)
+	copy(data[1:len(m.payload)], m.payload)
+	return data
+}
 
 type regularMsg struct {
 	mtype   MsgType
@@ -102,6 +111,13 @@ type regularMsg struct {
 func (m *regularMsg) Type() MsgType    { return m.mtype }
 func (m *regularMsg) Payload() []byte  { return m.payload }
 func (m *regularMsg) SequenceNum() int { return m.seqNum }
+func (m *regularMsg) Marshal() []byte {
+	data := make([]byte, 1+3+len(m.payload))
+	data[0] = byte(m.mtype)
+	put24(data[1:4], m.seqNum)
+	copy(data[1:len(m.payload)], m.payload)
+	return data
+}
 
 // ParseMsg parse binary data to Msg struct
 func UnmarshalMsg(data []byte) (Msg, error) {
@@ -123,6 +139,15 @@ func UnmarshalMsg(data []byte) (Msg, error) {
 	data = data[3:]
 
 	return &regularMsg{mt, seq, data}, nil
+}
+
+func NewMsgPing(timestamp time.Time) Msg {
+	payload := make([]byte, 8)
+	put64(payload, uint64(timestamp.Unix()))
+	return &nonregularMsg{
+		mtype:   MsgTypePing,
+		payload: payload,
+	}
 }
 
 // UnmarshalPingPayload parses payload of MsgPing

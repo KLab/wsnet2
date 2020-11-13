@@ -28,6 +28,7 @@ type RoomService struct {
 
 	roomCache *RoomCache
 	gameCache *common.GameCache
+	hubCache  *common.HubCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -44,6 +45,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		grpcPool:  common.NewGrpcPool(grpc.WithInsecure()),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		hubCache:  common.NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
 		rs.apps[app.Id] = &apps[i]
@@ -283,12 +285,12 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
-	game, err := rs.gameCache.Get(hostId)
+	hub, err := rs.hubCache.Rand()
 	if err != nil {
-		return nil, xerrors.Errorf("watch: failed to get game server: %w", err)
+		return nil, xerrors.Errorf("watch: failed to get hub server: %w", err)
 	}
 
-	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
+	grpcAddr := fmt.Sprintf("%s:%d", hub.Hostname, hub.GRPCPort)
 	conn, err := rs.grpcPool.Get(grpcAddr)
 	if err != nil {
 		return nil, xerrors.Errorf("watch: gRPC client connection error: %w", err)

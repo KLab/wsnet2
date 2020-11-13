@@ -11,7 +11,7 @@ import (
 // EvBuf rewindable ring buffer.
 // Read/Write can be called from different goroutines.
 type EvBuf struct {
-	buf  []*binary.Event
+	buf  []*binary.RegularEvent
 	mu   sync.RWMutex
 	rSeq int
 	wSeq int
@@ -23,14 +23,14 @@ type EvBuf struct {
 // size: length of buffer.
 func NewEvBuf(size int) *EvBuf {
 	return &EvBuf{
-		buf:     make([]*binary.Event, size),
+		buf:     make([]*binary.RegularEvent, size),
 		hasData: make(chan struct{}, 1),
 	}
 }
 
 // Write to buffer from Room.MsgLoop goroutine.
 // It returns an error when buffer is full.
-func (b *EvBuf) Write(data *binary.Event) error {
+func (b *EvBuf) Write(data *binary.RegularEvent) error {
 	// MsgLoopは単一goroutineで、wSeqはここでしか書き換えない
 	// rSeqがwSeqを超えることは無いのでロックし続けなくてよい
 	b.mu.RLock()
@@ -63,7 +63,7 @@ func (b *EvBuf) HasData() <-chan struct{} {
 
 // Read returns all message stored in this buffer and last seqence numer.
 // It called from Client.EventLoop goroutine.
-func (b *EvBuf) Read(seq int) ([]*binary.Event, error) {
+func (b *EvBuf) Read(seq int) ([]*binary.RegularEvent, error) {
 	size := len(b.buf)
 
 	b.mu.Lock()
@@ -79,10 +79,10 @@ func (b *EvBuf) Read(seq int) ([]*binary.Event, error) {
 	b.mu.Unlock() // wSeqがrSeqを超えることは無いのでロックし続けなくて良い
 
 	if r == w {
-		return []*binary.Event{}, nil
+		return []*binary.RegularEvent{}, nil
 	}
 	count := w - r
-	buf := make([]*binary.Event, count)
+	buf := make([]*binary.RegularEvent, count)
 	for i := 0; i < count; i++ {
 		buf[i] = b.buf[(r+i)%size]
 	}

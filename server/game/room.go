@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc/codes"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -21,8 +22,6 @@ const (
 	// roomKeyLen : Roomキーの文字列長
 	roomKeyLen = 16
 )
-
-type RoomID string
 
 type Room struct {
 	*pb.RoomInfo
@@ -48,31 +47,15 @@ type Room struct {
 	logger *zap.SugaredLogger
 }
 
-func initProps(props []byte) (binary.Dict, []byte, error) {
-	if len(props) == 0 || binary.Type(props[0]) == binary.TypeNull {
-		dict := binary.Dict{}
-		return dict, binary.MarshalDict(dict), nil
-	}
-	um, _, err := binary.Unmarshal(props)
-	if err != nil {
-		return nil, nil, err
-	}
-	dict, ok := um.(binary.Dict)
-	if !ok {
-		return nil, nil, xerrors.Errorf("type is not Dict: %v", binary.Type(props[0]))
-	}
-	return dict, props, nil
-}
-
 func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
-	pubProps, iProps, err := initProps(info.PublicProps)
+	pubProps, iProps, err := common.InitProps(info.PublicProps)
 	if err != nil {
-		return nil, nil, withCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
+		return nil, nil, WithCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PublicProps = iProps
-	privProps, iProps, err := initProps(info.PrivateProps)
+	privProps, iProps, err := common.InitProps(info.PrivateProps)
 	if err != nil {
-		return nil, nil, withCode(xerrors.Errorf("PrivateProps unmarshal error: %w", err), codes.InvalidArgument)
+		return nil, nil, WithCode(xerrors.Errorf("PrivateProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PrivateProps = iProps
 
@@ -102,7 +85,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 
 	select {
 	case <-ctx.Done():
-		return nil, nil, withCode(
+		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case r.msgCh <- &MsgCreate{masterInfo, jch, ech}:
@@ -112,11 +95,11 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 
 	select {
 	case <-ctx.Done():
-		return nil, nil, withCode(
+		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case ewc := <-ech:
-		return nil, nil, withCode(
+		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom msgCreate: %w", ewc), ewc.Code())
 	case joined := <-jch:
 		return r, joined, nil
@@ -302,7 +285,7 @@ func (r *Room) dispatch(msg Msg) error {
 // sendTo : 特定クライアントに送信.
 // muClients のロックを取得してから呼び出す.
 // 送信できない場合続行不能なので退室させる.
-func (r *Room) sendTo(c *Client, ev *binary.Event) error {
+func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
 		// removeClient locks muClients so that must be called another goroutine.
@@ -313,7 +296,7 @@ func (r *Room) sendTo(c *Client, ev *binary.Event) error {
 
 // broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
-func (r *Room) broadcast(ev *binary.Event) {
+func (r *Room) broadcast(ev *binary.RegularEvent) {
 	for _, c := range r.players {
 		_ = r.sendTo(c, ev)
 	}
@@ -349,7 +332,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 func (r *Room) msgJoin(msg *MsgJoin) error {
 	if !r.Joinable {
 		err := xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
-		msg.Err <- withCode(err, codes.FailedPrecondition)
+		msg.Err <- WithCode(err, codes.FailedPrecondition)
 		return err
 	}
 
@@ -358,25 +341,25 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 
 	if r.MaxPlayers == uint32(len(r.players)) {
 		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
-		msg.Err <- withCode(err, codes.ResourceExhausted)
+		msg.Err <- WithCode(err, codes.ResourceExhausted)
 		return err
 	}
 
 	client, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		err = withCode(
+		err = WithCode(
 			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err
@@ -404,7 +387,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 func (r *Room) msgWatch(msg *MsgWatch) error {
 	if !r.Watchable {
 		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
-		msg.Err <- withCode(err, codes.FailedPrecondition)
+		msg.Err <- WithCode(err, codes.FailedPrecondition)
 		return err
 	}
 
@@ -413,19 +396,19 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 
 	client, err := NewWatcher(msg.Info, r)
 	if err != nil {
-		err = withCode(
+		err = WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err
@@ -640,4 +623,26 @@ func (r *Room) msgKick(msg *MsgKick) error {
 func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.Err)
 	return nil
+}
+
+// IRoom実装
+
+func (r *Room) Deadline() time.Duration {
+	return r.deadline
+}
+
+func (r *Room) WaitGroup() *sync.WaitGroup {
+	return &r.wgClient
+}
+
+func (r *Room) Logger() *zap.SugaredLogger {
+	return r.logger
+}
+
+func (r *Room) SendMessage(msg Msg) {
+	r.msgCh <- msg
+}
+
+func (r *Room) Repo() IRepo {
+	return r.repo
 }

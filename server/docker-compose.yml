@@ -31,6 +31,25 @@ services:
       - 19000:19000
       - 8000:8000
       - 3000:3000
+  hub:
+    container_name: wsnet2-hub
+    depends_on:
+      - db
+      - game
+    build: .
+    image: wsnet2-arelo
+    environment:
+      WSNET2_GAME_HOSTNAME: wsnet2-hub
+      WSNET2_GAME_PUBLICNAME: localhost
+    volumes:
+      - ./:/work
+    working_dir: /work
+    command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet2-\{lobby,bot\}" -d 3s -- go run cmd/wsnet2-hub/main.go docker.toml'
+    entrypoint: /wait-for-it.sh wsnet2-db:3306 --
+    ports:
+      - 19001:19001
+      - 8001:8001
+      - 3002:3002
   lobby:
     container_name: wsnet2-lobby
     depends_on:
