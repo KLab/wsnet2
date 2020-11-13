@@ -50,12 +50,12 @@ type Room struct {
 func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
 	pubProps, iProps, err := common.InitProps(info.PublicProps)
 	if err != nil {
-		return nil, nil, withCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
+		return nil, nil, WithCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PublicProps = iProps
 	privProps, iProps, err := common.InitProps(info.PrivateProps)
 	if err != nil {
-		return nil, nil, withCode(xerrors.Errorf("PrivateProps unmarshal error: %w", err), codes.InvalidArgument)
+		return nil, nil, WithCode(xerrors.Errorf("PrivateProps unmarshal error: %w", err), codes.InvalidArgument)
 	}
 	info.PrivateProps = iProps
 
@@ -85,7 +85,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 
 	select {
 	case <-ctx.Done():
-		return nil, nil, withCode(
+		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case r.msgCh <- &MsgCreate{masterInfo, jch, ech}:
@@ -95,11 +95,11 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 
 	select {
 	case <-ctx.Done():
-		return nil, nil, withCode(
+		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case ewc := <-ech:
-		return nil, nil, withCode(
+		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom msgCreate: %w", ewc), ewc.Code())
 	case joined := <-jch:
 		return r, joined, nil
@@ -332,7 +332,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 func (r *Room) msgJoin(msg *MsgJoin) error {
 	if !r.Joinable {
 		err := xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
-		msg.Err <- withCode(err, codes.FailedPrecondition)
+		msg.Err <- WithCode(err, codes.FailedPrecondition)
 		return err
 	}
 
@@ -341,25 +341,25 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 
 	if r.MaxPlayers == uint32(len(r.players)) {
 		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
-		msg.Err <- withCode(err, codes.ResourceExhausted)
+		msg.Err <- WithCode(err, codes.ResourceExhausted)
 		return err
 	}
 
 	client, err := NewPlayer(msg.Info, r)
 	if err != nil {
-		err = withCode(
+		err = WithCode(
 			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err
@@ -387,7 +387,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 func (r *Room) msgWatch(msg *MsgWatch) error {
 	if !r.Watchable {
 		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
-		msg.Err <- withCode(err, codes.FailedPrecondition)
+		msg.Err <- WithCode(err, codes.FailedPrecondition)
 		return err
 	}
 
@@ -396,19 +396,19 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 	// hub経由で観戦している場合は考慮しない
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- withCode(err, codes.AlreadyExists)
+		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 
 	client, err := NewWatcher(msg.Info, r)
 	if err != nil {
-		err = withCode(
+		err = WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err

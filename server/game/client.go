@@ -67,7 +67,7 @@ func NewWatcher(info *pb.ClientInfo, room IRoom) (*Client, ErrorWithCode) {
 func newClient(info *pb.ClientInfo, room IRoom, isPlayer bool) (*Client, ErrorWithCode) {
 	props, iProps, err := common.InitProps(info.Props)
 	if err != nil {
-		return nil, withCode(
+		return nil, WithCode(
 			xerrors.Errorf("Props unmarshal error: %w", err),
 			codes.InvalidArgument)
 	}

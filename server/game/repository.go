@@ -106,13 +106,13 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	rooms := len(repo.rooms)
 	repo.mu.RUnlock()
 	if rooms >= repo.conf.MaxRooms {
-		return nil, withCode(
+		return nil, WithCode(
 			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
 	}
 
 	tx, err := repo.db.Beginx()
 	if err != nil {
-		return nil, withCode(xerrors.Errorf("begin error: %w", err), codes.Internal)
+		return nil, WithCode(xerrors.Errorf("begin error: %w", err), codes.Internal)
 	}
 
 	info, ewc := repo.newRoomInfo(ctx, tx, op)
@@ -129,7 +129,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	room, joined, ewc := NewRoom(ctx, repo, info, master, op.ClientDeadline, repo.conf, loglevel)
 	if ewc != nil {
 		tx.Rollback()
-		return nil, withCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
+		return nil, WithCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
 	}
 
 	cli := joined.Client
@@ -139,12 +139,12 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 
 	if len(repo.rooms) >= repo.conf.MaxRooms {
 		tx.Rollback()
-		return nil, withCode(
+		return nil, WithCode(
 			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, withCode(
+		return nil, WithCode(
 			xerrors.Errorf("failed to commit new room: %w", err), codes.Internal)
 	}
 
@@ -177,7 +177,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, withCode(xerrors.Errorf("joinRoom: %w", err), codes.NotFound)
+		return nil, WithCode(xerrors.Errorf("joinRoom: %w", err), codes.NotFound)
 	}
 
 	jch := make(chan *JoinedInfo, 1)
@@ -191,7 +191,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 
 	select {
 	case <-ctx.Done():
-		return nil, withCode(
+		return nil, WithCode(
 			xerrors.Errorf("joinRoom write msg timeout or context done: room=%v client=%v", room.Id, client.Id),
 			codes.DeadlineExceeded)
 	case room.msgCh <- msg:
@@ -200,11 +200,11 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	var joined *JoinedInfo
 	select {
 	case <-ctx.Done():
-		return nil, withCode(
+		return nil, WithCode(
 			xerrors.Errorf("joinRoom timeout or context done: room=%v", room.ID()),
 			codes.DeadlineExceeded)
 	case ewc := <-errch:
-		return nil, withCode(xerrors.Errorf("joinRoom: %w", ewc), ewc.Code())
+		return nil, WithCode(xerrors.Errorf("joinRoom: %w", ewc), ewc.Code())
 	case joined = <-jch:
 	}
 
@@ -248,7 +248,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	for n := 0; n < retryCount; n++ {
 		select {
 		case <-ctx.Done():
-			return nil, withCode(xerrors.Errorf("ctx done: %w", ctx.Err()), codes.DeadlineExceeded)
+			return nil, WithCode(xerrors.Errorf("ctx done: %w", ctx.Err()), codes.DeadlineExceeded)
 		default:
 		}
 
@@ -263,7 +263,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		}
 	}
 
-	return nil, withCode(xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err), codes.Internal)
+	return nil, WithCode(xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err), codes.Internal)
 }
 
 func (repo *Repository) updateRoomInfo(room *Room) {
