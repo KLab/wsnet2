@@ -77,9 +77,9 @@ namespace Sample
         {
             get
             {
-                if (WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null)
+                if (G.GameRoom != null)
                 {
-                    return WSNet2Runner.Instance.GameRoom.Me.Id;
+                    return G.GameRoom.Me.Id;
                 }
                 else
                 {
@@ -91,6 +91,7 @@ namespace Sample
         void RoomLog(string s)
         {
             roomText.text += s + "\n";
+            Debug.LogFormat("Room {0}", s);
         }
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
@@ -119,7 +120,7 @@ namespace Sample
 
             moveInput.Enable();
 
-            isOnlineMode = WSNet2Runner.Instance != null && WSNet2Runner.Instance.GameRoom != null;
+            isOnlineMode = G.GameRoom != null;
             simulator = new GameSimulator(!isOnlineMode);
             state = new GameState();
             timer = new GameTimer();
@@ -132,7 +133,7 @@ namespace Sample
         {
             if (isOnlineMode)
             {
-                var room = WSNet2Runner.Instance.GameRoom;
+                var room = G.GameRoom;
                 roomText.text = "Room:" + room.Id + "\n";
 
                 room.OnError += (e) =>
@@ -155,7 +156,7 @@ namespace Sample
                 room.OnClosed += (p) =>
                 {
                     RoomLog($"OnClosed: {p}");
-                    WSNet2Runner.Instance.GameRoom = null;
+                    G.GameRoom = null;
                     SceneManager.LoadScene("Title");
                 };
 
@@ -201,7 +202,7 @@ namespace Sample
 
                 var RPCSyncServerTick = new Action<string, long>((sender, tick) =>
                 {
-                    if (sender == WSNet2Runner.Instance.GameRoom?.Master.Id)
+                    if (sender == G.GameRoom?.Master.Id)
                     {
                         timer.UpdateServerTick(tick);
                     }
@@ -237,8 +238,6 @@ namespace Sample
 
         void Update()
         {
-            Debug.Log(state.Code);
-
             playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}\n";
             playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}\n";
             if (state.Code == GameStateCode.End)
@@ -264,7 +263,7 @@ namespace Sample
             {
                 if (Time.frameCount % 10 == 0)
                 {
-                    var room = WSNet2Runner.Instance.GameRoom;
+                    var room = G.GameRoom;
                     // 本当はルームマスタがルームを作成するシーケンスを想定しているが, サンプルは簡単のため,
                     // マスタークライアントがJoinしてきたら, ルームマスタを委譲する
                     if (room.Me == room.Master)
@@ -363,9 +362,15 @@ namespace Sample
             // オフラインモードならローカルのシミュレータに入力
             if (isOnlineMode)
             {
+                if (G.GameRoom == null)
+                {
+                    // タイトルシーンに戻る際にここに到達する可能性がある
+                    return;
+                }
+
                 foreach (var ev in events)
                 {
-                    WSNet2Runner.Instance.GameRoom.RPC(RPCPlayerEvent, ev);
+                    G.GameRoom.RPC(RPCPlayerEvent, ev);
                 }
                 simulator.UpdateGame(timer.NowTick, state, events.Where(ev => state.Tick <= ev.Tick));
             }

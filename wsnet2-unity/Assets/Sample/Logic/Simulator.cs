@@ -639,8 +639,6 @@ namespace Sample.Logic
                 return false;
             }
 
-
-
             if (state.Code != GameStateCode.InGame)
             {
                 return false;

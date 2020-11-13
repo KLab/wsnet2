@@ -38,7 +38,7 @@ CREATE TABLE room (
   `visible` TINYINT NOT NULL,
   `joinable` TINYINT NOT NULL,
   `watchable` TINYINT NOT NULL,
-  `number` INTEGER NOT NULL,
+  `number` INTEGER,
   `search_group` INTEGER UNSIGNED NOT NULL,
   `max_players` INTEGER UNSIGNED NOT NULL,
   `players` INTEGER UNSIGNED NOT NULL,

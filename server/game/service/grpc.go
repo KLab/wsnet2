@@ -58,13 +58,13 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
 		log.Infof("invalid app_id: %v", in.AppId)
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.NotFound, "Invalid app_id: %v", in.AppId)
 	}
 
 	res, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "CreateRoom failed: %s", err)
+		return nil, status.Errorf(err.Code(), "CreateRoom failed: %s", err)
 	}
 
 	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)
@@ -93,13 +93,13 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
 		log.Infof("invalid app_id: %v", in.AppId)
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
 	}
 
 	res, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
 		log.Infof("join room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "JoinRoom failed: %s", err)
+		return nil, status.Errorf(err.Code(), "JoinRoom failed: %s", err)
 	}
 
 	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)
@@ -115,13 +115,13 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
 		log.Infof("invalid app_id: %v", in.AppId)
-		return nil, status.Errorf(codes.InvalidArgument, "Invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
 	}
 
 	res, err := repo.WatchRoom(ctx, in.RoomId, in.ClientInfo)
 	if err != nil {
 		log.Infof("watch room error: %+v", err)
-		return nil, status.Errorf(codes.Internal, "WatchRoom failed: %s", err)
+		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)
 	}
 
 	res.Url = fmt.Sprintf(sv.wsURLFormat, res.RoomInfo.Id)

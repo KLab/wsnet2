@@ -7,6 +7,7 @@ import (
 func (src *RoomInfo) Clone() *RoomInfo {
 	dst := &RoomInfo{}
 	*dst = *src
+	dst.Number = &RoomNumber{Number: src.Number.Number}
 	dst.PublicProps = make([]byte, len(src.PublicProps))
 	dst.PrivateProps = make([]byte, len(src.PrivateProps))
 	copy(dst.PublicProps, src.PublicProps)

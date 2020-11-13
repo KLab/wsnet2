@@ -34,5 +34,11 @@ namespace WSNet2.Core
 
         [Key("limit")]
         public int limit;
+
+        [Key("joinable")]
+        public bool checkJoinable;
+
+        [Key("watchable")]
+        public bool checkWatchable;
     }
 }

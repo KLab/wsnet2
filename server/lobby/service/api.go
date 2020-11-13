@@ -16,7 +16,9 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/auth"
+	"wsnet2/lobby"
 	"wsnet2/log"
+	"wsnet2/pb"
 )
 
 func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
@@ -24,7 +26,12 @@ func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 
 	go func() {
 		network := sv.conf.Net
+
 		laddr := fmt.Sprintf(":%d", sv.conf.Port)
+		if network == "unix" {
+			laddr = sv.conf.UnixPath
+		}
+
 		log.Infof("lobby api: %#v %#v", network, laddr)
 
 		listener, err := net.Listen(network, laddr)
@@ -95,15 +102,42 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 	return hdr
 }
 
-func renderResponse(w http.ResponseWriter, res interface{}) error {
+func renderResponse(w http.ResponseWriter, res *LobbyResponse) {
 	var body bytes.Buffer
 	err := msgpack.NewEncoder(&body).UseJSONTag(true).Encode(res)
 	if err != nil {
-		return err
+		log.Errorf("Failed to marshal response: %v", err)
+		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "application/x-msgpack")
 	w.Write(body.Bytes())
-	return nil
+}
+
+func renderJoinedRoomResponse(w http.ResponseWriter, room *pb.JoinedRoomRes) {
+	log.Debugf("joined room: %#v", room)
+	renderResponse(w, &LobbyResponse{Msg: "OK", Room: room})
+}
+
+func renderSearchRoomResponse(w http.ResponseWriter, rooms []*pb.RoomInfo) {
+	log.Debugf("search found rooms: %#v", rooms)
+	renderResponse(w, &LobbyResponse{Msg: "OK", Rooms: rooms})
+}
+
+func renderErrorResponse(w http.ResponseWriter, msg string, status int, err error) {
+	if ews, ok := err.(lobby.ErrorWithStatus); ok {
+		status = ews.Status()
+		if m := ews.Message(); m != "" {
+			msg = m
+		}
+	}
+	if status == http.StatusOK {
+		log.Debugf("Failed with status OK: %+v", err)
+		renderResponse(w, &LobbyResponse{Msg: msg})
+		return
+	}
+	log.Errorf("ErrorResponse: %d %s: %+v", status, msg, err)
+	http.Error(w, msg, status)
 }
 
 func (sv *LobbyService) authUser(h header) error {
@@ -124,177 +158,163 @@ func (sv *LobbyService) authUser(h header) error {
 // POST Params: {"max_player": 0, "with_room_number": true}
 // Response: 200 OK
 func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleCreateRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param CreateParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	// TODO: 必要に応じて一部のパラメータを上書き？
 
-	room, err := sv.roomService.Create(h.appId, &param.RoomOption, &param.ClientInfo)
+	room, err := sv.roomService.Create(ctx, h.appId, &param.RoomOption, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to create room: %v", err)
-		http.Error(w, "Failed to create room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to create room", http.StatusInternalServerError, err)
 		return
 	}
-	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderJoinedRoomResponse(w, room)
 }
 
 type JoinVars map[string]string
 
-func (vars JoinVars) roomId() (string, bool) {
-	id, found := vars["roomId"]
-	return id, found
+func (vars JoinVars) roomId() string {
+	id := vars["roomId"]
+	return id
 }
 
-func (vars JoinVars) roomNumber() (number int32, found bool) {
+func (vars JoinVars) roomNumber() (number int32) {
 	if v, found := vars["roomNumber"]; found {
 		n, _ := strconv.ParseInt(v, 10, 32)
 		number = int32(n)
 	}
-	return number, found
+	return number
 }
 
-func (vars JoinVars) searchGroup() (sg uint32, found bool) {
+func (vars JoinVars) searchGroup() (sg uint32) {
 	if v, found := vars["searchGroup"]; found {
 		n, _ := strconv.ParseUint(v, 10, 32)
 		sg = uint32(n)
 	}
-	return sg, found
+	return sg
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleJoinRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomId, _ := vars.roomId()
-
-	room, err := sv.roomService.JoinById(h.appId, roomId, param.Queries, &param.ClientInfo)
-	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+	roomId := vars.roomId()
+	if roomId == "" {
+		renderErrorResponse(
+			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"))
 		return
 	}
-	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
+	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
 	}
+
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomNumber, _ := vars.roomNumber()
-
-	room, err := sv.roomService.JoinByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
-	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+	roomNumber := vars.roomNumber()
+	if roomNumber == 0 {
+		renderErrorResponse(
+			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"))
 		return
 	}
-	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
+	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
 	}
+
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleJoinRoomAtRandom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	searchGroup, _ := vars.searchGroup()
+	searchGroup := vars.searchGroup()
 
-	room, err := sv.roomService.JoinAtRandom(h.appId, searchGroup, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to join room: %v", err)
-		http.Error(w, "Failed to join room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
 	}
-	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
@@ -303,109 +323,102 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param SearchParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	log.Debugf("%#v", param)
 
-	rooms, err := sv.roomService.Search(h.appId, param.SearchGroup, param.Queries, int(param.Limit))
+	rooms, err := sv.roomService.Search(
+		h.appId, param.SearchGroup, param.Queries, int(param.Limit), param.CheckJoinable, param.CheckWatchable)
 	if err != nil {
-		log.Errorf("Failed to search room: %v", err)
-		http.Error(w, "Failed to search room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to search room", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", rooms)
 
-	err = renderResponse(w, rooms)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderSearchRoomResponse(w, rooms)
 }
 
 func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleWatchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomId, _ := vars.roomId()
+	roomId := vars.roomId()
+	if roomId == "" {
+		renderErrorResponse(
+			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"))
+		return
+	}
 
-	room, err := sv.roomService.WatchById(h.appId, roomId, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to watch room: %v", err)
-		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderJoinedRoomResponse(w, room)
 }
 
 func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleWatchRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
 
 	if err := sv.authUser(h); err != nil {
-		log.Errorf("Failed to user auth: %v", err)
-		http.Error(w, "Failed to user auth", http.StatusUnauthorized)
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
 	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
 	if err != nil {
-		log.Errorf("Failed to read request body: %v", err)
-		http.Error(w, "Failed to request body", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
-	roomNumber, _ := vars.roomNumber()
+	roomNumber := vars.roomNumber()
+	if roomNumber == 0 {
+		renderErrorResponse(
+			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"))
+		return
+	}
 
-	room, err := sv.roomService.WatchByNumber(h.appId, roomNumber, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo)
 	if err != nil {
-		log.Errorf("Failed to watch room: %v", err)
-		http.Error(w, "Failed to watch room", http.StatusInternalServerError)
+		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", room)
 
-	err = renderResponse(w, room)
-	if err != nil {
-		log.Errorf("Failed to marshal room: %v", err)
-		http.Error(w, "Failed to marshal room", http.StatusInternalServerError)
-		return
-	}
+	renderJoinedRoomResponse(w, room)
 }

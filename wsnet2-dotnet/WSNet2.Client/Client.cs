@@ -103,6 +103,8 @@ namespace WSNet2.DotnetClient
                 SearchGroup,
                 query,
                 10,
+                true,
+                false,
                 (rs) => {
                     Console.WriteLine($"onSuccess: {rs.Length}");
                     roomsrc.TrySetResult(rs);
@@ -163,7 +165,7 @@ namespace WSNet2.DotnetClient
             };
 
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Func<Room,bool> onJoined = (Room room) => {
+            Action<Room> onJoined = (Room room) => {
                 roomJoined.TrySetResult(room);
 
                 room.OnError += (e) => Console.WriteLine($"OnError: {e}");
@@ -213,8 +215,6 @@ namespace WSNet2.DotnetClient
                 room.RegisterRPC<StrMessage>(RPCMessage);
                 room.RegisterRPC<StrMessage>(RPCMessages);
                 room.RegisterRPC(RPCString);
-
-                return true;
             };
             Action<Exception> onFailed = (Exception e) => roomJoined.TrySetException(e);
 

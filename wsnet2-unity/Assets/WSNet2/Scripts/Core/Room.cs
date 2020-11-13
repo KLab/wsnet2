@@ -104,7 +104,7 @@ namespace WSNet2.Core
         RoomInfo info;
         uint clientDeadline;
 
-        CallbackPool callbackPool = new CallbackPool();
+        CallbackPool callbackPool;
         Dictionary<Delegate, byte> rpcMap;
         List<Action<string, SerialReader>> rpcActions;
         Dictionary<int, Action<EvResponse>> errorResponseHandler = new Dictionary<int, Action<EvResponse>>();
@@ -116,7 +116,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
-        public Room(JoinedResponse joined, string myId)
+        public Room(JoinedRoom joined, string myId)
         {
             this.myId = myId;
             this.info = joined.roomInfo;
@@ -129,6 +129,8 @@ namespace WSNet2.Core
 
             this.Running = true;
             this.Closed = false;
+
+            this.callbackPool = new CallbackPool(() => this.Running);
 
             var reader = Serialization.NewReader(info.publicProps);
             publicProps = reader.ReadDict();
@@ -161,10 +163,7 @@ namespace WSNet2.Core
         /// </remarks>
         internal void ProcessCallback()
         {
-            if (Running)
-            {
-                callbackPool.Process();
-            }
+            callbackPool.Process();
         }
 
         /// <summary>

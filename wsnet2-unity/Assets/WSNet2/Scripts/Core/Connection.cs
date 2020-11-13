@@ -22,8 +22,8 @@ namespace WSNet2.Core
         /// <summary>各Msgのバッファサイズの初期値</summary>
         const int MsgBufInitialSize = 512;
 
-        /// <summary>最大再接続試行回数</summary>
-        const int MaxReconnection = 30;
+        /// <summary>最大連続再接続試行回数</summary>
+        const int MaxReconnection = 5;
 
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
@@ -45,7 +45,6 @@ namespace WSNet2.Core
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
-        int reconnection;
 
         BlockingCollection<byte[]> evBufPool;
         uint evSeqNum;
@@ -53,7 +52,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   コンストラクタ
         /// </summary>
-        public Connection(Room room, string clientId, JoinedResponse joined)
+        public Connection(Room room, string clientId, JoinedRoom joined)
         {
             this.canceller = new CancellationTokenSource();
             this.room = room;
@@ -63,7 +62,6 @@ namespace WSNet2.Core
             this.authKey = joined.authKey;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
-            this.reconnection = 0;
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
@@ -95,6 +93,8 @@ namespace WSNet2.Core
         /// </remarks>
         public async Task Start()
         {
+            int reconnection = 0;
+
             while(true)
             {
                 Exception lastException;
@@ -114,6 +114,7 @@ namespace WSNet2.Core
                 try
                 {
                     var ws = await Connect(cts.Token);
+                    reconnection = 0;
 
                     var tasks = new Task[]
                     {

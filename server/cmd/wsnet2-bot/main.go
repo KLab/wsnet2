@@ -74,13 +74,17 @@ func (b *bot) CreateRoom() (*pb.JoinedRoomRes, error) {
 		},
 	}
 
-	room := &pb.JoinedRoomRes{}
+	var res service.LobbyResponse
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms", param, room)
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms", param, &res)
 	if err != nil {
 		return nil, err
 	}
+	if res.Room == nil {
+		return nil, fmt.Errorf("Create failed: %v", res.Msg)
+	}
 
+	room := res.Room
 	fmt.Printf("[bot:%v] Create success, WebSocket=%s\n", b.userId, room.Url)
 
 	return room, nil
@@ -103,7 +107,7 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 		},
 	}
 
-	room := &pb.JoinedRoomRes{}
+	var res service.LobbyResponse
 
 	var url string
 	if watch {
@@ -111,11 +115,15 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 	} else {
 		url = fmt.Sprintf("http://localhost:8080/rooms/join/id/%s", roomId)
 	}
-	err := b.doLobbyRequest("POST", url, param, room)
+	err := b.doLobbyRequest("POST", url, param, &res)
 	if err != nil {
 		return nil, err
 	}
+	if res.Room == nil {
+		return nil, fmt.Errorf("Join failed: %v", res.Msg)
+	}
 
+	room := res.Room
 	fmt.Printf("[bot:%v] Join success, WebSocket=%s\n", b.userId, room.Url)
 
 	return room, nil
@@ -130,14 +138,18 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 		},
 	}
 
-	room := &pb.JoinedRoomRes{}
+	var res service.LobbyResponse
 
 	url := fmt.Sprintf("http://localhost:8080/rooms/join/number/%d", roomNumber)
-	err := b.doLobbyRequest("POST", url, param, room)
+	err := b.doLobbyRequest("POST", url, param, &res)
 	if err != nil {
 		return nil, err
 	}
+	if res.Room == nil {
+		return nil, fmt.Errorf("Join by room number failed: %v", res.Msg)
+	}
 
+	room := res.Room
 	fmt.Printf("[bot:%v] Join by room number success, WebSocket=%s\n", b.userId, room.Url)
 
 	return room, nil
@@ -152,33 +164,41 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 		},
 	}
 
-	room := &pb.JoinedRoomRes{}
+	var res service.LobbyResponse
 
 	url := fmt.Sprintf("http://localhost:8080/rooms/join/random/%d", searchGroup)
-	err := b.doLobbyRequest("POST", url, param, room)
+	err := b.doLobbyRequest("POST", url, param, &res)
 	if err != nil {
-		fmt.Printf("error: %v\n", err)
 		return nil, err
 	}
+	if res.Room == nil {
+		return nil, fmt.Errorf("Join at random failed: %v", res.Msg)
+	}
 
+	room := res.Room
 	fmt.Printf("[bot:%v] Join at random success, WebSocket=%s\n", b.userId, room.Url)
 	return room, nil
 }
 
-func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]pb.RoomInfo, error) {
+func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.RoomInfo, error) {
 	param := &service.SearchParam{
 		SearchGroup: searchGroup,
 		Queries:     []lobby.PropQueries{queries},
 	}
 
-	rooms := []pb.RoomInfo{}
+	var res service.LobbyResponse
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/search", param, &rooms)
+	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/search", param, &res)
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
 		return nil, err
 	}
+	if res.Rooms == nil {
+		fmt.Printf("error: %v\n", res.Msg)
+		return nil, fmt.Errorf("Search failed: %v", res.Msg)
+	}
 
+	rooms := res.Rooms
 	fmt.Printf("[bot:%v] Search success, rooms=%v\n", b.userId, rooms)
 	return rooms, nil
 }
@@ -289,8 +309,8 @@ func main() {
 
 	go spawnPlayer(room.RoomInfo.Id, "23456", nil)
 	go spawnPlayer(room.RoomInfo.Id, "34567", queries)
-	go spawnPlayerByNumber(room.RoomInfo.Number, "45678", nil)
-	go spawnPlayerByNumber(room.RoomInfo.Number, "56789", queries)
+	go spawnPlayerByNumber(room.RoomInfo.Number.Number, "45678", nil)
+	go spawnPlayerByNumber(room.RoomInfo.Number.Number, "56789", queries)
 	go spawnPlayerAtRandom("67890", 1, queries)
 	go spawnWatcher(room.RoomInfo.Id, "w1")
 

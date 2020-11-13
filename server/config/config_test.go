@@ -35,6 +35,8 @@ func TestLoad(t *testing.T) {
 		RetryCount: 3,
 		MaxRoomNum: 999999,
 
+		MaxRooms: 123,
+
 		DefaultMaxPlayers: 10,
 		DefaultDeadline:   5,
 		DefaultLoglevel:   2,
@@ -47,11 +49,13 @@ func TestLoad(t *testing.T) {
 
 	lobby := LobbyConf{
 		Hostname:       "wsnetlobby.localhost",
+		UnixPath:       "/tmp/sock",
 		Net:            "tcp",
 		Port:           8080,
 		Loglevel:       2,
 		ValidHeartBeat: Duration(time.Second * 30),
 		AuthDataExpire: Duration(time.Second * 10),
+		ApiTimeout:     Duration(time.Second * 5),
 	}
 	if diff := cmp.Diff(c.Lobby, lobby); diff != "" {
 		t.Fatalf("c.Lobby differs: (-got +want)\n%s", diff)
