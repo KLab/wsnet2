@@ -341,8 +341,8 @@ namespace WSNet2.Core
 
                 var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
                 var time = (uint)msg.SetTimestamp();
-                await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                 lastPingTime = time;
+                await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                 try
                 {
                     await interval;
