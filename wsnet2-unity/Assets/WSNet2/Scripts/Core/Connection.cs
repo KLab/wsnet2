@@ -28,6 +28,13 @@ namespace WSNet2.Core
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
+        /// <summary>最大Ping間隔 (milli seconds)</summary>
+        /// Playerの最終Msg時刻のやりとりのため、ある程度で上限を設ける
+        const int MaxPingIntervalMilliSec = 10000;
+
+        /// <summary>最小Ping間隔 (milli seconds)</summary>
+        const int MinPingIntervalMilliSec = 1000;
+
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         public MsgPool msgPool { get; private set; }
@@ -40,7 +47,8 @@ namespace WSNet2.Core
 
         Uri uri;
         string authKey;
-        int pingInterval;
+        volatile int pingInterval;
+        volatile uint lastPingTime;
         CancellationTokenSource pingerDelayCanceller;
 
         TaskCompletionSource<Task> senderTaskSource;
@@ -243,6 +251,10 @@ namespace WSNet2.Core
                     case EvType.Closed:
                         room.handleEvent(ev);
                         return;
+                    case EvType.Pong:
+                        onPong(ev as EvPong);
+                        room.handleEvent(ev);
+                        break;
                     default:
                         room.handleEvent(ev);
                         break;
@@ -328,11 +340,17 @@ namespace WSNet2.Core
                 ct.ThrowIfCancellationRequested();
 
                 var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
-                msg.SetTimestamp();
+                var time = (uint)msg.SetTimestamp();
+                lastPingTime = time;
                 await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
                 try
                 {
                     await interval;
+                    // 対応するPongが返ってきていたらlastPingTimeは書き換わっている
+                    if (lastPingTime == time)
+                    {
+                        throw new Exception("Pong unreceived");
+                    }
                 }
                 catch(TaskCanceledException)
                 {
@@ -342,16 +360,36 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        ///   Pong受信時の処理
+        /// </summary>
+        /// <remarks>
+        ///   <para>
+        ///     lastPingTimeのPingに対応するPongを受け取ったらlastPingTimeを異なる値に変更
+        ///   </para>
+        /// </remarks>
+        private void onPong(EvPong ev)
+        {
+            var time = (uint)ev.PingTimestamp;
+            if (lastPingTime == time)
+            {
+                lastPingTime ^= uint.MaxValue;
+            }
+        }
+
+        /// <summary>
         ///   サーバから通知されたdeadline(秒)からPing間隔(ミリ秒)を計算
         /// </summary>
         /// <remarks>
         ///   <para>
-        ///     deadlineの半分の時間停止していても切断しないような間隔とする.
+        ///     旧wsnetではdeadlineは通常25秒、Ping間隔は5秒固定だったので、
+        ///     deadline/5を基準として最大最小間隔を超えない値にする。
         ///   </para>
         /// </remarks>
         private int calcPingInterval(uint deadline)
         {
-            return (int)deadline * 1000 / 3;
+            var ms = (int)deadline * 1000 / 5;
+            return (ms < MinPingIntervalMilliSec) ? MinPingIntervalMilliSec
+                : (ms > MaxPingIntervalMilliSec) ? MaxPingIntervalMilliSec : ms;
         }
     }
 }
