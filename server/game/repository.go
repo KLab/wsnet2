@@ -300,6 +300,11 @@ func (repo *Repository) RemoveClient(cli *Client) {
 	cid := cli.ID()
 	rid := cli.room.ID()
 	if cmap, ok := repo.clients[cid]; ok {
+		// IDが同じでも別クライアントの場合には削除しない
+		if c, ok := cmap[rid]; ok && c != cli {
+			log.Debugf("cannot remove client from repository (already replaced new client): room=%v, client=%v", rid, cid)
+			return
+		}
 		delete(cmap, rid)
 		if len(cmap) == 0 {
 			delete(repo.clients, cid)
