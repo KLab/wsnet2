@@ -40,11 +40,12 @@ type Hub struct {
 	publicProps  binary.Dict
 	privateProps binary.Dict
 
-	msgCh    chan game.Msg
-	evCh     chan binary.Event // TODO: drainとかちゃんと考える
-	ready    chan struct{}
-	done     chan struct{}
-	wgClient sync.WaitGroup
+	msgCh          chan game.Msg
+	evCh           chan binary.Event // TODO: drainとかちゃんと考える
+	ready          chan struct{}
+	done           chan struct{}
+	normallyClosed bool
+	wgClient       sync.WaitGroup
 
 	muClients sync.RWMutex
 	players   map[ClientID]*Player
@@ -323,6 +324,7 @@ func (h *Hub) Start() {
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				h.logger.Infof("Game closed: %v", err)
+				h.normallyClosed = true
 			} else if websocket.IsUnexpectedCloseError(err) {
 				h.logger.Errorf("Game close error: %v", err)
 			} else {

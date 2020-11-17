@@ -103,9 +103,13 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	}
 	select {
 	case <-hub.Done():
-		return nil, game.WithCode(
-			xerrors.Errorf("WatchRoom hub closed: room=%v client=%v", roomId, client.Id),
-			codes.Internal)
+		var code codes.Code
+		if hub.normallyClosed {
+			code = codes.NotFound
+		} else {
+			code = codes.Internal
+		}
+		return nil, game.WithCode(xerrors.Errorf("WatchRoom hub closed: room=%v client=%v", roomId, client.Id), code)
 	case <-ctx.Done():
 		return nil, game.WithCode(
 			xerrors.Errorf("WatchRoom write msg timeout or context done: room=%v client=%v", roomId, client.Id),
@@ -116,9 +120,13 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	var joined *game.JoinedInfo
 	select {
 	case <-hub.Done():
-		return nil, game.WithCode(
-			xerrors.Errorf("WatchRoom hub closed: room=%v client=%v", roomId, client.Id),
-			codes.Internal)
+		var code codes.Code
+		if hub.normallyClosed {
+			code = codes.NotFound
+		} else {
+			code = codes.Internal
+		}
+		return nil, game.WithCode(xerrors.Errorf("WatchRoom hub closed: room=%v client=%v", roomId, client.Id), code)
 	case <-ctx.Done():
 		return nil, game.WithCode(
 			xerrors.Errorf("WatchRoom timeout or context done: room=%v client=%v", roomId, client.Id),
