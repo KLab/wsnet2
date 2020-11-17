@@ -321,7 +321,13 @@ func (h *Hub) Start() {
 	for {
 		_, b, err := ws.ReadMessage()
 		if err != nil {
-			h.logger.Errorf("ReadMessage error: %v\n", err)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				h.logger.Infof("Game closed: %v", err)
+			} else if websocket.IsUnexpectedCloseError(err) {
+				h.logger.Errorf("Game close error: %v", err)
+			} else {
+				h.logger.Errorf("Game read error: %T %v", err, err)
+			}
 			return
 		}
 		ev, _, err := binary.UnmarshalEvent(b)
