@@ -119,6 +119,10 @@ func (m *regularMsg) Marshal() []byte {
 	return data
 }
 
+func NewRegularMsg(t MsgType, seq int, payload []byte) RegularMsg {
+	return &regularMsg{mtype: t, seqNum: seq, payload: payload}
+}
+
 // ParseMsg parse binary data to Msg struct
 func UnmarshalMsg(data []byte) (Msg, error) {
 	if len(data) < 1 {

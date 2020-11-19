@@ -56,6 +56,11 @@ type Hub struct {
 
 	seq int
 
+	// hub -> game
+	gameConn *websocket.Conn
+	// hub -> game に使う seq 番号.
+	gameSendSeq int32
+
 	logger *zap.SugaredLogger
 }
 
@@ -128,7 +133,7 @@ func (h *Hub) Timeout(c *game.Client) {
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
-	// TODO: 実装
+	h.msgCh <- msg
 }
 
 func (h *Hub) writeLastMsg(cid ClientID) {
@@ -168,7 +173,7 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	c.Removed(err)
 }
 
-func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
+func (h *Hub) dialGame(url, authKey string, seq int) error {
 	hdr := http.Header{}
 	hdr.Add("Wsnet2-App", h.appId)
 	hdr.Add("Wsnet2-User", h.clientId)
@@ -176,18 +181,18 @@ func (h *Hub) dialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 
 	authdata, err := auth.GenerateAuthData(authKey, h.clientId, time.Now())
 	if err != nil {
-		return nil, xerrors.Errorf("dialGame: generate authdata error: %w\n", err)
+		return xerrors.Errorf("dialGame: generate authdata error: %w\n", err)
 	}
 	hdr.Add("Authorization", "Bearer "+authdata)
 
 	ws, res, err := h.repo.ws.Dial(url, hdr)
 	if err != nil {
-		return nil, xerrors.Errorf("dialGame: dial error: %v, %w\n", res, err)
+		return xerrors.Errorf("dialGame: dial error: %v, %w\n", res, err)
 	}
 
 	h.logger.Infof("dialGame: response: %v\n", res)
-
-	return ws, nil
+	h.gameConn = ws
+	return nil
 }
 
 func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
@@ -219,7 +224,8 @@ func calcPingInterval(deadline time.Duration) time.Duration {
 	return deadline / 3
 }
 
-func (h *Hub) pinger(conn *websocket.Conn) {
+func (h *Hub) pinger() {
+	conn := h.gameConn
 	deadline := h.deadline
 	t := time.NewTicker(calcPingInterval(deadline))
 	defer t.Stop()
@@ -311,16 +317,17 @@ func (h *Hub) Start() {
 	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
 	h.logger.Debugf("Dial Game: %v\n", url)
 
-	ws, err := h.dialGame(url, res.AuthKey, 0)
+	err = h.dialGame(url, res.AuthKey, 0)
 	if err != nil {
 		h.logger.Errorf("Failed to dial game server: %v\n", err)
 		return
 	}
 
-	go h.pinger(ws)
+	go h.pinger()
 
+	// TODO: どこで h.gameConn を Close するか考える
 	for {
-		_, b, err := ws.ReadMessage()
+		_, b, err := h.gameConn.ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				h.logger.Infof("Game closed: %v", err)
@@ -392,6 +399,10 @@ func (h *Hub) dispatch(msg game.Msg) error {
 		return h.msgWatch(m)
 	case *game.MsgClientError:
 		return h.msgClientError(m)
+	case *game.MsgTargets, *game.MsgToMaster, *game.MsgBroadcast:
+		// clientから来たメッセージをgameに伝える.
+		// TODO: エラーが返ってきたらclientに伝える
+		return h.proxyMessage(m.(binary.RegularMsg))
 	default:
 		return xerrors.Errorf("unknown msg type: %T %v", m, m)
 	}
@@ -471,6 +482,15 @@ func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 	return nil
 }
 
+// clientから受け取った RegularMsg を gameサーバーに転送する
+func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
+	// seq が異なるから使いまわしができない。作り直す。
+	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
+	msg2 := binary.NewRegularMsg(msg.Type(), h.gameSendSeq, msg.Payload())
+	h.gameSendSeq++
+	return h.gameConn.WriteMessage(websocket.BinaryMessage, msg2.Marshal())
+}
+
 func (h *Hub) dispatchEvent(ev binary.Event) error {
 	switch ev.Type() {
 	case binary.EvTypePong:
@@ -511,9 +531,9 @@ func (h *Hub) evPong(ev binary.Event) error {
 func (h *Hub) evPeerReady(ev binary.Event) error {
 	seq, err := binary.UnmarshalEvPeerReadyPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
+		return xerrors.Errorf("Unmarshal EvPeerReady payload error: %w", err)
 	}
-	h.seq = seq
+	h.seq = seq // TODO: h.seqここでしか更新してないけどいいの？
 	return nil
 }
 
