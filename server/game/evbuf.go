@@ -71,6 +71,7 @@ func (b *EvBuf) Read(seq int) ([]*binary.RegularEvent, error) {
 	if seq < r {
 		// rewind read seq num
 		if w-seq >= size {
+			b.mu.Unlock()
 			return nil, xerrors.Errorf("EvBuf too old seq num: %v, size:%v write:%v", seq, size, w)
 		}
 		b.rSeq = seq
