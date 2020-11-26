@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -264,6 +265,7 @@ func (b *bot) DialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 }
 
 func main() {
+	log.SetFlags(log.Lshortfile | log.Lmicroseconds)
 	fmt.Println("WSNet2-Bot")
 	fmt.Println("WSNet2Version:", WSNet2Version)
 	fmt.Println("WSNet2Commit:", WSNet2Commit)
@@ -440,18 +442,30 @@ func spawnWatcher(roomId, userId string) {
 
 	room, err := bot.WatchRoom(roomId, nil)
 	if err != nil {
-		fmt.Printf("[bot:%v] watch room error: %v\n", userId, err)
+		log.Printf("[bot:%v] watch room error: %v\n", userId, err)
 		return
 	}
 
 	ws, err := bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
-		fmt.Printf("[bot:%v] dial watch error: %v\n", userId, err)
+		log.Printf("[bot:%v] dial watch error: %v\n", userId, err)
 		return
 	}
 
 	done := make(chan bool)
 	go eventloop(ws, userId, done)
+
+	time.Sleep(time.Second * 2)
+
+	// 存在するターゲットと存在しないターゲットに対してメッセージを送る
+	payload := []byte{byte(binary.MsgTypeTargets), 0, 0, 1}
+	payload = binary.MarshalTargetsAndData(payload,
+		[]string{"23456", "goblin"},
+		binary.MarshalStr8("message 1 from watcher"))
+	ws.WriteMessage(websocket.BinaryMessage, payload)
+	log.Printf("[bot:%v] sent message %q\n", userId, payload)
+
+	time.Sleep(time.Second)
 }
 
 func spawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQuery) {
@@ -496,28 +510,34 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 	for {
 		_, b, err := ws.ReadMessage()
 		if err != nil {
-			fmt.Printf("[bot:%v] ReadMessage error: %v\n", userId, err)
+			log.Printf("[bot:%v] ReadMessage error: %v\n", userId, err)
 			return
 		}
 
-		switch ty := binary.EvType(b[0]); ty {
+		ev, seq, err := binary.UnmarshalEvent(b)
+		if err != nil {
+			log.Printf("[bot:%v] Failed to UnmarshalEvent: %v\npayload:%v\n", userId, err)
+			continue
+		}
+		switch ty := ev.Type(); ty {
 		case binary.EvTypeJoined:
-			seqnum := (int(b[1]) << 24) + (int(b[2]) << 16) + (int(b[3]) << 8) + int(b[4])
 			namelen := int(b[6])
 			name := string(b[7 : 7+namelen])
 			props := b[7+namelen:]
-			fmt.Printf("[bot:%v] %s: %v %#v, %v, %v\n", userId, ty, seqnum, name, props, b)
+			log.Printf("[bot:%v] %s: %v %#v, %v, %v\n", userId, ty, seq, name, props, b)
 		case binary.EvTypePermissionDenied:
-			fmt.Printf("[bot:%v] %s: %v\n", userId, ty, b)
+			log.Printf("[bot:%v] %s: %v\n", userId, ty, b)
 		case binary.EvTypeTargetNotFound:
 			list, _, err := binary.UnmarshalAs(b[5:], binary.TypeList, binary.TypeNull)
 			if err != nil {
-				fmt.Printf("[bot:%v] %s: error: %v\n", userId, ty, err)
+				log.Printf("[bot:%v] %s: error: %v\n", userId, ty, err)
 				break
 			}
-			fmt.Printf("[bot:%v] %s: %v %v\n", userId, ty, list, b)
+			log.Printf("[bot:%v] %s: %v %v\n", userId, ty, list, b)
+		case binary.EvTypeMessage:
+			log.Printf("[bot:%v] %v: %q\n", userId, ty, string(ev.Payload()))
 		default:
-			fmt.Printf("[bot:%v] ReadMessage: %v, %v\n", userId, ty, b)
+			log.Printf("[bot:%v] ReadMessage: %v, %v\n", userId, ty, b)
 		}
 	}
 }

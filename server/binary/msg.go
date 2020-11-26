@@ -115,7 +115,7 @@ func (m *regularMsg) Marshal() []byte {
 	data := make([]byte, 1+3+len(m.payload))
 	data[0] = byte(m.mtype)
 	put24(data[1:4], m.seqNum)
-	copy(data[1:len(m.payload)], m.payload)
+	copy(data[4:], m.payload)
 	return data
 }
 
@@ -286,6 +286,12 @@ func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 	}
 
 	return targets, payload[l:], nil
+}
+
+func MarshalTargetsAndData(buf []byte, targets []string, payload []byte) []byte {
+	buf = append(buf, MarshalStrings(targets)...)
+	buf = append(buf, payload...)
+	return buf
 }
 
 // UnmarshalKickPayload parses payload of MsgTypeKick
