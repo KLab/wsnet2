@@ -405,16 +405,12 @@ func (h *Hub) dispatch(msg game.Msg) error {
 		return h.msgClientError(m)
 
 	// clientから来たメッセージをgameに伝える.
-	// TODO: エラーが返ってきたらclientに伝える
 	case *game.MsgTargets:
-		senderID := m.SenderID()
-		return h.proxyMessage(senderID, m.RegularMsg)
+		return h.proxyMessage(m.RegularMsg)
 	case *game.MsgToMaster:
-		senderID := m.SenderID()
-		return h.proxyMessage(senderID, m.RegularMsg)
+		return h.proxyMessage(m.RegularMsg)
 	case *game.MsgBroadcast:
-		senderID := m.SenderID()
-		return h.proxyMessage(senderID, m.RegularMsg)
+		return h.proxyMessage(m.RegularMsg)
 
 	default:
 		return xerrors.Errorf("unknown msg type: %T %v", m, m)
@@ -496,7 +492,7 @@ func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 }
 
 // clientから受け取った RegularMsg を gameサーバーに転送する
-func (h *Hub) proxyMessage(senderID ClientID, msg binary.RegularMsg) error {
+func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	// client->hubとhub->gameでseq が異なるからmsgの使いまわしができない。
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
 	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
