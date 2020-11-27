@@ -66,12 +66,10 @@ type Hub struct {
 
 	seq int
 
-	// hub -> game
+	// hub -> game に使う conn
 	gameConn *websocket.Conn
 	// hub -> game に使う seq 番号.
-	gameSendSeq int32
-	// proxy したメッセージの送信元を覚える
-	proxiedSenders []sender
+	sendSeq int32
 
 	logger *zap.SugaredLogger
 }
@@ -505,11 +503,10 @@ func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 
 // clientから受け取った RegularMsg を gameサーバーに転送する
 func (h *Hub) proxyMessage(senderID ClientID, msg binary.RegularMsg) error {
-	// seq が異なるから使いまわしができない。作り直す。
+	// client->hubとhub->gameでseq が異なるからmsgの使いまわしができない。
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
-	h.gameSendSeq++
-	msg2 := binary.NewRegularMsg(msg.Type(), int(h.gameSendSeq), msg.Payload())
-	h.proxiedSenders = append(h.proxiedSenders, sender{senderID: senderID, seq: h.gameSendSeq})
+	h.sendSeq++
+	msg2 := binary.NewRegularMsg(msg.Type(), int(h.sendSeq), msg.Payload())
 	packet := msg2.Marshal()
 	//h.logger.Debugf("sending proxied message: sender=%q, data=%q", senderID, packet)
 	return h.gameConn.WriteMessage(websocket.BinaryMessage, packet)
@@ -534,13 +531,13 @@ func (h *Hub) dispatchEvent(e event) error {
 	case binary.EvTypeMessage:
 		return h.evMessage(ev)
 	case binary.EvTypeSucceeded:
-		return h.evSucceeded(ev, seq)
+		return h.evSucceeded(ev)
 	case binary.EvTypePermissionDenied:
 		return h.evPermissionDenied(ev, seq)
 	case binary.EvTypeTargetNotFound:
 		return h.evTargetNotFound(ev, seq)
 	default:
-		return xerrors.Errorf("unknown event type: %T %v", ev, ev)
+		return xerrors.Errorf("unknown event type: seq=%v %T %v", seq, ev, ev)
 	}
 }
 
@@ -704,44 +701,16 @@ func (h *Hub) evMessage(ev binary.Event) error {
 	return nil
 }
 
-func (h *Hub) evSucceeded(ev binary.Event, seq int32) error {
-	return h.evTargetNotFound(ev, seq)
+func (h *Hub) evSucceeded(ev binary.Event) error {
+	return nil
 }
 
 func (h *Hub) evPermissionDenied(ev binary.Event, seq int32) error {
-	return h.evTargetNotFound(ev, seq)
+	h.logger.Errorf("evPermissionDenied: seq=%d, payload=% x", seq, ev.Payload())
+	return nil
 }
 
 func (h *Hub) evTargetNotFound(ev binary.Event, seq int32) error {
-	// ここにくる場合:
-	//   * proxyMessage で msgTarget を送ってエラーが返ってきた
-	//   * 上の別イベントのとりあえず実装として
-
-	// h.proxiedSenders に sender id が残っているはずなので探す.
-	var ps sender
-	var ix int
-	for ix, ps = range h.proxiedSenders {
-		if ps.seq > seq {
-			// 送信者不明。なんじゃこれ。
-			h.logger.Errorf("evTargetNotFound: Unknown seqnum: seq=%v", seq)
-			return nil
-		}
-		if ps.seq == seq {
-			break
-		}
-	}
-	h.proxiedSenders = h.proxiedSenders[ix:]
-
-	// データが溜まり続けてたら困るナァ.
-	h.logger.Debugf("remaining proxied senders: %d", len(h.proxiedSenders))
-
-	// 送信者を探す
-	cli, ok := h.watchers[ps.senderID]
-	if !ok {
-		// 送信者不明。もう抜けた？
-		h.logger.Infof("evTargetNotFound: Unknown sender: sender id=%q", ps.senderID)
-		return nil
-	}
-
-	return h.sendTo(cli, ev.(*binary.RegularEvent))
+	h.logger.Errorf("evTargetNotFound: seq=%d, payload=% x", seq, ev.Payload())
+	return nil
 }
