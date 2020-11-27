@@ -32,11 +32,6 @@ type event struct {
 	ev  binary.Event
 }
 
-type sender struct {
-	senderID ClientID
-	seq      int32
-}
-
 type Hub struct {
 	*pb.RoomInfo
 	id       RoomID
