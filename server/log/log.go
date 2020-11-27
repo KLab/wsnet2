@@ -62,7 +62,7 @@ func toZapLevel(l Level) zapcore.Level {
 	case DEBUG, ALL:
 		return zapcore.DebugLevel
 	}
-	// Errorf("Unknown level: %v", l)
+	Errorf("Unknown level: %v", l)
 	return zapcore.DebugLevel
 }
 
