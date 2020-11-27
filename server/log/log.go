@@ -7,6 +7,8 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"wsnet2/config"
 )
 
 var (
@@ -58,7 +60,7 @@ func toZapLevel(l Level) zapcore.Level {
 	case DEBUG, ALL:
 		return zapcore.DebugLevel
 	}
-	Errorf("Unknown level: %v", l)
+	// Errorf("Unknown level: %v", l)
 	return zapcore.DebugLevel
 }
 
@@ -112,21 +114,27 @@ func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("15:04:05.000"))
 }
 
-func InitLogger() func() {
+func InitLogger(logconf *config.LogConf) func() {
 	// Consoleに出力するLogger
 	consoleEnc := zap.NewDevelopmentEncoderConfig()
-	consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	if logconf.Color {
+		consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	}
 	consoleEnc.EncodeTime = consoleTimeEncoder
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, zap.DebugLevel)
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, toZapLevel(Level(logconf.StdoutLoglevel)))
 
-	// TODO: 指定されたファイルに出力する。
-	// sink, closer, err := zap.Open("/tmp/zaplog.out")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fileEnc := zap.NewProductionEncoderConfig()
-	// core2 := zapcore.NewCore(zapcore.NewJSONEncoder(fileEnc), sink, zap.DebugLevel)
-	// core := zapcore.NewTee(core, core2)
+	// Fileに出力するLogger
+	closer := func() {}
+	if logconf.LogFile != "" {
+		sink, clsr, err := zap.Open(logconf.LogFile)
+		if err != nil {
+			panic(err)
+		}
+		closer = clsr
+		fileEnc := zap.NewProductionEncoderConfig()
+		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(fileEnc), sink, toZapLevel(Level(logconf.FileLoglevel)))
+		core = zapcore.NewTee(core, core2)
+	}
 
 	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true))
 	rootLogger = logger
@@ -140,6 +148,6 @@ func InitLogger() func() {
 
 	return func() {
 		logger.Sync()
-		// closer()
+		closer()
 	}
 }

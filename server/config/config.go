@@ -13,10 +13,22 @@ import (
 )
 
 type Config struct {
+	Log   LogConf
 	Db    DbConf `toml:"Database"`
 	Game  GameConf
 	Hub   GameConf // とりあえずGameConfを使い回す
 	Lobby LobbyConf
+}
+
+type LogConf struct {
+	// Console出力をカラー出力する
+	Color   bool   `toml:"color"`
+	LogFile string `toml:"log_file"`
+
+	// stdout, logfile 別々のログレベル設定
+	// stdout -> Error 以上, logfile -> Info 以上 といった使い方をする
+	StdoutLoglevel uint32 `toml:"stdout_loglevel"`
+	FileLoglevel   uint32 `toml:"file_loglevel"`
 }
 
 type DbConf struct {
@@ -83,6 +95,12 @@ func (d *Duration) UnmarshalText(text []byte) error {
 func Load(conffile string) (*Config, error) {
 	c := &Config{
 		// set default values before decode file.
+		Log: LogConf{
+			Color:          true,
+			LogFile:        "/var/log/wsnet2/default.log",
+			StdoutLoglevel: 4,
+			FileLoglevel:   4,
+		},
 		Game: GameConf{
 			RetryCount: 5,
 			MaxRoomNum: 999999,

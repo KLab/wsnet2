@@ -24,6 +24,7 @@ services:
       WSNET2_GAME_PUBLICNAME: localhost
     volumes:
       - ./:/work
+      - .log/:/var/log/wsnet2
     working_dir: /work
     command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet2-\{lobby,bot\}" -d 3s -- go run cmd/wsnet2-game/main.go docker.toml'
     entrypoint: /wait-for-it.sh wsnet2-db:3306 --
@@ -43,6 +44,7 @@ services:
       WSNET2_GAME_PUBLICNAME: localhost
     volumes:
       - ./:/work
+      - .log/:/var/log/wsnet2
     working_dir: /work
     command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet2-\{lobby,bot\}" -d 3s -- go run cmd/wsnet2-hub/main.go docker.toml'
     entrypoint: /wait-for-it.sh wsnet2-db:3306 --
@@ -58,6 +60,7 @@ services:
     image: wsnet2-arelo
     volumes:
       - ./:/work
+      - .log/:/var/log/wsnet2
     working_dir: /work
     command: bash -c 'make generate && arelo -p "**/*.go" -p "./docker.toml" -i "**/.*" -i "cmd/wsnet2-\{game,bot\}" -d 3s -- go run cmd/wsnet2-lobby/main.go docker.toml'
     entrypoint: /wait-for-it.sh wsnet2-db:3306 --
