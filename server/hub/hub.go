@@ -64,12 +64,11 @@ type Hub struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
+	// hub -> game の seq.
 	seq int
 
 	// hub -> game に使う conn
 	gameConn *websocket.Conn
-	// hub -> game に使う seq 番号.
-	sendSeq int32
 
 	logger *zap.SugaredLogger
 }
@@ -505,8 +504,8 @@ func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 func (h *Hub) proxyMessage(senderID ClientID, msg binary.RegularMsg) error {
 	// client->hubとhub->gameでseq が異なるからmsgの使いまわしができない。
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
-	h.sendSeq++
-	msg2 := binary.NewRegularMsg(msg.Type(), int(h.sendSeq), msg.Payload())
+	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
+	msg2 := binary.NewRegularMsg(msg.Type(), int(h.seq), msg.Payload())
 	packet := msg2.Marshal()
 	//h.logger.Debugf("sending proxied message: sender=%q, data=%q", senderID, packet)
 	return h.gameConn.WriteMessage(websocket.BinaryMessage, packet)
@@ -556,7 +555,7 @@ func (h *Hub) evPeerReady(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPeerReady payload error: %w", err)
 	}
-	h.seq = seq // TODO: h.seqここでしか更新してないけどいいの？
+	h.seq = seq
 	return nil
 }
 
