@@ -27,7 +27,7 @@ func main() {
 		panic(fmt.Errorf("%+v\n", err))
 	}
 
-	defer log.InitLogger(&conf.Log)()
+	defer log.InitLogger(&conf.Log, "wsnet2-game.log")()
 	log.SetLevel(log.Level(conf.Game.DefaultLoglevel))
 	log.Infof("WSNet2-Game")
 	log.Infof("WSNet2Version: %v", WSNet2Version)

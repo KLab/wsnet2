@@ -22,8 +22,15 @@ type Config struct {
 
 type LogConf struct {
 	// Console出力をカラー出力する
-	Color   bool   `toml:"color"`
-	LogFile string `toml:"log_file"`
+	Color  bool   `toml:"color"`
+	LogDir string `toml:"log_dir"`
+
+	// ローテーション設定
+	// https://github.com/natefinch/lumberjack#type-logger
+	MaxSize    int  `toml:"max_size"`
+	MaxBackups int  `toml:"max_backups"`
+	MaxAge     int  `toml:"max_age"`
+	Compress   bool `toml:"compress"`
 
 	// stdout, logfile 別々のログレベル設定
 	// stdout -> Error 以上, logfile -> Info 以上 といった使い方をする
@@ -96,8 +103,14 @@ func Load(conffile string) (*Config, error) {
 	c := &Config{
 		// set default values before decode file.
 		Log: LogConf{
-			Color:          true,
-			LogFile:        "/var/log/wsnet2/default.log",
+			Color:  true,
+			LogDir: "/var/log/wsnet2",
+
+			MaxSize:    500,
+			MaxBackups: 0,
+			MaxAge:     0,
+			Compress:   false,
+
 			StdoutLoglevel: 4,
 			FileLoglevel:   4,
 		},
