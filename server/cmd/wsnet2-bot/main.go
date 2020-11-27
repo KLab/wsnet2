@@ -455,16 +455,31 @@ func spawnWatcher(roomId, userId string) {
 	done := make(chan bool)
 	go eventloop(ws, userId, done)
 
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second)
 
-	// 存在するターゲットと存在しないターゲットに対してメッセージを送る
-	payload := []byte{byte(binary.MsgTypeTargets), 0, 0, 1}
-	payload = binary.MarshalTargetsAndData(payload,
-		[]string{"23456", "goblin"},
-		binary.MarshalStr8("message 1 from watcher"))
+	var payload []byte
+
+	// MsgTypeToMaster
+	payload = []byte{byte(binary.MsgTypeToMaster), 0, 0, 1}
+	payload = append(payload, binary.MarshalStr8("MsgTypeToMaster from watcher")...)
 	ws.WriteMessage(websocket.BinaryMessage, payload)
 	log.Printf("[bot:%v] sent message %q\n", userId, payload)
+	time.Sleep(time.Second)
 
+	// MsgTypeTargets: 存在するターゲットと存在しないターゲットに対してメッセージを送る
+	payload = []byte{byte(binary.MsgTypeTargets), 0, 0, 2}
+	payload = binary.MarshalTargetsAndData(payload,
+		[]string{"23456", "goblin"},
+		binary.MarshalStr8("MsgTypeTargets from watcher"))
+	ws.WriteMessage(websocket.BinaryMessage, payload)
+	log.Printf("[bot:%v] sent message %q\n", userId, payload)
+	time.Sleep(time.Second)
+
+	// MsgTypeBroadcast
+	payload = []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3}
+	payload = append(payload, binary.MarshalStr8("MsgTypeBroadcast from watcher")...)
+	ws.WriteMessage(websocket.BinaryMessage, payload)
+	log.Printf("[bot:%v] sent message %q\n", userId, payload)
 	time.Sleep(time.Second)
 }
 
