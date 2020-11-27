@@ -41,3 +41,7 @@ build-commit: generate
 .PHONY: hub
 hub:
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-hub cmd/wsnet2-hub/main.go
+
+.PHONY: bot
+bot:
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot cmd/wsnet2-bot/main.go
