@@ -20,16 +20,16 @@ type Config struct {
 }
 
 type LogConf struct {
-	// Console出力をカラー出力する
-	LogColor bool   `toml:"log_color"`
-	LogPath  string `toml:"log_path"`
+	// stdoutをローカル開発用のフォーマットにする
+	LogConsole bool `toml:"log_console"`
 
 	// ローテーション設定
 	// https://github.com/natefinch/lumberjack#type-logger
-	LogMaxSize    int  `toml:"log_max_size"`
-	LogMaxBackups int  `toml:"log_max_backups"`
-	LogMaxAge     int  `toml:"log_max_age"`
-	LogCompress   bool `toml:"log_compress"`
+	LogPath       string `toml:"log_path"` // Filename
+	LogMaxSize    int    `toml:"log_max_size"`
+	LogMaxBackups int    `toml:"log_max_backups"`
+	LogMaxAge     int    `toml:"log_max_age"`
+	LogCompress   bool   `toml:"log_compress"`
 
 	// stdout, logfile 別々のログレベル設定
 	// stdout -> Error 以上, logfile -> Info 以上 といった使い方をする
@@ -118,8 +118,7 @@ func Load(conffile string) (*Config, error) {
 			HeartBeatInterval: Duration(2 * time.Second),
 
 			LogConf: LogConf{
-				LogColor: true,
-				LogPath:  "/var/log/wsnet2/wsnet2-game.log",
+				LogPath: "/var/log/wsnet2/wsnet2-game.log",
 
 				LogMaxSize:    500,
 				LogMaxBackups: 0,
@@ -141,8 +140,7 @@ func Load(conffile string) (*Config, error) {
 			HeartBeatInterval: Duration(2 * time.Second),
 
 			LogConf: LogConf{
-				LogColor: true,
-				LogPath:  "/var/log/wsnet2/wsnet2-hub.log",
+				LogPath: "/var/log/wsnet2/wsnet2-hub.log",
 
 				LogMaxSize:    500,
 				LogMaxBackups: 0,
@@ -160,8 +158,7 @@ func Load(conffile string) (*Config, error) {
 			ApiTimeout:     Duration(5 * time.Second),
 
 			LogConf: LogConf{
-				LogColor: true,
-				LogPath:  "/var/log/wsnet2/wsnet2-lobby.log",
+				LogPath: "/var/log/wsnet2/wsnet2-lobby.log",
 
 				LogMaxSize:    500,
 				LogMaxBackups: 0,

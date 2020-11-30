@@ -44,7 +44,7 @@ func TestLoad(t *testing.T) {
 		HeartBeatInterval: Duration(time.Second * 10),
 
 		LogConf: LogConf{
-			LogColor:       false,
+			LogConsole:     true,
 			LogPath:        "/tmp/wsnet2-game.log",
 			LogMaxSize:     1,
 			LogMaxBackups:  2,
@@ -68,7 +68,7 @@ func TestLoad(t *testing.T) {
 		AuthDataExpire: Duration(time.Second * 10),
 		ApiTimeout:     Duration(time.Second * 5),
 		LogConf: LogConf{
-			LogColor:       true,
+			LogConsole:     false,
 			LogPath:        "/tmp/wsnet2-lobby.log",
 			LogMaxSize:     500,
 			LogMaxBackups:  0,

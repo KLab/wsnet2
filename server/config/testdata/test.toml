@@ -10,7 +10,7 @@ retry_count = 3
 heartbeat_interval = "10s"
 max_rooms = 123
 
-log_color = false
+log_console = true
 log_path = "/tmp/wsnet2-game.log"
 log_max_size = 1
 log_max_backups = 2
