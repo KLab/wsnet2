@@ -50,8 +50,8 @@ func TestLoad(t *testing.T) {
 			LogMaxBackups:  2,
 			LogMaxAge:      3,
 			LogCompress:    true,
-			StdoutLoglevel: 3,
-			FileLoglevel:   3,
+			LogStdoutLevel: 3,
+			LogFileLevel:   3,
 		},
 	}
 	if diff := cmp.Diff(c.Game, game); diff != "" {
@@ -74,8 +74,8 @@ func TestLoad(t *testing.T) {
 			LogMaxBackups:  0,
 			LogMaxAge:      0,
 			LogCompress:    false,
-			StdoutLoglevel: 4,
-			FileLoglevel:   4,
+			LogStdoutLevel: 4,
+			LogFileLevel:   4,
 		},
 	}
 	if diff := cmp.Diff(c.Lobby, lobby); diff != "" {
