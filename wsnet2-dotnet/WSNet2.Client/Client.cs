@@ -103,6 +103,8 @@ namespace WSNet2.DotnetClient
                 SearchGroup,
                 query,
                 10,
+                true,
+                false,
                 (rs) => {
                     Console.WriteLine($"onSuccess: {rs.Length}");
                     roomsrc.TrySetResult(rs);

@@ -8,9 +8,11 @@ dbname = "wsnet2"
 hostname = "wsnetgame.localhost"
 retry_count = 3
 heartbeat_interval = "10s"
+max_rooms = 123
 
 [Lobby]
 hostname = "wsnetlobby.localhost"
+unixpath = "/tmp/sock"
 net = "tcp"
 port = 8080
 valid_heartbeat = "30s"

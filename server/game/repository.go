@@ -2,11 +2,8 @@ package game
 
 import (
 	"context"
-	crand "crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math"
-	"math/big"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -15,6 +12,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
+	"google.golang.org/grpc/codes"
 
 	"wsnet2/config"
 	"wsnet2/log"
@@ -32,9 +30,6 @@ var (
 )
 
 func init() {
-	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	rand.Seed(seed.Int64())
-
 	initQueries()
 }
 
@@ -78,6 +73,9 @@ type Repository struct {
 }
 
 func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*Repository, error) {
+	if _, err := db.Exec("DELETE FROM `room` WHERE host_id=?", hostId); err != nil {
+		return nil, xerrors.Errorf("delete room error: %w", err)
+	}
 	query := "SELECT id, `key` FROM app"
 	var apps []pb.App
 	err := db.Select(&apps, query)
@@ -100,19 +98,27 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 	return repos, nil
 }
 
-func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
-	tx, err := repo.db.Beginx()
-	if err != nil {
-		return nil, xerrors.Errorf("begin error: %w", err)
+	repo.mu.RLock()
+	rooms := len(repo.rooms)
+	repo.mu.RUnlock()
+	if rooms >= repo.conf.MaxRooms {
+		return nil, WithCode(
+			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
 	}
 
-	info, err := repo.newRoomInfo(ctx, tx, op)
+	tx, err := repo.db.Beginx()
 	if err != nil {
+		return nil, WithCode(xerrors.Errorf("begin error: %w", err), codes.Internal)
+	}
+
+	info, ewc := repo.newRoomInfo(ctx, tx, op)
+	if ewc != nil {
 		tx.Rollback()
-		return nil, err
+		return nil, ewc
 	}
 
 	loglevel := log.CurrentLevel()
@@ -120,36 +126,34 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		loglevel = log.Level(op.LogLevel)
 	}
 
-	room, ch, err := NewRoom(repo, info, master, op.ClientDeadline, repo.conf, loglevel)
-	if err != nil {
+	room, joined, ewc := NewRoom(ctx, repo, info, master, op.ClientDeadline, repo.conf, loglevel)
+	if ewc != nil {
 		tx.Rollback()
-		return nil, xerrors.Errorf("NewRoom error: %w", err)
-	}
-
-	var joined JoinedInfo
-	select {
-	case j, ok := <-ch:
-		if !ok {
-			tx.Rollback()
-			return nil, xerrors.Errorf("CreateRoom joind chan closed: room=%v", room.ID())
-		}
-		joined = j
-	case <-ctx.Done():
-		tx.Rollback()
-		return nil, xerrors.Errorf("CreateRoom timeout or context done: room=%v", room.ID())
+		return nil, WithCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
 	}
 
 	cli := joined.Client
 
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
+
+	if len(repo.rooms) >= repo.conf.MaxRooms {
+		tx.Rollback()
+		return nil, WithCode(
+			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, WithCode(
+			xerrors.Errorf("failed to commit new room: %w", err), codes.Internal)
+	}
+
 	repo.rooms[room.ID()] = room
 	if _, ok := repo.clients[cli.ID()]; !ok {
 		repo.clients[cli.ID()] = make(map[RoomID]*Client)
 	}
 	repo.clients[cli.ID()][room.ID()] = cli
 
-	tx.Commit()
 	return &pb.JoinedRoomRes{
 		RoomInfo: joined.Room,
 		Players:  joined.Players,
@@ -159,40 +163,49 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}, nil
 }
 
-func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
 	return repo.joinRoom(ctx, id, client, true)
 }
 
-func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
 	return repo.joinRoom(ctx, id, client, false)
 }
 
-func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, isPlayer bool) (*pb.JoinedRoomRes, error) {
+func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, isPlayer bool) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, xerrors.Errorf("JoinRoom: %w", err)
+		return nil, WithCode(xerrors.Errorf("joinRoom: %w", err), codes.NotFound)
 	}
-	ch := make(chan JoinedInfo)
+
+	jch := make(chan *JoinedInfo, 1)
+	errch := make(chan ErrorWithCode, 1)
 	var msg Msg
 	if isPlayer {
-		msg = &MsgJoin{client, ch}
+		msg = &MsgJoin{client, jch, errch}
 	} else {
-		msg = &MsgWatch{client, ch}
+		msg = &MsgWatch{client, jch, errch}
 	}
-	room.msgCh <- msg
 
-	var joined JoinedInfo
 	select {
-	case j, ok := <-ch:
-		if !ok {
-			return nil, xerrors.Errorf("JoinRoom joind chan closed: room=%v", room.ID())
-		}
-		joined = j
 	case <-ctx.Done():
-		return nil, xerrors.Errorf("JoinRoom timeout or context done: room=%v", room.ID())
+		return nil, WithCode(
+			xerrors.Errorf("joinRoom write msg timeout or context done: room=%v client=%v", room.Id, client.Id),
+			codes.DeadlineExceeded)
+	case room.msgCh <- msg:
+	}
+
+	var joined *JoinedInfo
+	select {
+	case <-ctx.Done():
+		return nil, WithCode(
+			xerrors.Errorf("joinRoom timeout or context done: room=%v", room.ID()),
+			codes.DeadlineExceeded)
+	case ewc := <-errch:
+		return nil, WithCode(xerrors.Errorf("joinRoom: %w", ewc), ewc.Code())
+	case joined = <-jch:
 	}
 
 	cli := joined.Client
@@ -213,13 +226,14 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	}, nil
 }
 
-func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, error) {
+func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.RoomOption) (*pb.RoomInfo, ErrorWithCode) {
 	ri := &pb.RoomInfo{
 		AppId:        repo.app.Id,
 		HostId:       repo.hostId,
 		Visible:      op.Visible,
 		Joinable:     op.Joinable,
 		Watchable:    op.Watchable,
+		Number:       &pb.RoomNumber{},
 		SearchGroup:  op.SearchGroup,
 		MaxPlayers:   op.MaxPlayers,
 		Players:      1,
@@ -234,13 +248,13 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	for n := 0; n < retryCount; n++ {
 		select {
 		case <-ctx.Done():
-			return nil, xerrors.Errorf("ctx done: %w", ctx.Err())
+			return nil, WithCode(xerrors.Errorf("ctx done: %w", ctx.Err()), codes.DeadlineExceeded)
 		default:
 		}
 
 		ri.Id = RandomHex(lenId)
 		if op.WithNumber {
-			ri.Number = rand.Int31n(maxNumber) + 1 // [1..maxNumber]
+			ri.Number.Number = rand.Int31n(maxNumber) + 1 // [1..maxNumber]
 		}
 
 		_, err = tx.NamedExecContext(ctx, roomInsertQuery, ri)
@@ -249,7 +263,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		}
 	}
 
-	return nil, xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err)
+	return nil, WithCode(xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err), codes.Internal)
 }
 
 func (repo *Repository) updateRoomInfo(room *Room) {
@@ -286,6 +300,11 @@ func (repo *Repository) RemoveClient(cli *Client) {
 	cid := cli.ID()
 	rid := cli.room.ID()
 	if cmap, ok := repo.clients[cid]; ok {
+		// IDが同じでも別クライアントの場合には削除しない
+		if c, ok := cmap[rid]; ok && c != cli {
+			log.Debugf("cannot remove client from repository (already replaced new client): room=%v, client=%v", rid, cid)
+			return
+		}
 		delete(cmap, rid)
 		if len(cmap) == 0 {
 			delete(repo.clients, cid)

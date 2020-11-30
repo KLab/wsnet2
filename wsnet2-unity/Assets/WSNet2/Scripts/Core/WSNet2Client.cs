@@ -217,17 +217,34 @@ namespace WSNet2.Core
             Action<PublicRoom[]> onSuccess,
             Action<Exception> onFailed)
         {
+            Search(group, query, limit, false, false, onSuccess, onFailed);
+        }
+
+        /// <summary>
+        ///   部屋検索
+        /// </summary>
+        public void Search(
+            uint group,
+            Query query,
+            int limit,
+            bool checkJoinable,
+            bool checkWatchable,
+            Action<PublicRoom[]> onSuccess,
+            Action<Exception> onFailed)
+        {
             var param = new SearchParam(){
                 group = group,
                 queries = query?.condsList,
                 limit = limit,
+                checkJoinable = checkJoinable,
+                checkWatchable = checkWatchable,
             };
             var content = MessagePackSerializer.Serialize(param);
 
             Task.Run(() => search(content, onSuccess, onFailed));
         }
 
-        private async Task<byte[]> post(string path, byte[] content)
+        private async Task<LobbyResponse> post(string path, byte[] content)
         {
             var cli = new HttpClient();
             cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
@@ -242,7 +259,7 @@ namespace WSNet2.Core
                 throw new Exception($"wsnet2 {path} failed: code={res.StatusCode} {msg}");
             }
 
-            return body;
+            return MessagePackSerializer.Deserialize<LobbyResponse>(body);
         }
 
         private async Task connectToRoom(
@@ -253,9 +270,13 @@ namespace WSNet2.Core
         {
             try
             {
-                var body = await post(path, content);
-                var joinedResponse = MessagePackSerializer.Deserialize<JoinedResponse>(body);
-                var room = new Room(joinedResponse, userId);
+                var res = await post(path, content);
+                if (res.room == null)
+                {
+                    throw new RoomNotFoundException(res.msg);
+                }
+
+                var room = new Room(res.room, userId);
 
                 callbackPool.Add(() =>
                 {
@@ -280,12 +301,12 @@ namespace WSNet2.Core
         {
             try
             {
-                var body = await post("/rooms/search", content);
-                var rinfos= MessagePackSerializer.Deserialize<RoomInfo[]>(body);
-                var rooms = new PublicRoom[rinfos.Length];
-                for (var i=0; i<rinfos.Length; i++)
+                var res = await post("/rooms/search", content);
+                var count = res.rooms?.Length ?? 0;
+                var rooms = new PublicRoom[count];
+                for (var i=0; i<count; i++)
                 {
-                    rooms[i] = new PublicRoom(rinfos[i]);
+                    rooms[i] = new PublicRoom(res.rooms[i]);
                 }
 
                 callbackPool.Add(() => onSuccess(rooms));

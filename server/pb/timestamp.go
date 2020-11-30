@@ -40,12 +40,3 @@ func (ts *Timestamp) DecodeMsgpack(dec *msgpack.Decoder) error {
 
 var _ msgpack.CustomEncoder = (*Timestamp)(nil)
 var _ msgpack.CustomDecoder = (*Timestamp)(nil)
-
-func (r *RoomInfo) SetCreated(t time.Time) error {
-	var err error
-	if r.Created == nil {
-		r.Created = &Timestamp{}
-	}
-	r.Created.Timestamp, err = ptypes.TimestampProto(t)
-	return err
-}
