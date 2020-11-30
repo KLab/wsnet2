@@ -10,6 +10,15 @@ retry_count = 3
 heartbeat_interval = "10s"
 max_rooms = 123
 
+log_color = false
+log_path = "/tmp/wsnet2-game.log"
+log_max_size = 1
+log_max_backups = 2
+log_max_age = 3
+log_compress = true
+log_stdout_level = 3
+log_file_level = 3
+
 [Lobby]
 hostname = "wsnetlobby.localhost"
 unixpath = "/tmp/sock"
@@ -17,3 +26,4 @@ net = "tcp"
 port = 8080
 valid_heartbeat = "30s"
 authdata_expire = "10s"
+log_path = "/tmp/wsnet2-lobby.log"

@@ -42,6 +42,17 @@ func TestLoad(t *testing.T) {
 		DefaultLoglevel:   2,
 
 		HeartBeatInterval: Duration(time.Second * 10),
+
+		LogConf: LogConf{
+			LogColor:       false,
+			LogPath:        "/tmp/wsnet2-game.log",
+			LogMaxSize:     1,
+			LogMaxBackups:  2,
+			LogMaxAge:      3,
+			LogCompress:    true,
+			StdoutLoglevel: 3,
+			FileLoglevel:   3,
+		},
 	}
 	if diff := cmp.Diff(c.Game, game); diff != "" {
 		t.Fatalf("c.Game differs: (-got +want)\n%s", diff)
@@ -56,6 +67,16 @@ func TestLoad(t *testing.T) {
 		ValidHeartBeat: Duration(time.Second * 30),
 		AuthDataExpire: Duration(time.Second * 10),
 		ApiTimeout:     Duration(time.Second * 5),
+		LogConf: LogConf{
+			LogColor:       true,
+			LogPath:        "/tmp/wsnet2-lobby.log",
+			LogMaxSize:     500,
+			LogMaxBackups:  0,
+			LogMaxAge:      0,
+			LogCompress:    false,
+			StdoutLoglevel: 4,
+			FileLoglevel:   4,
+		},
 	}
 	if diff := cmp.Diff(c.Lobby, lobby); diff != "" {
 		t.Fatalf("c.Lobby differs: (-got +want)\n%s", diff)

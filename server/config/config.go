@@ -13,7 +13,6 @@ import (
 )
 
 type Config struct {
-	Log   LogConf
 	Db    DbConf `toml:"Database"`
 	Game  GameConf
 	Hub   GameConf // とりあえずGameConfを使い回す
@@ -22,20 +21,20 @@ type Config struct {
 
 type LogConf struct {
 	// Console出力をカラー出力する
-	Color  bool   `toml:"color"`
-	LogDir string `toml:"log_dir"`
+	LogColor bool   `toml:"log_color"`
+	LogPath  string `toml:"log_path"`
 
 	// ローテーション設定
 	// https://github.com/natefinch/lumberjack#type-logger
-	MaxSize    int  `toml:"max_size"`
-	MaxBackups int  `toml:"max_backups"`
-	MaxAge     int  `toml:"max_age"`
-	Compress   bool `toml:"compress"`
+	LogMaxSize    int  `toml:"log_max_size"`
+	LogMaxBackups int  `toml:"log_max_backups"`
+	LogMaxAge     int  `toml:"log_max_age"`
+	LogCompress   bool `toml:"log_compress"`
 
 	// stdout, logfile 別々のログレベル設定
 	// stdout -> Error 以上, logfile -> Info 以上 といった使い方をする
-	StdoutLoglevel uint32 `toml:"stdout_loglevel"`
-	FileLoglevel   uint32 `toml:"file_loglevel"`
+	LogStdoutLevel uint32 `toml:"log_stdout_level"`
+	LogFileLevel   uint32 `toml:"log_file_level"`
 }
 
 type DbConf struct {
@@ -72,6 +71,8 @@ type GameConf struct {
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
+
+	LogConf
 }
 
 type LobbyConf struct {
@@ -89,6 +90,8 @@ type LobbyConf struct {
 	AuthDataExpire Duration `toml:"authdata_expire"`
 
 	ApiTimeout Duration `api_timeout`
+
+	LogConf
 }
 
 type Duration time.Duration
@@ -102,18 +105,6 @@ func (d *Duration) UnmarshalText(text []byte) error {
 func Load(conffile string) (*Config, error) {
 	c := &Config{
 		// set default values before decode file.
-		Log: LogConf{
-			Color:  true,
-			LogDir: "/var/log/wsnet2",
-
-			MaxSize:    500,
-			MaxBackups: 0,
-			MaxAge:     0,
-			Compress:   false,
-
-			StdoutLoglevel: 4,
-			FileLoglevel:   4,
-		},
 		Game: GameConf{
 			RetryCount: 5,
 			MaxRoomNum: 999999,
@@ -125,6 +116,19 @@ func Load(conffile string) (*Config, error) {
 			DefaultLoglevel:   2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
+
+			LogConf: LogConf{
+				LogColor: true,
+				LogPath:  "/var/log/wsnet2/wsnet2-game.log",
+
+				LogMaxSize:    500,
+				LogMaxBackups: 0,
+				LogMaxAge:     0,
+				LogCompress:   false,
+
+				LogStdoutLevel: 4,
+				LogFileLevel:   4,
+			},
 		},
 		Hub: GameConf{
 			RetryCount: 5,
@@ -135,12 +139,38 @@ func Load(conffile string) (*Config, error) {
 			DefaultLoglevel:   2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
+
+			LogConf: LogConf{
+				LogColor: true,
+				LogPath:  "/var/log/wsnet2/wsnet2-hub.log",
+
+				LogMaxSize:    500,
+				LogMaxBackups: 0,
+				LogMaxAge:     0,
+				LogCompress:   false,
+
+				LogStdoutLevel: 4,
+				LogFileLevel:   4,
+			},
 		},
 		Lobby: LobbyConf{
 			ValidHeartBeat: Duration(5 * time.Second),
 			Loglevel:       2,
 			AuthDataExpire: Duration(time.Minute),
 			ApiTimeout:     Duration(5 * time.Second),
+
+			LogConf: LogConf{
+				LogColor: true,
+				LogPath:  "/var/log/wsnet2/wsnet2-lobby.log",
+
+				LogMaxSize:    500,
+				LogMaxBackups: 0,
+				LogMaxAge:     0,
+				LogCompress:   false,
+
+				LogStdoutLevel: 4,
+				LogFileLevel:   4,
+			},
 		},
 	}
 

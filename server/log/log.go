@@ -3,7 +3,6 @@ package log
 import (
 	"fmt"
 	"os"
-	"path"
 	"time"
 
 	"go.uber.org/zap"
@@ -116,31 +115,31 @@ func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("15:04:05.000"))
 }
 
-func InitLogger(logconf *config.LogConf, filename string) func() {
+func InitLogger(logconf *config.LogConf) func() {
 	// Consoleに出力するLogger
 	consoleEnc := zap.NewDevelopmentEncoderConfig()
-	if logconf.Color {
+	if logconf.LogColor {
 		consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 	consoleEnc.EncodeTime = consoleTimeEncoder
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, toZapLevel(Level(logconf.StdoutLoglevel)))
+	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, toZapLevel(Level(logconf.LogStdoutLevel)))
 
 	// Fileに出力するLogger
 	closer := func() {}
-	if logconf.LogDir != "" {
+	if logconf.LogPath != "" {
 		ljackLogger := &lumberjack.Logger{
-			Filename:   path.Join(logconf.LogDir, filename),
-			MaxSize:    logconf.MaxSize,
-			MaxBackups: logconf.MaxBackups,
-			MaxAge:     logconf.MaxAge,
-			Compress:   logconf.Compress,
+			Filename:   logconf.LogPath,
+			MaxSize:    logconf.LogMaxSize,
+			MaxBackups: logconf.LogMaxBackups,
+			MaxAge:     logconf.LogMaxAge,
+			Compress:   logconf.LogCompress,
 		}
 		sink := zapcore.AddSync(ljackLogger)
 		closer = func() {
 			ljackLogger.Close()
 		}
 		fileEnc := zap.NewProductionEncoderConfig()
-		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(fileEnc), sink, toZapLevel(Level(logconf.FileLoglevel)))
+		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(fileEnc), sink, toZapLevel(Level(logconf.LogFileLevel)))
 		core = zapcore.NewTee(core, core2)
 	}
 
