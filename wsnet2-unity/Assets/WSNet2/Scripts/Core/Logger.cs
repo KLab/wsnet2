@@ -24,33 +24,6 @@ namespace WSNet2.Core
             void Log(LogLevel logLevel, string message);
         }
 
-        /// <summary>
-        /// ILoggerを実装したデフォルトで使用されるLogger
-        /// </summary>
-        public class DefaultLogger : ILogger
-        {
-            public void Log(LogLevel logLevel, string message)
-            {
-#if UNITY_5_3_OR_NEWER
-                switch (logLevel)
-                {
-                    case LogLevel.Error:
-                        UnityEngine.Debug.LogError(message);
-                        break;
-                    case LogLevel.Warning:
-                        UnityEngine.Debug.LogWarning(message);
-                        break;
-                    case LogLevel.Info:
-                    case LogLevel.Debug:
-                        UnityEngine.Debug.Log(message);
-                        break;
-                }
-#else
-                Console.WriteLine($"{logLevel,-8} {message}");
-#endif
-            }
-        }
-
         private static ILogger logger = new DefaultLogger();
         private static LogLevel level = LogLevel.Info;
 
