@@ -117,7 +117,7 @@ func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 
 func InitLogger(logconf *config.LogConf) func() {
 	// Consoleに出力するLogger
-	consoleEnc := zap.NewDevelopmentEncoderConfig()
+	consoleEnc := zap.NewProductionEncoderConfig()
 	if logconf.LogColor {
 		consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
