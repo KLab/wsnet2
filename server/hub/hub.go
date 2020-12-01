@@ -27,11 +27,6 @@ type Player struct {
 	props binary.Dict
 }
 
-type event struct {
-	seq int32
-	ev  binary.Event
-}
-
 type Hub struct {
 	*pb.RoomInfo
 	id       RoomID
@@ -46,7 +41,7 @@ type Hub struct {
 	privateProps binary.Dict
 
 	msgCh          chan game.Msg
-	evCh           chan event // TODO: drainとかちゃんと考える
+	evCh           chan binary.Event // TODO: drainとかちゃんと考える
 	ready          chan struct{}
 	done           chan struct{}
 	normallyClosed bool
@@ -92,7 +87,7 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 		privateProps: make(binary.Dict),
 
 		msgCh: make(chan game.Msg, game.RoomMsgChSize),
-		evCh:  make(chan event, 1), // FIXME: 値をちゃんと考える
+		evCh:  make(chan binary.Event, 1), // FIXME: 値をちゃんと考える
 		ready: make(chan struct{}),
 		done:  make(chan struct{}),
 
@@ -343,12 +338,12 @@ func (h *Hub) Start() {
 			}
 			return
 		}
-		ev, seq, err := binary.UnmarshalEvent(b)
+		ev, _, err := binary.UnmarshalEvent(b)
 		if err != nil {
 			h.logger.Errorf("UnmarshalEvent error: %v\n", err)
 			return
 		}
-		h.evCh <- event{seq: int32(seq), ev: ev}
+		h.evCh <- ev
 	}
 }
 
@@ -368,7 +363,7 @@ Loop:
 				h.logger.Errorf("Hub msg error: %v", err)
 			}
 		case ev := <-h.evCh:
-			h.logger.Debugf("Hub event: seq=%v %T %v", ev.seq, ev.ev, ev.ev)
+			h.logger.Debugf("Hub event: %T %v", ev, ev)
 			if err := h.dispatchEvent(ev); err != nil {
 				h.logger.Errorf("Hub event error: %v", err)
 			}
@@ -502,9 +497,7 @@ func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	return h.gameConn.WriteMessage(websocket.BinaryMessage, packet)
 }
 
-func (h *Hub) dispatchEvent(e event) error {
-	ev := e.ev
-	seq := e.seq
+func (h *Hub) dispatchEvent(ev binary.Event) error {
 	switch ev.Type() {
 	case binary.EvTypePong:
 		return h.evPong(ev)
@@ -523,11 +516,11 @@ func (h *Hub) dispatchEvent(e event) error {
 	case binary.EvTypeSucceeded:
 		return h.evSucceeded(ev)
 	case binary.EvTypePermissionDenied:
-		return h.evPermissionDenied(ev, seq)
+		return h.evPermissionDenied(ev)
 	case binary.EvTypeTargetNotFound:
-		return h.evTargetNotFound(ev, seq)
+		return h.evTargetNotFound(ev)
 	default:
-		return xerrors.Errorf("unknown event type: seq=%v %T %v", seq, ev, ev)
+		return xerrors.Errorf("unknown event type: %T %v", ev, ev)
 	}
 }
 
@@ -695,12 +688,12 @@ func (h *Hub) evSucceeded(ev binary.Event) error {
 	return nil
 }
 
-func (h *Hub) evPermissionDenied(ev binary.Event, seq int32) error {
-	h.logger.Errorf("evPermissionDenied: seq=%d, payload=% x", seq, ev.Payload())
+func (h *Hub) evPermissionDenied(ev binary.Event) error {
+	h.logger.Errorf("evPermissionDenied: payload=% x", ev.Payload())
 	return nil
 }
 
-func (h *Hub) evTargetNotFound(ev binary.Event, seq int32) error {
-	h.logger.Errorf("evTargetNotFound: seq=%d, payload=% x", seq, ev.Payload())
+func (h *Hub) evTargetNotFound(ev binary.Event) error {
+	h.logger.Errorf("evTargetNotFound: payload=% x", ev.Payload())
 	return nil
 }
