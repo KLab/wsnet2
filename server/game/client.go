@@ -43,13 +43,13 @@ type Client struct {
 	done        chan struct{}
 	newDeadline chan time.Duration
 
-	evbuf     *EvBuf
-	msgSeqNum int
+	evbuf *EvBuf
 
-	mu       sync.RWMutex
-	peer     *Peer
-	waitPeer chan *Peer
-	newPeer  chan *Peer
+	mu        sync.RWMutex
+	msgSeqNum int
+	peer      *Peer
+	waitPeer  chan *Peer
+	newPeer   chan *Peer
 
 	authKey string
 
