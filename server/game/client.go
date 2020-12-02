@@ -177,7 +177,7 @@ loop:
 		case m, ok := <-peerMsgCh:
 			if !ok {
 				// peer側でchをcloseした.
-				c.room.Logger().Errorf("peerMsgCh closed:", c.Id, curPeer)
+				c.room.Logger().Errorf("peerMsgCh closed: client=%v, peer=%p", c.Id, curPeer)
 				// DetachPeerは呼ばれているはず
 				peerMsgCh = nil
 				curPeer = nil
