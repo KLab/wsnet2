@@ -468,7 +468,7 @@ func spawnWatcher(roomId, userId string) {
 
 	// MsgTypeTargets: 存在するターゲットと存在しないターゲットに対してメッセージを送る
 	payload = []byte{byte(binary.MsgTypeTargets), 0, 0, 2}
-	payload = binary.MarshalTargetsAndData(payload,
+	payload = MarshalTargetsAndData(payload,
 		[]string{"23456", "goblin"},
 		binary.MarshalStr8("MsgTypeTargets from watcher"))
 	ws.WriteMessage(websocket.BinaryMessage, payload)

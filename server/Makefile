@@ -27,21 +27,21 @@ build: generate
 	mkdir -p bin
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-lobby cmd/wsnet2-lobby/main.go
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-game cmd/wsnet2-game/main.go
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot cmd/wsnet2-bot/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot ./cmd/wsnet2-bot
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-hub cmd/wsnet2-hub/main.go
 
 build-commit: generate
 	mkdir -p bin
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-lobby-$(COMMIT) cmd/wsnet2-lobby/main.go
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-game-$(COMMIT) cmd/wsnet2-game/main.go
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot-$(COMMIT) cmd/wsnet2-bot/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot-$(COMMIT) ./cmd/wsnet2-bot
 	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-hub-$(COMMIT) cmd/wsnet2-hub/main.go
 
 # quick build
 .PHONY: hub
 hub:
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-hub cmd/wsnet2-hub/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-hub ./cmd/wsnet2-hub
 
 .PHONY: bot
 bot:
-	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot cmd/wsnet2-bot/main.go
+	go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)" -o bin/wsnet2-bot ./cmd/wsnet2-bot

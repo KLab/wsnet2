@@ -288,12 +288,6 @@ func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 	return targets, payload[l:], nil
 }
 
-func MarshalTargetsAndData(buf []byte, targets []string, payload []byte) []byte {
-	buf = append(buf, MarshalStrings(targets)...)
-	buf = append(buf, payload...)
-	return buf
-}
-
 // UnmarshalKickPayload parses payload of MsgTypeKick
 func UnmarshalKickPayload(payload []byte) (string, error) {
 	d, _, e := UnmarshalAs(payload, TypeStr8)
