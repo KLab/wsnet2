@@ -6,7 +6,7 @@ password = "wsnetpass"
 dbname = "wsnet2"
 
 [Game]
-log_console = true
+log_stdout_console = true
 grpc_port = 19000
 websocket_port = 8000
 pprof_port = 3000
@@ -16,7 +16,7 @@ default_loglevel = 5
 max_room_num = 999
 
 [Hub]
-log_console = true
+log_stdout_console = true
 grpc_port = 19001
 websocket_port = 8001
 pprof_port = 3001
@@ -26,7 +26,7 @@ default_loglevel = 5
 max_room_num = 999
 
 [Lobby]
-log_console = true
+log_stdout_console = true
 hostname = "localhost"
 net = "tcp"
 port = 8080

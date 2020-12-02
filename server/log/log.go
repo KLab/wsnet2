@@ -118,7 +118,7 @@ func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 func InitLogger(logconf *config.LogConf) func() {
 	// stdoutに出力するLogger
 	var stdoutEnc zapcore.Encoder
-	if logconf.LogConsole {
+	if logconf.LogStdoutConsole {
 		// ローカル開発用 コンソール出力
 		conf := zap.NewDevelopmentEncoderConfig()
 		conf.EncodeLevel = zapcore.CapitalColorLevelEncoder
@@ -145,7 +145,7 @@ func InitLogger(logconf *config.LogConf) func() {
 			ljackLogger.Close()
 		}
 		conf := zap.NewProductionEncoderConfig()
-		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(conf), sink, toZapLevel(Level(logconf.LogFileLevel)))
+		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(conf), sink, zap.DebugLevel)
 		core = zapcore.NewTee(core, core2)
 	}
 

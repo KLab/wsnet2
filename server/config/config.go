@@ -20,21 +20,18 @@ type Config struct {
 }
 
 type LogConf struct {
-	// stdoutをローカル開発用のフォーマットにする
-	LogConsole bool `toml:"log_console"`
+	// stdout をローカル開発用のフォーマットにする
+	LogStdoutConsole bool `toml:"log_stdout_console"`
+	// stdout のログレベル設定
+	LogStdoutLevel uint32 `toml:"log_stdout_level"`
 
 	// ローテーション設定
 	// https://github.com/natefinch/lumberjack#type-logger
-	LogPath       string `toml:"log_path"` // Filename
+	LogPath       string `toml:"log_path"`
 	LogMaxSize    int    `toml:"log_max_size"`
 	LogMaxBackups int    `toml:"log_max_backups"`
 	LogMaxAge     int    `toml:"log_max_age"`
 	LogCompress   bool   `toml:"log_compress"`
-
-	// stdout, logfile 別々のログレベル設定
-	// stdout -> Error 以上, logfile -> Info 以上 といった使い方をする
-	LogStdoutLevel uint32 `toml:"log_stdout_level"`
-	LogFileLevel   uint32 `toml:"log_file_level"`
 }
 
 type DbConf struct {
@@ -118,15 +115,12 @@ func Load(conffile string) (*Config, error) {
 			HeartBeatInterval: Duration(2 * time.Second),
 
 			LogConf: LogConf{
-				LogPath: "/var/log/wsnet2/wsnet2-game.log",
-
-				LogMaxSize:    500,
-				LogMaxBackups: 0,
-				LogMaxAge:     0,
-				LogCompress:   false,
-
 				LogStdoutLevel: 4,
-				LogFileLevel:   4,
+				LogPath:        "/var/log/wsnet2/wsnet2-game.log",
+				LogMaxSize:     500,
+				LogMaxBackups:  0,
+				LogMaxAge:      0,
+				LogCompress:    false,
 			},
 		},
 		Hub: GameConf{
@@ -140,15 +134,12 @@ func Load(conffile string) (*Config, error) {
 			HeartBeatInterval: Duration(2 * time.Second),
 
 			LogConf: LogConf{
-				LogPath: "/var/log/wsnet2/wsnet2-hub.log",
-
-				LogMaxSize:    500,
-				LogMaxBackups: 0,
-				LogMaxAge:     0,
-				LogCompress:   false,
-
 				LogStdoutLevel: 4,
-				LogFileLevel:   4,
+				LogPath:        "/var/log/wsnet2/wsnet2-hub.log",
+				LogMaxSize:     500,
+				LogMaxBackups:  0,
+				LogMaxAge:      0,
+				LogCompress:    false,
 			},
 		},
 		Lobby: LobbyConf{
@@ -158,15 +149,12 @@ func Load(conffile string) (*Config, error) {
 			ApiTimeout:     Duration(5 * time.Second),
 
 			LogConf: LogConf{
-				LogPath: "/var/log/wsnet2/wsnet2-lobby.log",
-
-				LogMaxSize:    500,
-				LogMaxBackups: 0,
-				LogMaxAge:     0,
-				LogCompress:   false,
-
 				LogStdoutLevel: 4,
-				LogFileLevel:   4,
+				LogPath:        "/var/log/wsnet2/wsnet2-lobby.log",
+				LogMaxSize:     500,
+				LogMaxBackups:  0,
+				LogMaxAge:      0,
+				LogCompress:    false,
 			},
 		},
 	}

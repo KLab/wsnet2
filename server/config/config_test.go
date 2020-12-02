@@ -44,14 +44,13 @@ func TestLoad(t *testing.T) {
 		HeartBeatInterval: Duration(time.Second * 10),
 
 		LogConf: LogConf{
-			LogConsole:     true,
-			LogPath:        "/tmp/wsnet2-game.log",
-			LogMaxSize:     1,
-			LogMaxBackups:  2,
-			LogMaxAge:      3,
-			LogCompress:    true,
-			LogStdoutLevel: 3,
-			LogFileLevel:   3,
+			LogStdoutConsole: true,
+			LogStdoutLevel:   3,
+			LogPath:          "/tmp/wsnet2-game.log",
+			LogMaxSize:       1,
+			LogMaxBackups:    2,
+			LogMaxAge:        3,
+			LogCompress:      true,
 		},
 	}
 	if diff := cmp.Diff(c.Game, game); diff != "" {
@@ -68,14 +67,13 @@ func TestLoad(t *testing.T) {
 		AuthDataExpire: Duration(time.Second * 10),
 		ApiTimeout:     Duration(time.Second * 5),
 		LogConf: LogConf{
-			LogConsole:     false,
-			LogPath:        "/tmp/wsnet2-lobby.log",
-			LogMaxSize:     500,
-			LogMaxBackups:  0,
-			LogMaxAge:      0,
-			LogCompress:    false,
-			LogStdoutLevel: 4,
-			LogFileLevel:   4,
+			LogStdoutConsole: false,
+			LogStdoutLevel:   4,
+			LogPath:          "/tmp/wsnet2-lobby.log",
+			LogMaxSize:       500,
+			LogMaxBackups:    0,
+			LogMaxAge:        0,
+			LogCompress:      false,
 		},
 	}
 	if diff := cmp.Diff(c.Lobby, lobby); diff != "" {
