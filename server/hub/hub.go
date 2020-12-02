@@ -491,9 +491,7 @@ func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	// client->hubとhub->gameでseq が異なるからmsgの使いまわしができない。
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
 	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
-	msg2 := binary.NewRegularMsg(msg.Type(), int(h.seq), msg.Payload())
-	packet := msg2.Marshal()
-	//h.logger.Debugf("sending proxied message: sender=%q, data=%q", senderID, packet)
+	packet := binary.BuildRegularMsgFrame(msg.Type(), int(h.seq), msg.Payload())
 	return h.gameConn.WriteMessage(websocket.BinaryMessage, packet)
 }
 
