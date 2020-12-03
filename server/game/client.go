@@ -249,7 +249,13 @@ func (c *Client) Removed(cause error) {
 	if cause != nil {
 		c.removeCause = fmt.Sprintf("removed from room: %v", cause)
 	}
-	c.peer.Close(c.removeCause)
+
+	c.mu.RLock()
+	p := c.peer
+	c.mu.RUnlock()
+	if p != nil {
+		p.Close(c.removeCause)
+	}
 }
 
 // RoomのMsgLoopから呼ばれる
