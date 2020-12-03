@@ -112,10 +112,14 @@ func (m *regularMsg) Type() MsgType    { return m.mtype }
 func (m *regularMsg) Payload() []byte  { return m.payload }
 func (m *regularMsg) SequenceNum() int { return m.seqNum }
 func (m *regularMsg) Marshal() []byte {
-	data := make([]byte, 1+3+len(m.payload))
-	data[0] = byte(m.mtype)
-	put24(data[1:4], m.seqNum)
-	copy(data[1:len(m.payload)], m.payload)
+	return BuildRegularMsgFrame(m.mtype, m.seqNum, m.payload)
+}
+
+func BuildRegularMsgFrame(t MsgType, seq int, payload []byte) []byte {
+	data := make([]byte, 1+3+len(payload))
+	data[0] = byte(t)
+	put24(data[1:4], seq)
+	copy(data[4:], payload)
 	return data
 }
 
