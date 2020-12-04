@@ -197,21 +197,21 @@ loop:
 			if regmsg, ok := m.(binary.RegularMsg); ok {
 				seq := regmsg.SequenceNum()
 
-				c.mu.RLock()
+				c.mu.Lock()
 				cSeq := c.msgSeqNum
-				c.mu.RUnlock()
+				valid := seq == cSeq+1
+				if valid {
+					c.msgSeqNum = seq
+				}
+				c.mu.Unlock()
 
-				if seq != cSeq+1 {
+				if !valid {
 					// 再接続時の再送に期待して切断
 					err := xerrors.Errorf("invalid sequence num: %d to %d", cSeq, seq)
 					c.room.Logger().Errorf("msg error: client=%v %s", err)
 					c.DetachAndClosePeer(curPeer, err)
 					continue
 				}
-
-				c.mu.Lock()
-				c.msgSeqNum = seq
-				c.mu.Unlock()
 			}
 			if !t.Stop() {
 				<-t.C
