@@ -19,8 +19,6 @@ var (
 )
 
 func main() {
-	defer log.InitLogger()()
-
 	if len(os.Args) < 2 {
 		panic(fmt.Errorf("no config.toml specified"))
 	}
@@ -29,6 +27,7 @@ func main() {
 		panic(fmt.Errorf("%+v\n", err))
 	}
 
+	defer log.InitLogger(&conf.Lobby.LogConf)()
 	log.SetLevel(log.Level(conf.Lobby.Loglevel))
 	log.Infof("WSNet2-Lobby")
 	log.Infof("WSNet2Version: %v", WSNet2Version)
