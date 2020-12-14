@@ -259,6 +259,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgWatch(m)
 	case *MsgPing:
 		return r.msgPing(m)
+	case *MsgNodeCount:
+		return r.msgNodeCount(m)
 	case *MsgLeave:
 		return r.msgLeave(m)
 	case *MsgRoomProp:
@@ -431,6 +433,21 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 func (r *Room) msgPing(msg *MsgPing) error {
 	ev := binary.NewEvPong(msg.Timestamp, r.RoomInfo.Watchers, r.lastMsg)
 	return msg.Sender.SendSystemEvent(ev)
+}
+
+func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+
+	c := msg.Sender
+	if c.nodeCount == msg.Count {
+		return nil
+	}
+	r.RoomInfo.Watchers = (r.RoomInfo.Watchers - c.nodeCount) + msg.Count
+	r.logger.Debugf("Update NodeCount: %v before=%v after=%v (total=%v)", c.ID(), c.nodeCount, msg.Count, r.RoomInfo.Watchers)
+	c.nodeCount = msg.Count
+	r.repo.updateRoomInfo(r)
+	return nil
 }
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
