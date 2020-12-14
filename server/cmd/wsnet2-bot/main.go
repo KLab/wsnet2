@@ -531,7 +531,7 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 
 		ev, seq, err := binary.UnmarshalEvent(b)
 		if err != nil {
-			log.Printf("[bot:%v] Failed to UnmarshalEvent: %v\npayload:%v\n", userId, err)
+			log.Printf("[bot:%v] Failed to UnmarshalEvent: err=%v, binary=%v", userId, err, b)
 			continue
 		}
 		switch ty := ev.Type(); ty {
@@ -554,7 +554,7 @@ func eventloop(ws *websocket.Conn, userId string, done chan bool) {
 		case binary.EvTypeLeft:
 			left, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 			if err != nil {
-				log.Printf("[bot:%v] Failed to UnmarshalEvLeftPayload: err=%v, payload=% x", userId, err, ev.Payload())
+				log.Printf("[bot:%v] Failed to UnmarshalEvLeftPayload: err=%v, payload=%x", userId, err, ev.Payload())
 				break
 			}
 			log.Printf("[bot:%v] %s: left=%q master=%q", userId, ty, left.ClientId, left.MasterId)
