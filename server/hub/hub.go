@@ -236,6 +236,13 @@ func (h *Hub) pinger() {
 				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
 				return
 			}
+			h.muClients.RLock()
+			msg = binary.NewMsgNodeCount(uint32(len(h.watchers)))
+			h.muClients.RUnlock()
+			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
+				return
+			}
 		case newDeadline := <-h.newDeadline:
 			h.logger.Debugf("pinger: update deadline: %v to %v\n", deadline, newDeadline)
 			t.Reset(calcPingInterval(newDeadline))
