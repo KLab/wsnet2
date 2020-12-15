@@ -98,7 +98,7 @@ func (m *nonregularMsg) Payload() []byte { return m.payload }
 func (m *nonregularMsg) Marshal() []byte {
 	data := make([]byte, 1+len(m.payload))
 	data[0] = byte(m.mtype)
-	copy(data[1:len(m.payload)], m.payload)
+	copy(data[1:], m.payload)
 	return data
 }
 
