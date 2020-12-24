@@ -17,4 +17,5 @@ require (
 	golang.org/x/tools v0.0.0-20191029190741-b9c20aec41a5
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/grpc v1.28.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

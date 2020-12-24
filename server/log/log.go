@@ -7,6 +7,9 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"gopkg.in/natefinch/lumberjack.v2"
+
+	"wsnet2/config"
 )
 
 var (
@@ -112,21 +115,39 @@ func consoleTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("15:04:05.000"))
 }
 
-func InitLogger() func() {
-	// Consoleに出力するLogger
-	consoleEnc := zap.NewDevelopmentEncoderConfig()
-	consoleEnc.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	consoleEnc.EncodeTime = consoleTimeEncoder
-	core := zapcore.NewCore(zapcore.NewConsoleEncoder(consoleEnc), os.Stdout, zap.DebugLevel)
+func InitLogger(logconf *config.LogConf) func() {
+	// stdoutに出力するLogger
+	var stdoutEnc zapcore.Encoder
+	if logconf.LogStdoutConsole {
+		// ローカル開発用 コンソール出力
+		conf := zap.NewDevelopmentEncoderConfig()
+		conf.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		conf.EncodeTime = consoleTimeEncoder
+		stdoutEnc = zapcore.NewConsoleEncoder(conf)
+	} else {
+		conf := zap.NewProductionEncoderConfig()
+		stdoutEnc = zapcore.NewJSONEncoder(conf)
+	}
+	core := zapcore.NewCore(stdoutEnc, os.Stdout, toZapLevel(Level(logconf.LogStdoutLevel)))
 
-	// TODO: 指定されたファイルに出力する。
-	// sink, closer, err := zap.Open("/tmp/zaplog.out")
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// fileEnc := zap.NewProductionEncoderConfig()
-	// core2 := zapcore.NewCore(zapcore.NewJSONEncoder(fileEnc), sink, zap.DebugLevel)
-	// core := zapcore.NewTee(core, core2)
+	// Fileに出力するLogger
+	closer := func() {}
+	if logconf.LogPath != "" {
+		ljackLogger := &lumberjack.Logger{
+			Filename:   logconf.LogPath,
+			MaxSize:    logconf.LogMaxSize,
+			MaxBackups: logconf.LogMaxBackups,
+			MaxAge:     logconf.LogMaxAge,
+			Compress:   logconf.LogCompress,
+		}
+		sink := zapcore.AddSync(ljackLogger)
+		closer = func() {
+			ljackLogger.Close()
+		}
+		conf := zap.NewProductionEncoderConfig()
+		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(conf), sink, zap.DebugLevel)
+		core = zapcore.NewTee(core, core2)
+	}
 
 	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true))
 	rootLogger = logger
@@ -140,6 +161,6 @@ func InitLogger() func() {
 
 	return func() {
 		logger.Sync()
-		// closer()
+		closer()
 	}
 }

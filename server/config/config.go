@@ -19,6 +19,21 @@ type Config struct {
 	Lobby LobbyConf
 }
 
+type LogConf struct {
+	// stdout をローカル開発用のフォーマットにする
+	LogStdoutConsole bool `toml:"log_stdout_console"`
+	// stdout のログレベル設定
+	LogStdoutLevel uint32 `toml:"log_stdout_level"`
+
+	// ローテーション設定
+	// https://github.com/natefinch/lumberjack#type-logger
+	LogPath       string `toml:"log_path"`
+	LogMaxSize    int    `toml:"log_max_size"`
+	LogMaxBackups int    `toml:"log_max_backups"`
+	LogMaxAge     int    `toml:"log_max_age"`
+	LogCompress   bool   `toml:"log_compress"`
+}
+
 type DbConf struct {
 	Host     string
 	Port     int
@@ -53,6 +68,8 @@ type GameConf struct {
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
+
+	LogConf
 }
 
 type LobbyConf struct {
@@ -70,6 +87,8 @@ type LobbyConf struct {
 	AuthDataExpire Duration `toml:"authdata_expire"`
 
 	ApiTimeout Duration `api_timeout`
+
+	LogConf
 }
 
 type Duration time.Duration
@@ -94,6 +113,15 @@ func Load(conffile string) (*Config, error) {
 			DefaultLoglevel:   2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
+
+			LogConf: LogConf{
+				LogStdoutLevel: 4,
+				LogPath:        "/var/log/wsnet2/wsnet2-game.log",
+				LogMaxSize:     500,
+				LogMaxBackups:  0,
+				LogMaxAge:      0,
+				LogCompress:    false,
+			},
 		},
 		Hub: GameConf{
 			RetryCount: 5,
@@ -104,12 +132,30 @@ func Load(conffile string) (*Config, error) {
 			DefaultLoglevel:   2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
+
+			LogConf: LogConf{
+				LogStdoutLevel: 4,
+				LogPath:        "/var/log/wsnet2/wsnet2-hub.log",
+				LogMaxSize:     500,
+				LogMaxBackups:  0,
+				LogMaxAge:      0,
+				LogCompress:    false,
+			},
 		},
 		Lobby: LobbyConf{
 			ValidHeartBeat: Duration(5 * time.Second),
 			Loglevel:       2,
 			AuthDataExpire: Duration(time.Minute),
 			ApiTimeout:     Duration(5 * time.Second),
+
+			LogConf: LogConf{
+				LogStdoutLevel: 4,
+				LogPath:        "/var/log/wsnet2/wsnet2-lobby.log",
+				LogMaxSize:     500,
+				LogMaxBackups:  0,
+				LogMaxAge:      0,
+				LogCompress:    false,
+			},
 		},
 	}
 

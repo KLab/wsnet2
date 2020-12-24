@@ -43,13 +43,13 @@ type Client struct {
 	done        chan struct{}
 	newDeadline chan time.Duration
 
-	evbuf     *EvBuf
-	msgSeqNum int
+	evbuf *EvBuf
 
-	mu       sync.RWMutex
-	peer     *Peer
-	waitPeer chan *Peer
-	newPeer  chan *Peer
+	mu        sync.RWMutex
+	msgSeqNum int
+	peer      *Peer
+	waitPeer  chan *Peer
+	newPeer   chan *Peer
 
 	authKey string
 
@@ -177,7 +177,7 @@ loop:
 		case m, ok := <-peerMsgCh:
 			if !ok {
 				// peer側でchをcloseした.
-				c.room.Logger().Errorf("peerMsgCh closed:", c.Id, curPeer)
+				c.room.Logger().Errorf("peerMsgCh closed: client=%v, peer=%p", c.Id, curPeer)
 				// DetachPeerは呼ばれているはず
 				peerMsgCh = nil
 				curPeer = nil
@@ -196,14 +196,22 @@ loop:
 			}
 			if regmsg, ok := m.(binary.RegularMsg); ok {
 				seq := regmsg.SequenceNum()
-				if seq != c.msgSeqNum+1 {
+
+				c.mu.Lock()
+				cSeq := c.msgSeqNum
+				valid := seq == cSeq+1
+				if valid {
+					c.msgSeqNum = seq
+				}
+				c.mu.Unlock()
+
+				if !valid {
 					// 再接続時の再送に期待して切断
-					err := xerrors.Errorf("invalid sequence num: %d to %d", c.msgSeqNum, seq)
+					err := xerrors.Errorf("invalid sequence num: %d to %d", cSeq, seq)
 					c.room.Logger().Errorf("msg error: client=%v %s", err)
 					c.DetachAndClosePeer(curPeer, err)
 					continue
 				}
-				c.msgSeqNum = seq
 			}
 			if !t.Stop() {
 				<-t.C
@@ -249,7 +257,13 @@ func (c *Client) Removed(cause error) {
 	if cause != nil {
 		c.removeCause = fmt.Sprintf("removed from room: %v", cause)
 	}
-	c.peer.Close(c.removeCause)
+
+	c.mu.RLock()
+	p := c.peer
+	c.mu.RUnlock()
+	if p != nil {
+		p.Close(c.removeCause)
+	}
 }
 
 // RoomのMsgLoopから呼ばれる
