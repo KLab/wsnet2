@@ -54,7 +54,8 @@ type Hub struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
-	lastNodeCount uint32
+	// game に通知した直近の nodeCount
+	lastNodeCount int
 
 	// hub -> game の seq.
 	seq int
@@ -260,10 +261,13 @@ func (h *Hub) nodeCountUpdater() {
 			h.muClients.RLock()
 			nodeCount := len(h.watchers)
 			h.muClients.RUnlock()
-			msg := binary.NewMsgNodeCount(uint32(nodeCount))
-			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
-				h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
-				return
+			if nodeCount != h.lastNodeCount {
+				msg := binary.NewMsgNodeCount(uint32(nodeCount))
+				if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
+					return
+				}
+				h.lastNodeCount = nodeCount
 			}
 		case <-h.Done():
 			return
