@@ -167,6 +167,7 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(h.watchers, cid)
 
+	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers -= c.NodeCount()
 
 	c.Removed(err)
@@ -470,6 +471,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		return err
 	}
 	h.watchers[client.ID()] = client
+	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers += client.NodeCount()
 
 	rinfo := h.RoomInfo.Clone()
