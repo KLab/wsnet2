@@ -54,6 +54,8 @@ type Hub struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
+	lastNodeCount uint32
+
 	// hub -> game の seq.
 	seq int
 
@@ -237,16 +239,32 @@ func (h *Hub) pinger() {
 				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
 				return
 			}
-			h.muClients.RLock()
-			msg = binary.NewMsgNodeCount(uint32(len(h.watchers)))
-			h.muClients.RUnlock()
-			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
-				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
-				return
-			}
 		case newDeadline := <-h.newDeadline:
 			h.logger.Debugf("pinger: update deadline: %v to %v\n", deadline, newDeadline)
 			t.Reset(calcPingInterval(newDeadline))
+		case <-h.Done():
+			return
+		}
+	}
+}
+
+const updateInterval = 1 // TODO: config化
+
+func (h *Hub) nodeCountUpdater() {
+	conn := h.gameConn
+	t := time.NewTicker(time.Duration(updateInterval) * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			h.muClients.RLock()
+			nodeCount := len(h.watchers)
+			h.muClients.RUnlock()
+			msg := binary.NewMsgNodeCount(uint32(nodeCount))
+			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
+				return
+			}
 		case <-h.Done():
 			return
 		}
@@ -331,6 +349,7 @@ func (h *Hub) Start() {
 	}
 
 	go h.pinger()
+	go h.nodeCountUpdater()
 
 	// TODO: どこで h.gameConn を Close するか考える
 	for {
