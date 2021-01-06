@@ -56,6 +56,5 @@ CREATE TABLE hub (
   `room_id` VARCHAR(32) NOT NULL,
   `watchers` INTEGER UNSIGNED NOT NULL,
   `created` DATETIME NOT NULL,
-  `updated` DATETIME NOT NULL,
   UNIQUE KEY `idx_room` (`room_id`, `host_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

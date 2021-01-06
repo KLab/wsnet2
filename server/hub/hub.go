@@ -269,9 +269,11 @@ func (h *Hub) nodeCountUpdater() {
 					return
 				}
 				h.lastNodeCount = nodeCount
+				_, err = h.repo.db.Exec("UPDATE `hub` SET `watchers`=? WHERE id=?", nodeCount, h.hubPK)
+				if err != nil {
+					h.logger.Errorf("failed to update hub.watchers: %v", err)
+				}
 			}
-			// updated カラムを更新するために、前回とwatchersが変わってなくても毎回更新する.
-			h.repo.db.Exec("UPDATE `hub` SET `watchers`=?, updated=? WHERE id=?", nodeCount, time.Now().UTC(), h.hubPK)
 		case <-h.Done():
 			return
 		}
