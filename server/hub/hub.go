@@ -270,6 +270,8 @@ func (h *Hub) nodeCountUpdater() {
 				}
 				h.lastNodeCount = nodeCount
 			}
+			// updated カラムを更新するために、前回とwatchersが変わってなくても毎回更新する.
+			h.repo.db.Exec("UPDATE `hub` SET `watchers`=?, updated=? WHERE id=?", nodeCount, time.Now().UTC(), h.hubPK)
 		case <-h.Done():
 			return
 		}
