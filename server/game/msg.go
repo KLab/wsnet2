@@ -18,6 +18,7 @@ var _ Msg = &MsgCreate{}
 var _ Msg = &MsgJoin{}
 var _ Msg = &MsgWatch{}
 var _ Msg = &MsgPing{}
+var _ Msg = &MsgNodeCount{}
 var _ Msg = &MsgLeave{}
 var _ Msg = &MsgRoomProp{}
 var _ Msg = &MsgClientProp{}
@@ -98,6 +99,29 @@ func msgPing(sender *Client, m binary.Msg) (Msg, error) {
 	return &MsgPing{
 		Sender:    sender,
 		Timestamp: ts,
+	}, nil
+}
+
+// MsgNodeCount : 観戦者数の更新
+type MsgNodeCount struct {
+	Sender *Client
+	Count  uint32
+}
+
+func (*MsgNodeCount) msg() {}
+
+func (m *MsgNodeCount) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
+func msgNodeCount(sender *Client, m binary.Msg) (Msg, error) {
+	count, err := binary.UnmarshalNodeCountPayload(m.Payload())
+	if err != nil {
+		return nil, err
+	}
+	return &MsgNodeCount{
+		Sender: sender,
+		Count:  count,
 	}, nil
 }
 
@@ -309,6 +333,8 @@ func ConstructMsg(cli *Client, m binary.Msg) (msg Msg, err error) {
 	switch m.Type() {
 	case binary.MsgTypePing:
 		return msgPing(cli, m)
+	case binary.MsgTypeNodeCount:
+		return msgNodeCount(cli, m)
 	case binary.MsgTypeLeave:
 		return msgLeave(cli, m.(binary.RegularMsg))
 	case binary.MsgTypeRoomProp:

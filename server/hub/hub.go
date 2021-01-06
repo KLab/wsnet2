@@ -54,6 +54,9 @@ type Hub struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
+	// game に通知した直近の nodeCount
+	lastNodeCount int
+
 	// hub -> game の seq.
 	seq int
 
@@ -167,6 +170,7 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(h.watchers, cid)
 
+	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers -= c.NodeCount()
 
 	c.Removed(err)
@@ -239,6 +243,32 @@ func (h *Hub) pinger() {
 		case newDeadline := <-h.newDeadline:
 			h.logger.Debugf("pinger: update deadline: %v to %v\n", deadline, newDeadline)
 			t.Reset(calcPingInterval(newDeadline))
+		case <-h.Done():
+			return
+		}
+	}
+}
+
+const updateInterval = 1 // TODO: config化
+
+func (h *Hub) nodeCountUpdater() {
+	conn := h.gameConn
+	t := time.NewTicker(time.Duration(updateInterval) * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			h.muClients.RLock()
+			nodeCount := len(h.watchers)
+			h.muClients.RUnlock()
+			if nodeCount != h.lastNodeCount {
+				msg := binary.NewMsgNodeCount(uint32(nodeCount))
+				if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
+					return
+				}
+				h.lastNodeCount = nodeCount
+			}
 		case <-h.Done():
 			return
 		}
@@ -323,6 +353,7 @@ func (h *Hub) Start() {
 	}
 
 	go h.pinger()
+	go h.nodeCountUpdater()
 
 	// TODO: どこで h.gameConn を Close するか考える
 	for {
@@ -463,6 +494,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		return err
 	}
 	h.watchers[client.ID()] = client
+	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers += client.NodeCount()
 
 	rinfo := h.RoomInfo.Clone()

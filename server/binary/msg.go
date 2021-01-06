@@ -39,6 +39,11 @@ const (
 	// payload:
 	// - 64bit-be: unix timestamp (milli seconds)
 	MsgTypePing MsgType = 1 + iota
+
+	// MsgTypeNodeCount : NodeCountの更新
+	// payload:
+	// - UInt: node count
+	MsgTypeNodeCount
 )
 const (
 	// regular msg
@@ -161,6 +166,24 @@ func UnmarshalPingPayload(payload []byte) (uint64, error) {
 	}
 
 	return get64(payload), nil
+}
+
+func NewMsgNodeCount(count uint32) Msg {
+	payload := MarshalUInt(int(count))
+	return &nonregularMsg{
+		mtype:   MsgTypeNodeCount,
+		payload: payload,
+	}
+}
+
+// UnmarshalNodeCountPayload parses payload of MsgTypeNodeCount
+func UnmarshalNodeCountPayload(payload []byte) (uint32, error) {
+	d, _, e := UnmarshalAs(payload, TypeUInt)
+	if e != nil {
+		return 0, xerrors.Errorf("Invalid MsgNodeCount payload (node count): %w", e)
+	}
+
+	return d.(uint32), nil
 }
 
 type MsgRoomPropPayload struct {
