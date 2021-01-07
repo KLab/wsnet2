@@ -24,89 +24,56 @@ namespace WSNet2.Core
             void Log(LogLevel logLevel, string message);
         }
 
-        private static ILogger logger = new DefaultLogger();
-        private static LogLevel level = LogLevel.Info;
-
-        private static string logPrefix = "[WSNet2]";
+        /// <summary>
+        /// ILoggerを実装したデフォルトで使用されるLogger
+        /// </summary>
+        public class DefaultConsoleLogger : WSNet2Logger.ILogger
+        {
+            public void Log(WSNet2Logger.LogLevel logLevel, string message)
+            {
+                Console.WriteLine($"{logLevel,-8} {message}");
+            }
+        }
 
         /// <summary>
         /// WSNet2 が使用する Logger を設定します
         /// </summary>
-        public static void SetLogger(ILogger logger)
-        {
-            WSNet2Logger.logger = logger;
-        }
-
-        /// <summary>
-        /// WSNet2 が出力するログレベルを指定します
-        /// </summary>
-        public static void SetLogLevel(LogLevel level)
-        {
-            WSNet2Logger.level = level;
-        }
-
-        /// <summary>
-        /// WSNet2 が出力するログのプレフィックスを指定します
-        /// </summary>
-        public static void SetPrefix(string prefix)
-        {
-            WSNet2Logger.logPrefix = prefix;
-        }
+        public static ILogger Logger { get; set; } = new DefaultConsoleLogger();
 
         /// <summary>
         /// Debugレベルのログを出力します
         /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        public static void Debug(string format, params object[] args)
+        /// <param name="message"></param>
+        public static void Debug(string message)
         {
-            if (logger == null || level < LogLevel.Debug)
-            {
-                return;
-            }
-            logger.Log(LogLevel.Debug, logPrefix + string.Format(format, args));
+            Logger?.Log(LogLevel.Debug, message);
         }
 
         /// <summary>
         /// Infoレベルのログを出力します
         /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        public static void Info(string format, params object[] args)
+        /// <param name="message"></param>
+        public static void Info(string message)
         {
-            if (logger == null || level < LogLevel.Info)
-            {
-                return;
-            }
-            logger.Log(LogLevel.Info, logPrefix + string.Format(format, args));
+            Logger?.Log(LogLevel.Info, message);
         }
 
         /// <summary>
         /// Warningレベルのログを出力します
         /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        public static void Warning(string format, params object[] args)
+        /// <param name="message"></param>
+        public static void Warning(string message)
         {
-            if (logger == null || level < LogLevel.Warning)
-            {
-                return;
-            }
-            logger.Log(LogLevel.Warning, logPrefix + string.Format(format, args));
+            Logger?.Log(LogLevel.Warning, message);
         }
 
         /// <summary>
         /// Errorレベルのログを出力します
         /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        public static void Error(string format, params object[] args)
+        /// <param name="message"></param>
+        public static void Error(string message)
         {
-            if (logger == null || level < LogLevel.Error)
-            {
-                return;
-            }
-            logger.Log(LogLevel.Error, logPrefix + string.Format(format, args));
+            Logger?.Log(LogLevel.Error, message);
         }
     }
 }

@@ -32,6 +32,10 @@ namespace WSNet2
             clients = new Dictionary<string, WSNet2Client>();
             newClients = new Dictionary<string, WSNet2Client>();
             DontDestroyOnLoad(this.gameObject);
+
+            if (WSNet2Logger.Logger is WSNet2Logger.DefaultConsoleLogger) {
+                WSNet2Logger.Logger = new DefaultUnityLogger();
+            }
         }
 
         public WSNet2Client GetClient(string baseUri, string appId, string userId, string authData)
