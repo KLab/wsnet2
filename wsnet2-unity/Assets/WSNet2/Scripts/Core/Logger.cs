@@ -43,37 +43,41 @@ namespace WSNet2.Core
         /// <summary>
         /// Debugレベルのログを出力します
         /// </summary>
-        /// <param name="message"></param>
-        public static void Debug(string message)
+        /// <param name="format"></param>
+        /// <param name="args"></param>
+        public static void Debug(string format, params object[] args)
         {
-            Logger?.Log(LogLevel.Debug, message);
+            Logger?.Log(LogLevel.Debug, string.Format(format, args));
         }
 
         /// <summary>
         /// Infoレベルのログを出力します
         /// </summary>
-        /// <param name="message"></param>
-        public static void Info(string message)
+        /// <param name="format"></param>
+        /// <param name="args"></param>
+        public static void Info(string format, params object[] args)
         {
-            Logger?.Log(LogLevel.Info, message);
+            Logger?.Log(LogLevel.Info, string.Format(format, args));
         }
 
         /// <summary>
         /// Warningレベルのログを出力します
         /// </summary>
-        /// <param name="message"></param>
-        public static void Warning(string message)
+        /// <param name="format"></param>
+        /// <param name="args"></param>
+        public static void Warning(string format, params object[] args)
         {
-            Logger?.Log(LogLevel.Warning, message);
+            Logger?.Log(LogLevel.Warning, string.Format(format, args));
         }
 
         /// <summary>
         /// Errorレベルのログを出力します
         /// </summary>
-        /// <param name="message"></param>
-        public static void Error(string message)
+        /// <param name="format"></param>
+        /// <param name="args"></param>
+        public static void Error(string format, params object[] args)
         {
-            Logger?.Log(LogLevel.Error, message);
+            Logger?.Log(LogLevel.Error, string.Format(format, args));
         }
     }
 }
