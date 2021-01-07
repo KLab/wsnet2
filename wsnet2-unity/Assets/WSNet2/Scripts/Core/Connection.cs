@@ -213,7 +213,7 @@ namespace WSNet2.Core
             ws.Options.SetRequestHeader("Wsnet2-User", clientId);
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
 
-            WSNet2Logger.Info($"Connecting to {uri}");
+            WSNet2Logger.Info($"Connecting to {0}", uri);
             await ws.ConnectAsync(uri, ct);
             return ws;
         }
