@@ -24,5 +24,10 @@ namespace WSNet2
                     break;
             }
         }
+
+        public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, TPayload payload, string message)
+        {
+            Log(logLevel, $"{message} payload = {payload}");
+        }
     }
 }
