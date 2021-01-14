@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	ClientEventBufSize = 64
+	ClientEventBufSize = 128
 
 	// 部屋が終了した後で再接続が来た時もバッファに残ったデータを送信できるので一定時間残す
 	ClientWaitAfterClose = time.Second * 30
