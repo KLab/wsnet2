@@ -8,13 +8,16 @@ namespace WSNet2.Core
     /// </summary>
     public class WSNet2Logger
     {
+        // Same of Microsoft.Extensions.Logging.LogLevel
         public enum LogLevel
         {
-            Quiet = 0,
-            Error,
-            Warning,
-            Info,
-            Debug,
+            Trace = 0,
+            Debug = 1,
+            Information = 2,
+            Warning = 3,
+            Error = 4,
+            Critical = 5,
+            None = 6
         }
 
         /// <summary>
@@ -76,7 +79,7 @@ namespace WSNet2.Core
         /// <param name="args"></param>
         public static void Info(string format, params object[] args)
         {
-            Logger?.Log(LogLevel.Info, string.Format(format, args));
+            Logger?.Log(LogLevel.Information, string.Format(format, args));
         }
 
         /// <summary>
@@ -87,7 +90,7 @@ namespace WSNet2.Core
         /// <param name="payload"></param>
         public static void InfoWithPayload<TPayload>(TPayload payload, string format, params object[] args)
         {
-            Logger?.Log(LogLevel.Info, payload, string.Format(format, args));
+            Logger?.Log(LogLevel.Information, payload, string.Format(format, args));
         }
 
         /// <summary>

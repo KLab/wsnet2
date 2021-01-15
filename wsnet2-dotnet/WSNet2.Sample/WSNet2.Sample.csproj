@@ -9,6 +9,8 @@
     <PackageReference Include="MessagePack" Version="2.1.115" />
     <Compile Include="../../wsnet2-unity/Assets/WSNet2/Scripts/Core/**/*.cs" />
     <Compile Include="../../wsnet2-unity/Assets/Sample/Logic/**/*.cs" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
+    <PackageReference Include="ZLogger" Version="1.3.0" />
   </ItemGroup>
 
 </Project>

@@ -18,7 +18,7 @@ namespace WSNet2
                 case WSNet2Logger.LogLevel.Warning:
                     UnityEngine.Debug.LogWarning(message);
                     break;
-                case WSNet2Logger.LogLevel.Info:
+                case WSNet2Logger.LogLevel.Information:
                 case WSNet2Logger.LogLevel.Debug:
                     UnityEngine.Debug.Log(message);
                     break;
