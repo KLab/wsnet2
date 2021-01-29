@@ -8,26 +8,32 @@ namespace WSNet2
     /// </summary>
     public class DefaultUnityLogger : WSNet2Logger.ILogger
     {
-        public void Log(WSNet2Logger.LogLevel logLevel, string message)
+        public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, Exception e, TPayload payload, string message)
         {
+            var msg = message;
+            if (payload != null)
+            {
+                msg = $"{message} Payload = {payload}";
+            }
+
             switch (logLevel)
             {
                 case WSNet2Logger.LogLevel.Error:
-                    UnityEngine.Debug.LogError(message);
+                    UnityEngine.Debug.LogError(msg);
                     break;
                 case WSNet2Logger.LogLevel.Warning:
-                    UnityEngine.Debug.LogWarning(message);
+                    UnityEngine.Debug.LogWarning(msg);
                     break;
                 case WSNet2Logger.LogLevel.Information:
                 case WSNet2Logger.LogLevel.Debug:
-                    UnityEngine.Debug.Log(message);
+                    UnityEngine.Debug.Log(msg);
                     break;
             }
-        }
 
-        public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, TPayload payload, string message)
-        {
-            Log(logLevel, $"{message} payload = {payload}");
+            if (e != null)
+            {
+                UnityEngine.Debug.LogException(e);
+            }
         }
     }
 }
