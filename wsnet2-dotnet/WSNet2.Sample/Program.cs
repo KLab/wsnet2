@@ -28,7 +28,9 @@ namespace WSNet2.Sample
                 logging.SetMinimumLevel(LogLevel.Debug);
 
                 // Add Console Logging.
-                logging.AddZLoggerConsole();
+                logging.AddZLoggerConsole((options) => {
+                    options.EnableStructuredLogging = true;
+                });
 
                 // Add File Logging.
                 logging.AddZLoggerFile("wsnet2-dotnet.log", (options) => {
