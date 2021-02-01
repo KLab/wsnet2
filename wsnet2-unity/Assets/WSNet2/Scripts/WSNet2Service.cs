@@ -36,7 +36,6 @@ namespace WSNet2
             if (WSNet2Logger.Logger is WSNet2Logger.DefaultConsoleLogger) {
                 WSNet2Logger.Logger = new DefaultUnityLogger();
                 WSNet2Logger.Info("DefaultUnityLogger Installed");
-                WSNet2Logger.InfoWithPayload(new {a = "a"}, "DefaultUnityLogger Installed");
             }
         }
 
