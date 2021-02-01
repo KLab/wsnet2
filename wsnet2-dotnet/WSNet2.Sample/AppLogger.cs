@@ -1,6 +1,7 @@
 using WSNet2.Core;
 using Microsoft.Extensions.Logging;
 using ZLogger;
+using System;
 
 namespace WSNet2.Sample
 {
@@ -13,14 +14,9 @@ namespace WSNet2.Sample
             this.logger = logger;
         }
 
-        public void Log(WSNet2Logger.LogLevel logLevel, string message)
+        public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, Exception e, TPayload payload, string message)
         {
-            logger.ZLog((LogLevel)logLevel, message);
-        }
-
-        public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, TPayload payload, string message)
-        {
-            logger.ZLogWithPayload((LogLevel)logLevel, payload, message);
+            logger.ZLogWithPayload((LogLevel)logLevel, e, payload, message);
         }
     }
 }

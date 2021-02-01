@@ -31,19 +31,15 @@ namespace WSNet2.Sample
                 logging.AddZLoggerConsole();
 
                 // Add File Logging.
-                logging.AddZLoggerFile("wsnet2-dotnet.log");
+                logging.AddZLoggerFile("wsnet2-dotnet.log", (options) => {
+                    options.EnableStructuredLogging = true;
+                });
 
                 // Add Rolling File Logging.
                 // logging.AddZLoggerRollingFile((dt, x) => $"logs/{dt.ToLocalTime():yyyy-MM-dd}_{x:000}.log", x => x.ToLocalTime().Date, 1024);
-
-                // Enable Structured Logging
-                logging.AddZLoggerConsole(options =>
-                {
-                    options.EnableStructuredLogging = true;
-                });
             }).Build();
             var loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
-            var logger = loggerFactory.CreateLogger("Global");
+            var logger = loggerFactory.CreateLogger("WSNet2.Sample");
             WSNet2Logger.Logger = new AppLogger(logger);
 
             WSNet2Helper.RegisterTypes();

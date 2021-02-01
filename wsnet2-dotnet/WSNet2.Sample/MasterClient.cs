@@ -64,11 +64,11 @@ namespace WSNet2.Sample
                     // FIXME: 例外の種類を増やすべき
                     if (e.ToString().Contains("Connect to room failed"))
                     {
-                        WSNet2Logger.Error($"({userId}) no room found");
+                        WSNet2Logger.ErrorWithPayload(userId, "no room found");
                     }
                     else
                     {
-                        WSNet2Logger.Error($"({userId}) Serve Error: {e}");
+                        WSNet2Logger.ErrorWithPayload(e, userId, "Serve Error");
                     }
                 }
                 await Task.Delay(1000);
