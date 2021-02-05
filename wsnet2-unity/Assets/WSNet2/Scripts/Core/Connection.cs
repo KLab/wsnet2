@@ -50,6 +50,7 @@ namespace WSNet2.Core
         volatile int pingInterval;
         volatile uint lastPingTime;
         CancellationTokenSource pingerDelayCanceller;
+        SemaphoreSlim sendSemaphore;
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
@@ -70,6 +71,7 @@ namespace WSNet2.Core
             this.authKey = joined.authKey;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
+            this.sendSemaphore = new SemaphoreSlim(1, 1);
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
@@ -335,7 +337,7 @@ namespace WSNet2.Core
                     while ((msg = msgPool.Take(seqNum)).HasValue)
                     {
                         ct.ThrowIfCancellationRequested();
-                        await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
+                        await Send(ws, msg.Value, ct);
                         seqNum++;
                     }
                 }
@@ -362,7 +364,7 @@ namespace WSNet2.Core
                     var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
                     var time = (uint)msg.SetTimestamp();
                     lastPingTime = time;
-                    await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
+                    await Send(ws, msg.Value, ct);
                     try
                     {
                         await interval;
@@ -381,6 +383,22 @@ namespace WSNet2.Core
             catch (OperationCanceledException)
             {
                 // ctのキャンセルはループを抜けて終了
+            }
+        }
+
+        /// <summary>
+        ///   websocketメッセージを送信
+        /// </summary>
+        private async Task Send(ClientWebSocket ws, ArraySegment<byte> msg, CancellationToken ct)
+        {
+            await sendSemaphore.WaitAsync(ct);
+            try
+            {
+                await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+            }
+            finally
+            {
+                sendSemaphore.Release();
             }
         }
 
