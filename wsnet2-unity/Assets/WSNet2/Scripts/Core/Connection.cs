@@ -25,6 +25,9 @@ namespace WSNet2.Core
         /// <summary>最大連続再接続試行回数</summary>
         const int MaxReconnection = 5;
 
+        /// <summary>接続タイムアウト</summary>
+        const int connectTimeoutMilliSec = 5000;
+
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
@@ -217,7 +220,9 @@ namespace WSNet2.Core
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
 
             WSNet2Logger.Info($"Connecting to {0}", uri);
-            await ws.ConnectAsync(uri, ct);
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(connectTimeoutMilliSec);
+            await ws.ConnectAsync(uri, cts.Token);
             return ws;
         }
 
