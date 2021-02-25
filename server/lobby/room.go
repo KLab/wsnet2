@@ -285,7 +285,35 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
-	hub, err := rs.hubCache.Rand()
+	rows, err := rs.db.Query("SELECT `host_id`, `watchers` FROM `hub` WHERE `room_id`=?", roomId)
+	if err != nil {
+		return nil, xerrors.Errorf("watch: failed to select hub: %w", err)
+	}
+	hostIDs := []uint32{}
+	for rows.Next() {
+		var h uint32
+		var w int
+		err = rows.Scan(&h, &w)
+		if err != nil {
+			rows.Close()
+			return nil, xerrors.Errorf("watch: failed to scan hub: %w", err)
+		}
+		if w < rs.conf.HubMaxWatchers {
+			hostIDs = append(hostIDs, h)
+		}
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return nil, xerrors.Errorf("watch: failed to select hub: %w", err)
+	}
+
+	var hub *common.HubServer
+	if len(hostIDs) > 0 {
+		n := rand.Intn(len(hostIDs))
+		hub, err = rs.hubCache.Get(hostIDs[n])
+	} else {
+		hub, err = rs.hubCache.Rand()
+	}
 	if err != nil {
 		return nil, xerrors.Errorf("watch: failed to get hub server: %w", err)
 	}

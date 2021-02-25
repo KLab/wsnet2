@@ -29,7 +29,8 @@ type Player struct {
 
 type Hub struct {
 	*pb.RoomInfo
-	id       RoomID
+	hubPK    int64 // dbのautoincrementで採番されるsurrogate key. DB更新にだけ使う。
+	roomId   RoomID
 	repo     *Repository
 	appId    AppID
 	clientId string
@@ -79,7 +80,7 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 	).Sugar()
 
 	hub := &Hub{
-		id:       RoomID(roomId),
+		roomId:   RoomID(roomId),
 		repo:     repo,
 		appId:    appId,
 		clientId: clientId,
@@ -107,7 +108,7 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 }
 
 func (h *Hub) ID() RoomID {
-	return h.id
+	return h.roomId
 }
 
 func (h *Hub) Repo() game.IRepo {
@@ -207,7 +208,7 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 	client := pb.NewGameClient(conn)
 	req := &pb.JoinRoomReq{
 		AppId:  h.appId,
-		RoomId: string(h.id),
+		RoomId: string(h.roomId),
 		ClientInfo: &pb.ClientInfo{
 			Id: h.clientId,
 		},
@@ -268,10 +269,34 @@ func (h *Hub) nodeCountUpdater() {
 					return
 				}
 				h.lastNodeCount = nodeCount
+				_, err := h.repo.db.Exec("UPDATE `hub` SET `watchers`=? WHERE id=?", nodeCount, h.hubPK)
+				if err != nil {
+					h.logger.Errorf("failed to update hub.watchers: %v", err)
+				}
 			}
 		case <-h.Done():
 			return
 		}
+	}
+}
+
+// DBのhubテーブルにレコードを追加する
+func (h *Hub) registerDB() error {
+	res, err := h.repo.db.Exec("INSERT INTO hub (`host_id`, `room_id`, `watchers`, `created`) VALUES (?,?,?,?)",
+		h.repo.hostId, string(h.roomId), 0, time.Now().UTC())
+	if err != nil {
+		h.logger.Errorf(`Failed to "insert into hub": %v`, err)
+		return err
+	}
+	h.hubPK, _ = res.LastInsertId()
+	return nil
+}
+
+// エラーの処理のしようがないからerrorは返さない
+func (h *Hub) unregisterDB() {
+	_, err := h.repo.db.Exec("DELETE FROM hub WHERE id=?", h.hubPK)
+	if err != nil {
+		h.logger.Errorf(`Failed to "delete from hub where id=%v": %v`, h.hubPK, err)
 	}
 }
 
@@ -309,7 +334,7 @@ func (h *Hub) copyInitialValues(res *pb.JoinedRoomRes) error {
 
 func (h *Hub) getGameServer() (*common.GameServer, error) {
 	var room pb.RoomInfo
-	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.id)
+	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.roomId)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to get room: %w", err)
 	}
@@ -339,6 +364,12 @@ func (h *Hub) Start() {
 		h.logger.Errorf("Failed to copy initial values: %v\n", err)
 		return
 	}
+
+	err = h.registerDB()
+	if err != nil {
+		return
+	}
+	defer h.unregisterDB()
 
 	go h.ProcessLoop()
 

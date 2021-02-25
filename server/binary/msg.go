@@ -182,8 +182,7 @@ func UnmarshalNodeCountPayload(payload []byte) (uint32, error) {
 	if e != nil {
 		return 0, xerrors.Errorf("Invalid MsgNodeCount payload (node count): %w", e)
 	}
-
-	return d.(uint32), nil
+	return uint32(d.(int)), nil
 }
 
 type MsgRoomPropPayload struct {

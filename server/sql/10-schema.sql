@@ -51,10 +51,10 @@ CREATE TABLE room (
 
 DROP TABLE IF EXISTS `hub`;
 CREATE TABLE hub (
-  `id`     VARCHAR(32) PRIMARY KEY,
+  `id`      BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
   `host_id` INTEGER UNSIGNED NOT NULL,
   `room_id` VARCHAR(32) NOT NULL,
   `watchers` INTEGER UNSIGNED NOT NULL,
-  `created` DATETIME,
-  KEY `idx_room` (`room_id`)
+  `created` DATETIME NOT NULL,
+  UNIQUE KEY `idx_room` (`room_id`, `host_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

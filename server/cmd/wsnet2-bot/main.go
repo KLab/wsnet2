@@ -314,7 +314,11 @@ func main() {
 	go spawnPlayerByNumber(room.RoomInfo.Number.Number, "45678", nil)
 	go spawnPlayerByNumber(room.RoomInfo.Number.Number, "56789", queries)
 	go spawnPlayerAtRandom("67890", 1, queries)
-	go spawnWatcher(room.RoomInfo.Id, "w1")
+
+	for i := 0; i < 5; i++ {
+		go spawnWatcher(room.RoomInfo.Id, fmt.Sprintf("watcher-%d", i))
+		time.Sleep(time.Millisecond * 10)
+	}
 
 	go func() {
 		time.Sleep(time.Second * 1)

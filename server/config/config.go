@@ -86,7 +86,9 @@ type LobbyConf struct {
 
 	AuthDataExpire Duration `toml:"authdata_expire"`
 
-	ApiTimeout Duration `api_timeout`
+	ApiTimeout Duration `toml:"api_timeout"`
+
+	HubMaxWatchers int `toml:"hub_max_watchers"`
 
 	LogConf
 }
@@ -147,6 +149,7 @@ func Load(conffile string) (*Config, error) {
 			Loglevel:       2,
 			AuthDataExpire: Duration(time.Minute),
 			ApiTimeout:     Duration(5 * time.Second),
+			HubMaxWatchers: 10000,
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
