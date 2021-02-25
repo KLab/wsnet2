@@ -284,8 +284,6 @@ func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQu
 	return filter(rooms, props, queries, limit, joinable, watchable), nil
 }
 
-const maxWatchers = 10000 // TODO: config化
-
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, hostId uint32) (*pb.JoinedRoomRes, error) {
 	rows, err := rs.db.Query("SELECT `host_id`, `watchers` FROM `hub` WHERE `room_id`=?", roomId)
 	if err != nil {
@@ -294,13 +292,13 @@ func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientIn
 	hostIDs := []uint32{}
 	for rows.Next() {
 		var h uint32
-		var w int64
+		var w int
 		err = rows.Scan(&h, &w)
 		if err != nil {
 			rows.Close()
 			return nil, xerrors.Errorf("watch: failed to scan hub: %w", err)
 		}
-		if w < maxWatchers {
+		if w < rs.conf.HubMaxWatchers {
 			hostIDs = append(hostIDs, h)
 		}
 	}
