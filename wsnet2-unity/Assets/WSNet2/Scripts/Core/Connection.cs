@@ -25,6 +25,9 @@ namespace WSNet2.Core
         /// <summary>最大連続再接続試行回数</summary>
         const int MaxReconnection = 5;
 
+        /// <summary>接続タイムアウト</summary>
+        const int connectTimeoutMilliSec = 5000;
+
         /// <summary>再接続インターバル (milli seconds)</summary>
         const int RetryIntervalMilliSec = 1000;
 
@@ -50,6 +53,7 @@ namespace WSNet2.Core
         volatile int pingInterval;
         volatile uint lastPingTime;
         CancellationTokenSource pingerDelayCanceller;
+        SemaphoreSlim sendSemaphore;
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
@@ -70,6 +74,7 @@ namespace WSNet2.Core
             this.authKey = joined.authKey;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
+            this.sendSemaphore = new SemaphoreSlim(1, 1);
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
@@ -103,12 +108,13 @@ namespace WSNet2.Core
         {
             int reconnection = 0;
 
-            while(true)
+            while (true)
             {
                 Exception lastException;
                 var retryInterval = Task.Delay(RetryIntervalMilliSec);
 
-                if (canceller.IsCancellationRequested) {
+                if (canceller.IsCancellationRequested)
+                {
                     return;
                 }
 
@@ -136,7 +142,7 @@ namespace WSNet2.Core
                     // finish task without exception: unreconnectable. don't retry.
                     return;
                 }
-                catch(WebSocketException e)
+                catch (WebSocketException e)
                 {
                     switch (e.WebSocketErrorCode)
                     {
@@ -150,7 +156,7 @@ namespace WSNet2.Core
                     // retry on other error.
                     lastException = e;
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     // retry
                     lastException = e;
@@ -214,7 +220,9 @@ namespace WSNet2.Core
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
 
             WSNet2Logger.Info($"Connecting to {0}", uri);
-            await ws.ConnectAsync(uri, ct);
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(connectTimeoutMilliSec);
+            await ws.ConnectAsync(uri, cts.Token);
             return ws;
         }
 
@@ -223,43 +231,50 @@ namespace WSNet2.Core
         /// </summary>
         private async Task Receiver(ClientWebSocket ws, CancellationToken ct)
         {
-            while(true)
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                var ev = await ReceiveEvent(ws, ct);
-
-                if (ev.IsRegular)
+                while (true)
                 {
-                    if (ev.SequenceNum != evSeqNum+1)
+                    ct.ThrowIfCancellationRequested();
+                    var ev = await ReceiveEvent(ws, ct);
+
+                    if (ev.IsRegular)
                     {
-                        // todo: reconnectable?
-                        evBufPool.Add(ev.BufferArray);
-                        throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
+                        if (ev.SequenceNum != evSeqNum+1)
+                        {
+                            // todo: reconnectable?
+                            evBufPool.Add(ev.BufferArray);
+                            throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
+                        }
+
+                        evSeqNum++;
                     }
 
-                    evSeqNum++;
+                    switch (ev.Type)
+                    {
+                        case EvType.PeerReady:
+                            var evpr = ev as EvPeerReady;
+                            var sender = Task.Run(async() => await Sender(ws, evpr.LastMsgSeqNum+1, ct));
+                            var pinger = Task.Run(async() => await Pinger(ws, ct));
+                            senderTaskSource.TrySetResult(sender);
+                            pingerTaskSource.TrySetResult(pinger);
+                            break;
+                        case EvType.Closed:
+                            room.handleEvent(ev);
+                            return;
+                        case EvType.Pong:
+                            onPong(ev as EvPong);
+                            room.handleEvent(ev);
+                            break;
+                        default:
+                            room.handleEvent(ev);
+                            break;
+                    }
                 }
-
-                switch (ev.Type)
-                {
-                    case EvType.PeerReady:
-                        var evpr = ev as EvPeerReady;
-                        var sender = Task.Run(async() => await Sender(ws, evpr.LastMsgSeqNum+1, ct));
-                        var pinger = Task.Run(async() => await Pinger(ws, ct));
-                        senderTaskSource.TrySetResult(sender);
-                        pingerTaskSource.TrySetResult(pinger);
-                        break;
-                    case EvType.Closed:
-                        room.handleEvent(ev);
-                        return;
-                    case EvType.Pong:
-                        onPong(ev as EvPong);
-                        room.handleEvent(ev);
-                        break;
-                    default:
-                        room.handleEvent(ev);
-                        break;
-                }
+            }
+            catch (OperationCanceledException)
+            {
+                // ctのキャンセルはループを抜けて終了
             }
         }
 
@@ -272,7 +287,8 @@ namespace WSNet2.Core
             try
             {
                 var pos = 0;
-                while(true){
+                while (true)
+                {
                     var seg = new ArraySegment<byte>(buf, pos, buf.Length-pos);
                     var ret = await ws.ReceiveAsync(seg, ct);
 
@@ -291,7 +307,8 @@ namespace WSNet2.Core
                     }
 
                     pos += ret.Count;
-                    if (ret.EndOfMessage) {
+                    if (ret.EndOfMessage)
+                    {
                         break;
                     }
 
@@ -301,7 +318,7 @@ namespace WSNet2.Core
 
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
             }
-            catch(Exception)
+            catch (Exception)
             {
                 evBufPool.Add(buf);
                 throw;
@@ -315,17 +332,24 @@ namespace WSNet2.Core
         /// <param name="ct">ループ停止するトークン</param>
         private async Task Sender(ClientWebSocket ws, int seqNum, CancellationToken ct)
         {
-            while (true)
+            try
             {
-                msgPool.Wait(ct);
-
-                ArraySegment<byte>? msg;
-                while ((msg = msgPool.Take(seqNum)).HasValue)
+                while (true)
                 {
-                    ct.ThrowIfCancellationRequested();
-                    await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
-                    seqNum++;
+                    msgPool.Wait(ct);
+
+                    ArraySegment<byte>? msg;
+                    while ((msg = msgPool.Take(seqNum)).HasValue)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        await Send(ws, msg.Value, ct);
+                        seqNum++;
+                    }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // ctのキャンセルはループを抜けて終了
             }
         }
 
@@ -336,27 +360,50 @@ namespace WSNet2.Core
         {
             var msg = new MsgPing();
 
-            while (true)
+            try
             {
-                ct.ThrowIfCancellationRequested();
-
-                var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
-                var time = (uint)msg.SetTimestamp();
-                lastPingTime = time;
-                await ws.SendAsync(msg.Value, WebSocketMessageType.Binary, true, ct);
-                try
+                while (true)
                 {
-                    await interval;
-                    // 対応するPongが返ってきていたらlastPingTimeは書き換わっている
-                    if (lastPingTime == time)
+                    ct.ThrowIfCancellationRequested();
+
+                    var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
+                    var time = (uint)msg.SetTimestamp();
+                    lastPingTime = time;
+                    await Send(ws, msg.Value, ct);
+                    try
                     {
-                        throw new Exception("Pong unreceived");
+                        await interval;
+                        // 対応するPongが返ってきていたらlastPingTimeは書き換わっている
+                        if (lastPingTime == time)
+                        {
+                            throw new Exception("Pong unreceived");
+                        }
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // pingerDelayCancellerによるcancelは無視
                     }
                 }
-                catch(TaskCanceledException)
-                {
-                    // pingerDelayCancellerによるcancelは無視
-                }
+            }
+            catch (OperationCanceledException)
+            {
+                // ctのキャンセルはループを抜けて終了
+            }
+        }
+
+        /// <summary>
+        ///   websocketメッセージを送信
+        /// </summary>
+        private async Task Send(ClientWebSocket ws, ArraySegment<byte> msg, CancellationToken ct)
+        {
+            await sendSemaphore.WaitAsync(ct);
+            try
+            {
+                await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+            }
+            finally
+            {
+                sendSemaphore.Release();
             }
         }
 
