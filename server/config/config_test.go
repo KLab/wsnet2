@@ -66,6 +66,7 @@ func TestLoad(t *testing.T) {
 		ValidHeartBeat: Duration(time.Second * 30),
 		AuthDataExpire: Duration(time.Second * 10),
 		ApiTimeout:     Duration(time.Second * 5),
+		HubMaxWatchers: 10000,
 		LogConf: LogConf{
 			LogStdoutConsole: false,
 			LogStdoutLevel:   4,
