@@ -14,7 +14,12 @@ clean:
 	$(RM) **/*_string.go
 
 test: generate
+	go vet ./...
 	go test ./...
+
+check:
+	go install honnef.co/go/tools/cmd/staticcheck
+	staticcheck ./...
 
 %.pb.go: %.proto
 	protoc --proto_path=pb --go_out=plugins=grpc:pb "$^"
