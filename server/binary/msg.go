@@ -257,7 +257,7 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	payload = payload[l:]
 
 	// public props
-	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	d, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (private props): %w", e)
 	}
