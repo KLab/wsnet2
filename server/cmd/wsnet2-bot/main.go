@@ -212,6 +212,9 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	}
 
 	req, err := http.NewRequest(method, url, &p)
+	if err != nil {
+		panic(err)
+	}
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Host", "localhost")
 	req.Header.Add("Wsnet2-App", b.appId)

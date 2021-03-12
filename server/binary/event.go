@@ -213,7 +213,7 @@ func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
 	payload = payload[l:]
 
 	// lastmsg
-	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	d, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvPong payload (lastmsg): %w", e)
 	}
@@ -244,7 +244,7 @@ func UnmarshalEvJoinedPayload(payload []byte) (*pb.ClientInfo, error) {
 	payload = payload[l:]
 
 	// client props
-	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	_, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvJoined payload (client props): %w", e)
 	}
@@ -277,7 +277,7 @@ func UnmarshalEvLeftPayload(payload []byte) (*EvLeftPayload, error) {
 	payload = payload[l:]
 
 	// master id
-	d, l, e = UnmarshalAs(payload, TypeStr8)
+	d, _, e = UnmarshalAs(payload, TypeStr8)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvLeft payload (master id): %w", e)
 	}
@@ -344,7 +344,7 @@ func UnmarshalEvClientPropPayload(payload []byte) (*EvClientPropPayload, error) 
 	payload = payload[l:]
 
 	// client props
-	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	d, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvClientProp payload (client props): %w", e)
 	}
