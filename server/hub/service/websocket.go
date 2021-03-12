@@ -111,7 +111,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := cli.ValidAuthData(authData); err != nil {
 		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, authdata=%v", roomId, clientId, authData)
-		http.Error(w, "Unauthorized", 401)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
