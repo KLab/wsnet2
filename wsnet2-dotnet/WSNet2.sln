@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WSNet2.Client", "WSNet2.Cli
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WSNet2.Core.Test", "WSNet2.Core.Test\WSNet2.Core.Test.csproj", "{068F020D-FED3-4488-8222-65610A97BECB}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WSNet2.Sample", "WSNet2.Sample\WSNet2.Sample.csproj", "{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,5 +46,17 @@ Global
 		{068F020D-FED3-4488-8222-65610A97BECB}.Release|x64.Build.0 = Release|Any CPU
 		{068F020D-FED3-4488-8222-65610A97BECB}.Release|x86.ActiveCfg = Release|Any CPU
 		{068F020D-FED3-4488-8222-65610A97BECB}.Release|x86.Build.0 = Release|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Debug|x64.Build.0 = Debug|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Release|x64.ActiveCfg = Release|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Release|x64.Build.0 = Release|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F582B9A-4BC7-4D58-A3D4-287730ADFE63}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -219,7 +219,7 @@ namespace WSNet2.Core
             ws.Options.SetRequestHeader("Wsnet2-User", clientId);
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
 
-            WSNet2Logger.Info($"Connecting to {0}", uri);
+            WSNet2Logger.Info("Connecting to {0}", uri);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(connectTimeoutMilliSec);
             await ws.ConnectAsync(uri, cts.Token);

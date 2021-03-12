@@ -7,13 +7,43 @@ using System.Threading;
 using System.Threading.Tasks;
 using WSNet2.Core;
 using Sample.Logic;
+using ZLogger;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WSNet2.Sample
 {
     public class Program
     {
+
         static void Main(string[] args)
         {
+            var host = Host.CreateDefaultBuilder().ConfigureLogging(logging =>
+            {
+                // optional(MS.E.Logging):clear default providers.
+                logging.ClearProviders();
+
+                // optional(MS.E.Logging): default is Info, you can use this or AddFilter to filtering log.
+                logging.SetMinimumLevel(LogLevel.Debug);
+
+                // Add Console Logging.
+                logging.AddZLoggerConsole((options) => {
+                    options.EnableStructuredLogging = true;
+                });
+
+                // Add File Logging.
+                logging.AddZLoggerFile("wsnet2-dotnet.log", (options) => {
+                    options.EnableStructuredLogging = true;
+                });
+
+                // Add Rolling File Logging.
+                // logging.AddZLoggerRollingFile((dt, x) => $"logs/{dt.ToLocalTime():yyyy-MM-dd}_{x:000}.log", x => x.ToLocalTime().Date, 1024);
+            }).Build();
+            var loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("WSNet2.Sample");
+            WSNet2Logger.Logger = new AppLogger(logger);
+
             WSNet2Helper.RegisterTypes();
 
             string runAs = "master";
