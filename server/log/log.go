@@ -14,7 +14,6 @@ import (
 
 var (
 	rootLogger    *zap.Logger
-	defaultLogger *zap.Logger
 	wrappedLogger *zap.SugaredLogger
 
 	defaultLogLevel = zap.NewAtomicLevel()
@@ -151,7 +150,6 @@ func InitLogger(logconf *config.LogConf) func() {
 
 	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true))
 	rootLogger = logger
-	defaultLogger = logger.WithOptions(zap.IncreaseLevel(zap.InfoLevel))
 	wrappedLogger = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
 
 	// zap.S().Debugf() とかで使える logger を設定する。
