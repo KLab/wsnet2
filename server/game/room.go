@@ -44,7 +44,15 @@ type Room struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
+	playerLogs []roomPlayerLog
+
 	logger *zap.SugaredLogger
+}
+
+type roomPlayerLog struct {
+	PlayerID  string    `json:"player_id,omitempty"`
+	Message   string    `json:"message,omitempty"`
+	TimeStamp time.Time `json:"timestamp,omitempty"`
 }
 
 func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
@@ -209,6 +217,12 @@ func (r *Room) removePlayer(c *Client, err error) {
 		}
 	}
 
+	r.playerLogs = append(r.playerLogs, roomPlayerLog{
+		PlayerID:  c.Id,
+		Message:   "Remove",
+		TimeStamp: time.Now(),
+	})
+
 	c.Removed(err)
 
 	if len(r.players) == 0 {
@@ -319,6 +333,11 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
+	r.playerLogs = append(r.playerLogs, roomPlayerLog{
+		PlayerID:  master.Id,
+		Message:   "Create",
+		TimeStamp: time.Now(),
+	})
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
@@ -369,6 +388,11 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 	r.players[client.ID()] = client
 	r.masterOrder = append(r.masterOrder, client.ID())
+	r.playerLogs = append(r.playerLogs, roomPlayerLog{
+		PlayerID:  client.Id,
+		Message:   "Join",
+		TimeStamp: time.Now(),
+	})
 	r.RoomInfo.Players = uint32(len(r.players))
 	r.repo.updateRoomInfo(r)
 
