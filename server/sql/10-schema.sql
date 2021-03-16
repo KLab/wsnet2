@@ -60,7 +60,7 @@ CREATE TABLE `room_history` (
   `max_players` INTEGER UNSIGNED NOT NULL,
   `public_props` BLOB,
   `private_props` BLOB,
-  `details` JSON,
+  `player_logs` JSON,
   `created` DATETIME,
   `closed` DATETIME,
   KEY `room_id` (`room_id`),

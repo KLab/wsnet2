@@ -301,7 +301,7 @@ type roomHistory struct {
 	MaxPlayers   uint32        `db:"max_players"`
 	PublicProps  []byte        `db:"public_props"`
 	PrivateProps []byte        `db:"private_props"`
-	Details      []byte        `db:"details"` // JSON Type
+	PlayerLogs   []byte        `db:"player_logs"` // JSON Type
 	Created      time.Time     `db:"created"`
 	Closed       time.Time     `db:"closed"`
 }
@@ -314,21 +314,13 @@ func (repo *Repository) deleteRoom(room *Room) {
 		log.Errorf("deleteRoom: %w", err)
 	}
 
-	type roomHistoryDetails struct {
-		Players []roomPlayerLog `json:"players,omitempty"`
-	}
-
 	// Room number は nil の可能性があるので場合分け
 	number := sql.NullInt32{0, false}
 	if room.Number != nil {
 		number = sql.NullInt32{room.Number.Number, true}
 	}
 
-	// Details には JSON 形式で Room の詳細情報を入れる
-	details, err := json.Marshal(roomHistoryDetails{
-		Players: room.playerLogs,
-	})
-
+	playerLogs, err := json.Marshal(room.playerLogs)
 	if err != nil {
 		log.Errorf("failed to marshal history details: %w", err)
 	}
@@ -342,7 +334,7 @@ func (repo *Repository) deleteRoom(room *Room) {
 		MaxPlayers:   room.MaxPlayers,
 		PublicProps:  room.PublicProps,
 		PrivateProps: room.PrivateProps,
-		Details:      details,
+		PlayerLogs:   playerLogs,
 		Created:      room.Created.Time(),
 		Closed:       time.Now(),
 	}
