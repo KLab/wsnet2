@@ -312,8 +312,10 @@ func (repo *Repository) deleteRoom(room *Room) {
 	_, err = repo.db.Exec("DELETE FROM room WHERE id=?", room.ID())
 	if err != nil {
 		log.Errorf("deleteRoom: %w", err)
+		return
 	}
 
+	// room_history テーブルに クローズしたルーム情報を保存する
 	// Room number は nil の可能性があるので場合分け
 	number := sql.NullInt32{0, false}
 	if room.Number != nil {
