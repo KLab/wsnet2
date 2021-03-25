@@ -19,7 +19,6 @@ import (
 const (
 	// RoomMsgChSize : Msgチャネルのバッファサイズ
 	RoomMsgChSize = 10
-	// roomKeyLen : Roomキーの文字列長
 )
 
 type Room struct {
