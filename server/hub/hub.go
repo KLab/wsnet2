@@ -570,6 +570,8 @@ func (h *Hub) dispatchEvent(ev binary.Event) error {
 		return h.evLeft(ev)
 	case binary.EvTypeRoomProp:
 		return h.evRoomProp(ev)
+	case binary.EvTypeClientProp:
+		return h.evClientProp(ev)
 	case binary.EvTypeMasterSwitched:
 		return h.evMasterSwitched(ev)
 	case binary.EvTypeMessage:
