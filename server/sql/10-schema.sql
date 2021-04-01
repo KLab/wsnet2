@@ -64,8 +64,7 @@ CREATE TABLE `room_history` (
   `created` DATETIME,
   `closed` DATETIME,
   KEY `room_id` (`room_id`),
-  KEY `created` (`created`),
-  KEY `closed` (`closed`)
+  KEY `created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE IF EXISTS `hub`;
