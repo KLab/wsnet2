@@ -2,7 +2,9 @@ package game
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -25,33 +27,47 @@ const (
 )
 
 var (
-	roomInsertQuery string
-	roomUpdateQuery string
+	roomInsertQuery        string
+	roomUpdateQuery        string
+	roomHistoryInsertQuery string
 )
 
 func init() {
 	initQueries()
 }
 
-func initQueries() {
-	// room_info queries
-	t := reflect.TypeOf(pb.RoomInfo{})
+func dbCols(t reflect.Type) []string {
 	cols := make([]string, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
 		if c := t.Field(i).Tag.Get("db"); c != "" {
 			cols = append(cols, c)
 		}
 	}
-	roomInsertQuery = fmt.Sprintf("INSERT INTO room (%s) VALUES (:%s)",
-		strings.Join(cols, ","), strings.Join(cols, ",:"))
+	return cols
+}
 
-	var sets []string
-	for _, c := range cols {
-		if c != "id" {
-			sets = append(sets, c+"=:"+c)
+func initQueries() {
+	// room_info queries
+	{
+		cols := dbCols(reflect.TypeOf(pb.RoomInfo{}))
+		roomInsertQuery = fmt.Sprintf("INSERT INTO room (%s) VALUES (:%s)",
+			strings.Join(cols, ","), strings.Join(cols, ",:"))
+
+		var sets []string
+		for _, c := range cols {
+			if c != "id" {
+				sets = append(sets, c+"=:"+c)
+			}
 		}
+		roomUpdateQuery = fmt.Sprintf("UPDATE room SET %s WHERE id=:id", strings.Join(sets, ","))
 	}
-	roomUpdateQuery = fmt.Sprintf("UPDATE room SET %s WHERE id=:id", strings.Join(sets, ","))
+
+	// room_history
+	{
+		cols := dbCols(reflect.TypeOf(roomHistory{}))
+		roomHistoryInsertQuery = fmt.Sprintf("INSERT INTO room_history (%s) VALUES (:%s)",
+			strings.Join(cols, ","), strings.Join(cols, ",:"))
+	}
 }
 
 func RandomHex(n int) string {
@@ -276,12 +292,58 @@ func (repo *Repository) updateRoomInfo(room *Room) {
 	}()
 }
 
-func (repo *Repository) deleteRoom(id RoomID) {
+type roomHistory struct {
+	AppID        string        `db:"app_id"`
+	HostID       uint32        `db:"host_id"`
+	RoomID       string        `db:"room_id"`
+	Number       sql.NullInt32 `db:"number"`
+	SearchGroup  uint32        `db:"search_group"`
+	MaxPlayers   uint32        `db:"max_players"`
+	PublicProps  []byte        `db:"public_props"`
+	PrivateProps []byte        `db:"private_props"`
+	PlayerLogs   []byte        `db:"player_logs"` // JSON Type
+	Created      time.Time     `db:"created"`
+	Closed       time.Time     `db:"closed"`
+}
+
+func (repo *Repository) deleteRoom(room *Room) {
 	var err error
 	// TODO: 部屋の履歴を残す必要あり？
-	_, err = repo.db.Exec("DELETE FROM room WHERE id=?", id)
+	_, err = repo.db.Exec("DELETE FROM room WHERE id=?", room.ID())
 	if err != nil {
 		log.Errorf("deleteRoom: %w", err)
+		return
+	}
+
+	// room_history テーブルに クローズしたルーム情報を保存する
+	// Room number は nil の可能性があるので場合分け
+	number := sql.NullInt32{0, false}
+	if room.Number != nil {
+		number = sql.NullInt32{room.Number.Number, true}
+	}
+
+	playerLogs, err := json.Marshal(room.playerLogs)
+	if err != nil {
+		log.Errorf("failed to marshal history details: %w", err)
+	}
+
+	history := roomHistory{
+		AppID:        room.AppId,
+		HostID:       room.HostId,
+		RoomID:       room.Id,
+		Number:       number,
+		SearchGroup:  room.SearchGroup,
+		MaxPlayers:   room.MaxPlayers,
+		PublicProps:  room.PublicProps,
+		PrivateProps: room.PrivateProps,
+		PlayerLogs:   playerLogs,
+		Created:      room.Created.Time(),
+		Closed:       time.Now(),
+	}
+
+	_, err = repo.db.NamedExec(roomHistoryInsertQuery, history)
+	if err != nil {
+		log.Errorf("failed to insert to room_history: %w", err)
 	}
 }
 
@@ -290,7 +352,8 @@ func (repo *Repository) RemoveRoom(room *Room) {
 	defer repo.mu.Unlock()
 	rid := room.ID()
 	delete(repo.rooms, rid)
-	repo.deleteRoom(rid)
+
+	repo.deleteRoom(room)
 	log.Debugf("room removed from repository: room=%v", rid)
 }
 

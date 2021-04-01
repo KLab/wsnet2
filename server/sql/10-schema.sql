@@ -49,6 +49,24 @@ CREATE TABLE room (
   KEY `idx_search_group` (`app_id`, `search_group`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+DROP TABLE IF EXISTS `room_history`;
+CREATE TABLE `room_history` (
+  `id` BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `app_id` VARCHAR(32) NOT NULL,
+  `host_id` INTEGER UNSIGNED NOT NULL,
+  `room_id` VARCHAR(32) NOT NULL,
+  `number` INTEGER,
+  `search_group` INTEGER UNSIGNED NOT NULL,
+  `max_players` INTEGER UNSIGNED NOT NULL,
+  `public_props` BLOB,
+  `private_props` BLOB,
+  `player_logs` JSON,
+  `created` DATETIME,
+  `closed` DATETIME,
+  KEY `room_id` (`room_id`),
+  KEY `created` (`created`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 DROP TABLE IF EXISTS `hub`;
 CREATE TABLE hub (
   `id`      BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
