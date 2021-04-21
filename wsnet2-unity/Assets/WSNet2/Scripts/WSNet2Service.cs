@@ -4,6 +4,9 @@ using WSNet2.Core;
 
 namespace WSNet2
 {
+    /// <summary>
+    ///   UnityでWSNet2を扱うためのGameObject
+    /// </summary>
     public class WSNet2Service : MonoBehaviour
     {
         const char keyDelimiter = '@';
@@ -39,6 +42,16 @@ namespace WSNet2
             }
         }
 
+        /// <summary>
+        ///   WSNet2Clientを取得
+        /// </summary>
+        /// <remarks>
+        ///   すでにインスタンスがある場合は、baseUriとauthDataを更新して使い回す
+        /// </remarks>
+        /// <param name="baseUri">LobbyのURI</param>
+        /// <param name="appId">WSNetに登録してあるApplicationID</param>
+        /// <param name="userId">プレイヤーID</param>
+        /// <param name="authData">認証データ</param>
         public WSNet2Client GetClient(string baseUri, string appId, string userId, string authData)
         {
             var key = $"{userId}{keyDelimiter}{appId}";
@@ -46,17 +59,21 @@ namespace WSNet2
             WSNet2Client cli;
             if (clients.TryGetValue(key, out cli))
             {
-                cli.SetConnectionData(baseUri, authData);
+                cli.SetBaseUri(baseUri);
+                cli.UpdateAuthData(authData);
                 return cli;
             }
 
             if (newClients.TryGetValue(key, out cli))
             {
-                cli.SetConnectionData(baseUri, authData);
+                cli.SetBaseUri(baseUri);
+                cli.UpdateAuthData(authData);
                 return cli;
             }
 
             cli = new WSNet2Client(baseUri, appId, userId, authData);
+
+            // Note: ProcessCallback 内で clients の追加を直接行うと InvalidOperationException が発生する
             newClients[key] = cli;
             return cli;
         }

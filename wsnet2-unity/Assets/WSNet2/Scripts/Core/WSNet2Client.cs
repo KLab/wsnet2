@@ -30,15 +30,23 @@ namespace WSNet2.Core
         {
             this.appId = appId;
             this.userId = userId;
-            this.SetConnectionData(baseUri, authData);
+            this.SetBaseUri(baseUri);
+            this.UpdateAuthData(authData);
         }
 
         /// <summary>
         ///   接続情報を更新
         /// </summary>
-        public void SetConnectionData(string baseUri, string authData)
+        public void SetBaseUri(string baseUri)
         {
             this.baseUri = baseUri;
+        }
+
+        /// <summary>
+        ///   認証データを更新
+        /// </summary>
+        public void UpdateAuthData(string authData)
+        {
             this.bearer = "Bearer " + authData;
         }
 
