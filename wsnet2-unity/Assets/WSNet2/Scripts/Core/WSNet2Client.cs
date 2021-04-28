@@ -127,8 +127,8 @@ namespace WSNet2.Core
         /// </summary>
         public void Join(
             string roomId,
-            IDictionary<string, object> clientProps,
             Query query,
+            IDictionary<string, object> clientProps,
             Action<Room> onSuccess,
             Action<Exception> onFailed)
         {
@@ -146,8 +146,8 @@ namespace WSNet2.Core
         /// </summary>
         public void Join(
             int number,
-            IDictionary<string, object> clientProps,
             Query query,
+            IDictionary<string, object> clientProps,
             Action<Room> onSuccess,
             Action<Exception> onFailed)
         {

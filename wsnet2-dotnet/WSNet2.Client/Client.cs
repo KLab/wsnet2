@@ -236,7 +236,7 @@ namespace WSNet2.DotnetClient
             else if(cmd == Cmd.join)
             {
                 var number = int.Parse(args[1]);
-                client.Join(number, cliProps, null, onJoined, onFailed);
+                client.Join(number, null, cliProps, onJoined, onFailed);
             }
             else // watch
             {
