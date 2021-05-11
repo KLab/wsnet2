@@ -3,7 +3,6 @@ module wsnet2
 go 1.15
 
 require (
-	github.com/BurntSushi/toml v0.3.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/favadi/protoc-go-inject-tag v1.0.0
 	github.com/go-sql-driver/mysql v1.5.0
@@ -12,6 +11,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/jmoiron/sqlx v1.3.1
+	github.com/pelletier/go-toml v1.9.0
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	go.uber.org/zap v1.16.0
 	golang.org/x/tools v0.1.0
