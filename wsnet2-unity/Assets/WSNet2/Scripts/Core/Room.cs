@@ -9,7 +9,7 @@ namespace WSNet2.Core
     /// </summary>
     public class Room
     {
-        /// <summary>RoomのMasterをRPCの対象に指定</summary
+        /// <summary>RoomのMasterをRPCの対象に指定</summary>
         public const string[] RPCToMaster = null;
 
         /// <summary>RoomID</summary>
@@ -30,7 +30,7 @@ namespace WSNet2.Core
         /// <summary>検索グループ</summary>
         public uint SearchGroup { get => info.searchGroup; }
 
-        /// <summary>検索グループ</summary>
+        /// <summary>最大人数</summary>
         public uint MaxPlayers { get => info.maxPlayers; }
 
         /// <summary>通信タイムアウト時間(秒)
@@ -57,43 +57,74 @@ namespace WSNet2.Core
         /// <summary>マスタークライアント</summary>
         public Player Master { get => players[masterId]; }
 
+        /// <summary>観戦人数</summary>
+        public uint Watchers { get => info.watchers; }
+
         /// <summary>Ping応答時間 (millisec)</summary>
         public ulong RttMillisec { get; private set; }
 
-        /// <summary>全Playerの最終メッセージ受信時刻 (millisec)</summary>
+        /// <summary>全Playerの最終メッセージ受信時刻 (playerId => unixtime millisec)</summary>
         public IReadOnlyDictionary<string, ulong> LastMsgTimestamps { get; private set; }
 
-        /// <summary>入室イベント通知</summary>
+        /// <summary>
+        ///   入室イベント通知
+        /// </summary>
+        /// OnJoined(me)
         public Action<Player> OnJoined;
 
-        /// <summary>退室イベント通知</summary>
+        /// <summary>
+        ///   退室イベント通知
+        /// </summary>
+        /// OnClosed(message)
         public Action<string> OnClosed;
 
-        /// <summary>他のプレイヤーの入室通知</summary>
+        /// <summary>
+        ///   他のプレイヤーの入室通知
+        /// </summary>
+        /// OnOtherPlayerJoined(player)
         public Action<Player> OnOtherPlayerJoined;
 
-        /// <summary>他のプレイヤーの退室通知</summary>
+        /// <summary>
+        ///   他のプレイヤーの退室通知
+        /// </summary>
+        /// OnOtherPlayerLeft(player)
         public Action<Player> OnOtherPlayerLeft;
 
-        /// <summary>マスタープレイヤーの変更通知</summary>
+        /// <summary>
+        ///  マスタープレイヤーの変更通知
+        /// </summary>
+        /// OnMasterPlayerSwitched(previousMaster, newMaster)
         public Action<Player, Player> OnMasterPlayerSwitched;
 
-        /// <summary>部屋のプロパティの変更通知</summary>
+        /// <summary>
+        ///   部屋のプロパティの変更通知
+        /// </summary>
         /// OnRoomPropertyChanged(visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps);
         /// <remarks>
-        ///   <para>
-        ///     変更のあったパラメータのみ値が入ります。
-        ///   </para>
+        ///   変更のあったパラメータのみ値が入ります。
+        ///   publicProps, privatePropsのキーも変更のあったもののみです。
         /// </remarks>
         public Action<bool?, bool?, bool?, uint?, uint?, uint?, Dictionary<string, object>, Dictionary<string, object>> OnRoomPropertyChanged;
 
-        /// <summary>プレイヤーのプロパティの変更通知</summary>
+        /// <summary>
+        ///   プレイヤーのプロパティの変更通知
+        /// </summary>
+        /// OnPlayerPropertyChanged(player, props)
+        /// <remarks>
+        ///   propsには変更のあったキーのみ含まれます。
+        /// </remarks>
         public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
 
-        /// <summary>エラー通知</summary>
+        /// <summary>
+        ///   エラー通知
+        /// </summary>
+        /// OnError(exception)
         public Action<Exception> OnError;
 
-        /// <summary>エラーによる切断通知</summary>
+        /// <summary>
+        ///   エラーによる切断通知
+        /// </summary>
+        /// OnErrorClosed(exception)
         public Action<Exception> OnErrorClosed;
 
         string myId;
@@ -156,10 +187,8 @@ namespace WSNet2.Core
         ///   溜めたCallbackを処理する
         /// </summary>
         /// <remarks>
-        ///   <para>
-        ///     WSNet2Client.ProcessCallbackから呼ばれる。
-        ///     Unityではメインスレッドで呼ぶようにする。
-        ///   </para>
+        ///   WSNet2Client.ProcessCallbackから呼ばれる。
+        ///   Unityではメインスレッドで呼ぶようにする。
         /// </remarks>
         internal void ProcessCallback()
         {
@@ -191,9 +220,7 @@ namespace WSNet2.Core
         ///   強制切断
         /// </summary>
         /// <remarks>
-        ///   <para>
-        ///     OnClosedなどは呼ばれない.
-        ///   </para>
+        ///   OnClosedなどは呼ばれない.
         /// </remarks>
         internal void ForceDisconnect()
         {
@@ -522,15 +549,13 @@ namespace WSNet2.Core
         /// <summary>
         ///   イベント処理を一時停止する
         /// </summary>
-        /// <remarks>
-        ///   <para>
-        ///     CallbackPoolの処理を止めることで部屋の状態の更新と通知を停止する。
-        ///     Restart()で再開する。
-        ///   </para>
-        ///   <para>
-        ///     Unityでシーン遷移するときなど、イベントを受け取れない時間に停止すると良い。
-        ///   </para>
-        /// </remarks>
+        /// <para>
+        ///   CallbackPoolの処理を止めることで部屋の状態の更新と通知を停止する。
+        ///   Restart()で再開する。
+        /// </para>
+        /// <para>
+        ///   Unityでシーン遷移するときなど、イベントを受け取れない時間に停止すると良い。
+        /// </para>
         public void Pause()
         {
             Running = false;
@@ -548,10 +573,8 @@ namespace WSNet2.Core
         ///   退室メッセージを送信
         /// </summary>
         /// <remarks>
-        ///   <para>
-        ///     送信だけでは退室は完了しない。
-        ///     OnClosedイベントを受け取って退室が完了する。
-        ///   </para>
+        ///   送信だけでは退室は完了しない。
+        ///   OnClosedイベントを受け取って退室が完了する。
         /// </remarks>
         public int Leave()
         {
@@ -562,6 +585,11 @@ namespace WSNet2.Core
         ///   Masterを移譲する
         /// </summary>
         /// <param name="newMaster">新Master</param>
+        /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
+        /// <remarks>
+        ///   この操作はMasterのみ呼び出せる。
+        ///   実際の切り替えは、OnMasterPlayerSwitchedが呼び出されるタイミングで行われる。
+        /// </remarks>
         public int SwitchMaster(Player newMaster, Action<EvType, string> onErrorResponse = null)
         {
             if (Me != Master)
@@ -590,6 +618,28 @@ namespace WSNet2.Core
         /// <summary>
         ///   Roomプロパティを変更する
         /// </summary>
+        /// <param name="visible">検索可能</param>
+        /// <param name="joinable">入室可能</param>
+        /// <param name="watchable">観戦可能</param>
+        /// <param name="searchGroup">検索グループ</param>
+        /// <param name="maxPlayers">最大人数</param>
+        /// <param name="clientDeadline">通信タイムアウト時間(秒)</param>
+        /// <param name="publicProps">公開プロパティ</param>
+        /// <param name="privateProps">非公開プロパティ</param>
+        /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
+        /// <remarks>
+        ///   この操作はMasterのみ呼び出せる。
+        ///   実際の変更は、OnRoomPropertyChangedが呼び出されるタイミングで行われる。
+        /// </remarks>
+        /// <example>
+        ///   <code>
+        ///   // 変更する項目のみ引数に値をセットする
+        ///   // Props辞書も同様、変更するキーのみを含める。
+        ///   room.ChangeRoomProperty(
+        ///       joinable: false, watchable: true, searchGroup: GameState.Playing,
+        ///       publicProps: new Dictionary&lt;string, object&gt;(){ {"score", "0 - 0"} });
+        ///   </code>
+        /// </example>
         public int ChangeRoomProperty(
             bool? visible = null,
             bool? joinable = null,
@@ -641,6 +691,11 @@ namespace WSNet2.Core
         ///   自分自身のプロパティを変更する
         /// </summary>
         /// <param name="props">変更するプロパティの辞書</param>
+        /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
+        /// <remarks>
+        ///   この操作はプレイヤーのみ呼び出せる。観戦者はできない。
+        ///   実際の変更は、OnPlayerPropertyChangedが呼び出されるタイミングで行われる。
+        /// </remarks>
         public int ChangeMyProperty(IDictionary<string, object> props, Action<EvType, IDictionary<string, object>> onErrorResponse = null)
         {
             var seqNum = con.msgPool.PostClientProp(props);
@@ -659,6 +714,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   対象のプレイヤーを強制退室させる
         /// </summary>
+        /// <param name="target">対象プレイヤー</param>
+        /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
+        /// <remarks>
+        ///   この操作はMasterのみ呼び出せる。
+        /// </remarks>
         public int Kick(Player target, Action<EvType, string> onErrorResponse = null)
         {
             if (Me != Master)
