@@ -9,7 +9,7 @@ namespace WSNet2.Core
     /// </summary>
     public class Room
     {
-        /// <summary>RoomのMasterをRPCの対象に指定</summary
+        /// <summary>RoomのMasterをRPCの対象に指定</summary>
         public const string[] RPCToMaster = null;
 
         /// <summary>RoomID</summary>
@@ -57,7 +57,7 @@ namespace WSNet2.Core
         /// <summary>マスタークライアント</summary>
         public Player Master { get => players[masterId]; }
 
-        /// <summary>観戦人数</summary
+        /// <summary>観戦人数</summary>
         public uint Watchers { get => info.watchers; }
 
         /// <summary>Ping応答時間 (millisec)</summary>
