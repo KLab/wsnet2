@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml"
 	"golang.org/x/xerrors"
 )
 
@@ -162,7 +162,12 @@ func Load(conffile string) (*Config, error) {
 		},
 	}
 
-	_, err := toml.DecodeFile(conffile, c)
+	confBytes, err := ioutil.ReadFile(conffile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = toml.Unmarshal(confBytes, c)
 	if err != nil {
 		return nil, err
 	}

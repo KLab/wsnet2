@@ -317,9 +317,9 @@ func (repo *Repository) deleteRoom(room *Room) {
 
 	// room_history テーブルに クローズしたルーム情報を保存する
 	// Room number は nil の可能性があるので場合分け
-	number := sql.NullInt32{0, false}
+	number := sql.NullInt32{Int32: 0, Valid: false}
 	if room.Number != nil {
-		number = sql.NullInt32{room.Number.Number, true}
+		number = sql.NullInt32{Int32: room.Number.Number, Valid: true}
 	}
 
 	playerLogs, err := json.Marshal(room.playerLogs)
