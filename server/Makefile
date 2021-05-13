@@ -68,13 +68,13 @@ bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
 	protoc-go-inject-tag --input="$@"
 
 define stringer_rule
-$(eval _1 := $(word 1,$(subst >, ,$(1))))
-$(eval _2 := $(word 2,$(subst >, ,$(1))))
+$(eval _1 := $(word 1,$(1)))
+$(eval _2 := $(word 2,$(1)))
 $(dir $(_1))$(_2): $(_1)
 	go generate ./$(dir $(_1)).
 endef
 
-$(foreach s,$(stringer),$(eval $(call stringer_rule,$(s))))
+$(foreach s,$(stringer),$(eval $(call stringer_rule,$(subst >, ,$(s)))))
 
 # quick build
 .PHONY: lobby game hub bot
