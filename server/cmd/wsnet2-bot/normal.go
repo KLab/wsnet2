@@ -207,10 +207,8 @@ func spawnWatcher(roomId, userId string) {
 	time.Sleep(time.Second)
 
 	// MsgTypeTargets: 存在するターゲットと存在しないターゲットに対してメッセージを送る
-	payload := MarshalTargetsAndData([]byte{},
-		[]string{"23456", "goblin"},
-		binary.MarshalStr8("MsgTypeTargets from watcher"))
-	bot.SendMessage(binary.MsgTypeTargets, payload)
+	targets := []string{"23456", "goblin"}
+	bot.SendMessage(binary.MsgTypeTargets, MarshalTargetsAndData(targets, binary.MarshalStr8("MsgTypeTargets from watcher")))
 	time.Sleep(time.Second)
 
 	// MsgTypeBroadcast
