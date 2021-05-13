@@ -74,7 +74,7 @@ func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Create success, WebSocket=%s\n", b.userId, room.Url)
+	log.Printf("[bot:%v] Create success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -114,7 +114,7 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Join success, WebSocket=%s\n", b.userId, room.Url)
+	log.Printf("[bot:%v] Join success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -141,7 +141,7 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Join by room number success, WebSocket=%s\n", b.userId, room.Url)
+	log.Printf("[bot:%v] Join by room number success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -168,7 +168,7 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Join at random success, WebSocket=%s\n", b.userId, room.Url)
+	log.Printf("[bot:%v] Join at random success, WebSocket=%s", b.userId, room.Url)
 	return room, nil
 }
 
@@ -182,16 +182,16 @@ func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.R
 
 	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/search", param, &res)
 	if err != nil {
-		log.Printf("error: %v\n", err)
+		log.Printf("error: %v", err)
 		return nil, err
 	}
 	if res.Rooms == nil {
-		log.Printf("error: %v\n", res.Msg)
+		log.Printf("error: %v", res.Msg)
 		return nil, fmt.Errorf("Search failed: %v", res.Msg)
 	}
 
 	rooms := res.Rooms
-	log.Printf("[bot:%v] Search success, rooms=%v\n", b.userId, rooms)
+	log.Printf("[bot:%v] Search success, rooms=%v", b.userId, rooms)
 	return rooms, nil
 }
 
@@ -243,17 +243,17 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 
 	authdata, err := auth.GenerateAuthData(authKey, b.userId, time.Now())
 	if err != nil {
-		log.Printf("[bot:%v] generate authdata error: %v\n", b.userId, err)
+		log.Printf("[bot:%v] generate authdata error: %v", b.userId, err)
 		return err
 	}
 	hdr.Add("Authorization", "Bearer "+authdata)
 
 	conn, res, err := b.ws.Dial(url, hdr)
 	if err != nil {
-		log.Printf("[bot:%v] dial error: %v, %v\n", b.userId, res, err)
+		log.Printf("[bot:%v] dial error: %v, %v", b.userId, res, err)
 		return err
 	}
-	log.Printf("[bot:%v] response: %v\n", b.userId, res)
+	log.Printf("[bot:%v] response: %v", b.userId, res)
 
 	b.conn = conn
 	go b.pinger()
@@ -282,11 +282,11 @@ func (b *bot) pinger() {
 		case <-t.C:
 			msg := binary.NewMsgPing(time.Now())
 			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
-				log.Printf("pinger: WrteMessage error: %v\n", err)
+				log.Printf("pinger: WrteMessage error: %v", err)
 				return
 			}
 		case newDeadline := <-b.newDeadline:
-			log.Printf("pinger: update deadline: %v to %v\n", deadline, newDeadline)
+			log.Printf("pinger: update deadline: %v to %v", deadline, newDeadline)
 			t.Reset(calcPingInterval(newDeadline))
 		case <-b.done:
 			return
@@ -299,7 +299,7 @@ func (b *bot) EventLoop(done chan bool) {
 	for {
 		_, p, err := b.conn.ReadMessage()
 		if err != nil {
-			log.Printf("[bot:%v] ReadMessage error: %v\n", b.userId, err)
+			log.Printf("[bot:%v] ReadMessage error: %v", b.userId, err)
 			return
 		}
 
@@ -313,18 +313,18 @@ func (b *bot) EventLoop(done chan bool) {
 			namelen := int(p[6])
 			name := string(p[7 : 7+namelen])
 			props := p[7+namelen:]
-			log.Printf("[bot:%v] %s: %v %#v, %v\n", b.userId, ty, seq, name, props)
+			log.Printf("[bot:%v] %s: %v %#v, %v", b.userId, ty, seq, name, props)
 		case binary.EvTypePermissionDenied:
-			log.Printf("[bot:%v] %s: %v\n", b.userId, ty, p)
+			log.Printf("[bot:%v] %s: %v", b.userId, ty, p)
 		case binary.EvTypeTargetNotFound:
 			list, _, err := binary.UnmarshalAs(p[5:], binary.TypeList, binary.TypeNull)
 			if err != nil {
-				log.Printf("[bot:%v] %s: error: %v\n", b.userId, ty, err)
+				log.Printf("[bot:%v] %s: error: %v", b.userId, ty, err)
 				break
 			}
-			log.Printf("[bot:%v] %s: %v %v\n", b.userId, ty, list, p)
+			log.Printf("[bot:%v] %s: %v %v", b.userId, ty, list, p)
 		case binary.EvTypeMessage:
-			log.Printf("[bot:%v] %v: %q\n", b.userId, ty, string(ev.Payload()))
+			log.Printf("[bot:%v] %v: %q", b.userId, ty, string(ev.Payload()))
 		case binary.EvTypeLeft:
 			left, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 			if err != nil {
@@ -333,7 +333,7 @@ func (b *bot) EventLoop(done chan bool) {
 			}
 			log.Printf("[bot:%v] %s: left=%q master=%q", b.userId, ty, left.ClientId, left.MasterId)
 		default:
-			log.Printf("[bot:%v] ReadMessage: %v, %v\n", b.userId, ty, p)
+			log.Printf("[bot:%v] ReadMessage: %v, %v", b.userId, ty, p)
 		}
 	}
 }

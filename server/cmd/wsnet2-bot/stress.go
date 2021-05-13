@@ -15,5 +15,5 @@ func (cmd *stressBot) Name() string {
 }
 
 func (cmd *stressBot) Execute() {
-	log.Printf("stress bot\n")
+	log.Printf("stress bot")
 }

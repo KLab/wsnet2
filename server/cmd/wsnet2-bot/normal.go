@@ -28,7 +28,7 @@ func (cmd *normalBot) Execute() {
 
 	room, err := bot.CreateRoom(binary.Dict{"key1": binary.MarshalInt(1024), "key2": binary.MarshalStr16("hoge")})
 	if err != nil {
-		log.Printf("create room error: %v\n", err)
+		log.Printf("create room error: %v", err)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (cmd *normalBot) Execute() {
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
-		log.Printf("dial game error: %v\n", err)
+		log.Printf("dial game error: %v", err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (cmd *normalBot) Execute() {
 	fmt.Println("reconnect test")
 	err = bot.DialGame(room.Url, room.AuthKey, 2)
 	if err != nil {
-		log.Printf("dial game error: %v\n", err)
+		log.Printf("dial game error: %v", err)
 		return
 	}
 
@@ -167,7 +167,7 @@ func (cmd *normalBot) Execute() {
 	fmt.Println("reconnect test after leave")
 	err = bot.DialGame(room.Url, room.AuthKey, 4)
 	if err != nil {
-		log.Printf("dial game error: %v\n", err)
+		log.Printf("dial game error: %v", err)
 		return
 	}
 
@@ -181,13 +181,13 @@ func spawnPlayer(roomId, userId string, queries []lobby.PropQuery) {
 
 	room, err := bot.JoinRoom(roomId, queries)
 	if err != nil {
-		log.Printf("[bot:%v] join room error: %v\n", userId, err)
+		log.Printf("[bot:%v] join room error: %v", userId, err)
 		return
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
-		log.Printf("[bot:%v] dial game error: %v\n", userId, err)
+		log.Printf("[bot:%v] dial game error: %v", userId, err)
 		return
 	}
 
@@ -200,13 +200,13 @@ func spawnWatcher(roomId, userId string) {
 
 	room, err := bot.WatchRoom(roomId, nil)
 	if err != nil {
-		log.Printf("[bot:%v] watch room error: %v\n", userId, err)
+		log.Printf("[bot:%v] watch room error: %v", userId, err)
 		return
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
-		log.Printf("[bot:%v] dial watch error: %v\n", userId, err)
+		log.Printf("[bot:%v] dial watch error: %v", userId, err)
 		return
 	}
 
@@ -221,7 +221,7 @@ func spawnWatcher(roomId, userId string) {
 	payload = []byte{byte(binary.MsgTypeToMaster), 0, 0, 1}
 	payload = append(payload, binary.MarshalStr8("MsgTypeToMaster from watcher")...)
 	bot.WriteMessage(websocket.BinaryMessage, payload)
-	log.Printf("[bot:%v] sent message %q\n", userId, payload)
+	log.Printf("[bot:%v] sent message %q", userId, payload)
 	time.Sleep(time.Second)
 
 	// MsgTypeTargets: 存在するターゲットと存在しないターゲットに対してメッセージを送る
@@ -230,14 +230,14 @@ func spawnWatcher(roomId, userId string) {
 		[]string{"23456", "goblin"},
 		binary.MarshalStr8("MsgTypeTargets from watcher"))
 	bot.WriteMessage(websocket.BinaryMessage, payload)
-	log.Printf("[bot:%v] sent message %q\n", userId, payload)
+	log.Printf("[bot:%v] sent message %q", userId, payload)
 	time.Sleep(time.Second)
 
 	// MsgTypeBroadcast
 	payload = []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3}
 	payload = append(payload, binary.MarshalStr8("MsgTypeBroadcast from watcher")...)
 	bot.WriteMessage(websocket.BinaryMessage, payload)
-	log.Printf("[bot:%v] sent message %q\n", userId, payload)
+	log.Printf("[bot:%v] sent message %q", userId, payload)
 	time.Sleep(time.Second)
 }
 
@@ -246,13 +246,13 @@ func spawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQu
 
 	room, err := bot.JoinRoomByNumber(roomNumber, queries)
 	if err != nil {
-		log.Printf("[bot:%v] join room error: %v\n", userId, err)
+		log.Printf("[bot:%v] join room error: %v", userId, err)
 		return
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
-		log.Printf("[bot:%v] dial game error: %v\n", userId, err)
+		log.Printf("[bot:%v] dial game error: %v", userId, err)
 		return
 	}
 
@@ -264,13 +264,13 @@ func spawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.Prop
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 	room, err := bot.JoinRoomAtRandom(searchGroup, queries)
 	if err != nil {
-		log.Printf("[bot:%v] join room error: %v\n", userId, err)
+		log.Printf("[bot:%v] join room error: %v", userId, err)
 		return
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
-		log.Printf("[bot:%v] dial game error: %v\n", userId, err)
+		log.Printf("[bot:%v] dial game error: %v", userId, err)
 		return
 	}
 

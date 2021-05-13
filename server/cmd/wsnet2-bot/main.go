@@ -42,5 +42,5 @@ func main() {
 			return
 		}
 	}
-	log.Printf("command not found: %v\n", subcmd)
+	log.Printf("command not found: %v", subcmd)
 }
