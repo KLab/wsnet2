@@ -7,8 +7,6 @@ dbname = "wsnet2"
 
 [Game]
 log_stdout_console = true
-grpc_port = 19000
-websocket_port = 8000
 pprof_port = 3000
 
 default_deadline = 5
@@ -17,9 +15,7 @@ max_room_num = 999999
 
 [Hub]
 log_stdout_console = true
-grpc_port = 19001
-websocket_port = 8001
-pprof_port = 3001
+pprof_port = 3000
 
 default_deadline = 5
 default_loglevel = 5
@@ -29,5 +25,5 @@ log_stdout_console = true
 hostname = "localhost"
 net = "tcp"
 port = 8080
-pprof_port = 3001
+pprof_port = 3000
 loglevel = 5
