@@ -29,6 +29,7 @@ type bot struct {
 	newDeadline chan time.Duration
 	ready       chan struct{}
 	done        chan struct{}
+	seq         int
 }
 
 func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
@@ -263,6 +264,13 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 
 func (b *bot) WriteMessage(messageType int, data []byte) error {
 	return b.conn.WriteMessage(messageType, data)
+}
+
+func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
+	b.seq++
+	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload)
+	log.Printf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
+	return b.WriteMessage(websocket.BinaryMessage, msg)
 }
 
 func (b *bot) Close() error {

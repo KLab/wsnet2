@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/gorilla/websocket"
-
 	"wsnet2/binary"
 	"wsnet2/lobby"
 )
@@ -86,23 +84,19 @@ func (cmd *normalBot) Execute() {
 	go func() {
 		time.Sleep(time.Second * 2)
 		fmt.Println("msg 001")
-		payload := []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 1}
-		payload = append(payload, binary.MarshalStr8("23456")...)
-		bot.WriteMessage(websocket.BinaryMessage, payload)
+		bot.SendMessage(binary.MsgTypeSwitchMaster, binary.MarshalStr8("23456"))
 		time.Sleep(time.Second)
 		fmt.Println("msg 002")
-		payload = []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 2}
-		payload = append(payload, binary.MarshalStr8("34567")...)
-		bot.WriteMessage(websocket.BinaryMessage, payload)
+		bot.SendMessage(binary.MsgTypeSwitchMaster, binary.MarshalStr8("34567"))
 		time.Sleep(time.Second)
 		fmt.Println("msg 003")
-		bot.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 1, 2, 3, 4, 5})
+		bot.SendMessage(binary.MsgTypeBroadcast, []byte{1, 2, 3, 4, 5})
 		time.Sleep(time.Second)
 		fmt.Println("msg 004")
-		bot.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 4, 11, 12, 13, 14, 15})
+		bot.SendMessage(binary.MsgTypeBroadcast, []byte{11, 12, 13, 14, 15})
 		time.Sleep(time.Second)
 		fmt.Println("msg 005")
-		bot.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 5, 21, 22, 23, 24, 25})
+		bot.SendMessage(binary.MsgTypeBroadcast, []byte{21, 22, 23, 24, 25})
 		//time.Sleep(time.Second)
 		//fmt.Println("msg 003")
 		//ws.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3, 21, 22, 23, 24, 25})
@@ -110,12 +104,11 @@ func (cmd *normalBot) Execute() {
 		//		ws.Close()
 		time.Sleep(time.Second)
 		fmt.Println("msg 006")
-		payload = []byte{byte(binary.MsgTypeClientProp), 0, 0, 6}
-		payload = append(payload, binary.MarshalDict(binary.Dict{
+		props := binary.MarshalDict(binary.Dict{
 			"p1": binary.MarshalUShort(20),
 			"p2": []byte{},
-		})...)
-		bot.WriteMessage(websocket.BinaryMessage, payload)
+		})
+		bot.SendMessage(binary.MsgTypeClientProp, props)
 	}()
 
 	//	<-done
@@ -135,28 +128,22 @@ func (cmd *normalBot) Execute() {
 	go func() {
 		time.Sleep(time.Second * 3)
 		fmt.Println("msg 007")
-		payload := []byte{byte(binary.MsgTypeKick), 0, 0, 7}
-		payload = append(payload, binary.MarshalStr8("99999")...)
-		bot.WriteMessage(websocket.BinaryMessage, payload)
+		bot.SendMessage(binary.MsgTypeKick, binary.MarshalStr8("99999"))
 		time.Sleep(time.Second)
 		fmt.Println("msg 008")
-		payload = []byte{byte(binary.MsgTypeKick), 0, 0, 8}
-		payload = append(payload, binary.MarshalStr8("00000")...)
-		bot.WriteMessage(websocket.BinaryMessage, payload)
+		bot.SendMessage(binary.MsgTypeKick, binary.MarshalStr8("00000"))
 		time.Sleep(time.Second)
 		fmt.Println("msg 009")
-		bot.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 9, 31, 32, 33, 34, 35})
+		bot.SendMessage(binary.MsgTypeBroadcast, []byte{31, 32, 33, 34, 35})
 		time.Sleep(time.Second)
 		fmt.Println("msg 010")
-		bot.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeBroadcast), 0, 0, 10, 41, 42, 43, 44, 45})
+		bot.SendMessage(binary.MsgTypeBroadcast, []byte{41, 42, 43, 44, 45})
 		time.Sleep(time.Second)
 		fmt.Println("msg 011")
-		payload = []byte{byte(binary.MsgTypeSwitchMaster), 0, 0, 11}
-		payload = append(payload, binary.MarshalStr8("23456")...)
-		bot.WriteMessage(websocket.BinaryMessage, payload)
+		bot.SendMessage(binary.MsgTypeSwitchMaster, binary.MarshalStr8("23456"))
 		time.Sleep(time.Second)
 		fmt.Println("msg 012 (leave)")
-		bot.WriteMessage(websocket.BinaryMessage, []byte{byte(binary.MsgTypeLeave), 0, 0, 12})
+		bot.SendMessage(binary.MsgTypeLeave, []byte{})
 		time.Sleep(time.Second)
 		bot.Close()
 	}()
@@ -215,29 +202,19 @@ func spawnWatcher(roomId, userId string) {
 
 	time.Sleep(time.Second)
 
-	var payload []byte
-
 	// MsgTypeToMaster
-	payload = []byte{byte(binary.MsgTypeToMaster), 0, 0, 1}
-	payload = append(payload, binary.MarshalStr8("MsgTypeToMaster from watcher")...)
-	bot.WriteMessage(websocket.BinaryMessage, payload)
-	log.Printf("[bot:%v] sent message %q", userId, payload)
+	bot.SendMessage(binary.MsgTypeToMaster, binary.MarshalStr8("MsgTypeToMaster from watcher"))
 	time.Sleep(time.Second)
 
 	// MsgTypeTargets: 存在するターゲットと存在しないターゲットに対してメッセージを送る
-	payload = []byte{byte(binary.MsgTypeTargets), 0, 0, 2}
-	payload = MarshalTargetsAndData(payload,
+	payload := MarshalTargetsAndData([]byte{},
 		[]string{"23456", "goblin"},
 		binary.MarshalStr8("MsgTypeTargets from watcher"))
-	bot.WriteMessage(websocket.BinaryMessage, payload)
-	log.Printf("[bot:%v] sent message %q", userId, payload)
+	bot.SendMessage(binary.MsgTypeTargets, payload)
 	time.Sleep(time.Second)
 
 	// MsgTypeBroadcast
-	payload = []byte{byte(binary.MsgTypeBroadcast), 0, 0, 3}
-	payload = append(payload, binary.MarshalStr8("MsgTypeBroadcast from watcher")...)
-	bot.WriteMessage(websocket.BinaryMessage, payload)
-	log.Printf("[bot:%v] sent message %q", userId, payload)
+	bot.SendMessage(binary.MsgTypeBroadcast, binary.MarshalStr8("MsgTypeBroadcast from watcher"))
 	time.Sleep(time.Second)
 }
 
