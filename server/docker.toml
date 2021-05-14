@@ -13,7 +13,7 @@ pprof_port = 3000
 
 default_deadline = 5
 default_loglevel = 5
-max_room_num = 999
+max_room_num = 999999
 
 [Hub]
 log_stdout_console = true
@@ -23,7 +23,6 @@ pprof_port = 3001
 
 default_deadline = 5
 default_loglevel = 5
-max_room_num = 999
 
 [Lobby]
 log_stdout_console = true
