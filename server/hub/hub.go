@@ -458,6 +458,8 @@ func (h *Hub) dispatch(msg game.Msg) error {
 	switch m := msg.(type) {
 	case *game.MsgWatch:
 		return h.msgWatch(m)
+	case *game.MsgPing:
+		return h.msgPing(m)
 	case *game.MsgClientError:
 		return h.msgClientError(m)
 
@@ -542,6 +544,11 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		Deadline: h.deadline,
 	}
 	return nil
+}
+
+func (h *Hub) msgPing(msg *game.MsgPing) error {
+	ev := binary.NewEvPong(msg.Timestamp, h.RoomInfo.Watchers, h.lastMsg)
+	return msg.Sender.SendSystemEvent(ev)
 }
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {

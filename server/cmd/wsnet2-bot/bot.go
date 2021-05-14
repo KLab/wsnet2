@@ -19,11 +19,17 @@ import (
 )
 
 type bot struct {
-	appId  string
-	appKey string
-	userId string
-	props  binary.Dict
-	ws     *websocket.Dialer
+	appId       string
+	appKey      string
+	userId      string
+	props       binary.Dict
+	ws          *websocket.Dialer
+	conn        *websocket.Conn
+	deadline    time.Duration
+	newDeadline chan time.Duration
+	ready       chan struct{}
+	done        chan struct{}
+	seq         int
 }
 
 func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
@@ -68,7 +74,8 @@ func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
 	}
 
 	room := res.Room
-	log.Printf("[bot:%v] Create success, WebSocket=%s\n", b.userId, room.Url)
+	b.deadline = time.Duration(room.Deadline) * time.Second
+	log.Printf("[bot:%v] Create success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -107,7 +114,8 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 	}
 
 	room := res.Room
-	log.Printf("[bot:%v] Join success, WebSocket=%s\n", b.userId, room.Url)
+	b.deadline = time.Duration(room.Deadline) * time.Second
+	log.Printf("[bot:%v] Join success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -133,7 +141,8 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 	}
 
 	room := res.Room
-	log.Printf("[bot:%v] Join by room number success, WebSocket=%s\n", b.userId, room.Url)
+	b.deadline = time.Duration(room.Deadline) * time.Second
+	log.Printf("[bot:%v] Join by room number success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -159,7 +168,8 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 	}
 
 	room := res.Room
-	log.Printf("[bot:%v] Join at random success, WebSocket=%s\n", b.userId, room.Url)
+	b.deadline = time.Duration(room.Deadline) * time.Second
+	log.Printf("[bot:%v] Join at random success, WebSocket=%s", b.userId, room.Url)
 	return room, nil
 }
 
@@ -173,16 +183,16 @@ func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.R
 
 	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/search", param, &res)
 	if err != nil {
-		log.Printf("error: %v\n", err)
+		log.Printf("error: %v", err)
 		return nil, err
 	}
 	if res.Rooms == nil {
-		log.Printf("error: %v\n", res.Msg)
+		log.Printf("error: %v", res.Msg)
 		return nil, fmt.Errorf("Search failed: %v", res.Msg)
 	}
 
 	rooms := res.Rooms
-	log.Printf("[bot:%v] Search success, rooms=%v\n", b.userId, rooms)
+	log.Printf("[bot:%v] Search success, rooms=%v", b.userId, rooms)
 	return rooms, nil
 }
 
@@ -226,7 +236,7 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	return nil
 }
 
-func (b *bot) DialGame(url, authKey string, seq int) (*websocket.Conn, error) {
+func (b *bot) DialGame(url, authKey string, seq int) error {
 	hdr := http.Header{}
 	hdr.Add("Wsnet2-App", b.appId)
 	hdr.Add("Wsnet2-User", b.userId)
@@ -234,17 +244,104 @@ func (b *bot) DialGame(url, authKey string, seq int) (*websocket.Conn, error) {
 
 	authdata, err := auth.GenerateAuthData(authKey, b.userId, time.Now())
 	if err != nil {
-		log.Printf("[bot:%v] generate authdata error: %v\n", b.userId, err)
-		return nil, err
+		log.Printf("[bot:%v] generate authdata error: %v", b.userId, err)
+		return err
 	}
 	hdr.Add("Authorization", "Bearer "+authdata)
 
-	ws, res, err := b.ws.Dial(url, hdr)
+	conn, res, err := b.ws.Dial(url, hdr)
 	if err != nil {
-		log.Printf("[bot:%v] dial error: %v, %v\n", b.userId, res, err)
-		return nil, err
+		log.Printf("[bot:%v] dial error: %v, %v", b.userId, res, err)
+		return err
 	}
-	log.Printf("[bot:%v] response: %v\n", b.userId, res)
+	log.Printf("[bot:%v] response: %v", b.userId, res)
 
-	return ws, nil
+	b.conn = conn
+	go b.pinger()
+
+	return nil
+}
+
+func (b *bot) WriteMessage(messageType int, data []byte) error {
+	return b.conn.WriteMessage(messageType, data)
+}
+
+func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
+	b.seq++
+	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload)
+	log.Printf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
+	return b.WriteMessage(websocket.BinaryMessage, msg)
+}
+
+func (b *bot) Close() error {
+	return b.conn.Close()
+}
+
+func calcPingInterval(deadline time.Duration) time.Duration {
+	return deadline / 3
+}
+
+func (b *bot) pinger() {
+	deadline := b.deadline
+	t := time.NewTicker(calcPingInterval(deadline))
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			msg := binary.NewMsgPing(time.Now())
+			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				log.Printf("pinger: WrteMessage error: %v", err)
+				return
+			}
+		case newDeadline := <-b.newDeadline:
+			log.Printf("pinger: update deadline: %v to %v", deadline, newDeadline)
+			t.Reset(calcPingInterval(newDeadline))
+		case <-b.done:
+			return
+		}
+	}
+}
+
+func (b *bot) EventLoop(done chan bool) {
+	defer close(done)
+	for {
+		_, p, err := b.conn.ReadMessage()
+		if err != nil {
+			log.Printf("[bot:%v] ReadMessage error: %v", b.userId, err)
+			return
+		}
+
+		ev, seq, err := binary.UnmarshalEvent(p)
+		if err != nil {
+			log.Printf("[bot:%v] Failed to UnmarshalEvent: err=%v, binary=%v", b.userId, err, p)
+			continue
+		}
+		switch ty := ev.Type(); ty {
+		case binary.EvTypeJoined:
+			namelen := int(p[6])
+			name := string(p[7 : 7+namelen])
+			props := p[7+namelen:]
+			log.Printf("[bot:%v] %s: %v %#v, %v", b.userId, ty, seq, name, props)
+		case binary.EvTypePermissionDenied:
+			log.Printf("[bot:%v] %s: %v", b.userId, ty, p)
+		case binary.EvTypeTargetNotFound:
+			list, _, err := binary.UnmarshalAs(p[5:], binary.TypeList, binary.TypeNull)
+			if err != nil {
+				log.Printf("[bot:%v] %s: error: %v", b.userId, ty, err)
+				break
+			}
+			log.Printf("[bot:%v] %s: %v %v", b.userId, ty, list, p)
+		case binary.EvTypeMessage:
+			log.Printf("[bot:%v] %v: %q", b.userId, ty, string(ev.Payload()))
+		case binary.EvTypeLeft:
+			left, err := binary.UnmarshalEvLeftPayload(ev.Payload())
+			if err != nil {
+				log.Printf("[bot:%v] Failed to UnmarshalEvLeftPayload: err=%v, payload=% x", b.userId, err, ev.Payload())
+				break
+			}
+			log.Printf("[bot:%v] %s: left=%q master=%q", b.userId, ty, left.ClientId, left.MasterId)
+		default:
+			log.Printf("[bot:%v] ReadMessage: %v, %v", b.userId, ty, p)
+		}
+	}
 }
