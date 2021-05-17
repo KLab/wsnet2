@@ -19,7 +19,7 @@ string.go := $(foreach s,$(stringer),$(dir $(word 1,$(subst >, ,$(s))))$(word 2,
 COMMIT := $(shell git rev-parse --short HEAD)
 GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)"
 
-.PHONY: all generate clean test install-go-tools build build-commit
+.PHONY: all generate clean test check install-go-tools build build-commit
 
 all: install-go-tools generate build
 
@@ -33,8 +33,7 @@ test: generate
 	go vet ./...
 	go test ./...
 
-check:
-	go install honnef.co/go/tools/cmd/staticcheck
+check: install-go-tools
 	staticcheck ./...
 
 install-go-tools:
