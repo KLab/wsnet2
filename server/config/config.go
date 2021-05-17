@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -162,7 +161,7 @@ func Load(conffile string) (*Config, error) {
 		},
 	}
 
-	confBytes, err := ioutil.ReadFile(conffile)
+	confBytes, err := os.ReadFile(conffile)
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +190,7 @@ func (db *DbConf) loadAuthfile(conffile string) error {
 	if authfile[0] != '/' {
 		authfile = path.Join(path.Dir(conffile), authfile)
 	}
-	content, err := ioutil.ReadFile(authfile)
+	content, err := os.ReadFile(authfile)
 	if err != nil {
 		return err
 	}
