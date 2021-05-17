@@ -1,6 +1,6 @@
 module wsnet2
 
-go 1.15
+go 1.16
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
@@ -18,4 +18,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20200806184451-1a77d5e9f316
 	google.golang.org/grpc v1.28.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	honnef.co/go/tools v0.1.4
 )
