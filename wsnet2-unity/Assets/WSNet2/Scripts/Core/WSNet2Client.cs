@@ -37,6 +37,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   接続情報を更新
         /// </summary>
+        /// <param name="baseUri">LobbyのURIを変更する</param>
         public void SetBaseUri(string baseUri)
         {
             this.baseUri = baseUri;
@@ -45,6 +46,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   認証データを更新
         /// </summary>
+        /// <param name="authData">認証情報</param>
         public void UpdateAuthData(string authData)
         {
             this.bearer = "Bearer " + authData;
@@ -92,8 +94,8 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="roomOption">部屋オプション</param>
         /// <param name="clientProps">自身のカスタムプロパティ</param>
-        /// <param name="onSuccess">成功時callback</param>
-        /// <param name="onFailed">失敗時callback</param>
+        /// <param name="onSuccess">成功時callback. 引数は作成した部屋</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         /// <remarks>
         ///   <para>callbackはProcessCallback経由で呼ばれる</para>
         ///   <para>
@@ -125,6 +127,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   部屋IDを指定して入室
         /// </summary>
+        /// <param name="roomId">Room ID</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="clientProps">自身のカスタムプロパティ</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Join(
             string roomId,
             Query query,
@@ -144,6 +151,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   部屋番号を指定して入室
         /// </summary>
+        /// <param name="number">部屋番号</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="clientProps">自身のカスタムプロパティ</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Join(
             int number,
             Query query,
@@ -163,6 +175,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   検索クエリに合致する部屋にランダム入室
         /// </summary>
+        /// <param name="group">検索グループ</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="clientProps">自身のカスタムプロパティ</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void RandomJoin(
             uint group,
             Query query,
@@ -182,6 +199,10 @@ namespace WSNet2.Core
         /// <summary>
         ///   RoomIDを指定して観戦入室
         /// </summary>
+        /// <param name="roomId">Room ID</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Watch(
             string roomId,
             Query query,
@@ -200,6 +221,10 @@ namespace WSNet2.Core
         /// <summary>
         ///   部屋番号を指定して観戦入室
         /// </summary>
+        /// <param name="number">部屋番号</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Watch(
             int number,
             Query query,
@@ -218,6 +243,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   部屋検索
         /// </summary>
+        /// <param name="group">検索グループ</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="limit">件数上限</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋一覧</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Search(
             uint group,
             Query query,
@@ -231,6 +261,13 @@ namespace WSNet2.Core
         /// <summary>
         ///   部屋検索
         /// </summary>
+        /// <param name="group">検索グループ</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="limit">件数上限</param>
+        /// <param name="checkJoinable">入室可能な部屋のみ含める</param>
+        /// <param name="checkWatchable">観戦可能な部屋のみ含める</param>
+        /// <param name="onSuccess">成功時callback. 引数は入室した部屋一覧</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Search(
             uint group,
             Query query,
