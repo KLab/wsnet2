@@ -7,6 +7,9 @@ namespace WSNet2.Core
     [MessagePackObject]
     public class RoomOption
     {
+        /// <summary>
+        ///   部屋のログレベル
+        /// </summary>
         public enum LogLevel
         {
             DEFAULT = 0,
@@ -51,6 +54,13 @@ namespace WSNet2.Core
         {
         }
 
+        /// <summary>
+        ///   コンストラクタ
+        /// </summary>
+        /// <param name="maxPlayers">最大プレイヤー数</param>
+        /// <param name="searchGroup">検索グループ</param>
+        /// <param name="publicProps">公開プロパティ</param>
+        /// <param name="privateProps">非公開プロパティ</param>
         public RoomOption(
             uint maxPlayers,
             uint searchGroup,
@@ -81,36 +91,74 @@ namespace WSNet2.Core
             }
         }
 
+        /// <summary>
+        ///   検索可能フラグを設定する
+        /// </summary>
+        /// <remarks>
+        ///   デフォルトtrue
+        /// </remarks>
         public RoomOption Visible(bool val)
         {
             this.visible = val;
             return this;
         }
 
+        /// <summary>
+        ///   入室可能フラグを設定する
+        /// </summary>
+        /// <remarks>
+        ///   デフォルトtrue
+        /// </remarks>
         public RoomOption Joinable(bool val)
         {
             this.joinable = val;
             return this;
         }
 
+        /// <summary>
+        ///   観戦可能フラグを設定する
+        /// </summary>
+        /// <remarks>
+        ///   デフォルトtrue
+        /// </remarks>
         public RoomOption Watchable(bool val)
         {
             this.watchable = val;
             return this;
         }
 
+        /// <summary>
+        ///   部屋番号の割り当て設定
+        /// </summary>
+        /// <remarks>
+        ///   デフォルトfalse
+        /// </remarks>
         public RoomOption WithNumber(bool val)
         {
             this.withNumber = val;
             return this;
         }
 
+        /// <summary>
+        ///   ClientDeadlineを設定する
+        /// </summary>
+        /// <param name="sec">設定値（秒）</param>
+        /// <remarks>
+        ///   デフォルト値はサーバ側の設定による
+        /// </remarks>
         public RoomOption WithClientDeadline(uint sec)
         {
             this.clientDeadline = sec;
             return this;
         }
 
+        /// <summary>
+        ///   部屋のLogLevelを設定する
+        /// </summary>
+        /// <param name="l">ログレベル</param>
+        /// <remarks>
+        ///   デフォルト値はサーバ側の設定による
+        /// </remarks>
         public RoomOption SetLogLevel(LogLevel l)
         {
             this.logLevel = l;

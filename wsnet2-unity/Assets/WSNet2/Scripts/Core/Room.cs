@@ -624,8 +624,8 @@ namespace WSNet2.Core
         /// <param name="searchGroup">検索グループ</param>
         /// <param name="maxPlayers">最大人数</param>
         /// <param name="clientDeadline">通信タイムアウト時間(秒)</param>
-        /// <param name="publicProps">公開プロパティ</param>
-        /// <param name="privateProps">非公開プロパティ</param>
+        /// <param name="publicProps">公開プロパティ（変更するキーのみ）</param>
+        /// <param name="privateProps">非公開プロパティ（変更するキーのみ）</param>
         /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
         /// <remarks>
         ///   この操作はMasterのみ呼び出せる。
@@ -690,7 +690,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   自分自身のプロパティを変更する
         /// </summary>
-        /// <param name="props">変更するプロパティの辞書</param>
+        /// <param name="props">変更するプロパティの辞書（変更するキーのみ）</param>
         /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
         /// <remarks>
         ///   この操作はプレイヤーのみ呼び出せる。観戦者はできない。

@@ -35,6 +35,9 @@ namespace WSNet2.Core
             return new ArraySegment<byte>(arrSeg.Array, start, len);
         }
 
+        /// <summary>
+        ///   bool値を取り出す
+        /// </summary>
         public bool ReadBool()
         {
             checkLength(1);
@@ -42,60 +45,90 @@ namespace WSNet2.Core
             return t == Type.True;
         }
 
+        /// <summary>
+        ///   sbyte値を取り出す
+        /// </summary>
         public sbyte ReadSByte()
         {
             checkType(Type.SByte);
             return (sbyte)(Get8() + (int)sbyte.MinValue);
         }
 
+        /// <summary>
+        ///   byte値を取り出す
+        /// </summary>
         public byte ReadByte()
         {
             checkType(Type.Byte);
             return (byte)Get8();
         }
 
+        /// <summary>
+        ///   char値を取り出す
+        /// </summary>
         public char ReadChar()
         {
             checkType(Type.Char);
             return (char)Get16();
         }
 
+        /// <summary>
+        ///   short値を取り出す
+        /// </summary>
         public short ReadShort()
         {
             checkType(Type.Short);
             return (short)(Get16() + (int)short.MinValue);
         }
 
+        /// <summary>
+        ///   ushort値を取り出す
+        /// </summary>
         public ushort ReadUShort()
         {
             checkType(Type.UShort);
             return (ushort)Get16();
         }
 
+        /// <summary>
+        ///   int値を取り出す
+        /// </summary>
         public int ReadInt()
         {
             checkType(Type.Int);
             return (int)((long)Get32() + (long)int.MinValue);
         }
 
+        /// <summary>
+        ///   uint値を取り出す
+        /// </summary>
         public uint ReadUInt()
         {
             checkType(Type.UInt);
             return Get32();
         }
 
+        /// <summary>
+        ///   long値を取り出す
+        /// </summary>
         public long ReadLong()
         {
             checkType(Type.Long);
             return (long)Get64() + long.MinValue;
         }
 
+        /// <summary>
+        ///   ulong値を取り出す
+        /// </summary>
         public ulong ReadULong()
         {
             checkType(Type.ULong);
             return Get64();
         }
 
+        /// <summary>
+        ///   float値を取り出す
+        /// </summary>
         public float ReadFloat()
         {
             checkType(Type.Float);
@@ -112,6 +145,9 @@ namespace WSNet2.Core
             return BitConverter.ToSingle(BitConverter.GetBytes(b), 0);
         }
 
+        /// <summary>
+        ///   double値を取り出す
+        /// </summary>
         public double ReadDouble()
         {
             checkType(Type.Double);
@@ -128,6 +164,9 @@ namespace WSNet2.Core
             return BitConverter.Int64BitsToDouble(b);
         }
 
+        /// <summary>
+        ///   string値を取り出す
+        /// </summary>
         public string ReadString()
         {
             var t = checkType(Type.Str8, Type.Str16, Type.Null);
@@ -142,6 +181,9 @@ namespace WSNet2.Core
             return str;
         }
 
+        /// <summary>
+        ///   登録された型の値を取り出す
+        /// </summary>
         public T ReadObject<T>(T recycle = default) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.Obj, Type.Null) == Type.Null)
@@ -179,6 +221,10 @@ namespace WSNet2.Core
             return obj;
         }
 
+        /// <summary>
+        ///   シリアライズ可能な型のリストを取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public List<object> ReadList(IReadOnlyList<object> recycle = null)
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
@@ -199,6 +245,10 @@ namespace WSNet2.Core
             return list;
         }
 
+        /// <summary>
+        ///   シリアライズ可能な型の配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public object[] ReadArray(IReadOnlyList<object> recycle = null)
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
@@ -219,6 +269,11 @@ namespace WSNet2.Core
             return list;
         }
 
+        /// <summary>
+        ///   登録された型のリストを取り出す
+        /// </summary>
+        /// <typeparam name="T">登録された型</typeparam>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
@@ -242,6 +297,11 @@ namespace WSNet2.Core
             return list;
         }
 
+        /// <summary>
+        ///   登録された型の配列を取り出す
+        /// </summary>
+        /// <typeparam name="T">登録された型</typeparam>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
@@ -265,6 +325,10 @@ namespace WSNet2.Core
             return list;
         }
 
+        /// <summary>
+        ///   辞書を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public Dictionary<string, object> ReadDict(IDictionary<string, object> recycle = null)
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)
@@ -290,6 +354,10 @@ namespace WSNet2.Core
             return dict;
         }
 
+        /// <summary>
+        ///   boolの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public bool[] ReadBools(bool[] recycle = null)
         {
             if (checkType(Type.Bools, Type.Null) == Type.Null)
@@ -318,6 +386,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   sbyteの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public sbyte[] ReadSBytes(sbyte[] recycle = null)
         {
             if (checkType(Type.SBytes, Type.Null) == Type.Null)
@@ -340,6 +412,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   byteの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public byte[] ReadBytes(byte[] recycle = null)
         {
             if (checkType(Type.Bytes, Type.Null) == Type.Null)
@@ -362,6 +438,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   charの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public char[] ReadChars(char[] recycle = null)
         {
             if (checkType(Type.Chars, Type.Null) == Type.Null)
@@ -384,6 +464,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   shortの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public short[] ReadShorts(short[] recycle = null)
         {
             if (checkType(Type.Shorts, Type.Null) == Type.Null)
@@ -406,6 +490,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   ushortの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public ushort[] ReadUShorts(ushort[] recycle = null)
         {
             if (checkType(Type.UShorts, Type.Null) == Type.Null)
@@ -428,6 +516,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   intの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public int[] ReadInts(int[] recycle = null)
         {
             if (checkType(Type.Ints, Type.Null) == Type.Null)
@@ -450,6 +542,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   uintの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public uint[] ReadUInts(uint[] recycle = null)
         {
             if (checkType(Type.UInts, Type.Null) == Type.Null)
@@ -472,6 +568,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   longの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public long[] ReadLongs(long[] recycle = null)
         {
             if (checkType(Type.Longs, Type.Null) == Type.Null)
@@ -494,6 +594,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   ulongの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public ulong[] ReadULongs(ulong[] recycle = null)
         {
             if (checkType(Type.ULongs, Type.Null) == Type.Null)
@@ -516,6 +620,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   floatの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public float[] ReadFloats(float[] recycle = null)
         {
             if (checkType(Type.Floats, Type.Null) == Type.Null)
@@ -548,6 +656,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   doubleの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public double[] ReadDoubles(double[] recycle = null)
         {
             if (checkType(Type.Doubles, Type.Null) == Type.Null)
@@ -580,6 +692,10 @@ namespace WSNet2.Core
             return vals;
         }
 
+        /// <summary>
+        ///   stringの配列を取り出す
+        /// </summary>
+        /// <param name="recycle">再利用するオブジェクト</param>
         public string[] ReadStrings(string[] recycle = null)
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
@@ -605,6 +721,7 @@ namespace WSNet2.Core
             return list;
         }
 
+        // experimental
         public Dictionary<string, bool> ReadBoolDict()
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)
@@ -628,6 +745,7 @@ namespace WSNet2.Core
 
         // TODO: implement other primitive type dict
 
+        // experimental
         public Dictionary<string, ulong> ReadULongDict()
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)
