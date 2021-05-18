@@ -225,7 +225,7 @@ namespace WSNet2.Core
         ///   シリアライズ可能な型のリストを取り出す
         /// </summary>
         /// <param name="recycle">再利用するオブジェクト</param>
-        public List<object> ReadList(IReadOnlyList<object> recycle = null)
+        public List<object> ReadList(List<object> recycle = null)
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
             {
@@ -233,13 +233,30 @@ namespace WSNet2.Core
             }
 
             var count = Get8();
-            var list = new List<object>(count);
+            var list = recycle;
+            if (list == null)
+            {
+                list = new List<object>(count);
+            }
+            else if (list.Count > count)
+            {
+                list.RemoveRange(count, list.Count - count);
+            }
+
             var recycleCount = (recycle != null) ? recycle.Count : 0;
 
             for (var i = 0; i < count; i++)
             {
                 var elem = readElement((i < recycleCount) ? recycle[i] : null);
-                list.Add(elem);
+
+                if (list.Count > i)
+                {
+                    list[i] = elem;
+                }
+                else
+                {
+                    list.Add(elem);
+                }
             }
 
             return list;
@@ -249,7 +266,7 @@ namespace WSNet2.Core
         ///   シリアライズ可能な型の配列を取り出す
         /// </summary>
         /// <param name="recycle">再利用するオブジェクト</param>
-        public object[] ReadArray(IReadOnlyList<object> recycle = null)
+        public object[] ReadArray(object[] recycle = null)
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
             {
@@ -257,8 +274,13 @@ namespace WSNet2.Core
             }
 
             var count = Get8();
-            var list = new object[count];
-            var recycleCount = (recycle != null) ? recycle.Count : 0;
+            var list = recycle;
+            if (list == null || list.Length != count)
+            {
+                list = new object[count];
+            }
+
+            var recycleCount = (recycle != null) ? recycle.Length : 0;
 
             for (var i = 0; i < count; i++)
             {
@@ -274,7 +296,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <typeparam name="T">登録された型</typeparam>
         /// <param name="recycle">再利用するオブジェクト</param>
-        public List<T> ReadList<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNet2Serializable, new()
+        public List<T> ReadList<T>(List<T> recycle = null) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
             {
@@ -282,7 +304,16 @@ namespace WSNet2.Core
             }
 
             var count = Get8();
-            var list = new List<T>(count);
+            var list = recycle;
+            if (list == null)
+            {
+                list = new List<T>(count);
+            }
+            else if (list.Count > count)
+            {
+                list.RemoveRange(count, list.Count - count);
+            }
+
             var recycleCount = (recycle != null) ? recycle.Count : 0;
 
             for (var i = 0; i < count; i++)
@@ -290,7 +321,16 @@ namespace WSNet2.Core
                 var len = Get16();
                 var st = pos;
                 var elem = ReadObject<T>((i < recycleCount) ? recycle[i] : null);
-                list.Add(elem);
+
+                if (list.Count > i)
+                {
+                    list[i] = elem;
+                }
+                else
+                {
+                    list.Add(elem);
+                }
+
                 pos = st + len;
             }
 
@@ -302,7 +342,7 @@ namespace WSNet2.Core
         /// </summary>
         /// <typeparam name="T">登録された型</typeparam>
         /// <param name="recycle">再利用するオブジェクト</param>
-        public T[] ReadArray<T>(IReadOnlyList<T> recycle = null) where T : class, IWSNet2Serializable, new()
+        public T[] ReadArray<T>(T[] recycle = null) where T : class, IWSNet2Serializable, new()
         {
             if (checkType(Type.List, Type.Null) == Type.Null)
             {
@@ -310,8 +350,13 @@ namespace WSNet2.Core
             }
 
             var count = Get8();
-            var list = new T[count];
-            var recycleCount = (recycle != null) ? recycle.Count : 0;
+            var list = recycle;
+            if (list == null || list.Length != count)
+            {
+                list = new T[count];
+            }
+
+            var recycleCount = (recycle != null) ? recycle.Length : 0;
 
             for (var i = 0; i < count; i++)
             {
@@ -934,7 +979,7 @@ namespace WSNet2.Core
                     elem = read(this, recycle);
                     break;
                 case Type.List:
-                    elem = ReadList(recycle as IReadOnlyList<object>);
+                    elem = ReadList(recycle as List<object>);
                     break;
                 case Type.Dict:
                     elem = ReadDict(recycle as IDictionary<string, object>);
