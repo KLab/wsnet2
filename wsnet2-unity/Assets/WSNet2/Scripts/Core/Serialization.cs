@@ -72,7 +72,7 @@ namespace WSNet2.Core
         /// <summary>
         /// カスタム型を登録する
         /// </summary>
-        /// <typeparam name="T">型</typeparam>
+        /// <typeparam name="T">登録する型（IWSNet2Serializable）</typeparam>
         /// <param name="classID">クラス識別子</param>
         public static void Register<T>(byte classID) where T : class, IWSNet2Serializable, new()
         {
@@ -109,7 +109,7 @@ namespace WSNet2.Core
         /// Deserializeする.
         /// </summary>
         /// <param name="reader">reader</param>
-        /// <param name="size">size</param>
+        /// <param name="size">readerから利用可能なデータ長</param>
         void Deserialize(SerialReader reader, int size);
     }
 
