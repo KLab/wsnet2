@@ -234,9 +234,13 @@ namespace WSNet2.Core
 
             var count = Get8();
             var list = recycle;
-            if (list == null || list.Count != count)
+            if (list == null)
             {
                 list = new List<object>(count);
+            }
+            else if (list.Count > count)
+            {
+                list.RemoveRange(count, list.Count - count);
             }
 
             var recycleCount = (recycle != null) ? recycle.Count : 0;
@@ -301,9 +305,13 @@ namespace WSNet2.Core
 
             var count = Get8();
             var list = recycle;
-            if (list == null || list.Count != count)
+            if (list == null)
             {
                 list = new List<T>(count);
+            }
+            else if (list.Count > count)
+            {
+                list.RemoveRange(count, list.Count - count);
             }
 
             var recycleCount = (recycle != null) ? recycle.Count : 0;

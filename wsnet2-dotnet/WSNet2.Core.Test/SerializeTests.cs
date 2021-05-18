@@ -441,7 +441,9 @@ namespace WSNet2.Core.Test
             var r = reader.ReadList(recycle);
             Assert.AreEqual(v, r);
             Assert.AreEqual(2, Obj1.NewCount);
-            Assert.AreNotSame(r, recycle);
+            Assert.AreSame(r, recycle);
+
+            r.Add(null);
 
             // use recycle
             reader = Serialization.NewReader(writer.ArraySegment());
@@ -568,7 +570,9 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(typeof(List<Obj1>), r.GetType());
             Assert.AreEqual(expect, r);
             Assert.AreEqual(1, Obj1.NewCount);
-            Assert.AreNotSame(r, recycle);
+            Assert.AreSame(r, recycle);
+
+            r.Add(null);
 
             reader = Serialization.NewReader(new ArraySegment<byte>(bin));
             var r2 = reader.ReadList<Obj1>(r);
