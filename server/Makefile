@@ -47,19 +47,15 @@ build-commit: $(TARGETS:%=%-$(COMMIT))
 	cp $< $@
 
 bin/wsnet2-lobby: $(PKG_LOBBY:%=%/*.go) $(pb.go) $(string.go)
-	mkdir -p bin
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 bin/wsnet2-game: $(PKG_GAME:%=%/*.go) $(pb.go) $(string.go)
-	mkdir -p bin
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 bin/wsnet2-hub: $(PKG_HUB:%=%/*.go) $(pb.go) $(string.go)
-	mkdir -p bin
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
-	mkdir -p bin
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 %.pb.go: %.proto
