@@ -13,8 +13,9 @@ pb.go := $(proto:.proto=.pb.go)
 
 # stringer targets
 stringer := $(shell grep -r '^//go:generate stringer' . | \
-                sed -E 's/^\.\/([^:]*):.* -type=([0-9a-zA-Z]*)( .*)?$$/\1>\L\2_string.go/g')
-string.go := $(foreach s,$(stringer),$(dir $(word 1,$(subst >, ,$(s))))$(word 2,$(subst >, ,$(s))))
+                sed -E 's/^\.\/([^:]*):.* -type=([0-9a-zA-Z]*)( .*)?$$/\1>\2_string.go/g')
+string.go := $(foreach s,$(stringer),\
+                 $(dir $(word 1,$(subst >, ,$(s))))$(shell echo $(word 2,$(subst >, ,$(s))) | tr A-Z a-z))
 
 COMMIT := $(shell git rev-parse --short HEAD)
 GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)"
@@ -64,7 +65,7 @@ bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
 
 define stringer_rule
 $(eval _1 := $(word 1,$(1)))
-$(eval _2 := $(word 2,$(1)))
+$(eval _2 := $(shell echo $(word 2,$(1)) | tr A-Z a-z))
 $(dir $(_1))$(_2): $(_1)
 	go generate ./$(dir $(_1)).
 endef
