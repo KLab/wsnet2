@@ -85,9 +85,6 @@ type HubConf struct {
 	TLSCert string `toml:"tls_cert"`
 	TLSKey  string `toml:"tls_key"`
 
-	RetryCount int `toml:"retry_count"`
-
-	DefaultDeadline uint32 `toml:"default_deadline"`
 	DefaultLoglevel uint32 `toml:"default_loglevel"`
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
@@ -168,9 +165,6 @@ func Load(conffile string) (*Config, error) {
 			Hostname:   hostname,
 			PublicName: hostname,
 
-			RetryCount: 5,
-
-			DefaultDeadline: 5,
 			DefaultLoglevel: 2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
