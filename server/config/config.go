@@ -15,7 +15,7 @@ import (
 type Config struct {
 	Db    DbConf `toml:"Database"`
 	Game  GameConf
-	Hub   GameConf // とりあえずGameConfを使い回す
+	Hub   HubConf
 	Lobby LobbyConf
 }
 
@@ -66,6 +66,29 @@ type GameConf struct {
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
 	DefaultLoglevel   uint32 `toml:"default_loglevel"`
+
+	HeartBeatInterval Duration `toml:"heartbeat_interval"`
+
+	LogConf
+}
+
+type HubConf struct {
+	// Hostname : Lobbyなどからのアクセス名. see HubConf.setHost()
+	Hostname string
+	// Hostname : クライアントからのアクセス名. see HubConf.setHost()
+	PublicName string `toml:"public_name"`
+
+	GRPCPort      int `toml:"grpc_port"`
+	WebsocketPort int `toml:"websocket_port"`
+	PprofPort     int `toml:"pprof_port"`
+
+	TLSCert string `toml:"tls_cert"`
+	TLSKey  string `toml:"tls_key"`
+
+	RetryCount int `toml:"retry_count"`
+
+	DefaultDeadline uint32 `toml:"default_deadline"`
+	DefaultLoglevel uint32 `toml:"default_loglevel"`
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
 
@@ -141,16 +164,14 @@ func Load(conffile string) (*Config, error) {
 				LogCompress:    false,
 			},
 		},
-		Hub: GameConf{
+		Hub: HubConf{
 			Hostname:   hostname,
 			PublicName: hostname,
 
 			RetryCount: 5,
-			MaxRoomNum: 999999,
 
-			DefaultMaxPlayers: 10,
-			DefaultDeadline:   5,
-			DefaultLoglevel:   2,
+			DefaultDeadline: 5,
+			DefaultLoglevel: 2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
 
