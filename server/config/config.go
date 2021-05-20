@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -100,10 +101,26 @@ func (d *Duration) UnmarshalText(text []byte) error {
 	return err
 }
 
+// Load : tomlファイルから読み込む
+//
+// 次の環境変数はtomlより優先される.
+// - WSNET2_GAME_HOSTNAME:   Config.{Game,Hub}.Hostname
+// - WSNET2_GAME_PUBLICNAME: Config.{Game,Hub}.PublicName
+// - WSNET2_GAME_GRPCPORT:   Config.{Game,Hub}.GRPCPort
+// - WSNET2_GAME_WSPORT:     Config.{Game,Hub}.WebsocketPort
+//
 func Load(conffile string) (*Config, error) {
+	hostname, _ := os.Hostname()
+	if hostname == "" {
+		hostname = "localhost"
+	}
+
 	c := &Config{
 		// set default values before decode file.
 		Game: GameConf{
+			Hostname:   hostname,
+			PublicName: hostname,
+
 			RetryCount: 5,
 			MaxRoomNum: 999999,
 
@@ -125,6 +142,9 @@ func Load(conffile string) (*Config, error) {
 			},
 		},
 		Hub: GameConf{
+			Hostname:   hostname,
+			PublicName: hostname,
+
 			RetryCount: 5,
 			MaxRoomNum: 999999,
 
@@ -176,8 +196,7 @@ func Load(conffile string) (*Config, error) {
 		return nil, err
 	}
 
-	c.Game.setHost()
-	c.Hub.setHost()
+	c.applyEnvVar()
 
 	return c, nil
 }
@@ -212,32 +231,22 @@ func (db *DbConf) DSN() string {
 	return fmt.Sprintf("%s@tcp(%s:%d)/%s?parseTime=true", user, db.Host, db.Port, db.DBName)
 }
 
-// setHost : Hostname/PublicNameを設定する
-// 優先順位
-//  1: Configファイル
-//  2: 環境変数
-//     - WSNET2_GAME_HOSTNAME
-//     - WSNET2_GAME_PUBLICNAME
-//  3: os.Hostname()
-//  4: "localhost"
-//
-func (game *GameConf) setHost() {
-	if game.Hostname == "" {
-		if h := os.Getenv("WSNET2_GAME_HOSTNAME"); h != "" {
-			game.Hostname = h
-		} else if h, err := os.Hostname(); err == nil {
-			game.Hostname = h
-		} else {
-			game.Hostname = ""
-		}
+// applyEnvVar : 環境変数で上書きする
+func (c *Config) applyEnvVar() {
+	if v := os.Getenv("WSNET2_GAME_HOSTNAME"); v != "" {
+		c.Game.Hostname = v
+		c.Hub.Hostname = v
 	}
-	if game.PublicName == "" {
-		if h := os.Getenv("WSNET2_GAME_PUBLICNAME"); h != "" {
-			game.PublicName = h
-		} else if h, err := os.Hostname(); err == nil {
-			game.PublicName = h
-		} else {
-			game.PublicName = ""
-		}
+	if v := os.Getenv("WSNET2_GAME_PUBLICNAME"); v != "" {
+		c.Game.PublicName = v
+		c.Hub.PublicName = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("WSNET2_GAME_WSPORT")); err == nil {
+		c.Game.WebsocketPort = v
+		c.Hub.WebsocketPort = v
+	}
+	if v, err := strconv.Atoi(os.Getenv("WSNET2_GAME_GRPCPORT")); err == nil {
+		c.Game.GRPCPort = v
+		c.Hub.GRPCPort = v
 	}
 }
