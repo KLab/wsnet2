@@ -38,7 +38,10 @@ check: install-go-tools
 	staticcheck ./...
 
 install-go-tools:
-	cat tools.go | awk -F'"' '/_/ {print $$2}' | xargs -tI {} go install {}
+	go install github.com/favadi/protoc-go-inject-tag@v1.0.0
+	go install github.com/golang/protobuf/protoc-gen-go@v1.5.2
+	go install golang.org/x/tools/cmd/stringer@v0.1.1
+	go install honnef.co/go/tools/cmd/staticcheck@2020.2.4
 
 build: $(TARGETS)
 
