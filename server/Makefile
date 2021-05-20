@@ -20,6 +20,9 @@ string.go := $(foreach s,$(stringer),\
 COMMIT := $(shell git rev-parse --short HEAD)
 GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)"
 
+export GOBIN := $(abspath bin)
+export PATH := $(GOBIN):$(PATH)
+
 .PHONY: all generate clean test check install-go-tools build build-commit
 
 all: install-go-tools generate build
