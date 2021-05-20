@@ -246,7 +246,7 @@ namespace WSNet2.Core
         /// <param name="group">検索グループ</param>
         /// <param name="query">検索クエリ</param>
         /// <param name="limit">件数上限</param>
-        /// <param name="onSuccess">成功時callback. 引数は入室した部屋一覧</param>
+        /// <param name="onSuccess">成功時callback. 引数は検索でヒットした部屋一覧</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Search(
             uint group,
@@ -266,7 +266,7 @@ namespace WSNet2.Core
         /// <param name="limit">件数上限</param>
         /// <param name="checkJoinable">入室可能な部屋のみ含める</param>
         /// <param name="checkWatchable">観戦可能な部屋のみ含める</param>
-        /// <param name="onSuccess">成功時callback. 引数は入室した部屋一覧</param>
+        /// <param name="onSuccess">成功時callback. 引数は検索でヒットした部屋一覧</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
         public void Search(
             uint group,
