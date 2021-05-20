@@ -44,9 +44,9 @@ type DbConf struct {
 }
 
 type GameConf struct {
-	// Hostname : Lobbyなどからのアクセス名. see GameConf.setHost()
+	// Hostname : Lobbyなどからのアクセス名. see Load()
 	Hostname string
-	// Hostname : クライアントからのアクセス名. see GameConf.setHost()
+	// Hostname : クライアントからのアクセス名. see Load()
 	PublicName string `toml:"public_name"`
 
 	GRPCPort      int `toml:"grpc_port"`
@@ -73,9 +73,9 @@ type GameConf struct {
 }
 
 type HubConf struct {
-	// Hostname : Lobbyなどからのアクセス名. see HubConf.setHost()
+	// Hostname : Lobbyなどからのアクセス名. see Load()
 	Hostname string
-	// Hostname : クライアントからのアクセス名. see HubConf.setHost()
+	// Hostname : クライアントからのアクセス名. see Load()
 	PublicName string `toml:"public_name"`
 
 	GRPCPort      int `toml:"grpc_port"`
