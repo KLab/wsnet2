@@ -17,7 +17,6 @@ max_room_num = 999999
 log_stdout_console = true
 pprof_port = 3000
 
-default_deadline = 5
 default_loglevel = 5
 
 [Lobby]

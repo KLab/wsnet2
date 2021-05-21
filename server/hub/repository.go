@@ -25,7 +25,7 @@ type ClientID = game.ClientID
 type Repository struct {
 	hostId uint32
 
-	conf     *config.GameConf
+	conf     *config.HubConf
 	db       *sqlx.DB
 	grpcPool *common.GrpcPool
 
@@ -37,7 +37,7 @@ type Repository struct {
 	clients map[ClientID]map[RoomID]*game.Client
 }
 
-func NewRepository(db *sqlx.DB, conf *config.GameConf, hostId uint32) (*Repository, error) {
+func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repository, error) {
 	repo := &Repository{
 		hostId:   hostId,
 		conf:     conf,

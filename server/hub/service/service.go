@@ -29,7 +29,7 @@ type HubService struct {
 
 	HostId int64
 
-	conf *config.GameConf
+	conf *config.HubConf
 	repo *hub.Repository
 
 	db          *sqlx.DB
@@ -38,7 +38,7 @@ type HubService struct {
 	wsURLFormat string
 }
 
-func New(db *sqlx.DB, conf *config.GameConf) (*HubService, error) {
+func New(db *sqlx.DB, conf *config.HubConf) (*HubService, error) {
 	hostId, err := registerHost(db, conf)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func New(db *sqlx.DB, conf *config.GameConf) (*HubService, error) {
 	return &HubService{HostId: hostId, conf: conf, repo: repo, db: db}, nil
 }
 
-func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
+func registerHost(db *sqlx.DB, conf *config.HubConf) (int64, error) {
 	bind := map[string]interface{}{
 		"hostname":    conf.Hostname,
 		"public_name": conf.PublicName,
