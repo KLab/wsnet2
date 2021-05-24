@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -25,6 +26,7 @@ type bot struct {
 	props       binary.Dict
 	ws          *websocket.Dialer
 	conn        *websocket.Conn
+	muWrite     sync.Mutex
 	deadline    time.Duration
 	newDeadline chan time.Duration
 	ready       chan struct{}
@@ -263,6 +265,8 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 }
 
 func (b *bot) WriteMessage(messageType int, data []byte) error {
+	b.muWrite.Lock()
+	defer b.muWrite.Lock()
 	return b.conn.WriteMessage(messageType, data)
 }
 

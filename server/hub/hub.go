@@ -63,6 +63,7 @@ type Hub struct {
 
 	// hub -> game に使う conn
 	gameConn *websocket.Conn
+	muWrite  sync.Mutex
 
 	logger *zap.SugaredLogger
 }
@@ -224,12 +225,17 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 	return res, nil
 }
 
+func (h *Hub) WriteMessage(messageType int, data []byte) error {
+	h.muWrite.Lock()
+	defer h.muWrite.Lock()
+	return h.gameConn.WriteMessage(messageType, data)
+}
+
 func calcPingInterval(deadline time.Duration) time.Duration {
 	return deadline / 3
 }
 
 func (h *Hub) pinger() {
-	conn := h.gameConn
 	deadline := h.deadline
 	t := time.NewTicker(calcPingInterval(deadline))
 	defer t.Stop()
@@ -237,7 +243,7 @@ func (h *Hub) pinger() {
 		select {
 		case <-t.C:
 			msg := binary.NewMsgPing(time.Now())
-			if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+			if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
 				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
 				return
 			}
@@ -253,7 +259,6 @@ func (h *Hub) pinger() {
 const updateInterval = 1 // TODO: config化
 
 func (h *Hub) nodeCountUpdater() {
-	conn := h.gameConn
 	t := time.NewTicker(time.Duration(updateInterval) * time.Second)
 	defer t.Stop()
 	for {
@@ -264,7 +269,7 @@ func (h *Hub) nodeCountUpdater() {
 			h.muClients.RUnlock()
 			if nodeCount != h.lastNodeCount {
 				msg := binary.NewMsgNodeCount(uint32(nodeCount))
-				if err := conn.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
 					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
 					return
 				}
@@ -562,7 +567,7 @@ func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
 	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
 	packet := binary.BuildRegularMsgFrame(msg.Type(), int(h.seq), msg.Payload())
-	return h.gameConn.WriteMessage(websocket.BinaryMessage, packet)
+	return h.WriteMessage(websocket.BinaryMessage, packet)
 }
 
 func (h *Hub) dispatchEvent(ev binary.Event) error {
