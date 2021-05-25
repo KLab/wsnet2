@@ -227,7 +227,7 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 
 func (h *Hub) WriteMessage(messageType int, data []byte) error {
 	h.muWrite.Lock()
-	defer h.muWrite.Lock()
+	defer h.muWrite.Unlock()
 	return h.gameConn.WriteMessage(messageType, data)
 }
 

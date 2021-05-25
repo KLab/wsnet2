@@ -266,7 +266,7 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 
 func (b *bot) WriteMessage(messageType int, data []byte) error {
 	b.muWrite.Lock()
-	defer b.muWrite.Lock()
+	defer b.muWrite.Unlock()
 	return b.conn.WriteMessage(messageType, data)
 }
 
