@@ -20,6 +20,9 @@ string.go := $(foreach s,$(stringer),\
 COMMIT := $(shell git rev-parse --short HEAD)
 GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)"
 
+export GOBIN := $(abspath bin)
+export PATH := $(GOBIN):$(PATH)
+
 .PHONY: all generate clean test check install-go-tools build build-commit
 
 all: install-go-tools generate build
@@ -38,7 +41,11 @@ check: install-go-tools
 	staticcheck ./...
 
 install-go-tools:
-	cat tools.go | awk -F'"' '/_/ {print $$2}' | xargs -tI {} go install {}
+	go mod download
+	go install github.com/golang/protobuf/protoc-gen-go
+	go install github.com/favadi/protoc-go-inject-tag@v1.0.0
+	go install golang.org/x/tools/cmd/stringer@v0.1.1
+	go install honnef.co/go/tools/cmd/staticcheck@2020.2.4
 
 build: $(TARGETS)
 
