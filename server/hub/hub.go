@@ -318,6 +318,7 @@ func (h *Hub) copyInitialValues(res *pb.JoinedRoomRes) error {
 	res.RoomInfo.PrivateProps = iProps
 
 	h.RoomInfo = res.RoomInfo
+	h.master = game.ClientID(res.MasterId)
 	h.deadline = time.Duration(res.Deadline) * time.Second
 	h.publicProps = pubProps
 	h.privateProps = privProps
