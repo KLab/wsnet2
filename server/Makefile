@@ -42,7 +42,8 @@ check: install-go-tools
 
 install-go-tools:
 	go mod download
-	go install github.com/golang/protobuf/protoc-gen-go
+	go install google.golang.org/protobuf/cmd/protoc-gen-go
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
 	go install github.com/favadi/protoc-go-inject-tag@v1.0.0
 	go install golang.org/x/tools/cmd/stringer@v0.1.1
 	go install honnef.co/go/tools/cmd/staticcheck@2020.2.4
@@ -67,7 +68,7 @@ bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 %.pb.go: %.proto
-	protoc --proto_path=pb --go_out=plugins=grpc:pb "$<"
+	protoc --proto_path=pb --go_out=pb --go_opt=paths=source_relative --go-grpc_out=pb --go-grpc_opt=paths=source_relative "$<"
 	protoc-go-inject-tag --input="$@"
 
 define stringer_rule

@@ -25,6 +25,8 @@ const (
 )
 
 type GameService struct {
+	pb.UnimplementedGameServer
+
 	HostId int64
 
 	conf  *config.GameConf

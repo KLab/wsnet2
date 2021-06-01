@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/vmihailenco/msgpack/v4"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (ts *Timestamp) Scan(val interface{}) error {
@@ -15,18 +14,16 @@ func (ts *Timestamp) Scan(val interface{}) error {
 	if !ok {
 		return fmt.Errorf("type is not date.Time: %T, %v", val, val)
 	}
-	var err error
-	ts.Timestamp, err = ptypes.TimestampProto(t)
-	return err
+	ts.Timestamp = timestamppb.New(t)
+	return nil
 }
 
 func (ts Timestamp) Value() (driver.Value, error) {
-	return ptypes.Timestamp(ts.Timestamp)
+	return ts.Timestamp.AsTime(), nil
 }
 
 func (ts Timestamp) Time() time.Time {
-	t, _ := ptypes.Timestamp(ts.Timestamp)
-	return t
+	return ts.Timestamp.AsTime()
 }
 
 func (ts *Timestamp) EncodeMsgpack(enc *msgpack.Encoder) error {
@@ -34,8 +31,14 @@ func (ts *Timestamp) EncodeMsgpack(enc *msgpack.Encoder) error {
 }
 
 func (ts *Timestamp) DecodeMsgpack(dec *msgpack.Decoder) error {
-	ts.Timestamp = &timestamp.Timestamp{}
-	return dec.Decode(&ts.Timestamp.Seconds)
+	var sec int64
+	err := dec.Decode(&sec)
+	if err != nil {
+		return err
+	}
+
+	ts.Timestamp = timestamppb.New(time.Unix(sec, 0))
+	return nil
 }
 
 var _ msgpack.CustomEncoder = (*Timestamp)(nil)

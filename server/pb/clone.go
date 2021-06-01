@@ -1,7 +1,7 @@
 package pb
 
 import (
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func (src *RoomInfo) Clone() *RoomInfo {
@@ -28,7 +28,6 @@ func (src *ClientInfo) Clone() *ClientInfo {
 func (src *Timestamp) Clone() *Timestamp {
 	dst := &Timestamp{}
 	*dst = *src
-	dst.Timestamp = &timestamp.Timestamp{}
-	*dst.Timestamp = *src.Timestamp
+	dst.Timestamp = timestamppb.New(src.Timestamp.AsTime())
 	return dst
 }
