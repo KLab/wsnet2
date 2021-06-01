@@ -15,6 +15,6 @@ require (
 	go.uber.org/zap v1.16.0
 	golang.org/x/xerrors v0.0.0-20200806184451-1a77d5e9f316
 	google.golang.org/grpc v1.38.0
-	google.golang.org/protobuf v1.26.0 // indirect
+	google.golang.org/protobuf v1.26.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
