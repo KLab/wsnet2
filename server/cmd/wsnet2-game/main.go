@@ -34,6 +34,9 @@ func main() {
 	log.Infof("WSNet2Commit: %v", WSNet2Commit)
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
+	db.SetMaxOpenConns(conf.Game.DbConnConf.DbMaxOpenConns)
+	db.SetMaxIdleConns(conf.Game.DbConnConf.DbMaxIdleConns)
+	log.Infof("MaxOpenConns: %v, MaxIdleConns: %v", conf.Game.DbConnConf.DbMaxOpenConns, conf.Game.DbConnConf.DbMaxIdleConns)
 
 	service, err := service.New(db, &conf.Game)
 	if err != nil {

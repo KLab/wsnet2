@@ -26,6 +26,9 @@ func main() {
 	log.SetLevel(log.Level(conf.Game.DefaultLoglevel))
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
+	db.SetMaxOpenConns(conf.Hub.DbConnConf.DbMaxOpenConns)
+	db.SetMaxIdleConns(conf.Hub.DbConnConf.DbMaxIdleConns)
+	log.Infof("MaxOpenConns: %v, MaxIdleConns: %v", conf.Hub.DbConnConf.DbMaxOpenConns, conf.Hub.DbConnConf.DbMaxIdleConns)
 
 	service, err := service.New(db, &conf.Hub)
 	if err != nil {
