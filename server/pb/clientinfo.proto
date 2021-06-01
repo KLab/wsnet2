@@ -4,5 +4,6 @@ package pb;
 
 message ClientInfo {
 	string id = 1;
+	bool is_hub = 2;
 	bytes props = 15;
 }
