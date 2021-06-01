@@ -211,7 +211,8 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 		AppId:  h.appId,
 		RoomId: string(h.roomId),
 		ClientInfo: &pb.ClientInfo{
-			Id: h.clientId,
+			Id:    h.clientId,
+			IsHub: true,
 		},
 	}
 
