@@ -31,7 +31,7 @@ func (n *RoomNumber) Scan(val interface{}) error {
 	return xerrors.Errorf("invalid value type: %T %v", val, val)
 }
 
-func (n RoomNumber) Value() (driver.Value, error) {
+func (n *RoomNumber) Value() (driver.Value, error) {
 	if n.Number == 0 {
 		return nil, nil
 	}

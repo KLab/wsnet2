@@ -18,11 +18,11 @@ func (ts *Timestamp) Scan(val interface{}) error {
 	return nil
 }
 
-func (ts Timestamp) Value() (driver.Value, error) {
+func (ts *Timestamp) Value() (driver.Value, error) {
 	return ts.Timestamp.AsTime(), nil
 }
 
-func (ts Timestamp) Time() time.Time {
+func (ts *Timestamp) Time() time.Time {
 	return ts.Timestamp.AsTime()
 }
 
