@@ -43,11 +43,6 @@ type DbConf struct {
 	Password string
 }
 
-type DbConnConf struct {
-	DbMaxOpenConns int `toml:"db_max_open_conns"`
-	DbMaxIdleConns int `toml:"db_max_idle_conns"`
-}
-
 type GameConf struct {
 	// Hostname : Lobbyなどからのアクセス名. see Load()
 	Hostname string
@@ -74,7 +69,7 @@ type GameConf struct {
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
 
-	DbConnConf
+	DbMaxConns int `toml:"db_max_conns"`
 
 	LogConf
 }
@@ -96,7 +91,7 @@ type HubConf struct {
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
 
-	DbConnConf
+	DbMaxConns int `toml:"db_max_conns"`
 
 	LogConf
 }
@@ -119,7 +114,7 @@ type LobbyConf struct {
 
 	HubMaxWatchers int `toml:"hub_max_watchers"`
 
-	DbConnConf
+	DbMaxConns int `toml:"db_max_conns"`
 
 	LogConf
 }
@@ -163,10 +158,7 @@ func Load(conffile string) (*Config, error) {
 
 			HeartBeatInterval: Duration(2 * time.Second),
 
-			DbConnConf: DbConnConf{
-				DbMaxOpenConns: 0,
-				DbMaxIdleConns: 2,
-			},
+			DbMaxConns: 0,
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
@@ -185,10 +177,7 @@ func Load(conffile string) (*Config, error) {
 
 			HeartBeatInterval: Duration(2 * time.Second),
 
-			DbConnConf: DbConnConf{
-				DbMaxOpenConns: 0,
-				DbMaxIdleConns: 2,
-			},
+			DbMaxConns: 0,
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
@@ -206,10 +195,7 @@ func Load(conffile string) (*Config, error) {
 			ApiTimeout:     Duration(5 * time.Second),
 			HubMaxWatchers: 10000,
 
-			DbConnConf: DbConnConf{
-				DbMaxOpenConns: 0,
-				DbMaxIdleConns: 2,
-			},
+			DbMaxConns: 0,
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,

@@ -13,8 +13,7 @@ default_deadline = 5
 default_loglevel = 5
 max_room_num = 999999
 
-db_max_open_conns = 80
-db_max_idle_conns = 80
+db_max_conns = 80
 
 [Hub]
 log_stdout_console = true
@@ -22,8 +21,7 @@ pprof_port = 3000
 
 default_loglevel = 5
 
-db_max_open_conns = 10
-db_max_idle_conns = 10
+db_max_conns = 10
 
 [Lobby]
 log_stdout_console = true
@@ -33,5 +31,4 @@ port = 8080
 pprof_port = 3000
 loglevel = 5
 
-db_max_open_conns = 10
-db_max_idle_conns = 10
+db_max_conns = 10
