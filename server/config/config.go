@@ -35,12 +35,13 @@ type LogConf struct {
 }
 
 type DbConf struct {
-	Host     string
-	Port     int
-	DBName   string
-	AuthFile string
-	User     string
-	Password string
+	Host            string
+	Port            int
+	DBName          string
+	AuthFile        string
+	User            string
+	Password        string
+	ConnMaxLifetime Duration `toml:"conn_max_lifetime"`
 }
 
 type GameConf struct {
@@ -143,6 +144,9 @@ func Load(conffile string) (*Config, error) {
 
 	c := &Config{
 		// set default values before decode file.
+		Db: DbConf{
+			ConnMaxLifetime: Duration(3 * time.Minute),
+		},
 		Game: GameConf{
 			Hostname:   hostname,
 			PublicName: hostname,
