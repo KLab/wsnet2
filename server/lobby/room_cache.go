@@ -19,7 +19,7 @@ type roomCacheQuery struct {
 	args   []interface{}
 
 	lastUpdated time.Time
-	result      []pb.RoomInfo
+	result      []*pb.RoomInfo
 	props       []binary.Dict
 	lastError   error
 }
@@ -33,7 +33,7 @@ func newRoomCacheQuery(db *sqlx.DB, expire time.Duration, sql string, args ...in
 	}
 }
 
-func (q *roomCacheQuery) do() ([]pb.RoomInfo, []binary.Dict, error) {
+func (q *roomCacheQuery) do() ([]*pb.RoomInfo, []binary.Dict, error) {
 	q.Lock()
 	defer q.Unlock()
 
@@ -43,7 +43,7 @@ func (q *roomCacheQuery) do() ([]pb.RoomInfo, []binary.Dict, error) {
 		return q.result, q.props, q.lastError
 	}
 
-	rooms := []pb.RoomInfo{}
+	rooms := []*pb.RoomInfo{}
 	err := q.db.Select(&rooms, q.query, q.args...)
 	if err != nil {
 		q.result = nil
@@ -85,7 +85,7 @@ func NewRoomCache(db *sqlx.DB, expire time.Duration) *RoomCache {
 	}
 }
 
-func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]pb.RoomInfo, []binary.Dict, error) {
+func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]*pb.RoomInfo, []binary.Dict, error) {
 	c.Lock()
 	q := c.queries[appId][searchGroup]
 	if q == nil {

@@ -3,7 +3,6 @@ package pb
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -59,8 +58,8 @@ func testRef(v1, v2 reflect.Value) error {
 	case reflect.Struct:
 		for i := 0; i < v1.NumField(); i++ {
 			name := v1.Type().Field(i).Name
-			if strings.HasPrefix(name, "XXX_") {
-				// skip field defineded by protobuf
+			if !v1.Field(i).CanSet() {
+				// skip private fields
 				continue
 			}
 			if err := testRef(v1.Field(i), v2.Field(i)); err != nil {
