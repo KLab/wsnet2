@@ -33,7 +33,7 @@ type RoomService struct {
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 	query := "SELECT id, `key` FROM app"
-	var apps []pb.App
+	var apps []*pb.App
 	err := db.Select(&apps, query)
 	if err != nil {
 		return nil, xerrors.Errorf("select apps error: %w", err)
@@ -48,7 +48,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		hubCache:  common.NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
-		rs.apps[app.Id] = &apps[i]
+		rs.apps[app.Id] = apps[i]
 	}
 	return rs, nil
 }
