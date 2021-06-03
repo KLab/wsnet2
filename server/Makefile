@@ -68,7 +68,7 @@ bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 %.pb.go: %.proto
-	protoc --proto_path=pb --go_out=pb --go_opt=paths=source_relative --go-grpc_out=pb --go-grpc_opt=paths=source_relative "$<"
+	protoc --proto_path=pb --go_out=paths=source_relative:pb --go-grpc_out=paths=source_relative:pb "$<"
 	protoc-go-inject-tag --input="$@"
 
 define stringer_rule

@@ -91,7 +91,9 @@ func fillv(p reflect.Value) {
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
 			f := v.Field(i)
-			fillv(f.Addr())
+			if f.CanSet() {
+				fillv(f.Addr())
+			}
 		}
 	}
 }
