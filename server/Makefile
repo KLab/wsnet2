@@ -41,7 +41,6 @@ check: install-go-tools
 	staticcheck ./...
 
 install-go-tools:
-	go mod download
 	go install google.golang.org/protobuf/cmd/protoc-gen-go
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
 	go install github.com/favadi/protoc-go-inject-tag@v1.0.0
