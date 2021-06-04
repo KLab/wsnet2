@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestRoomInfo_Clone(t *testing.T) {
@@ -32,6 +35,9 @@ func TestTimestamp_Clone(t *testing.T) {
 
 // testCloned : Cloneできているか判定
 func testCloned(s, d interface{}) error {
+	if !cmp.Equal(s, d, protocmp.Transform()) {
+		return fmt.Errorf("not equal:\n%s", cmp.Diff(s, d, protocmp.Transform()))
+	}
 	return testRef(reflect.ValueOf(s), reflect.ValueOf(d))
 }
 
