@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package pb;
+option go_package = "wsnet2/pb";
 
 import "timestamp.proto";
 

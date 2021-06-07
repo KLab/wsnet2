@@ -79,7 +79,7 @@ func RandomHex(n int) string {
 type Repository struct {
 	hostId uint32
 
-	app  pb.App
+	app  *pb.App
 	conf *config.GameConf
 	db   *sqlx.DB
 
@@ -93,7 +93,7 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 		return nil, xerrors.Errorf("delete room error: %w", err)
 	}
 	query := "SELECT id, `key` FROM app"
-	var apps []pb.App
+	var apps []*pb.App
 	err := db.Select(&apps, query)
 	if err != nil {
 		return nil, xerrors.Errorf("select apps error: %w", err)

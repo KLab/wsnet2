@@ -33,7 +33,7 @@ type RoomService struct {
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 	query := "SELECT id, `key` FROM app"
-	var apps []pb.App
+	var apps []*pb.App
 	err := db.Select(&apps, query)
 	if err != nil {
 		return nil, xerrors.Errorf("select apps error: %w", err)
@@ -48,7 +48,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		hubCache:  common.NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
-		rs.apps[app.Id] = &apps[i]
+		rs.apps[app.Id] = apps[i]
 	}
 	return rs, nil
 }
@@ -107,7 +107,7 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 	return res, nil
 }
 
-func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int, checkJoinable, checkWatchable bool) []*pb.RoomInfo {
+func filter(rooms []*pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int, checkJoinable, checkWatchable bool) []*pb.RoomInfo {
 	if limit == 0 || limit > len(rooms) {
 		limit = len(rooms)
 	}
@@ -121,12 +121,12 @@ func filter(rooms []pb.RoomInfo, props []binary.Dict, queries []PropQueries, lim
 		}
 		if len(queries) == 0 {
 			// queriesが空の場合にはマッチさせる
-			filtered = append(filtered, &rooms[i])
+			filtered = append(filtered, rooms[i])
 		} else {
 			// queriesの何れかとマッチするか判定（OR）
 			for _, q := range queries {
 				if q.match(props[i]) {
-					filtered = append(filtered, &rooms[i])
+					filtered = append(filtered, rooms[i])
 					break
 				}
 			}
@@ -202,7 +202,7 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 		return nil, xerrors.Errorf("JoinById: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, true, false)
+	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
@@ -230,7 +230,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 		return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, true, false)
+	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("JoinByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
@@ -374,7 +374,7 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 		return nil, xerrors.Errorf("WatchById: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, false, true)
+	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
@@ -402,7 +402,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 		return nil, xerrors.Errorf("WatchByNumber: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]pb.RoomInfo{room}, []binary.Dict{props}, queries, 1, false, true)
+	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true)
 	if len(filtered) == 0 {
 		return nil, withStatus(
 			xerrors.Errorf("WatchByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
