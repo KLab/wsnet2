@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -26,6 +27,13 @@ func main() {
 	log.SetLevel(log.Level(conf.Game.DefaultLoglevel))
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
+	maxConns := conf.Hub.DbMaxConns
+	if maxConns > 0 {
+		db.SetMaxOpenConns(maxConns)
+		db.SetMaxIdleConns(maxConns)
+		log.Infof("DbMaxConns: %v", maxConns)
+	}
+	db.SetConnMaxLifetime(time.Duration(conf.Db.ConnMaxLifetime))
 
 	service, err := service.New(db, &conf.Hub)
 	if err != nil {

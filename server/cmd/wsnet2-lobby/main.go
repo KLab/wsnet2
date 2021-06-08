@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -34,6 +35,13 @@ func main() {
 	log.Infof("WSNet2Commit: %v", WSNet2Commit)
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
+	maxConns := conf.Lobby.DbMaxConns
+	if maxConns > 0 {
+		db.SetMaxOpenConns(maxConns)
+		db.SetMaxIdleConns(maxConns)
+		log.Infof("DbMaxConns: %v", maxConns)
+	}
+	db.SetConnMaxLifetime(time.Duration(conf.Db.ConnMaxLifetime))
 
 	service, err := service.New(db, &conf.Lobby)
 	if err != nil {

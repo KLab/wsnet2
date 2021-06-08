@@ -35,12 +35,13 @@ type LogConf struct {
 }
 
 type DbConf struct {
-	Host     string
-	Port     int
-	DBName   string
-	AuthFile string
-	User     string
-	Password string
+	Host            string
+	Port            int
+	DBName          string
+	AuthFile        string
+	User            string
+	Password        string
+	ConnMaxLifetime Duration `toml:"conn_max_lifetime"`
 }
 
 type GameConf struct {
@@ -69,6 +70,8 @@ type GameConf struct {
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
 
+	DbMaxConns int `toml:"db_max_conns"`
+
 	LogConf
 }
 
@@ -88,6 +91,8 @@ type HubConf struct {
 	DefaultLoglevel uint32 `toml:"default_loglevel"`
 
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
+
+	DbMaxConns int `toml:"db_max_conns"`
 
 	LogConf
 }
@@ -109,6 +114,8 @@ type LobbyConf struct {
 	ApiTimeout Duration `toml:"api_timeout"`
 
 	HubMaxWatchers int `toml:"hub_max_watchers"`
+
+	DbMaxConns int `toml:"db_max_conns"`
 
 	LogConf
 }
@@ -137,6 +144,9 @@ func Load(conffile string) (*Config, error) {
 
 	c := &Config{
 		// set default values before decode file.
+		Db: DbConf{
+			ConnMaxLifetime: Duration(3 * time.Minute),
+		},
 		Game: GameConf{
 			Hostname:   hostname,
 			PublicName: hostname,
@@ -151,6 +161,8 @@ func Load(conffile string) (*Config, error) {
 			DefaultLoglevel:   2,
 
 			HeartBeatInterval: Duration(2 * time.Second),
+
+			DbMaxConns: 0,
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
@@ -169,6 +181,8 @@ func Load(conffile string) (*Config, error) {
 
 			HeartBeatInterval: Duration(2 * time.Second),
 
+			DbMaxConns: 0,
+
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
 				LogPath:        "/var/log/wsnet2/wsnet2-hub.log",
@@ -184,6 +198,8 @@ func Load(conffile string) (*Config, error) {
 			AuthDataExpire: Duration(time.Minute),
 			ApiTimeout:     Duration(5 * time.Second),
 			HubMaxWatchers: 10000,
+
+			DbMaxConns: 0,
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
