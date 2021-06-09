@@ -2,11 +2,12 @@ package lobby
 
 import (
 	"bytes"
+	"io"
 	"math"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"wsnet2/binary"
 )
@@ -524,6 +525,13 @@ func TestPropQueriesMatch(t *testing.T) {
 	}
 }
 
+// copied from server/lobby/service/api.go
+func msgpackDecode(r io.Reader, out interface{}) error {
+	dec := msgpack.NewDecoder(r)
+	dec.SetCustomStructTag("json")
+	return dec.Decode(out)
+}
+
 func TestPropQueryMsgpack(t *testing.T) {
 	// mapでもarrayでもデコードできることを確認したかった（できた）
 	body, err := msgpack.Marshal(
@@ -541,7 +549,7 @@ func TestPropQueryMsgpack(t *testing.T) {
 	}
 
 	var actual [][]PropQuery
-	err = msgpack.NewDecoder(bytes.NewReader(body)).UseJSONTag(true).Decode(&actual)
+	err = msgpackDecode(bytes.NewReader(body), &actual)
 	if err != nil {
 		t.Fatalf("marshal error: %v", err)
 	}

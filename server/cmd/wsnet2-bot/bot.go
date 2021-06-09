@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"wsnet2/auth"
 	"wsnet2/binary"
@@ -200,7 +200,10 @@ func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.R
 
 func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	var p bytes.Buffer
-	err := msgpack.NewEncoder(&p).UseJSONTag(true).Encode(param)
+	enc := msgpack.NewEncoder(&p)
+	enc.SetCustomStructTag("true")
+	enc.UseCompactInts(true)
+	err := enc.Encode(param)
 	if err != nil {
 		return err
 	}
@@ -230,7 +233,9 @@ func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 		return fmt.Errorf("failed to lobby request: lobby server returned status %v", res.StatusCode)
 	}
 
-	err = msgpack.NewDecoder(res.Body).UseJSONTag(true).Decode(dst)
+	dec := msgpack.NewDecoder(res.Body)
+	dec.SetCustomStructTag("json")
+	err = dec.Decode(dst)
 	if err != nil {
 		return err
 	}
