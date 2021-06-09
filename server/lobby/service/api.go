@@ -113,7 +113,7 @@ func renderResponse(w http.ResponseWriter, res *LobbyResponse) {
 	var body bytes.Buffer
 	enc := msgpack.NewEncoder(&body)
 	enc.SetCustomStructTag("json")
-	//enc.UseCompactInts(true)
+	enc.UseCompactInts(true)
 	err := enc.Encode(res)
 	if err != nil {
 		log.Errorf("Failed to marshal response: %v", err)
