@@ -201,7 +201,7 @@ func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.R
 func (b *bot) doLobbyRequest(method, url string, param, dst interface{}) error {
 	var p bytes.Buffer
 	enc := msgpack.NewEncoder(&p)
-	enc.SetCustomStructTag("true")
+	enc.SetCustomStructTag("json")
 	enc.UseCompactInts(true)
 	err := enc.Encode(param)
 	if err != nil {
