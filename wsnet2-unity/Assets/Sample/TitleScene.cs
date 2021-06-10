@@ -116,6 +116,30 @@ namespace Sample
             );
         }
 
+        /// <summary>
+        /// ランダム観戦ボタンコールバック
+        /// </summary>
+        public void OnClickRandomWatch()
+        {
+            Debug.Log("OnClickRandomWatch");
+            var query = new Query();
+            query.Equal("game", "pong");
+
+            prepareWSNet2Client();
+            G.Client.Search(SearchGroup, query, 1, false, true,
+            (rooms) => {
+                G.Client.Watch(rooms[0].Id, null,
+                (room) => {
+                    room.Pause();
+                    Debug.Log("watch: room=" + room.Id);
+                    G.GameRoom = room;
+                    SceneManager.LoadScene("Game");
+                },
+                (e) => Debug.Log("watch failed: " + e));
+            },
+            (e) => Debug.Log("search failed: " + e));
+        }
+
         // Start is called before the first frame update
         void Start()
         {

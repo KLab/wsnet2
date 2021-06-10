@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WSNet2.Core;
@@ -19,6 +15,9 @@ namespace WSNet2.Sample
 
         static void Main(string[] args)
         {
+            // ThreadPool を詰まりにくくするおまじない
+            ThreadPool.SetMinThreads(200, 200);
+
             var host = Host.CreateDefaultBuilder().ConfigureLogging(logging =>
             {
                 // optional(MS.E.Logging):clear default providers.

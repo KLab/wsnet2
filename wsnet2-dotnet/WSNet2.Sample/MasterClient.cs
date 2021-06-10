@@ -170,6 +170,12 @@ namespace WSNet2.Sample
                 {
                     foreach (var ev in newEvents)
                     {
+                        if (!room.Players.ContainsKey(ev.PlayerId))
+                        {
+                            // プレイヤー以外のイベントは無視する
+                            continue;
+                        }
+
                         if (states[0].Tick < ev.Tick)
                         {
                             events.Add(ev);
@@ -303,7 +309,16 @@ namespace WSNet2.Sample
                     roomEmptyTick = 0;
                 }
 
-                await Task.Delay(16);
+                {
+                    var t1 = timer.NowTick;
+                    await Task.Delay(16);
+                    var t2 = timer.NowTick;
+                    var ms = new TimeSpan(t2 - t1).TotalMilliseconds;
+                    if (32 <= ms)
+                    {
+                        WSNet2Logger.WarningWithPayload(context, "Too long sleep. expected:16ms actual:{0}ms", ms);
+                    }
+                }
             }
 
             WSNet2Logger.InfoWithPayload(context, "Left from room");

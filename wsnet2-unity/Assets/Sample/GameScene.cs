@@ -63,6 +63,7 @@ namespace Sample
         List<PlayerEvent> events;
 
         bool isOnlineMode;
+        bool isWatcher;
         float nextSyncTime;
 
         string cpuPlayerId
@@ -79,7 +80,7 @@ namespace Sample
             {
                 if (G.GameRoom != null)
                 {
-                    return G.GameRoom.Me.Id;
+                    return G.GameRoom.Me?.Id;
                 }
                 else
                 {
@@ -121,6 +122,7 @@ namespace Sample
             moveInput.Enable();
 
             isOnlineMode = G.GameRoom != null;
+            isWatcher = isOnlineMode && G.GameRoom.Me == null;
             simulator = new GameSimulator(!isOnlineMode);
             state = new GameState();
             timer = new GameTimer();
@@ -135,6 +137,7 @@ namespace Sample
             {
                 var room = G.GameRoom;
                 roomText.text = "Room:" + room.Id + "\n";
+                RoomLog($"isOnlineMode: {isOnlineMode} isWatcher: {isWatcher}");
 
                 room.OnError += (e) =>
                 {
@@ -205,6 +208,11 @@ namespace Sample
                     if (sender == G.GameRoom?.Master.Id)
                     {
                         timer.UpdateServerTick(tick);
+                        var ms = new TimeSpan(timer.NowTick - tick).TotalMilliseconds;
+                        if (64 <= ms)
+                        {
+                            Debug.LogWarningFormat("Packet jam {0}ms", ms);
+                        }
                     }
                 });
 
@@ -216,12 +224,15 @@ namespace Sample
                 room.Restart();
             }
 
-            events.Add(new PlayerEvent
+            if (!isWatcher)
             {
-                Code = PlayerEventCode.Join,
-                PlayerId = myPlayerId,
-                Tick = timer.NowTick,
-            });
+                events.Add(new PlayerEvent
+                {
+                    Code = PlayerEventCode.Join,
+                    PlayerId = myPlayerId,
+                    Tick = timer.NowTick,
+                });
+            }
 
             if (!isOnlineMode)
             {
@@ -287,7 +298,7 @@ namespace Sample
             }
             else if (state.Code == GameStateCode.WaitingPlayer)
             {
-                if (Time.frameCount % 10 == 0)
+                if (!isWatcher && Time.frameCount % 10 == 0)
                 {
                     events.Add(new PlayerEvent
                     {
@@ -315,12 +326,15 @@ namespace Sample
                         opponentBar = bar1;
                     }
 
-                    events.Add(new PlayerEvent
+                    if (!isWatcher)
                     {
-                        Code = PlayerEventCode.Ready,
-                        PlayerId = myPlayerId,
-                        Tick = timer.NowTick,
-                    });
+                        events.Add(new PlayerEvent
+                        {
+                            Code = PlayerEventCode.Ready,
+                            PlayerId = myPlayerId,
+                            Tick = timer.NowTick,
+                        });
+                    }
 
                     if (!isOnlineMode)
                     {
@@ -335,23 +349,25 @@ namespace Sample
             }
             else if (state.Code == GameStateCode.InGame)
             {
-
-                var value = moveInput.ReadValue<float>();
-                if (value != prevMoveInput)
+                if (!isWatcher)
                 {
-                    MoveInputCode move = MoveInputCode.Stop;
-                    if (0 < value) move = MoveInputCode.Down;
-                    if (value < 0) move = MoveInputCode.Up;
-
-                    events.Add(new PlayerEvent
+                    var value = moveInput.ReadValue<float>();
+                    if (value != prevMoveInput)
                     {
-                        Code = PlayerEventCode.Move,
-                        PlayerId = myPlayerId,
-                        MoveInput = move,
-                        Tick = timer.NowTick,
-                    });
+                        MoveInputCode move = MoveInputCode.Stop;
+                        if (0 < value) move = MoveInputCode.Down;
+                        if (value < 0) move = MoveInputCode.Up;
+
+                        events.Add(new PlayerEvent
+                        {
+                            Code = PlayerEventCode.Move,
+                            PlayerId = myPlayerId,
+                            MoveInput = move,
+                            Tick = timer.NowTick,
+                        });
+                    }
+                    prevMoveInput = value;
                 }
-                prevMoveInput = value;
             }
             else if (state.Code == GameStateCode.End)
             {
