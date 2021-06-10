@@ -17,12 +17,13 @@ func TestLoad(t *testing.T) {
 	}
 
 	db := DbConf{
-		Host:     "localhost",
-		Port:     3306,
-		DBName:   "wsnet2",
-		AuthFile: "dbauth",
-		User:     "wsnetuser",
-		Password: "wsnetpass",
+		Host:            "localhost",
+		Port:            3306,
+		DBName:          "wsnet2",
+		AuthFile:        "dbauth",
+		User:            "wsnetuser",
+		Password:        "wsnetpass",
+		ConnMaxLifetime: Duration(time.Minute * 3),
 	}
 	if diff := cmp.Diff(c.Db, db); diff != "" {
 		t.Fatalf("c.Db differs: (-got +want)\n%s", diff)

@@ -93,6 +93,9 @@ func newClient(info *pb.ClientInfo, room IRoom, isPlayer bool) (*Client, ErrorWi
 
 		evErr: make(chan error),
 	}
+	if info.IsHub {
+		c.nodeCount = 0
+	}
 
 	room.WaitGroup().Add(1)
 

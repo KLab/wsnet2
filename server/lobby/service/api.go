@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
 
 	"wsnet2/auth"
@@ -20,6 +21,12 @@ import (
 	"wsnet2/log"
 	"wsnet2/pb"
 )
+
+func msgpackDecode(r io.Reader, out interface{}) error {
+	dec := msgpack.NewDecoder(r)
+	dec.SetCustomStructTag("json")
+	return dec.Decode(out)
+}
 
 func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 	errCh := make(chan error)
@@ -104,7 +111,10 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 
 func renderResponse(w http.ResponseWriter, res *LobbyResponse) {
 	var body bytes.Buffer
-	err := msgpack.NewEncoder(&body).UseJSONTag(true).Encode(res)
+	enc := msgpack.NewEncoder(&body)
+	enc.SetCustomStructTag("json")
+	enc.UseCompactInts(true)
+	err := enc.Encode(res)
 	if err != nil {
 		log.Errorf("Failed to marshal response: %v", err)
 		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
@@ -171,7 +181,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	}
 
 	var param CreateParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
@@ -225,7 +235,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var param JoinParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
@@ -262,7 +272,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	}
 
 	var param JoinParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
@@ -299,7 +309,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	}
 
 	var param JoinParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
@@ -328,7 +338,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 	}
 
 	var param SearchParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
@@ -361,7 +371,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var param JoinParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
@@ -399,7 +409,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 
 	var param JoinParam
-	err := msgpack.NewDecoder(r.Body).UseJSONTag(true).Decode(&param)
+	err := msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return

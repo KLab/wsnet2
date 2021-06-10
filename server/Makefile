@@ -20,6 +20,9 @@ string.go := $(foreach s,$(stringer),\
 COMMIT := $(shell git rev-parse --short HEAD)
 GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)"
 
+export GOBIN := $(abspath bin)
+export PATH := $(GOBIN):$(PATH)
+
 .PHONY: all generate clean test check install-go-tools build build-commit
 
 all: install-go-tools generate build
@@ -32,13 +35,15 @@ clean:
 
 test: generate
 	go vet ./...
+	staticcheck ./...
 	go test ./...
 
-check: install-go-tools
-	staticcheck ./...
-
 install-go-tools:
-	cat tools.go | awk -F'"' '/_/ {print $$2}' | xargs -tI {} go install {}
+	go install google.golang.org/protobuf/cmd/protoc-gen-go
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
+	go install github.com/favadi/protoc-go-inject-tag@v1.0.0
+	go install golang.org/x/tools/cmd/stringer@v0.1.1
+	go install honnef.co/go/tools/cmd/staticcheck@2020.2.4
 
 build: $(TARGETS)
 
@@ -60,7 +65,7 @@ bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
 %.pb.go: %.proto
-	protoc --proto_path=pb --go_out=plugins=grpc:pb "$<"
+	protoc --proto_path=pb --go_out=module=wsnet2:. --go-grpc_out=module=wsnet2:. "$<"
 	protoc-go-inject-tag --input="$@"
 
 define stringer_rule

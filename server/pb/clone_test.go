@@ -3,8 +3,10 @@ package pb
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestRoomInfo_Clone(t *testing.T) {
@@ -33,6 +35,9 @@ func TestTimestamp_Clone(t *testing.T) {
 
 // testCloned : Cloneできているか判定
 func testCloned(s, d interface{}) error {
+	if !cmp.Equal(s, d, protocmp.Transform()) {
+		return fmt.Errorf("not equal:\n%s", cmp.Diff(s, d, protocmp.Transform()))
+	}
 	return testRef(reflect.ValueOf(s), reflect.ValueOf(d))
 }
 
@@ -59,8 +64,8 @@ func testRef(v1, v2 reflect.Value) error {
 	case reflect.Struct:
 		for i := 0; i < v1.NumField(); i++ {
 			name := v1.Type().Field(i).Name
-			if strings.HasPrefix(name, "XXX_") {
-				// skip field defineded by protobuf
+			if !v1.Field(i).CanSet() {
+				// skip private fields
 				continue
 			}
 			if err := testRef(v1.Field(i), v2.Field(i)); err != nil {
@@ -91,7 +96,9 @@ func fillv(p reflect.Value) {
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
 			f := v.Field(i)
-			fillv(f.Addr())
+			if f.CanSet() {
+				fillv(f.Addr())
+			}
 		}
 	}
 }

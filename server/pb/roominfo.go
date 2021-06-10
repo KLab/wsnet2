@@ -7,7 +7,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/golang/protobuf/ptypes"
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 func (r *RoomInfo) SetCreated(t time.Time) error {
@@ -31,7 +31,7 @@ func (n *RoomNumber) Scan(val interface{}) error {
 	return xerrors.Errorf("invalid value type: %T %v", val, val)
 }
 
-func (n RoomNumber) Value() (driver.Value, error) {
+func (n *RoomNumber) Value() (driver.Value, error) {
 	if n.Number == 0 {
 		return nil, nil
 	}
