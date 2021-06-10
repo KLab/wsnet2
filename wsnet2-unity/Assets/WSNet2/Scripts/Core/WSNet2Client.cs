@@ -32,6 +32,7 @@ namespace WSNet2.Core
             this.userId = userId;
             this.SetBaseUri(baseUri);
             this.UpdateAuthData(authData);
+            checkMinThreads();
         }
 
         /// <summary>
@@ -359,6 +360,20 @@ namespace WSNet2.Core
             catch (Exception e)
             {
                 callbackPool.Add(() => onFailed(e));
+            }
+        }
+
+        private static void checkMinThreads()
+        {
+            const int thNumThreads = 10;
+            int workerThreads, completionPortThreads;
+            System.Threading.ThreadPool.GetMinThreads(out workerThreads, out completionPortThreads);
+
+            if (workerThreads < thNumThreads || completionPortThreads < thNumThreads)
+            {
+                WSNet2Logger.Warning(@"The ThreadPool may become congested. Please consider increasing the ThreadPool.MinThreads values.
+c.f. https://gist.github.com/JonCole/e65411214030f0d823cb
+WorkerThreads: {0}, CompletionPortThreads: {1}", workerThreads, completionPortThreads);
             }
         }
     }
