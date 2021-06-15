@@ -73,8 +73,7 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
 	clientId := fmt.Sprintf("hub:%d:%s", repo.hostId, roomId)
 
-	// todo: log.CurrentLevel()
-	logger := log.Get(log.DEBUG).With(
+	logger := log.Get(log.CurrentLevel()).With(
 		zap.String("type", "hub"),
 		zap.String("room", string(roomId)),
 		zap.String("clientId", clientId),

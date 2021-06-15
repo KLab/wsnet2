@@ -24,7 +24,7 @@ func main() {
 	}
 
 	defer log.InitLogger(&conf.Hub.LogConf)()
-	log.SetLevel(log.Level(conf.Game.DefaultLoglevel))
+	log.SetLevel(log.Level(conf.Hub.DefaultLoglevel))
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 	maxConns := conf.Hub.DbMaxConns
