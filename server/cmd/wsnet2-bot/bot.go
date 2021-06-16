@@ -325,32 +325,71 @@ func (b *bot) EventLoop(done chan bool) {
 			log.Printf("[bot:%v] Failed to UnmarshalEvent: err=%v, binary=%v", b.userId, err, p)
 			continue
 		}
-		switch ty := ev.Type(); ty {
+
+		ty := ev.Type()
+		logf := func(fmt string, args ...interface{}) {
+			prefix := "[bot:%v seq:%v event:%s]: " // userID, seq, ty
+			log.Printf(prefix+fmt, append([]interface{}{b.userId, seq, ty}, args...)...)
+		}
+
+		switch ty {
 		case binary.EvTypeJoined:
 			namelen := int(p[6])
 			name := string(p[7 : 7+namelen])
-			props := p[7+namelen:]
-			log.Printf("[bot:%v] %s: %v %#v, %v", b.userId, ty, seq, name, props)
+			props, _, err := binary.Unmarshal(p[7+namelen:])
+			if err != nil {
+				panic(err)
+			}
+			logf("name=%v props=%v", name, props)
 		case binary.EvTypePermissionDenied:
-			log.Printf("[bot:%v] %s: %v", b.userId, ty, p)
+			logf("%v", string(ev.Payload()))
 		case binary.EvTypeTargetNotFound:
 			list, _, err := binary.UnmarshalAs(p[5:], binary.TypeList, binary.TypeNull)
 			if err != nil {
-				log.Printf("[bot:%v] %s: error: %v", b.userId, ty, err)
+				logf("error: failed to unmarshal EvTypeTargetNotFound: %v", err)
 				break
 			}
-			log.Printf("[bot:%v] %s: %v %v", b.userId, ty, list, p)
+			logf("%v", list)
 		case binary.EvTypeMessage:
-			log.Printf("[bot:%v] %v: %q", b.userId, ty, string(ev.Payload()))
+			senderId, body, err := binary.UnmarshalEvMessage(ev.Payload())
+			if err != nil {
+				logf("error: failed to unmarshal EvTypeMessage: %v", err)
+				break
+			}
+			val, _, err := binary.Unmarshal(body)
+			if err != nil {
+				logf("sender=%v body=%q", senderId, body)
+			} else {
+				logf("sender=%v value=%q", senderId, val)
+			}
 		case binary.EvTypeLeft:
 			left, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 			if err != nil {
-				log.Printf("[bot:%v] Failed to UnmarshalEvLeftPayload: err=%v, payload=% x", b.userId, err, ev.Payload())
+				logf("Failed to UnmarshalEvLeftPayload: err=%v, payload=% x", err, ev.Payload())
 				break
 			}
-			log.Printf("[bot:%v] %s: left=%q master=%q", b.userId, ty, left.ClientId, left.MasterId)
+			logf("left=%q master=%q", left.ClientId, left.MasterId)
+		case binary.EvTypePong:
+			pongPayload, err := binary.UnmarshalEvPongPayload(ev.Payload())
+			if err != nil {
+				logf("failed to unmarshal EvPongPayload: %v", err)
+				break
+			}
+			logf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp), 0), pongPayload.Watchers)
+		case binary.EvTypeMasterSwitched:
+			newMasterId, err := binary.UnmarshalEvMasterSwitchedPayload(ev.Payload())
+			if err != nil {
+				panic(err)
+			}
+			logf("new masterId=%v", newMasterId)
+		case binary.EvTypeClientProp:
+			cp, err := binary.UnmarshalEvClientPropPayload(ev.Payload())
+			if err != nil {
+				panic(err)
+			}
+			logf("id=%v, props=%v", cp.Id, cp.Props)
 		default:
-			log.Printf("[bot:%v] ReadMessage: %v, %v", b.userId, ty, p)
+			logf("%#v", p)
 		}
 	}
 }

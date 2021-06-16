@@ -375,6 +375,15 @@ func NewEvMessage(cliId string, body []byte) *RegularEvent {
 	return &RegularEvent{EvTypeMessage, payload}
 }
 
+func UnmarshalEvMessage(payload []byte) (cliId string, body []byte, err error) {
+	d, p, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		err = e
+		return
+	}
+	return d.(string), payload[p:], nil
+}
+
 // NewEvSucceeded : 成功イベント
 func NewEvSucceeded(msg RegularMsg) *RegularEvent {
 	payload := make([]byte, 3)
