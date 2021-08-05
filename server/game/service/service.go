@@ -22,6 +22,7 @@ const (
 
 	HostStatusStarting = 0
 	HostStatusRunning  = 1
+	HostStatusClosing  = 2
 )
 
 type GameService struct {
@@ -36,6 +37,8 @@ type GameService struct {
 	preparation sync.WaitGroup
 
 	wsURLFormat string
+
+	shutdownChan chan struct{}
 }
 
 func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
@@ -52,6 +55,8 @@ func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
 		conf:   conf,
 		repos:  repos,
 		db:     db,
+
+		shutdownChan: make(chan struct{}),
 	}, nil
 }
 
@@ -116,12 +121,73 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 			}
 
 			bind["now"] = time.Now().Unix()
+
+			select {
+			case <-s.shutdownChan:
+				bind["status"] = HostStatusClosing
+			default:
+			}
+
 			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
 				return
+			}
+
+			if bind["status"] == HostStatusClosing {
+				n := s.numRooms()
+				if n == 0 {
+					log.Infof("the host is closing and no running room found, end the heartbeat")
+					errCh <- nil
+					return
+				} else {
+					log.Infof("the host is closing and waiting for %v rooms to close", n)
+				}
 			}
 		}
 	}()
 
 	return errCh
+}
+
+func (s *GameService) Shutdown(ctx context.Context) error {
+	log.Infof("GameService %v is gracefully shutdowning", s.HostId)
+
+	select {
+	case <-s.shutdownChan:
+	default:
+		close(s.shutdownChan)
+	}
+
+	// Immediately execute a heartbeat query in order not to leak status updates
+	bind := map[string]interface{}{
+		"now":    time.Now().Unix(),
+		"hostid": s.HostId,
+		"status": HostStatusClosing,
+	}
+	if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
+		return err
+	}
+
+	// Wait for all the rooms to close
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if s.numRooms() == 0 {
+			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *GameService) numRooms() int {
+	numRooms := 0
+	for _, repo := range s.repos {
+		numRooms += repo.GetRoomCount()
+	}
+	return numRooms
 }

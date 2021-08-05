@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -51,8 +53,18 @@ func main() {
 
 	ctx := context.Background()
 
-	err = service.Serve(ctx)
-	if err != nil {
-		panic(fmt.Errorf("%+v\n", err))
+	go func() {
+		err = service.Serve(ctx)
+		if err != nil {
+			panic(fmt.Errorf("%+v\n", err))
+		}
+	}()
+
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGTERM, os.Interrupt)
+	sig := <-ch
+	log.Infof("got signal: %v", sig)
+	if err := service.Shutdown(ctx); err != nil {
+		log.Errorf("service.Shutdown: %v", err)
 	}
 }

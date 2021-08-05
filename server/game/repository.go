@@ -395,3 +395,9 @@ func (repo *Repository) GetClient(roomId, userId string) (*Client, error) {
 	}
 	return cli, nil
 }
+
+func (repo *Repository) GetRoomCount() int {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	return len(repo.rooms)
+}
