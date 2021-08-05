@@ -12,7 +12,7 @@ proto := $(wildcard pb/*.proto)
 pb.go := $(proto:.proto=.pb.go)
 
 # stringer targets
-stringer := $(shell grep -r '^//go:generate stringer' . | \
+stringer := $(shell grep -r '^//go:generate stringer' --include='*.go' . | \
                 sed -E 's/^\.\/([^:]*):.* -type=([0-9a-zA-Z]*).*$$/\1>\2_string.go/g')
 string.go := $(foreach s,$(stringer),\
                  $(dir $(word 1,$(subst >, ,$(s))))$(shell echo $(word 2,$(subst >, ,$(s))) | tr A-Z a-z))
