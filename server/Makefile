@@ -13,7 +13,7 @@ pb.go := $(proto:.proto=.pb.go)
 
 # stringer targets
 stringer := $(shell grep -r '^//go:generate stringer' . | \
-                sed -E 's/^\.\/([^:]*):.* -type=([0-9a-zA-Z]*)(.*)?$$/\1>\2_string.go/g')
+                sed -E 's/^\.\/([^:]*):.* -type=([0-9a-zA-Z]*).*$$/\1>\2_string.go/g')
 string.go := $(foreach s,$(stringer),\
                  $(dir $(word 1,$(subst >, ,$(s))))$(shell echo $(word 2,$(subst >, ,$(s))) | tr A-Z a-z))
 
