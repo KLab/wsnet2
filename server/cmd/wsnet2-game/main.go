@@ -51,20 +51,22 @@ func main() {
 	}
 	log.Infof("HostID: %v", service.HostId)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	go func() {
-		err = service.Serve(ctx)
-		if err != nil {
-			panic(fmt.Errorf("%+v\n", err))
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGTERM)
+		select {
+		case <-ctx.Done():
+		case sig := <-ch:
+			log.Infof("got signal: %v", sig)
+			service.Shutdown(ctx)
 		}
 	}()
 
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGTERM, os.Interrupt)
-	sig := <-ch
-	log.Infof("got signal: %v", sig)
-	if err := service.Shutdown(ctx); err != nil {
-		log.Errorf("service.Shutdown: %v", err)
+	err = service.Serve(ctx)
+	if err != nil {
+		panic(fmt.Errorf("%+v\n", err))
 	}
 }
