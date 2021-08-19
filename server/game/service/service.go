@@ -153,13 +153,11 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 func (s *GameService) Shutdown(ctx context.Context) {
 	log.Infof("GameService %v is gracefully shutting down", s.HostId)
 
-	select {
-	case <-s.shutdownChan:
-		// Shutdown is already requested
+	if s.shutdownRequested() {
 		return
-	default:
-		close(s.shutdownChan)
 	}
+	close(s.shutdownChan)
+	defer close(s.done)
 
 	// Immediately execute a heartbeat query in order not to miss the status update
 	bind := map[string]interface{}{
