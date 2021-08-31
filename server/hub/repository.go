@@ -182,3 +182,9 @@ func (r *Repository) GetClient(roomId, userId string) (*game.Client, error) {
 	}
 	return cli, nil
 }
+
+func (r *Repository) GetHubCount() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.hubs)
+}

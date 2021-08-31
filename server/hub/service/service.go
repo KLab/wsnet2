@@ -22,6 +22,7 @@ const (
 
 	HostStatusStarting = 0
 	HostStatusRunning  = 1
+	HostStatusClosing  = 2
 )
 
 type HubService struct {
@@ -36,6 +37,9 @@ type HubService struct {
 	preparation sync.WaitGroup
 
 	wsURLFormat string
+
+	shutdownChan chan struct{}
+	done         chan error
 }
 
 func New(db *sqlx.DB, conf *config.HubConf) (*HubService, error) {
@@ -49,7 +53,15 @@ func New(db *sqlx.DB, conf *config.HubConf) (*HubService, error) {
 		return nil, err
 	}
 
-	return &HubService{HostId: hostId, conf: conf, repo: repo, db: db}, nil
+	return &HubService{
+		HostId:       hostId,
+		conf:         conf,
+		repo:         repo,
+		db:           db,
+		preparation:  sync.WaitGroup{},
+		shutdownChan: make(chan struct{}),
+		done:         make(chan error),
+	}, nil
 }
 
 func registerHost(db *sqlx.DB, conf *config.HubConf) (int64, error) {
@@ -67,6 +79,15 @@ func registerHost(db *sqlx.DB, conf *config.HubConf) (int64, error) {
 	return res.LastInsertId()
 }
 
+func (s *HubService) shutdownRequested() bool {
+	select {
+	case <-s.shutdownChan:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *HubService) Serve(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -78,6 +99,7 @@ func (s *HubService) Serve(ctx context.Context) error {
 	case err = <-s.servePprof(ctx):
 	case err = <-s.serveGRPC(ctx):
 	case err = <-s.serveWebSocket(ctx):
+	case err = <-s.done:
 	}
 	return err
 }
@@ -113,6 +135,9 @@ func (s *HubService) heartbeat(ctx context.Context) <-chan error {
 			}
 
 			bind["now"] = time.Now().Unix()
+			if s.shutdownRequested() {
+				bind["status"] = HostStatusClosing
+			}
 			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
 				return
@@ -121,4 +146,44 @@ func (s *HubService) heartbeat(ctx context.Context) <-chan error {
 	}()
 
 	return errCh
+}
+
+// Shutdown requests the termination of the HubService and waits for the serving hubs to be closed.
+func (s *HubService) Shutdown(ctx context.Context) {
+	log.Infof("HubService %v is gracefully shutting down", s.HostId)
+
+	if s.shutdownRequested() {
+		return
+	}
+	close(s.shutdownChan)
+	defer close(s.done)
+
+	// Immediately execute a heartbeat query in order not to miss the status update
+	bind := map[string]interface{}{
+		"now":    time.Now().Unix(),
+		"hostid": s.HostId,
+		"status": HostStatusClosing,
+	}
+	if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
+		s.done <- err
+		return
+	}
+
+	// Wait for all the hubs to be closed
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if s.repo.GetHubCount() == 0 {
+			log.Infof("graceful shutdown completed")
+			s.done <- nil
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			s.done <- ctx.Err()
+			return
+		case <-ticker.C:
+		}
+	}
 }

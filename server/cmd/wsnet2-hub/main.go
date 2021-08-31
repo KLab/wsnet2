@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -41,7 +43,19 @@ func main() {
 	}
 	log.Infof("HostID: %v", service.HostId)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGTERM)
+		select {
+		case <-ctx.Done():
+		case sig := <-ch:
+			log.Infof("got signal: %v", sig)
+			service.Shutdown(ctx)
+		}
+	}()
 
 	err = service.Serve(ctx)
 	if err != nil {

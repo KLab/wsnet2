@@ -22,6 +22,7 @@ const (
 
 	HostStatusStarting = 0
 	HostStatusRunning  = 1
+	HostStatusClosing  = 2
 )
 
 type GameService struct {
@@ -36,6 +37,9 @@ type GameService struct {
 	preparation sync.WaitGroup
 
 	wsURLFormat string
+
+	shutdownChan chan struct{}
+	done         chan error
 }
 
 func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
@@ -52,6 +56,9 @@ func New(db *sqlx.DB, conf *config.GameConf) (*GameService, error) {
 		conf:   conf,
 		repos:  repos,
 		db:     db,
+
+		shutdownChan: make(chan struct{}),
+		done:         make(chan error),
 	}, nil
 }
 
@@ -66,6 +73,7 @@ func (s *GameService) Serve(ctx context.Context) error {
 	case err = <-s.serveWebSocket(ctx):
 	case err = <-s.servePprof(ctx):
 	case err = <-s.heartbeat(ctx):
+	case err = <-s.done:
 	}
 	return err
 }
@@ -83,6 +91,15 @@ func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+func (s *GameService) shutdownRequested() bool {
+	select {
+	case <-s.shutdownChan:
+		return true
+	default:
+		return false
+	}
 }
 
 // heartbeat :
@@ -116,6 +133,12 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 			}
 
 			bind["now"] = time.Now().Unix()
+
+			if s.shutdownRequested() {
+				bind["status"] = HostStatusClosing
+				log.Infof("the host is shutting down and waiting for %v rooms to be closed", s.numRooms())
+			}
+
 			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
 				return
@@ -124,4 +147,52 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 	}()
 
 	return errCh
+}
+
+// Shutdown requests the termination of the GameService and waits for the serving rooms to be closed.
+func (s *GameService) Shutdown(ctx context.Context) {
+	log.Infof("GameService %v is gracefully shutting down", s.HostId)
+
+	if s.shutdownRequested() {
+		return
+	}
+	close(s.shutdownChan)
+	defer close(s.done)
+
+	// Immediately execute a heartbeat query in order not to miss the status update
+	bind := map[string]interface{}{
+		"now":    time.Now().Unix(),
+		"hostid": s.HostId,
+		"status": HostStatusClosing,
+	}
+	if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
+		s.done <- err
+		return
+	}
+
+	// Wait for all the rooms to be closed
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if s.numRooms() == 0 {
+			log.Infof("graceful shutdown completed")
+			s.done <- nil
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			s.done <- ctx.Err()
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+func (s *GameService) numRooms() int {
+	numRooms := 0
+	for _, repo := range s.repos {
+		numRooms += repo.GetRoomCount()
+	}
+	return numRooms
 }
