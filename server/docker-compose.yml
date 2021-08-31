@@ -15,6 +15,7 @@ services:
       - 3306:3306
   builder:
     container_name: wsnet2-builder
+    build: .
     image: wsnet2-arelo
     volumes:
       - ../:/repo
