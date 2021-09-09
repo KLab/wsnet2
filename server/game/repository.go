@@ -148,20 +148,24 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		return nil, WithCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, WithCode(
+			xerrors.Errorf("failed to commit new room: %w", err), codes.Internal)
+	}
+
 	cli := joined.Client
 
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 
 	if len(repo.rooms) >= repo.conf.MaxRooms {
-		tx.Rollback()
+		// 履歴は残さずに部屋を削除
+		_, err := repo.db.Exec("DELETE FROM room WHERE id=?", room.ID())
+		if err != nil {
+			log.Errorf("delete room: %w", err)
+		}
 		return nil, WithCode(
 			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, WithCode(
-			xerrors.Errorf("failed to commit new room: %w", err), codes.Internal)
 	}
 
 	repo.rooms[room.ID()] = room

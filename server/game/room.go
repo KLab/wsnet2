@@ -12,6 +12,7 @@ import (
 	"wsnet2/binary"
 	"wsnet2/common"
 	"wsnet2/config"
+	"wsnet2/game/metrics"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -84,6 +85,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 		logger: log.Get(loglevel).With(zap.String("room", info.Id)).Sugar(),
 	}
 
+	metrics.Rooms.Add(1)
 	go r.MsgLoop()
 
 	jch := make(chan *JoinedInfo, 1)
@@ -134,8 +136,8 @@ Loop:
 		}
 	}
 	r.repo.RemoveRoom(r)
-
 	r.drainMsg()
+	metrics.Rooms.Add(-1)
 	r.logger.Debug("Room.MsgLoop() finish")
 }
 

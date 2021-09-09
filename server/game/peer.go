@@ -2,12 +2,15 @@ package game
 
 import (
 	"context"
+	"errors"
+	"net"
 	"sync"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
+	"wsnet2/game/metrics"
 )
 
 // Peer : websocketの接続
@@ -71,6 +74,7 @@ func (p *Peer) SendReady(lastMsgSeq int) error {
 		return xerrors.New("peer closed")
 	}
 	ev := binary.NewEvPeerReady(lastMsgSeq)
+	metrics.MessageSent.Add(1)
 	return p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
 }
 
@@ -82,9 +86,11 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
 	if p.closed {
 		return nil
 	}
+	metrics.MessageSent.Add(1)
 	err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
 	if err != nil {
 		p.client.room.Logger().Errorf("Peer SendSystemEvent: write message error: %v", err)
+		metrics.MessageSent.Add(1)
 		p.conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 		p.conn.Close()
@@ -106,6 +112,7 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 	evs, err := evbuf.Read(p.evSeqNum)
 	if err != nil {
 		// evSeqNumが古すぎるため. 復帰不能.
+		metrics.MessageSent.Add(1)
 		p.conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseGoingAway, err.Error()))
 		p.conn.Close()
@@ -117,10 +124,12 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 	for _, ev := range evs {
 		seqNum++
 		buf := ev.Marshal(seqNum)
+		metrics.MessageSent.Add(1)
 		err := p.conn.WriteMessage(websocket.BinaryMessage, buf)
 		if err != nil {
 			// 新しいpeerで復帰できるかもしれない
 			p.client.room.Logger().Errorf("Peer SendEvents: write message error: %v", err)
+			metrics.MessageSent.Add(1)
 			p.conn.WriteMessage(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 			p.conn.Close()
@@ -161,6 +170,7 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 		return
 	}
 	p.client.room.Logger().Debugf("peer close: client=%v peer=%p %v", p.client.Id, p, msg)
+	metrics.MessageSent.Add(1)
 	p.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, msg))
 	p.conn.Close()
 	p.closed = true
@@ -188,11 +198,14 @@ loop:
 			} else if websocket.IsUnexpectedCloseError(err) {
 				logger.Errorf("Peer close error: client=%v peer=%p %v", p.client.Id, p, err)
 			} else {
-				logger.Errorf("Peer read error: client=%v peer=%p %T %v", p.client.Id, p, err, err)
-				p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
+				if !errors.Is(err, net.ErrClosed) {
+					logger.Errorf("Peer read error: client=%v peer=%p %T %v", p.client.Id, p, err, err)
+					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
+				}
 			}
 			break loop
 		}
+		metrics.MessageRecv.Add(1)
 
 		msg, err := binary.UnmarshalMsg(data)
 		if err != nil {

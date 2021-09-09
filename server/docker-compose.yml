@@ -9,6 +9,7 @@ services:
       MYSQL_USER: wsnet
       MYSQL_PASSWORD: wsnetpass
       TZ: Asia/Tokyo
+    command: --innodb_flush_log_at_trx_commit=2
     volumes:
       - ./sql:/docker-entrypoint-initdb.d
     ports:

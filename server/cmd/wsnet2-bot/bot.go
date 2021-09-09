@@ -2,8 +2,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"sync"
@@ -67,7 +68,7 @@ func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
 
 	var res service.LobbyResponse
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms", param, &res)
+	err := b.doLobbyRequest("POST", fmt.Sprintf("%s/rooms", lobbyPrefix), param, &res)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Create success, WebSocket=%s", b.userId, room.Url)
+	logger.Debugf("[bot:%v] Create success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -103,9 +104,9 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 
 	var url string
 	if watch {
-		url = fmt.Sprintf("http://localhost:8080/rooms/watch/id/%s", roomId)
+		url = fmt.Sprintf("%s/rooms/watch/id/%s", lobbyPrefix, roomId)
 	} else {
-		url = fmt.Sprintf("http://localhost:8080/rooms/join/id/%s", roomId)
+		url = fmt.Sprintf("%s/rooms/join/id/%s", lobbyPrefix, roomId)
 	}
 	err := b.doLobbyRequest("POST", url, param, &res)
 	if err != nil {
@@ -117,7 +118,7 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Join success, WebSocket=%s", b.userId, room.Url)
+	logger.Debugf("[bot:%v] Join success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -133,7 +134,7 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 
 	var res service.LobbyResponse
 
-	url := fmt.Sprintf("http://localhost:8080/rooms/join/number/%d", roomNumber)
+	url := fmt.Sprintf("%s/rooms/join/number/%d", lobbyPrefix, roomNumber)
 	err := b.doLobbyRequest("POST", url, param, &res)
 	if err != nil {
 		return nil, err
@@ -144,7 +145,7 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Join by room number success, WebSocket=%s", b.userId, room.Url)
+	logger.Debugf("[bot:%v] Join by room number success, WebSocket=%s", b.userId, room.Url)
 
 	return room, nil
 }
@@ -160,7 +161,7 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 
 	var res service.LobbyResponse
 
-	url := fmt.Sprintf("http://localhost:8080/rooms/join/random/%d", searchGroup)
+	url := fmt.Sprintf("%s/rooms/join/random/%d", lobbyPrefix, searchGroup)
 	err := b.doLobbyRequest("POST", url, param, &res)
 	if err != nil {
 		return nil, err
@@ -171,7 +172,7 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 
 	room := res.Room
 	b.deadline = time.Duration(room.Deadline) * time.Second
-	log.Printf("[bot:%v] Join at random success, WebSocket=%s", b.userId, room.Url)
+	logger.Debugf("[bot:%v] Join at random success, WebSocket=%s", b.userId, room.Url)
 	return room, nil
 }
 
@@ -183,18 +184,18 @@ func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.R
 
 	var res service.LobbyResponse
 
-	err := b.doLobbyRequest("POST", "http://localhost:8080/rooms/search", param, &res)
+	err := b.doLobbyRequest("POST", fmt.Sprintf("%s/rooms/search", lobbyPrefix), param, &res)
 	if err != nil {
-		log.Printf("error: %v", err)
+		logger.Debugf("error: %v", err)
 		return nil, err
 	}
 	if res.Rooms == nil {
-		log.Printf("error: %v", res.Msg)
+		logger.Debugf("error: %v", res.Msg)
 		return nil, fmt.Errorf("Search failed: %v", res.Msg)
 	}
 
 	rooms := res.Rooms
-	log.Printf("[bot:%v] Search success, rooms=%v", b.userId, rooms)
+	logger.Debugf("[bot:%v] Search success, rooms=%v", b.userId, rooms)
 	return rooms, nil
 }
 
@@ -251,17 +252,17 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 
 	authdata, err := auth.GenerateAuthData(authKey, b.userId, time.Now())
 	if err != nil {
-		log.Printf("[bot:%v] generate authdata error: %v", b.userId, err)
+		logger.Errorf("[bot:%v] generate authdata error: %v", b.userId, err)
 		return err
 	}
 	hdr.Add("Authorization", "Bearer "+authdata)
 
 	conn, res, err := b.ws.Dial(url, hdr)
 	if err != nil {
-		log.Printf("[bot:%v] dial error: %v, %v", b.userId, res, err)
+		logger.Errorf("[bot:%v] dial error: %v, %v", b.userId, res, err)
 		return err
 	}
-	log.Printf("[bot:%v] response: %v", b.userId, res)
+	logger.Debugf("[bot:%v] response: %v", b.userId, res)
 
 	b.conn = conn
 	go b.pinger()
@@ -278,7 +279,7 @@ func (b *bot) WriteMessage(messageType int, data []byte) error {
 func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
 	b.seq++
 	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload)
-	log.Printf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
+	logger.Debugf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
 	return b.WriteMessage(websocket.BinaryMessage, msg)
 }
 
@@ -299,11 +300,11 @@ func (b *bot) pinger() {
 		case <-t.C:
 			msg := binary.NewMsgPing(time.Now())
 			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
-				log.Printf("pinger: WrteMessage error: %v", err)
+				logger.Debugf("pinger: WrteMessage error: %v", err)
 				return
 			}
 		case newDeadline := <-b.newDeadline:
-			log.Printf("pinger: update deadline: %v to %v", deadline, newDeadline)
+			logger.Debugf("pinger: update deadline: %v to %v", deadline, newDeadline)
 			t.Reset(calcPingInterval(newDeadline))
 		case <-b.done:
 			return
@@ -316,21 +317,24 @@ func (b *bot) EventLoop(done chan bool) {
 	for {
 		_, p, err := b.conn.ReadMessage()
 		if err != nil {
-			log.Printf("[bot:%v] ReadMessage error: %v", b.userId, err)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				logger.Debugf("[bot:%v] ReadMessage: %v", b.userId, err)
+			} else {
+				if !errors.Is(err, net.ErrClosed) {
+					logger.Errorf("[bot:%v] ReadMessage error: %v", b.userId, err)
+				}
+			}
 			return
 		}
 
 		ev, seq, err := binary.UnmarshalEvent(p)
 		if err != nil {
-			log.Printf("[bot:%v] Failed to UnmarshalEvent: err=%v, binary=%v", b.userId, err, p)
+			logger.Errorf("[bot:%v] Failed to UnmarshalEvent: err=%v, binary=%v", b.userId, err, p)
 			continue
 		}
 
 		ty := ev.Type()
-		logf := func(fmt string, args ...interface{}) {
-			prefix := "[bot:%v seq:%v event:%s]: " // userID, seq, ty
-			log.Printf(prefix+fmt, append([]interface{}{b.userId, seq, ty}, args...)...)
-		}
+		lg := logger.With("userId", b.userId, "seq", seq, "event", ty.String())
 
 		switch ty {
 		case binary.EvTypeJoined:
@@ -340,56 +344,162 @@ func (b *bot) EventLoop(done chan bool) {
 			if err != nil {
 				panic(err)
 			}
-			logf("name=%v props=%v", name, props)
+			lg.Debugf("name=%v props=%v", name, props)
 		case binary.EvTypePermissionDenied:
-			logf("%v", string(ev.Payload()))
+			lg.Debugf("%v", string(ev.Payload()))
 		case binary.EvTypeTargetNotFound:
 			list, _, err := binary.UnmarshalAs(p[5:], binary.TypeList, binary.TypeNull)
 			if err != nil {
-				logf("error: failed to unmarshal EvTypeTargetNotFound: %v", err)
+				lg.Errorf("error: failed to unmarshal EvTypeTargetNotFound: %v", err)
 				break
 			}
-			logf("%v", list)
+			lg.Debugf("%v", list)
 		case binary.EvTypeMessage:
 			senderId, body, err := binary.UnmarshalEvMessage(ev.Payload())
 			if err != nil {
-				logf("error: failed to unmarshal EvTypeMessage: %v", err)
+				lg.Errorf("error: failed to unmarshal EvTypeMessage: %v", err)
 				break
 			}
 			val, _, err := binary.Unmarshal(body)
 			if err != nil {
-				logf("sender=%v body=%q", senderId, body)
+				lg.Debugf("sender=%v body=%q", senderId, body)
 			} else {
-				logf("sender=%v value=%q", senderId, val)
+				lg.Debugf("sender=%v value=%+v", senderId, val)
 			}
 		case binary.EvTypeLeft:
 			left, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 			if err != nil {
-				logf("Failed to UnmarshalEvLeftPayload: err=%v, payload=% x", err, ev.Payload())
+				lg.Errorf("Failed to UnmarshalEvLeftPayload: err=%v, payload=% x", err, ev.Payload())
 				break
 			}
-			logf("left=%q master=%q", left.ClientId, left.MasterId)
+			lg.Debugf("left=%q master=%q", left.ClientId, left.MasterId)
 		case binary.EvTypePong:
 			pongPayload, err := binary.UnmarshalEvPongPayload(ev.Payload())
 			if err != nil {
-				logf("failed to unmarshal EvPongPayload: %v", err)
+				lg.Errorf("failed to unmarshal EvPongPayload: %v", err)
 				break
 			}
-			logf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp), 0), pongPayload.Watchers)
+			lg.Debugf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp), 0), pongPayload.Watchers)
 		case binary.EvTypeMasterSwitched:
 			newMasterId, err := binary.UnmarshalEvMasterSwitchedPayload(ev.Payload())
 			if err != nil {
 				panic(err)
 			}
-			logf("new masterId=%v", newMasterId)
+			lg.Debugf("new masterId=%v", newMasterId)
 		case binary.EvTypeClientProp:
 			cp, err := binary.UnmarshalEvClientPropPayload(ev.Payload())
 			if err != nil {
 				panic(err)
 			}
-			logf("id=%v, props=%v", cp.Id, cp.Props)
+			lg.Debugf("id=%v, props=%v", cp.Id, cp.Props)
 		default:
-			logf("%#v", p)
+			lg.Debugf("%#v", p)
 		}
 	}
+}
+
+func SpawnMaster(name string) (*bot, string, <-chan bool, error) {
+	bot := NewBot(appID, appKey, name, binary.Dict{})
+
+	logger.Debugf("spawnMaster: %v", name)
+	room, err := bot.CreateRoom(binary.Dict{})
+	if err != nil {
+		logger.Errorf("create room error: %v", err)
+		return nil, "", nil, err
+	}
+	logger.Debugf("CreateRoom: %v", room.RoomInfo.Id)
+	err = bot.DialGame(room.Url, room.AuthKey, 0)
+	if err != nil {
+		logger.Errorf("dial game error: %v", err)
+		return nil, "", nil, err
+	}
+	done := make(chan bool)
+	go bot.EventLoop(done)
+
+	return bot, room.RoomInfo.Id, done, nil
+}
+
+func SpawnPlayer(roomId, userId string, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+	bot := NewBot(appID, appKey, userId, binary.Dict{})
+
+	room, err := bot.JoinRoom(roomId, queries)
+	if err != nil {
+		logger.Errorf("[bot:%v] join room error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	err = bot.DialGame(room.Url, room.AuthKey, 0)
+	if err != nil {
+		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	done := make(chan bool)
+	go bot.EventLoop(done)
+
+	return bot, done, nil
+}
+
+func SpawnWatcher(roomId, userId string) (*bot, <-chan bool, error) {
+	bot := NewBot(appID, appKey, userId, binary.Dict{})
+
+	room, err := bot.WatchRoom(roomId, nil)
+	if err != nil {
+		logger.Errorf("[bot:%v] watch room error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	err = bot.DialGame(room.Url, room.AuthKey, 0)
+	if err != nil {
+		logger.Errorf("[bot:%v] dial watch error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	done := make(chan bool)
+	go bot.EventLoop(done)
+
+	return bot, done, nil
+}
+
+func SpawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+	bot := NewBot(appID, appKey, userId, binary.Dict{})
+
+	room, err := bot.JoinRoomByNumber(roomNumber, queries)
+	if err != nil {
+		logger.Errorf("[bot:%v] join room error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	err = bot.DialGame(room.Url, room.AuthKey, 0)
+	if err != nil {
+		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	done := make(chan bool)
+	go bot.EventLoop(done)
+
+	return bot, done, nil
+}
+
+func SpawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+	logger.Infof("SpawnPlayerAtRandom(%v,%v,%v)", userId, searchGroup, queries)
+	bot := NewBot(appID, appKey, userId, binary.Dict{})
+
+	room, err := bot.JoinRoomAtRandom(searchGroup, queries)
+	if err != nil {
+		logger.Errorf("[bot:%v] join room error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	err = bot.DialGame(room.Url, room.AuthKey, 0)
+	if err != nil {
+		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
+		return nil, nil, err
+	}
+
+	done := make(chan bool)
+	go bot.EventLoop(done)
+
+	return bot, done, nil
 }

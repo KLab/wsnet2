@@ -16,6 +16,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/game"
+	"wsnet2/game/metrics"
 	"wsnet2/log"
 )
 
@@ -139,6 +140,8 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		log.Errorf("WSHandler.HandleRoom new peer error: %v", err)
 		return
 	}
+	metrics.Conns.Add(1)
 	<-peer.Done()
+	metrics.Conns.Add(-1)
 	log.Debugf("HandleRoom finished: room=%v client=%v peer=%p", roomId, clientId, peer)
 }

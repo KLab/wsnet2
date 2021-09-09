@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	_ "expvar"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"

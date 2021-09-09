@@ -18,6 +18,7 @@ import (
 	"wsnet2/binary"
 	"wsnet2/common"
 	"wsnet2/game"
+	"wsnet2/hub/metrics"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -228,6 +229,7 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 func (h *Hub) WriteMessage(messageType int, data []byte) error {
 	h.muWrite.Lock()
 	defer h.muWrite.Unlock()
+	metrics.MessageSent.Add(1)
 	return h.gameConn.WriteMessage(messageType, data)
 }
 
@@ -269,6 +271,7 @@ func (h *Hub) nodeCountUpdater() {
 			h.muClients.RUnlock()
 			if nodeCount != h.lastNodeCount {
 				msg := binary.NewMsgNodeCount(uint32(nodeCount))
+				metrics.MessageSent.Add(1)
 				if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
 					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
 					return
@@ -349,8 +352,10 @@ func (h *Hub) getGameServer() (*common.GameServer, error) {
 
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
+	metrics.Hubs.Add(1)
 	defer func() {
 		close(h.done)
+		metrics.Hubs.Add(-1)
 		h.logger.Debug("hub end")
 	}()
 
@@ -406,6 +411,7 @@ func (h *Hub) Start() {
 			}
 			return
 		}
+		metrics.MessageRecv.Add(1)
 		ev, _, err := binary.UnmarshalEvent(b)
 		if err != nil {
 			h.logger.Errorf("UnmarshalEvent error: %v\n", err)
@@ -568,6 +574,7 @@ func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
 	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
 	packet := binary.BuildRegularMsgFrame(msg.Type(), int(h.seq), msg.Payload())
+	metrics.MessageSent.Add(1)
 	return h.WriteMessage(websocket.BinaryMessage, packet)
 }
 
