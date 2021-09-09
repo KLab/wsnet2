@@ -8,36 +8,6 @@ namespace WSNet2.Core
 {
     class Connection
     {
-        // todo: 設定を注入できるようにする
-
-        /// <summary>保持できるEventの数</summary>
-        const int EvBufPoolSize = 16;
-
-        /// <summary>各Eventのバッファサイズの初期値</summary>
-        const int EvBufInitialSize = 256;
-
-        /// <summary>保持できるMsgの数</summary>
-        const int MsgPoolSize = 8;
-
-        /// <summary>各Msgのバッファサイズの初期値</summary>
-        const int MsgBufInitialSize = 512;
-
-        /// <summary>最大連続再接続試行回数</summary>
-        const int MaxReconnection = 5;
-
-        /// <summary>接続タイムアウト</summary>
-        const int connectTimeoutMilliSec = 5000;
-
-        /// <summary>再接続インターバル (milli seconds)</summary>
-        const int RetryIntervalMilliSec = 1000;
-
-        /// <summary>最大Ping間隔 (milli seconds)</summary>
-        /// Playerの最終Msg時刻のやりとりのため、ある程度で上限を設ける
-        const int MaxPingIntervalMilliSec = 10000;
-
-        /// <summary>最小Ping間隔 (milli seconds)</summary>
-        const int MinPingIntervalMilliSec = 1000;
-
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         public MsgPool msgPool { get; private set; }
@@ -78,13 +48,13 @@ namespace WSNet2.Core
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
-                new ConcurrentStack<byte[]>(), EvBufPoolSize);
-            for (var i = 0; i<EvBufPoolSize; i++)
+                new ConcurrentStack<byte[]>(), WSNet2Settings.EvPoolSize);
+            for (var i = 0; i<WSNet2Settings.EvPoolSize; i++)
             {
-                evBufPool.Add(new byte[EvBufInitialSize]);
+                evBufPool.Add(new byte[WSNet2Settings.EvBufInitialSize]);
             }
 
-            this.msgPool = new MsgPool(MsgPoolSize, MsgBufInitialSize);
+            this.msgPool = new MsgPool(WSNet2Settings.MsgPoolSize, WSNet2Settings.MsgBufInitialSize);
         }
 
         /// <summary>
@@ -111,7 +81,7 @@ namespace WSNet2.Core
             while (true)
             {
                 Exception lastException;
-                var retryInterval = Task.Delay(RetryIntervalMilliSec);
+                var retryInterval = Task.Delay(WSNet2Settings.RetryIntervalMilliSec);
 
                 if (canceller.IsCancellationRequested)
                 {
@@ -172,7 +142,7 @@ namespace WSNet2.Core
                     return;
                 }
 
-                if (++reconnection > MaxReconnection)
+                if (++reconnection > WSNet2Settings.MaxReconnection)
                 {
                     throw new Exception($"MaxReconnection: {lastException.Message}", lastException);
                 }
@@ -221,7 +191,7 @@ namespace WSNet2.Core
 
             WSNet2Logger.Info("Connecting to {0}", uri);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(connectTimeoutMilliSec);
+            cts.CancelAfter(WSNet2Settings.ConnectTimeoutMilliSec);
             await ws.ConnectAsync(uri, cts.Token);
             return ws;
         }
@@ -436,8 +406,8 @@ namespace WSNet2.Core
         private int calcPingInterval(uint deadline)
         {
             var ms = (int)deadline * 1000 / 5;
-            return (ms < MinPingIntervalMilliSec) ? MinPingIntervalMilliSec
-                : (ms > MaxPingIntervalMilliSec) ? MaxPingIntervalMilliSec : ms;
+            return (ms < WSNet2Settings.MinPingIntervalMilliSec) ? WSNet2Settings.MinPingIntervalMilliSec
+                : (ms > WSNet2Settings.MaxPingIntervalMilliSec) ? WSNet2Settings.MaxPingIntervalMilliSec : ms;
         }
     }
 }
