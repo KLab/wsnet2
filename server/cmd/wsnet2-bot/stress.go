@@ -75,13 +75,13 @@ func (cmd *stressBot) Run(mid int, queue <-chan struct{}) {
 		for i := 0; i < rand.Intn(20); i++ {
 			wgWatchers.Add(1)
 			go func(cid int) {
+				defer wgWatchers.Done()
 				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
 				_, done, err := SpawnWatcher(rid, fmt.Sprintf("watcher-%03d:%03d-%03d", mid, seq, cid))
 				if err != nil {
 					return
 				}
 				<-done
-				wgWatchers.Done()
 			}(i)
 		}
 		wgPlayers.Wait()
