@@ -6,26 +6,26 @@ namespace WSNet2
     /// <summary>
     /// Unity環境でデフォルトで使用されるLogger
     /// </summary>
-    public class DefaultUnityLogger : WSNet2Logger.ILogger
+    public class DefaultUnityLogger : IWSNet2Logger<WSNet2LogPayload>
     {
-        public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, Exception e, TPayload payload, string message)
+        public WSNet2LogPayload Payload { get; } = new WSNet2LogPayload();
+
+        public void Log(WSNet2LogLevel logLevel, Exception e, string format, params object[] param)
         {
-            var msg = message;
-            if (payload != null)
-            {
-                msg = $"{message} Payload = {payload}";
-            }
+            var msg = $"{string.Format(format, param)}\nPayload: User={Payload.UserId}, Room={Payload.RoomId}, RoomNum={Payload.RoomNum}";
 
             switch (logLevel)
             {
-                case WSNet2Logger.LogLevel.Error:
+                case WSNet2LogLevel.Critical:
+                case WSNet2LogLevel.Error:
                     UnityEngine.Debug.LogError(msg);
                     break;
-                case WSNet2Logger.LogLevel.Warning:
+                case WSNet2LogLevel.Warning:
                     UnityEngine.Debug.LogWarning(msg);
                     break;
-                case WSNet2Logger.LogLevel.Information:
-                case WSNet2Logger.LogLevel.Debug:
+                case WSNet2LogLevel.Information:
+                case WSNet2LogLevel.Debug:
+                case WSNet2LogLevel.Trace:
                     UnityEngine.Debug.Log(msg);
                     break;
             }

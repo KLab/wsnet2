@@ -12,11 +12,11 @@ namespace WSNet2.Core
     /// <para>
     /// このインターフェイスを実装するには、最低限次のLogメソッドを実装する必要があります。
     /// </para>
-    /// <list type="table">
+    /// <list type="bullet">
     ///    <item><term>Log(WSNet2LogLevel level, Exception exception, string format, params object[] param);</term></item>
     /// </list>
     /// <para>
-    /// この他のオーバーロードメソッドはパフォーマンス対策など適宜実装してください。
+    /// この他のオーバーロードメソッドはパフォーマンス対策などのために適宜実装してください。
     /// </para>
     public interface IWSNet2Logger<out TPayload> where TPayload : WSNet2LogPayload
     {
@@ -25,6 +25,9 @@ namespace WSNet2.Core
 
         /// <summary>ログ出力メソッド (必須)</summary>
         void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] param);
+
+// Unityの場合C#8.0がサポートされるまで無効
+#if !UNITY_2 && !UNITY_3 && !UNITY_4 && !UNITY_5 && !UNITY_5_3_OR_NEWER || CSHARP_8_0_OR_NEWER
 
         void Log(WSNet2LogLevel logLevel, Exception exception, string message)
             => Log(logLevel, exception, message, empty);
@@ -40,6 +43,7 @@ namespace WSNet2.Core
             => Log(logLevel, exception, format, (object)p1, (object)p2, (object)p3, (object)p4, (object)p5);
 
         private static object[] empty = new object[]{};
+#endif
     }
 
     /// <summary>LogLevel</summary>
