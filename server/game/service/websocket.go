@@ -16,8 +16,8 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/game"
-	"wsnet2/game/metrics"
 	"wsnet2/log"
+	"wsnet2/metrics"
 )
 
 const (

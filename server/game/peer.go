@@ -10,7 +10,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
-	"wsnet2/game/metrics"
+	"wsnet2/metrics"
 )
 
 // Peer : websocketの接続

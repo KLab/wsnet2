@@ -18,3 +18,4 @@
 *_string.go
 bin/
 .log/
+/include/
