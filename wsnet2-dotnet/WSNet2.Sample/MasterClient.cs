@@ -23,7 +23,13 @@ namespace WSNet2.Sample
         List<GameState> states;
         List<PlayerEvent> events;
         List<PlayerEvent> newEvents;
-        Dictionary<string, string> context = new Dictionary<string, string>();
+        AppLogger logger;
+
+        public MasterClient(AppLogger logger)
+        {
+            logger.Payload.ClientType = "Master";
+            this.logger = logger;
+        }
 
         /// <summary>
         /// 1クライアントとしてルームに参加してMasterClientとして振る舞う
@@ -36,14 +42,12 @@ namespace WSNet2.Sample
         /// <returns></returns>
         public async Task Serve(string server, string appId, string pKey, int serachGroup, string userId)
         {
-            context["Server"] = server;
-            context["AppId"] = appId;
-            context["UserId"] = userId;
+            logger.Payload.Server = server;
 
             while (true)
             {
                 var authData = WSNet2Helper.GenAuthData(pKey, userId);
-                client = new WSNet2Client(server, appId, userId, authData);
+                client = new WSNet2Client(server, appId, userId, authData, logger);
                 props = new Dictionary<string, object>(){
                     {"name", userId},
                 };
@@ -69,11 +73,11 @@ namespace WSNet2.Sample
                     // FIXME: 例外の種類を増やすべき
                     if (e.ToString().Contains("Connect to room failed"))
                     {
-                        WSNet2Logger.ErrorWithPayload(context, "no room found");
+                        logger.Error(null, "no room found");
                     }
                     else
                     {
-                        WSNet2Logger.ErrorWithPayload(e, context, "Serve Error");
+                        logger.Error(e, "Serve Error");
                     }
                 }
                 await Task.Delay(1000);
@@ -82,7 +86,7 @@ namespace WSNet2.Sample
 
         async Task<Room> JoinRandomRoom()
         {
-            Console.WriteLine($"({userId}) Trying to join random room");
+            logger.Debug("({0}) Trying to join random room", userId);
             var query = new Query();
             query.Equal("game", "pong");
             query.Equal("state", GameStateCode.WaitingGameMaster.ToString());
@@ -125,8 +129,7 @@ namespace WSNet2.Sample
         async Task ServeOne()
         {
             var room = await JoinRandomRoom();
-            context["RoomId"] = room.Id;
-            WSNet2Logger.InfoWithPayload(context, "Room Joined");
+            logger.Info("Room Joined");
 
             var cts = new CancellationTokenSource();
             var RPCSyncServerTick = new Action<string, long>((sender, tick) => { });
@@ -157,7 +160,7 @@ namespace WSNet2.Sample
                         break;
                     }
 
-                    WSNet2Logger.InfoWithPayload(context, "Waiting switch master from {0}", room.Master.Id);
+                    logger.Info("Waiting switch master from {0}", room.Master.Id);
                     await Task.Delay(1000);
                     continue;
                 }
@@ -183,7 +186,7 @@ namespace WSNet2.Sample
                         }
                         else
                         {
-                            WSNet2Logger.WarningWithPayload(context, "Discard PlayerEvent: too past tick. Code:{0} Player:{1} ServerTick{2} EventTick:{3}",
+                            logger.Warning("Discard PlayerEvent: too past tick. Code:{0} Player:{1} ServerTick{2} EventTick:{3}",
                                 ev.Code, ev.PlayerId, states[0].Tick, ev.Tick); // TODO どうハンドルするべきか
                         }
                     }
@@ -213,13 +216,13 @@ namespace WSNet2.Sample
                 {
                     foreach (var ev in tooFutureEvents)
                     {
-                        WSNet2Logger.WarningWithPayload(context, "Too future event. Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
+                        logger.Warning("Too future event. Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
                     }
                 }
 
                 if (0 < targetEvents.Count())
                 {
-                    // Console.WriteLine("Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
+                    logger.Debug("Room: {0} State: {1} Events: {2}", room.Id, state.Code.ToString(), targetEvents.Count());
                 }
 
                 var prevStateCode = state.Code;
@@ -227,7 +230,7 @@ namespace WSNet2.Sample
 
                 if (1000 <= new TimeSpan(now - lastPrint).TotalMilliseconds)
                 {
-                    WSNet2Logger.Info("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
+                    logger.Info("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
                     lastPrint = now;
                 }
 
@@ -316,12 +319,12 @@ namespace WSNet2.Sample
                     var ms = new TimeSpan(t2 - t1).TotalMilliseconds;
                     if (32 <= ms)
                     {
-                        WSNet2Logger.WarningWithPayload(context, "Too long sleep. expected:16ms actual:{0}ms", ms);
+                        logger.Warning("Too long sleep. expected:16ms actual:{0}ms", ms);
                     }
                 }
             }
 
-            WSNet2Logger.InfoWithPayload(context, "Left from room");
+            logger.Info("Left from room");
         }
 
         void RPCPlayerEvent(string sender, PlayerEvent msg)
