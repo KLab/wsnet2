@@ -21,9 +21,9 @@ namespace WSNet2.Core.Test
 
             public Payload Payload { get; } = new Payload();
 
-            public void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] param)
+            public void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] args)
             {
-                output = $"{logLevel}[{Payload}] {string.Format(format, param)}";
+                output = $"{logLevel}[{Payload}] {string.Format(format, args)}";
             }
         }
 

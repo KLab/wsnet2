@@ -13,7 +13,7 @@ namespace WSNet2.Core
     /// このインターフェイスを実装するには、最低限次のLogメソッドを実装する必要があります。
     /// </para>
     /// <list type="bullet">
-    ///    <item><term>Log(WSNet2LogLevel level, Exception exception, string format, params object[] param);</term></item>
+    ///    <item><term>Log(WSNet2LogLevel level, Exception exception, string format, params object[] args);</term></item>
     /// </list>
     /// <para>
     /// この他のオーバーロードメソッドはパフォーマンス対策などのために適宜実装してください。
@@ -24,23 +24,23 @@ namespace WSNet2.Core
         TPayload Payload { get; }
 
         /// <summary>ログ出力メソッド (必須)</summary>
-        void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] param);
+        void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] args);
 
 // Unityの場合C#8.0がサポートされるまで無効
 #if !UNITY_2 && !UNITY_3 && !UNITY_4 && !UNITY_5 && !UNITY_5_3_OR_NEWER || CSHARP_8_0_OR_NEWER
 
         void Log(WSNet2LogLevel logLevel, Exception exception, string message)
             => Log(logLevel, exception, message, empty);
-        void Log<T1>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1)
-            => Log(logLevel, exception, format, (object)p1);
-        void Log<T1, T2>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2)
-            => Log(logLevel, exception, format, (object)p1, (object)p2);
-        void Log<T1, T2, T3>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2, T3 p3)
-            => Log(logLevel, exception, format, (object)p1, (object)p2, (object)p3);
-        void Log<T1, T2, T3, T4>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2, T3 p3, T4 p4)
-            => Log(logLevel, exception, format, (object)p1, (object)p2, (object)p3, (object)p4);
-        void Log<T1, T2, T3, T4, T5>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5)
-            => Log(logLevel, exception, format, (object)p1, (object)p2, (object)p3, (object)p4, (object)p5);
+        void Log<T1>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1)
+            => Log(logLevel, exception, format, (object)a1);
+        void Log<T1, T2>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2)
+            => Log(logLevel, exception, format, (object)a1, (object)a2);
+        void Log<T1, T2, T3>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3)
+            => Log(logLevel, exception, format, (object)a1, (object)a2, (object)a3);
+        void Log<T1, T2, T3, T4>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4)
+            => Log(logLevel, exception, format, (object)a1, (object)a2, (object)a3, (object)a4);
+        void Log<T1, T2, T3, T4, T5>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5)
+            => Log(logLevel, exception, format, (object)a1, (object)a2, (object)a3, (object)a4, (object)a5);
 
         private static object[] empty = new object[]{};
 #endif

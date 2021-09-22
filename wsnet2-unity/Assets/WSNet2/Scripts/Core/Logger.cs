@@ -61,16 +61,16 @@ namespace WSNet2.Core
             logger?.Log(WSNet2LogLevel.Information, null, format, args);
         public void Info(string message) =>
             logger?.Log(WSNet2LogLevel.Information, null, message);
-        public void Info<T1>(string format, T1 p1) =>
-            logger?.Log(WSNet2LogLevel.Information, null, format, p1);
-        public void Info<T1, T2>(string format, T1 p1, T2 p2) =>
-            logger?.Log(WSNet2LogLevel.Information, null, format, p1, p2);
-        public void Info<T1, T2, T3>(string format, T1 p1, T2 p2, T3 p3) =>
-            logger?.Log(WSNet2LogLevel.Information, null, format, p1, p2, p3);
-        public void Info<T1, T2, T3, T4>(string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger?.Log(WSNet2LogLevel.Information, null, format, p1, p2, p3, p4);
-        public void Info<T1, T2, T3, T4, T5>(string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger?.Log(WSNet2LogLevel.Information, null, format, p1, p2, p3, p4, p5);
+        public void Info<T1>(string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1);
+        public void Info<T1, T2>(string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2);
+        public void Info<T1, T2, T3>(string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2, a3);
+        public void Info<T1, T2, T3, T4>(string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2, a3, a4);
+        public void Info<T1, T2, T3, T4, T5>(string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Infoレベルのログを出力します
@@ -78,20 +78,20 @@ namespace WSNet2.Core
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public void Info(Exception e, string format, params object[] args) =>
-            logger?.Log(WSNet2LogLevel.Information, e, format, args);
-        public void Info(Exception e, string message) =>
-            logger?.Log(WSNet2LogLevel.Information, e, message);
-        public void Info<T1>(Exception e, string format, T1 p1) =>
-            logger?.Log(WSNet2LogLevel.Information, e, format, p1);
-        public void Info<T1, T2>(Exception e, string format, T1 p1, T2 p2) =>
-            logger?.Log(WSNet2LogLevel.Information, e, format, p1, p2);
-        public void Info<T1, T2, T3>(Exception e, string format, T1 p1, T2 p2, T3 p3) =>
-            logger?.Log(WSNet2LogLevel.Information, e, format, p1, p2, p3);
-        public void Info<T1, T2, T3, T4>(Exception e, string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger?.Log(WSNet2LogLevel.Information, e, format, p1, p2, p3, p4);
-        public void Info<T1, T2, T3, T4, T5>(Exception e, string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger?.Log(WSNet2LogLevel.Information, e, format, p1, p2, p3, p4, p5);
+        public void Info(Exception exception, string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, args);
+        public void Info(Exception exception, string message) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, message);
+        public void Info<T1>(Exception exception, string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1);
+        public void Info<T1, T2>(Exception exception, string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2);
+        public void Info<T1, T2, T3>(Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2, a3);
+        public void Info<T1, T2, T3, T4>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2, a3, a4);
+        public void Info<T1, T2, T3, T4, T5>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Warningレベルのログを出力します
@@ -102,16 +102,16 @@ namespace WSNet2.Core
             logger?.Log(WSNet2LogLevel.Warning, null, format, args);
         public void Warning(string message) =>
             logger?.Log(WSNet2LogLevel.Warning, null, message);
-        public void Warning<T1>(string format, T1 p1) =>
-            logger?.Log(WSNet2LogLevel.Warning, null, format, p1);
-        public void Warning<T1, T2>(string format, T1 p1, T2 p2) =>
-            logger?.Log(WSNet2LogLevel.Warning, null, format, p1, p2);
-        public void Warning<T1, T2, T3>(string format, T1 p1, T2 p2, T3 p3) =>
-            logger?.Log(WSNet2LogLevel.Warning, null, format, p1, p2, p3);
-        public void Warning<T1, T2, T3, T4>(string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger?.Log(WSNet2LogLevel.Warning, null, format, p1, p2, p3, p4);
-        public void Warning<T1, T2, T3, T4, T5>(string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger?.Log(WSNet2LogLevel.Warning, null, format, p1, p2, p3, p4, p5);
+        public void Warning<T1>(string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1);
+        public void Warning<T1, T2>(string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2);
+        public void Warning<T1, T2, T3>(string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2, a3);
+        public void Warning<T1, T2, T3, T4>(string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2, a3, a4);
+        public void Warning<T1, T2, T3, T4, T5>(string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Warningレベルのログを出力します
@@ -119,20 +119,20 @@ namespace WSNet2.Core
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public void Warning(Exception e, string format, params object[] args) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, format, args);
-        public void Warning(Exception e, string message) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, message);
-        public void Warning<T1>(Exception e, string format, T1 p1) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, format, p1);
-        public void Warning<T1, T2>(Exception e, string format, T1 p1, T2 p2) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, format, p1, p2);
-        public void Warning<T1, T2, T3>(Exception e, string format, T1 p1, T2 p2, T3 p3) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, format, p1, p2, p3);
-        public void Warning<T1, T2, T3, T4>(Exception e, string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, format, p1, p2, p3, p4);
-        public void Warning<T1, T2, T3, T4, T5>(Exception e, string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger?.Log(WSNet2LogLevel.Warning, e, format, p1, p2, p3, p4, p5);
+        public void Warning(Exception exception, string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, args);
+        public void Warning(Exception exception, string message) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, message);
+        public void Warning<T1>(Exception exception, string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1);
+        public void Warning<T1, T2>(Exception exception, string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2);
+        public void Warning<T1, T2, T3>(Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2, a3);
+        public void Warning<T1, T2, T3, T4>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2, a3, a4);
+        public void Warning<T1, T2, T3, T4, T5>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Errorレベルのログを出力します
@@ -143,16 +143,16 @@ namespace WSNet2.Core
             logger?.Log(WSNet2LogLevel.Error, null, format, args);
         public void Error(string message) =>
             logger?.Log(WSNet2LogLevel.Error, null, message);
-        public void Error<T1>(string format, T1 p1) =>
-            logger?.Log(WSNet2LogLevel.Error, null, format, p1);
-        public void Error<T1, T2>(string format, T1 p1, T2 p2) =>
-            logger?.Log(WSNet2LogLevel.Error, null, format, p1, p2);
-        public void Error<T1, T2, T3>(string format, T1 p1, T2 p2, T3 p3) =>
-            logger?.Log(WSNet2LogLevel.Error, null, format, p1, p2, p3);
-        public void Error<T1, T2, T3, T4>(string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger?.Log(WSNet2LogLevel.Error, null, format, p1, p2, p3, p4);
-        public void Error<T1, T2, T3, T4, T5>(string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger?.Log(WSNet2LogLevel.Error, null, format, p1, p2, p3, p4, p5);
+        public void Error<T1>(string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1);
+        public void Error<T1, T2>(string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2);
+        public void Error<T1, T2, T3>(string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2, a3);
+        public void Error<T1, T2, T3, T4>(string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2, a3, a4);
+        public void Error<T1, T2, T3, T4, T5>(string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Errorレベルのログを出力します(Exception付き)
@@ -160,19 +160,19 @@ namespace WSNet2.Core
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public void Error(Exception e, string format, params object[] args) =>
-            logger?.Log(WSNet2LogLevel.Error, e, format, args);
-        public void Error(Exception e, string message) =>
-            logger?.Log(WSNet2LogLevel.Error, e, message);
-        public void Error<T1>(Exception e, string format, T1 p1) =>
-            logger?.Log(WSNet2LogLevel.Error, e, format, p1);
-        public void Error<T1, T2>(Exception e, string format, T1 p1, T2 p2) =>
-            logger?.Log(WSNet2LogLevel.Error, e, format, p1, p2);
-        public void Error<T1, T2, T3>(Exception e, string format, T1 p1, T2 p2, T3 p3) =>
-            logger?.Log(WSNet2LogLevel.Error, e, format, p1, p2, p3);
-        public void Error<T1, T2, T3, T4>(Exception e, string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger?.Log(WSNet2LogLevel.Error, e, format, p1, p2, p3, p4);
-        public void Error<T1, T2, T3, T4, T5>(Exception e, string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger?.Log(WSNet2LogLevel.Error, e, format, p1, p2, p3, p4, p5);
+        public void Error(Exception exception, string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, args);
+        public void Error(Exception exception, string message) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, message);
+        public void Error<T1>(Exception exception, string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1);
+        public void Error<T1, T2>(Exception exception, string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2);
+        public void Error<T1, T2, T3>(Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2, a3);
+        public void Error<T1, T2, T3, T4>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2, a3, a4);
+        public void Error<T1, T2, T3, T4, T5>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2, a3, a4, a5);
     }
 }

@@ -10,9 +10,9 @@ namespace WSNet2
     {
         public WSNet2LogPayload Payload { get; } = new WSNet2LogPayload();
 
-        public void Log(WSNet2LogLevel logLevel, Exception e, string format, params object[] param)
+        public void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] args)
         {
-            var msg = $"{string.Format(format, param)}\nPayload: User={Payload.UserId}, Room={Payload.RoomId}, RoomNum={Payload.RoomNum}";
+            var msg = $"{string.Format(format, args)}\nPayload: User={Payload.UserId}, Room={Payload.RoomId}, RoomNum={Payload.RoomNum}";
 
             switch (logLevel)
             {
@@ -30,9 +30,9 @@ namespace WSNet2
                     break;
             }
 
-            if (e != null)
+            if (exception != null)
             {
-                UnityEngine.Debug.LogException(e);
+                UnityEngine.Debug.LogException(exception);
             }
         }
     }
