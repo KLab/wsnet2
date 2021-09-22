@@ -19,6 +19,17 @@ namespace WSNet2.Core
         }
 
         /// <summary>
+        /// Room情報をPayloadに設定します
+        /// </summary>
+        /// <param name="roomId">Room ID</param>
+        /// <param name="roomNum">Room Number</param>
+        public void SetRoomInfo(string roomId, int roomNum)
+        {
+            logger.Payload.RoomId = roomId;
+            logger.Payload.RoomNum = roomNum;
+        }
+
+        /// <summary>
         /// Debugレベルのログを出力します
         /// </summary>
         /// <param name="format"></param>
@@ -144,7 +155,7 @@ namespace WSNet2.Core
             logger?.Log(WSNet2LogLevel.Error, null, format, p1, p2, p3, p4, p5);
 
         /// <summary>
-        /// Errorレベルのログを出力します
+        /// Errorレベルのログを出力します(Exception付き)
         /// </summary>
         /// <param name="e"></param>
         /// <param name="format"></param>

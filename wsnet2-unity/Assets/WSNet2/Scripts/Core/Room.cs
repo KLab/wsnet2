@@ -139,6 +139,7 @@ namespace WSNet2.Core
         Dictionary<Delegate, byte> rpcMap;
         List<Action<string, SerialReader>> rpcActions;
         Dictionary<int, Action<EvResponse>> errorResponseHandler = new Dictionary<int, Action<EvResponse>>();
+        Logger logger;
 
         Connection con;
 
@@ -147,13 +148,17 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
-        public Room(JoinedRoom joined, string myId)
+        /// <param naem="logger">Logger</param>
+        public Room(JoinedRoom joined, string myId, Logger logger)
         {
             this.myId = myId;
             this.info = joined.roomInfo;
             this.clientDeadline = joined.deadline;
 
-            this.con = new Connection(this, myId, joined);
+            logger?.SetRoomInfo(Id, Number);
+            this.logger = logger;
+
+            this.con = new Connection(this, myId, joined, logger);
 
             this.rpcMap = new Dictionary<Delegate, byte>();
             this.rpcActions = new List<Action<string, SerialReader>>();
@@ -559,6 +564,7 @@ namespace WSNet2.Core
         public void Pause()
         {
             Running = false;
+            logger?.Debug("Room paused");
         }
 
         /// <summary>
@@ -567,6 +573,7 @@ namespace WSNet2.Core
         public void Restart()
         {
             Running = true;
+            logger?.Debug("Room restarted");
         }
 
         /// <summary>
@@ -965,6 +972,7 @@ namespace WSNet2.Core
         {
             if (ev.ClientID == myId)
             {
+                logger?.Info("joined: me");
                 callbackPool.Add(() =>
                 {
                     Me.Props = ev.GetProps(Me.Props);
@@ -976,6 +984,7 @@ namespace WSNet2.Core
                 return;
             }
 
+            logger?.Info("joined: {0}", ev.ClientID);
             callbackPool.Add(()=>
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
@@ -992,6 +1001,8 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvLeft(EvLeft ev)
         {
+            logger?.Info("left: {0}", ev.ClientID);
+
             callbackPool.Add(() =>
             {
                 var player = players[ev.ClientID];
@@ -1018,6 +1029,8 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvRoomProp(EvRoomProp ev)
         {
+            logger?.Debug("room property changed");
+
             if (ev.ClientDeadline > 0)
             {
                 // ping間隔はすぐに変更しないとTimeoutする可能性がある
@@ -1100,6 +1113,8 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvClientProp(EvClientProp ev)
         {
+            logger?.Debug("player property changed: {0}", ev.ClientID);
+
             callbackPool.Add(() =>
             {
                 var player = players[ev.ClientID];
@@ -1121,6 +1136,8 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvMasterSwitched(EvMasterSwitched ev)
         {
+            logger?.Info("master switched: {0}", ev.NewMasterId);
+
             callbackPool.Add(() =>
             {
                 var prev = Master;
@@ -1137,6 +1154,8 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvRPC(EvRPC ev)
         {
+            logger?.Debug("RPC: {0}", ev.RpcID);
+
             callbackPool.Add(() =>
             {
                 if (ev.RpcID >= rpcActions.Count)
@@ -1160,6 +1179,8 @@ namespace WSNet2.Core
         /// </summary>
         private void OnEvClosed(EvClosed ev)
         {
+            logger?.Info("closed: {0}", ev.Description);
+
             callbackPool.Add(() =>
             {
                 Closed = true;
