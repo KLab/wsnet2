@@ -5,42 +5,39 @@ namespace WSNet2.Core.Test
 {
     public class WSNet2LoggerTests
     {
-        [Test]
-        public void ExampleWSNet2Logger()
+        class Payload : WSNet2LogPayload
         {
-            WSNet2Logger.Debug("Hello World");
-            WSNet2Logger.Info("Hello World");
-            WSNet2Logger.Warning("Hello World");
-            WSNet2Logger.Error("Hello World");
+            public int Foo { get; set; }
 
-            WSNet2Logger.DebugWithPayload(new { Debug = "Foo" }, "Hello With Payload");
-            WSNet2Logger.InfoWithPayload(new { Info = "Foo" }, "Hello With Payload");
-            WSNet2Logger.WarningWithPayload(new { Warning = "Foo" }, "Hello With Payload");
-            WSNet2Logger.ErrorWithPayload(new { Error = "Foo" }, "Hello With Payload");
+            public override string ToString()
+            {
+                return $"App={AppId} User={UserId} Foo={Foo}";
+            }
+        }
+
+        class Logger : IWSNet2Logger<Payload>
+        {
+            public string output { get; private set; }
+
+            public Payload Payload { get; } = new Payload();
+
+            public void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] param)
+            {
+                output = $"{logLevel}[{Payload}] {string.Format(format, param)}";
+            }
         }
 
         [Test]
-        public void ExampleExceptionLog()
+        public void ExampleWSNet2Logger()
         {
-            Exception e = null;
-            try
-            {
-                throw new Exception("TestException");
-            }
-            catch (Exception e_)
-            {
-                e = e_;
-            }
+            var logger = new Logger();
+            logger.Payload.Foo = 100;
 
-            WSNet2Logger.Debug(e, "Hello Exception");
-            WSNet2Logger.Info(e, "Hello Exception");
-            WSNet2Logger.Warning(e, "Hello Exception");
-            WSNet2Logger.Error(e, "Hello Exception");
+            var cli = new WSNet2Client("https://example.com", "TestAppId", "TestUser", "", logger); 
 
-            WSNet2Logger.DebugWithPayload(e, new { Debug = "Foo" }, "Hello With Payload");
-            WSNet2Logger.InfoWithPayload(e, new { Info = "Foo" }, "Hello With Payload");
-            WSNet2Logger.WarningWithPayload(e, new { Warning = "Foo" }, "Hello With Payload");
-            WSNet2Logger.ErrorWithPayload(e, new { Error = "Foo" }, "Hello With Payload");
+            logger.Log(WSNet2LogLevel.Warning, null, "Hello {0}", "World");
+
+            Assert.AreEqual("Warning[App=TestAppId User=TestUser Foo=100] Hello World", logger.output);
         }
     }
 }
