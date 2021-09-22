@@ -40,6 +40,8 @@ namespace WSNet2.Sample
         /// <returns></returns>
         public async Task Serve(string server, string appId, string pKey, int serachGroup, string userId)
         {
+            logger.Payload.Server = server;
+
             while (true)
             {
                 var authData = WSNet2Helper.GenAuthData(pKey, userId);
