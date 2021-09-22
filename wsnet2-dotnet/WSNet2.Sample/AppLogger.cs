@@ -38,10 +38,25 @@ namespace WSNet2.Sample
         /// <summary>
         /// IWSNet2Logger<T>.Logの実装
         /// </summary>
-        public void Log(WSNet2LogLevel logLevel, Exception e, string format, params object[] param)
+        /// <remarks>
+        /// boxing回避(パフォーマンス対策)のためのジェネリックメソッドも定義しています
+        /// </remarks>
+        public void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] param)
         {
-            logger.ZLogWithPayload((LogLevel)logLevel, e, Payload, string.Format(format, param));
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, string.Format(format, param));
         }
+        void Log(WSNet2LogLevel logLevel, Exception exception, string message) =>
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, message);
+        void Log<T1>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1) =>
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, p1);
+        void Log<T1, T2>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2) =>
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, p1, p2);
+        void Log<T1, T2, T3>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2, T3 p3) =>
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, p1, p2, p3);
+        void Log<T1, T2, T3, T4>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, p1, p2, p3, p4);
+        void Log<T1, T2, T3, T4, T5>(WSNet2LogLevel logLevel, Exception exception, string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
+            logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, p1, p2, p3, p4, p5);
 
         /// <summary>
         /// Debugレベルのログを出力します
@@ -56,29 +71,26 @@ namespace WSNet2.Sample
         /// <summary>
         /// Infoレベルのログを出力します
         /// </summary>
-        /// <remarks>
-        /// boxing回避(パフォーマンス対策)のためのジェネリックメソッドも定義しています
-        /// </remarks>
         public void Info(string format, params object[] param) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, string.Format(format, param));
+            Log(WSNet2LogLevel.Information, null, format, param);
 
         public void Info(string format) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, format);
+            Log(WSNet2LogLevel.Information, null, format);
 
         public void Info<T1>(string format, T1 p1) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, format, p1);
+            Log(WSNet2LogLevel.Information, null, format, p1);
 
         public void Info<T1, T2>(string format, T1 p1, T2 p2) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, format, p1, p2);
+            Log(WSNet2LogLevel.Information, null, format, p1, p2);
 
         public void Info<T1, T2, T3>(string format, T1 p1, T2 p2, T3 p3) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, format, p1, p2, p3);
+            Log(WSNet2LogLevel.Information, null, format, p1, p2, p3);
 
         public void Info<T1, T2, T3, T4>(string format, T1 p1, T2 p2, T3 p3, T4 p4) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, format, p1, p2, p3, p4);
+            Log(WSNet2LogLevel.Information, null, format, p1, p2, p3, p4);
 
         public void Info<T1, T2, T3, T4, T5>(string format, T1 p1, T2 p2, T3 p3, T4 p4, T5 p5) =>
-            logger.ZLogWithPayload(LogLevel.Information, null, Payload, format, p1, p2, p3, p4, p5);
+            Log(WSNet2LogLevel.Information, null, format, p1, p2, p3, p4, p5);
 
         /// <summary>
         /// Warningレベルのログを出力します
