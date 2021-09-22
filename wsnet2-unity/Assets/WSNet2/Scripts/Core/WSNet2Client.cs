@@ -29,7 +29,7 @@ namespace WSNet2.Core
         /// <param name="userId">プレイヤーIDとなるID</param>
         /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
         /// <param name="logger">Logger</param>
-        public WSNet2Client(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger)
+        public WSNet2Client(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
         {
             this.appId = appId;
             this.userId = userId;
