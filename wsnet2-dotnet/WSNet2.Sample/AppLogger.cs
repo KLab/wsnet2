@@ -45,17 +45,17 @@ namespace WSNet2.Sample
         {
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, string.Format(format, args));
         }
-        void Log(WSNet2LogLevel logLevel, Exception exception, string message) =>
+        public void Log(WSNet2LogLevel logLevel, Exception exception, string message) =>
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, message);
-        void Log<T1>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1) =>
+        public void Log<T1>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1) =>
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, a1);
-        void Log<T1, T2>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2) =>
+        public void Log<T1, T2>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2) =>
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, a1, a2);
-        void Log<T1, T2, T3>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+        public void Log<T1, T2, T3>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, a1, a2, a3);
-        void Log<T1, T2, T3, T4>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+        public void Log<T1, T2, T3, T4>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, a1, a2, a3, a4);
-        void Log<T1, T2, T3, T4, T5>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+        public void Log<T1, T2, T3, T4, T5>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
             logger.ZLogWithPayload((LogLevel)logLevel, exception, Payload, format, a1, a2, a3, a4, a5);
 
         /// <summary>
