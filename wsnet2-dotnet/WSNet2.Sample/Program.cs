@@ -31,7 +31,17 @@ namespace WSNet2.Sample
             {
                 builder.ClearProviders();
                 builder.SetMinimumLevel(LogLevel.Debug);
-                builder.AddZLoggerConsole(options => options.EnableStructuredLogging = true);
+
+                builder.AddZLoggerConsole(options =>
+                {
+                    options.EnableStructuredLogging = false;
+                });
+
+                // Add File Logging.
+                logging.AddZLoggerFile("wsnet2-dotnet.log", options =>
+                {
+                    options.EnableStructuredLogging = true;
+                });
             });
 
             WSNet2Helper.RegisterTypes();
