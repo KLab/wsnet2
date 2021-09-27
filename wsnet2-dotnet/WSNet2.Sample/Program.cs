@@ -38,7 +38,7 @@ namespace WSNet2.Sample
                 });
 
                 // Add File Logging.
-                logging.AddZLoggerFile("wsnet2-dotnet.log", options =>
+                builder.AddZLoggerFile("wsnet2-dotnet.log", options =>
                 {
                     options.EnableStructuredLogging = true;
                 });
