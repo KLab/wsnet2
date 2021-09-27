@@ -94,7 +94,8 @@ namespace WSNet2.Sample
                 query,
                 props,
                 onJoined,
-                onFailed);
+                onFailed,
+                logger);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>
@@ -147,7 +148,7 @@ namespace WSNet2.Sample
             var roomOpt = new RoomOption(MaxPlayers, (uint)searchGroup, pubProps, privProps);
             roomOpt.WithClientDeadline(Deadline);
 
-            client.Create(roomOpt, cliProps, onJoined, onFailed);
+            client.Create(roomOpt, cliProps, onJoined, onFailed, logger);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>

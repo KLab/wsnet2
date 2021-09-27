@@ -29,7 +29,7 @@ namespace WSNet2.Core
         /// <param name="userId">プレイヤーIDとなるID</param>
         /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
         /// <param name="logger">Logger</param>
-        public WSNet2Client(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
+        public WSNet2Client(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger)
         {
             this.appId = appId;
             this.userId = userId;
@@ -101,7 +101,7 @@ namespace WSNet2.Core
         /// <param name="clientProps">自身のカスタムプロパティ</param>
         /// <param name="onSuccess">成功時callback. 引数は作成した部屋</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
-        /// <param name="roomLogger">部屋用のLogger(optional)。Loggerを変更する場合設定する</param>
+        /// <param name="roomLogger">Logger</param>
         /// <remarks>
         ///   <para>callbackはProcessCallback経由で呼ばれる</para>
         ///   <para>
@@ -125,7 +125,7 @@ namespace WSNet2.Core
             IDictionary<string, object> clientProps,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            IWSNet2Logger<WSNet2LogPayload> roomLogger = null)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Create()");
@@ -147,13 +147,14 @@ namespace WSNet2.Core
         /// <param name="clientProps">自身のカスタムプロパティ</param>
         /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
+        /// <param name="roomLogger">Logger</param>
         public void Join(
             string roomId,
             Query query,
             IDictionary<string, object> clientProps,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            IWSNet2Logger<WSNet2LogPayload> roomLogger = null)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Join(roomId={0})", roomId);
@@ -175,13 +176,14 @@ namespace WSNet2.Core
         /// <param name="clientProps">自身のカスタムプロパティ</param>
         /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
+        /// <param name="roomLogger">Logger</param>
         public void Join(
             int number,
             Query query,
             IDictionary<string, object> clientProps,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            IWSNet2Logger<WSNet2LogPayload> roomLogger = null)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Join(number={0})", number);
@@ -203,13 +205,14 @@ namespace WSNet2.Core
         /// <param name="clientProps">自身のカスタムプロパティ</param>
         /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
+        /// <param name="roomLogger">Logger</param>
         public void RandomJoin(
             uint group,
             Query query,
             IDictionary<string, object> clientProps,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            IWSNet2Logger<WSNet2LogPayload> roomLogger = null)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.RandomJoin(group={0})", group);
@@ -230,12 +233,13 @@ namespace WSNet2.Core
         /// <param name="query">検索クエリ</param>
         /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
+        /// <param name="roomLogger">Logger</param>
         public void Watch(
             string roomId,
             Query query,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            IWSNet2Logger<WSNet2LogPayload> roomLogger = null)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Watch(roomId={0})", roomId);
@@ -256,12 +260,13 @@ namespace WSNet2.Core
         /// <param name="query">検索クエリ</param>
         /// <param name="onSuccess">成功時callback. 引数は入室した部屋</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
+        /// <param name="roomLogger">Logger</param>
         public void Watch(
             int number,
             Query query,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            IWSNet2Logger<WSNet2LogPayload> roomLogger = null)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Watch(number={0})", number);
@@ -421,11 +426,22 @@ WorkerThreads: {0}, CompletionPortThreads: {1}", workerThreads, completionPortTh
         {
             if (logger == null)
             {
-                return this.logger;
+                this.logger?.Warning("Logger is not set");
+                return null;
+            }
+
+            if ((logger.Payload.AppId != null && logger.Payload.AppId != appId) ||
+                (logger.Payload.UserId != null && logger.Payload.UserId != userId) ||
+                logger.Payload.RoomId != null ||
+                logger.Payload.RoomNum != 0)
+            {
+                logger.Log(WSNet2LogLevel.Warning, null, "The logger is being used by another client or room. It's payload will be overwritten.");
             }
 
             logger.Payload.AppId = appId;
             logger.Payload.UserId = userId;
+            logger.Payload.RoomId = null;
+            logger.Payload.RoomNum = 0;
             return new Logger(logger);
         }
     }

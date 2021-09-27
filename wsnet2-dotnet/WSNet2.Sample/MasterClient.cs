@@ -108,7 +108,8 @@ namespace WSNet2.Sample
                 query,
                 props,
                 onJoined,
-                onFailed);
+                onFailed,
+                logger);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>
