@@ -168,7 +168,6 @@ namespace WSNet2.Core.Test
                 MessagePackSerializer.Serialize(query.condsList));
         }
 
-
         [Test]
         public void TestInt()
         {
@@ -220,6 +219,27 @@ namespace WSNet2.Core.Test
 
             Assert.AreEqual(
                 MessagePackSerializer.Serialize(expect), 
+                MessagePackSerializer.Serialize(query.condsList));
+        }
+
+        [Test]
+        public void TestContain()
+        {
+            var query = new Query();
+            query.Contain("k1", 1);
+            query.NotContain("k2", "test");
+
+            var expect = new object[]
+            {
+                new object[]
+                {
+                    new object[]{"k1", (byte)Query.Op.Contain, serialize(1)},
+                    new object[]{"k2", (byte)Query.Op.NotContain, serialize("test")},
+                },
+            };
+
+            Assert.AreEqual(
+                MessagePackSerializer.Serialize(expect),
                 MessagePackSerializer.Serialize(query.condsList));
         }
 

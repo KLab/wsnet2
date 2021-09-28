@@ -504,6 +504,48 @@ func TestPropQueryMatchStr16(t *testing.T) {
 	}
 }
 
+func TestPropQueryMatchContains(t *testing.T) {
+	props := binary.Dict{
+		"0": binary.MarshalNull(),
+		"aaa": binary.MarshalList([][]byte{
+			binary.MarshalInt(10),
+			binary.MarshalStr16("あいうえお"),
+			binary.MarshalDouble(10),
+		}),
+		"bbb": binary.MarshalInts([]int{1, 3, 5, 7, 9}),
+		"ccc": binary.MarshalFloats([]float32{-10, -0.5, 0, 1.1}),
+	}
+	tests := []struct {
+		query    PropQuery
+		expected bool
+	}{
+		{PropQuery{"0", OpContain, binary.MarshalNull()}, false},
+		{PropQuery{"0", OpNotContain, binary.MarshalNull()}, true},
+		{PropQuery{"0", OpContain, binary.MarshalInt(0)}, false},
+		{PropQuery{"0", OpNotContain, binary.MarshalInt(0)}, true},
+		{PropQuery{"aaa", OpContain, binary.MarshalInt(10)}, true},
+		{PropQuery{"aaa", OpContain, binary.MarshalFloat(10)}, false},
+		{PropQuery{"aaa", OpContain, binary.MarshalStr16("あいうえお")}, true},
+		{PropQuery{"aaa", OpNotContain, binary.MarshalDouble(10)}, false},
+		{PropQuery{"aaa", OpNotContain, binary.MarshalFloat(10)}, true},
+		{PropQuery{"aaa", OpNotContain, binary.MarshalStr16("あいうえお")}, false},
+		{PropQuery{"aaa", OpNotContain, binary.MarshalStr16("あいうえおか")}, true},
+		{PropQuery{"bbb", OpContain, binary.MarshalInt(3)}, true},
+		{PropQuery{"bbb", OpContain, binary.MarshalInt(4)}, false},
+		{PropQuery{"bbb", OpContain, binary.MarshalUInt(3)}, false},
+		{PropQuery{"bbb", OpNotContain, binary.MarshalInt(4)}, true},
+		{PropQuery{"bbb", OpNotContain, binary.MarshalUInt(3)}, true},
+		{PropQuery{"ccc", OpContain, binary.MarshalFloat(1.1)}, true},
+		{PropQuery{"ccc", OpNotContain, binary.MarshalFloat(1.1000001)}, true},
+	}
+	for _, test := range tests {
+		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+			prop, _, _ := binary.UnmarshalAs(props[test.query.Key], binary.TypeNull, binary.TypeList)
+			t.Fatalf("mismatch %v %v %v actual=%v, expected=%v", prop, test.query.Op, test.query.Val, actual, test.expected)
+		}
+	}
+}
+
 func TestPropQueriesMatch(t *testing.T) {
 	props := binary.Dict{
 		"0":   binary.MarshalInt(0),
