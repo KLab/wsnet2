@@ -587,6 +587,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   Listに含まれる条件を追加
         /// </summary>
+        public Query Contain(string key, bool val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
         public Query Contain(string key, sbyte val)
         {
             and(new Condition(key, Op.Contain, serialize(val)));
@@ -651,6 +656,11 @@ namespace WSNet2.Core
         /// <summary>
         ///   Listに含まれない条件を追加
         /// </summary>
+        public Query NotContain(string key, bool val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
         public Query NotContain(string key, sbyte val)
         {
             and(new Condition(key, Op.NotContain, serialize(val)));
