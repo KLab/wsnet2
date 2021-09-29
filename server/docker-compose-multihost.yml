@@ -15,7 +15,7 @@ services:
       - ../:/repo
       - .log/2:/var/log/wsnet2
     working_dir: /repo/server
-    command: arelo -t "bin" -p "bin/wsnet2-game" -- bin/wsnet2-game docker.toml
+    command: arelo -t "bin" -p "bin/wsnet2-game" -s SIGINT -- bin/wsnet2-game docker.toml
     entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --
     ports:
       - 19001:19001
@@ -37,7 +37,7 @@ services:
       - ../:/repo
       - .log/2:/var/log/wsnet2
     working_dir: /repo/server
-    command: arelo -t "bin" -p "bin/wsnet2-hub" -- bin/wsnet2-hub docker.toml
+    command: arelo -t "bin" -p "bin/wsnet2-hub" -s SIGINT -- bin/wsnet2-hub docker.toml
     entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --
     ports:
       - 19011:19011
