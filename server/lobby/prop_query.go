@@ -86,108 +86,21 @@ func (q *PropQuery) containBool(val []byte) bool {
 	return q.Op == OpNotContain
 }
 
-func (q *PropQuery) containNum(val []byte, listtype, valtype binary.Type) bool {
-	qv, _, e := binary.UnmarshalAs(q.Val, valtype)
-	if e != nil {
+func (q *PropQuery) containNum(val []byte) bool {
+	elemType := binary.NumListElementType[binary.Type(val[0])]
+	queryType := binary.Type(q.Val[0])
+	if elemType != queryType {
+		log.Debugf("containNum: type mismatch: query=%v, list=%v", queryType, binary.Type(val[0]))
 		return q.Op == OpNotContain
 	}
-	qval := qv.(int)
-
-	list, _, e := binary.UnmarshalAs(val, listtype)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-
-	for _, v := range list.([]int) {
-		if v == qval {
+	elemSize := binary.NumTypeDataSize[elemType]
+	hdrSize := 3       // Type byte + length(16bit)
+	qData := q.Val[1:] // remove Type byte
+	for i := hdrSize; i < len(val); i += elemSize {
+		if bytes.Compare(val[i:i+elemSize], qData) == 0 {
 			return q.Op == OpContain
 		}
 	}
-
-	return q.Op == OpNotContain
-}
-
-func (q *PropQuery) containChar(val []byte) bool {
-	qv, _, e := binary.UnmarshalAs(q.Val, binary.TypeChar)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-	qval := qv.(rune)
-
-	list, _, e := binary.UnmarshalAs(val, binary.TypeChars)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-
-	for _, v := range list.([]rune) {
-		if v == qval {
-			return q.Op == OpContain
-		}
-	}
-
-	return q.Op == OpNotContain
-}
-
-func (q *PropQuery) containULong(val []byte) bool {
-	qv, _, e := binary.UnmarshalAs(q.Val, binary.TypeULong)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-	qval := qv.(uint64)
-
-	list, _, e := binary.UnmarshalAs(val, binary.TypeULongs)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-
-	for _, v := range list.([]uint64) {
-		if v == qval {
-			return q.Op == OpContain
-		}
-	}
-
-	return q.Op == OpNotContain
-}
-
-func (q *PropQuery) containFloat(val []byte) bool {
-	qv, _, e := binary.UnmarshalAs(q.Val, binary.TypeFloat)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-	qval := qv.(float32)
-
-	list, _, e := binary.UnmarshalAs(val, binary.TypeFloats)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-
-	for _, v := range list.([]float32) {
-		if v == qval {
-			return q.Op == OpContain
-		}
-	}
-
-	return q.Op == OpNotContain
-}
-
-func (q *PropQuery) containDouble(val []byte) bool {
-	qv, _, e := binary.UnmarshalAs(q.Val, binary.TypeDouble)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-	qval := qv.(float64)
-
-	list, _, e := binary.UnmarshalAs(val, binary.TypeDoubles)
-	if e != nil {
-		return q.Op == OpNotContain
-	}
-
-	for _, v := range list.([]float64) {
-		if v == qval {
-			return q.Op == OpContain
-		}
-	}
-
 	return q.Op == OpNotContain
 }
 
@@ -208,28 +121,10 @@ func (q *PropQuery) contain(val []byte) bool {
 		return q.Op == OpNotContain
 	case binary.TypeBools:
 		return q.containBool(val)
-	case binary.TypeSBytes:
-		return q.containNum(val, binary.TypeSBytes, binary.TypeSByte)
-	case binary.TypeBytes:
-		return q.containNum(val, binary.TypeBytes, binary.TypeByte)
-	case binary.TypeChars:
-		return q.containChar(val)
-	case binary.TypeShorts:
-		return q.containNum(val, binary.TypeShorts, binary.TypeShort)
-	case binary.TypeUShorts:
-		return q.containNum(val, binary.TypeUShorts, binary.TypeUShort)
-	case binary.TypeInts:
-		return q.containNum(val, binary.TypeInts, binary.TypeInt)
-	case binary.TypeUInts:
-		return q.containNum(val, binary.TypeUInts, binary.TypeUInt)
-	case binary.TypeLongs:
-		return q.containNum(val, binary.TypeLongs, binary.TypeLong)
-	case binary.TypeULongs:
-		return q.containULong(val)
-	case binary.TypeFloats:
-		return q.containFloat(val)
-	case binary.TypeDoubles:
-		return q.containDouble(val)
+	case binary.TypeSBytes, binary.TypeBytes, binary.TypeChars, binary.TypeShorts,
+		binary.TypeUShorts, binary.TypeInts, binary.TypeUInts, binary.TypeLongs,
+		binary.TypeULongs, binary.TypeFloats, binary.TypeDoubles:
+		return q.containNum(val)
 	}
 
 	log.Errorf("PropQuery.contain: property is not a list: %v", binary.Type(val[0]))

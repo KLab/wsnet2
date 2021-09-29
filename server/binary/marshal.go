@@ -46,6 +46,52 @@ const (
 	TypeDecimals // C#:decimal[]
 )
 
+const (
+	SByteDataSize  = 1
+	ByteDataSize   = 1
+	CharDataSize   = 2
+	ShortDataSize  = 2
+	UShortDataSize = 2
+	IntDataSize    = 4
+	UIntDataSize   = 4
+	LongDataSize   = 8
+	ULongDataSize  = 8
+	FloatDataSize  = 4
+	DoubleDataSize = 8
+	// DecimalDataSize
+
+)
+
+var NumTypeDataSize = map[Type]int{
+	TypeSByte:  SByteDataSize,
+	TypeByte:   ByteDataSize,
+	TypeChar:   CharDataSize,
+	TypeShort:  ShortDataSize,
+	TypeUShort: UShortDataSize,
+	TypeInt:    IntDataSize,
+	TypeUInt:   UIntDataSize,
+	TypeLong:   LongDataSize,
+	TypeULong:  ULongDataSize,
+	TypeFloat:  FloatDataSize,
+	TypeDouble: DoubleDataSize,
+	// TypeDecimal: DecimalDataSize,
+}
+
+var NumListElementType = map[Type]Type{
+	TypeSBytes:  TypeSByte,
+	TypeBytes:   TypeByte,
+	TypeChars:   TypeChar,
+	TypeShorts:  TypeShort,
+	TypeUShorts: TypeUShort,
+	TypeInts:    TypeInt,
+	TypeUInts:   TypeUInt,
+	TypeLongs:   TypeLong,
+	TypeULongs:  TypeULong,
+	TypeFloats:  TypeFloat,
+	TypeDoubles: TypeDouble,
+	// TypeDecimals: TypeDecimal,
+}
+
 type Obj struct {
 	ClassId byte   // specified by app
 	Body    []byte // marshaled bytes
