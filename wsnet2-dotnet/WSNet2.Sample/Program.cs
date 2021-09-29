@@ -1,12 +1,9 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using WSNet2.Core;
 using Sample.Logic;
 using ZLogger;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace WSNet2.Sample
 {
@@ -15,33 +12,37 @@ namespace WSNet2.Sample
 
         static void Main(string[] args)
         {
+            try
+            {
+                main(args);
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        static void main(string[] args)
+        {
             // ThreadPool を詰まりにくくするおまじない
             ThreadPool.SetMinThreads(200, 200);
 
-            var host = Host.CreateDefaultBuilder().ConfigureLogging(logging =>
+            using var loggerFactory = LoggerFactory.Create(builder =>
             {
-                // optional(MS.E.Logging):clear default providers.
-                logging.ClearProviders();
+                builder.ClearProviders();
+                builder.SetMinimumLevel(LogLevel.Debug);
 
-                // optional(MS.E.Logging): default is Info, you can use this or AddFilter to filtering log.
-                logging.SetMinimumLevel(LogLevel.Debug);
-
-                // Add Console Logging.
-                logging.AddZLoggerConsole((options) => {
-                    options.EnableStructuredLogging = true;
+                builder.AddZLoggerConsole(options =>
+                {
+                    options.EnableStructuredLogging = false;
                 });
 
                 // Add File Logging.
-                logging.AddZLoggerFile("wsnet2-dotnet.log", (options) => {
+                builder.AddZLoggerFile("wsnet2-dotnet.log", options =>
+                {
                     options.EnableStructuredLogging = true;
                 });
-
-                // Add Rolling File Logging.
-                // logging.AddZLoggerRollingFile((dt, x) => $"logs/{dt.ToLocalTime():yyyy-MM-dd}_{x:000}.log", x => x.ToLocalTime().Date, 1024);
-            }).Build();
-            var loggerFactory = host.Services.GetRequiredService<ILoggerFactory>();
-            var logger = loggerFactory.CreateLogger("WSNet2.Sample");
-            WSNet2Logger.Logger = new AppLogger(logger);
+            });
 
             WSNet2Helper.RegisterTypes();
 
@@ -82,13 +83,15 @@ namespace WSNet2.Sample
                 if (runAs == "master")
                 {
                     var userId = "gamemaster" + rand.Next(1000, 9999).ToString();
+                    var logger = new AppLogger(loggerFactory.CreateLogger(userId));
                     tasks[i] = Task.Run(async () =>
-                        await new MasterClient().Serve(server, appId, pKey, searchGroup, userId));
+                        await new MasterClient(logger).Serve(server, appId, pKey, searchGroup, userId));
                 }
                 else if (runAs == "bot")
                 {
                     var userId = "bot" + rand.Next(1000, 9999).ToString();
-                    var bot = new BotClient();
+                    var logger = new AppLogger(loggerFactory.CreateLogger(userId));
+                    var bot = new BotClient(logger);
                     tasks[i] = bot.Serve(server, appId, pKey, searchGroup, userId);
                 }
             }

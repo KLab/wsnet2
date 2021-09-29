@@ -151,7 +151,8 @@ namespace WSNet2.DotnetClient
                 "http://localhost:8080",
                 "testapp",
                 userid,
-                authData);
+                authData,
+                null);
 
             var cts = new CancellationTokenSource();
             _ = Task.Run(async () => await callbackrunner(client, cts.Token));
@@ -237,18 +238,18 @@ namespace WSNet2.DotnetClient
                 };
                 var roomOpt = new RoomOption(10, SearchGroup, pubProps, privProps).WithClientDeadline(30).WithNumber(true);
 
-                client.Create(roomOpt, cliProps, onJoined, onFailed);
+                client.Create(roomOpt, cliProps, onJoined, onFailed, null);
             }
             else if(cmd == Cmd.join)
             {
                 var number = int.Parse(args[1]);
-                client.Join(number, null, cliProps, onJoined, onFailed);
+                client.Join(number, null, cliProps, onJoined, onFailed, null);
             }
             else // watch
             {
                 var number = int.Parse(args[1]);
                 var query = new Query().GreaterEqual("bbb", (int)20);
-                client.Watch(number, query, onJoined, onFailed);
+                client.Watch(number, query, onJoined, onFailed, null);
             }
 
             try

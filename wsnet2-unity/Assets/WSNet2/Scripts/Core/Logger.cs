@@ -4,49 +4,29 @@ using System.Diagnostics;
 namespace WSNet2.Core
 {
     /// <summary>
-    /// WSNet2 が使用するLogger
+    /// WSNet2内部で使用するLogger
     /// </summary>
-    public class WSNet2Logger
+    public class Logger
     {
-        // Same of Microsoft.Extensions.Logging.LogLevel
-        public enum LogLevel
+        IWSNet2Logger<WSNet2LogPayload> logger;
+
+        /// <summary>
+        /// コンストラクタ
+        /// </summary>
+        public Logger(IWSNet2Logger<WSNet2LogPayload> logger)
         {
-            Trace = 0,
-            Debug = 1,
-            Information = 2,
-            Warning = 3,
-            Error = 4,
-            Critical = 5,
-            None = 6
+            this.logger = logger;
         }
 
         /// <summary>
-        /// アプリケーション側が提供するログ出力のインターフェース
+        /// Room情報をPayloadに設定します
         /// </summary>
-        public interface ILogger
+        /// <param name="roomId">Room ID</param>
+        /// <param name="roomNum">Room Number</param>
+        public void SetRoomInfo(string roomId, int roomNum)
         {
-            void Log<TPayload>(LogLevel logLevel, Exception e, TPayload payload, string message);
-        }
-
-        /// <summary>
-        /// WSNet2 が使用する Logger を設定します
-        /// </summary>
-        public static ILogger Logger { get; set; } = new DefaultConsoleLogger();
-
-        /// <summary>
-        /// ILoggerを実装したデフォルトで使用されるLogger
-        /// </summary>
-        public class DefaultConsoleLogger : WSNet2Logger.ILogger
-        {
-            public void Log<TPayload>(WSNet2Logger.LogLevel logLevel, Exception e, TPayload payload, string message)
-            {
-                Console.WriteLine($"{logLevel,-12} {message} {payload}");
-
-                if (e != null)
-                {
-                    Console.WriteLine(e.ToString());
-                }
-            }
+            logger.Payload.RoomId = roomId;
+            logger.Payload.RoomNum = roomNum;
         }
 
         /// <summary>
@@ -55,9 +35,9 @@ namespace WSNet2.Core
         /// <param name="format"></param>
         /// <param name="args"></param>
         [Conditional("DEBUG")]
-        public static void Debug(string format, params object[] args)
+        public void Debug(string format, params object[] args)
         {
-            Logger?.Log<object>(LogLevel.Debug, null, null, string.Format(format, args));
+            logger?.Log(WSNet2LogLevel.Debug, null, format, args);
         }
 
         /// <summary>
@@ -67,34 +47,9 @@ namespace WSNet2.Core
         /// <param name="format"></param>
         /// <param name="args"></param>
         [Conditional("DEBUG")]
-        public static void Debug(Exception e, string format, params object[] args)
+        public void Debug(Exception e, string format, params object[] args)
         {
-            Logger?.Log<object>(LogLevel.Debug, e, null, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Debugレベルのログを出力します
-        /// </summary>
-        /// <param name="payload"></param>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        [Conditional("DEBUG")]
-        public static void DebugWithPayload<TPayload>(TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Debug, null, payload, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Debugレベルのログを出力します
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="payload"></param>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        [Conditional("DEBUG")]
-        public static void DebugWithPayload<TPayload>(Exception e, TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Debug, e, payload, string.Format(format, args));
+            logger?.Log(WSNet2LogLevel.Debug, e, format, args);
         }
 
         /// <summary>
@@ -102,10 +57,20 @@ namespace WSNet2.Core
         /// </summary>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public static void Info(string format, params object[] args)
-        {
-            Logger?.Log<object>(LogLevel.Information, null, null, string.Format(format, args));
-        }
+        public void Info(string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, args);
+        public void Info(string message) =>
+            logger?.Log(WSNet2LogLevel.Information, null, message);
+        public void Info<T1>(string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1);
+        public void Info<T1, T2>(string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2);
+        public void Info<T1, T2, T3>(string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2, a3);
+        public void Info<T1, T2, T3, T4>(string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2, a3, a4);
+        public void Info<T1, T2, T3, T4, T5>(string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Information, null, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Infoレベルのログを出力します
@@ -113,43 +78,40 @@ namespace WSNet2.Core
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public static void Info(Exception e, string format, params object[] args)
-        {
-            Logger?.Log<object>(LogLevel.Information, e, null, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Infoレベルのログを出力します
-        /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <param name="payload"></param>
-        public static void InfoWithPayload<TPayload>(TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Information, null, payload, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Infoレベルのログを出力します
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <param name="payload"></param>
-        public static void InfoWithPayload<TPayload>(Exception e, TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Information, e, payload, string.Format(format, args));
-        }
+        public void Info(Exception exception, string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, args);
+        public void Info(Exception exception, string message) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, message);
+        public void Info<T1>(Exception exception, string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1);
+        public void Info<T1, T2>(Exception exception, string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2);
+        public void Info<T1, T2, T3>(Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2, a3);
+        public void Info<T1, T2, T3, T4>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2, a3, a4);
+        public void Info<T1, T2, T3, T4, T5>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Information, exception, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Warningレベルのログを出力します
         /// </summary>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public static void Warning(string format, params object[] args)
-        {
-            Logger?.Log<object>(LogLevel.Warning, null, null, string.Format(format, args));
-        }
+        public void Warning(string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, args);
+        public void Warning(string message) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, message);
+        public void Warning<T1>(string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1);
+        public void Warning<T1, T2>(string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2);
+        public void Warning<T1, T2, T3>(string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2, a3);
+        public void Warning<T1, T2, T3, T4>(string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2, a3, a4);
+        public void Warning<T1, T2, T3, T4, T5>(string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Warning, null, format, a1, a2, a3, a4, a5);
 
         /// <summary>
         /// Warningレベルのログを出力します
@@ -157,76 +119,60 @@ namespace WSNet2.Core
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        public static void Warning(Exception e, string format, params object[] args)
-        {
-            Logger?.Log<object>(LogLevel.Warning, e, null, string.Format(format, args));
-        }
+        public void Warning(Exception exception, string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, args);
+        public void Warning(Exception exception, string message) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, message);
+        public void Warning<T1>(Exception exception, string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1);
+        public void Warning<T1, T2>(Exception exception, string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2);
+        public void Warning<T1, T2, T3>(Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2, a3);
+        public void Warning<T1, T2, T3, T4>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2, a3, a4);
+        public void Warning<T1, T2, T3, T4, T5>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Warning, exception, format, a1, a2, a3, a4, a5);
 
         /// <summary>
-        /// Warningレベルのログを出力します
+        /// Errorレベルのログを出力します
         /// </summary>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        /// <param name="payload"></param>
-        public static void WarningWithPayload<TPayload>(TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Warning, null, payload, string.Format(format, args));
-        }
+        public void Error(string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, args);
+        public void Error(string message) =>
+            logger?.Log(WSNet2LogLevel.Error, null, message);
+        public void Error<T1>(string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1);
+        public void Error<T1, T2>(string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2);
+        public void Error<T1, T2, T3>(string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2, a3);
+        public void Error<T1, T2, T3, T4>(string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2, a3, a4);
+        public void Error<T1, T2, T3, T4, T5>(string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Error, null, format, a1, a2, a3, a4, a5);
 
         /// <summary>
-        /// Warningレベルのログを出力します
+        /// Errorレベルのログを出力します(Exception付き)
         /// </summary>
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        /// <param name="payload"></param>
-        public static void WarningWithPayload<TPayload>(Exception e, TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Warning, e, payload, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Errorレベルのログを出力します
-        /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        public static void Error(string format, params object[] args)
-        {
-            Logger?.Log<object>(LogLevel.Error, null, null, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Errorレベルのログを出力します
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        public static void Error(Exception e, string format, params object[] args)
-        {
-            Logger?.Log<object>(LogLevel.Error, e, null, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Errorレベルのログを出力します
-        /// </summary>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <param name="payload"></param>
-        public static void ErrorWithPayload<TPayload>(TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Error, null, payload, string.Format(format, args));
-        }
-
-        /// <summary>
-        /// Errorレベルのログを出力します
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="format"></param>
-        /// <param name="args"></param>
-        /// <param name="payload"></param>
-        public static void ErrorWithPayload<TPayload>(Exception e, TPayload payload, string format, params object[] args)
-        {
-            Logger?.Log(LogLevel.Error, e, payload, string.Format(format, args));
-        }
+        public void Error(Exception exception, string format, params object[] args) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, args);
+        public void Error(Exception exception, string message) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, message);
+        public void Error<T1>(Exception exception, string format, T1 a1) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1);
+        public void Error<T1, T2>(Exception exception, string format, T1 a1, T2 a2) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2);
+        public void Error<T1, T2, T3>(Exception exception, string format, T1 a1, T2 a2, T3 a3) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2, a3);
+        public void Error<T1, T2, T3, T4>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2, a3, a4);
+        public void Error<T1, T2, T3, T4, T5>(Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5) =>
+            logger?.Log(WSNet2LogLevel.Error, exception, format, a1, a2, a3, a4, a5);
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +21,13 @@ namespace WSNet2.Sample
         GameSimulator sim;
         GameState state;
         List<PlayerEvent> events;
+        AppLogger logger;
+
+        public BotClient(AppLogger logger)
+        {
+            logger.Payload.ClientType = "Bot";
+            this.logger = logger;
+        }
 
         /// <summary>
         /// 1クライアントとしてルームに参加してランダムな操作を繰り返す
@@ -34,10 +40,12 @@ namespace WSNet2.Sample
         /// <returns></returns>
         public async Task Serve(string server, string appId, string pKey, int serachGroup, string userId)
         {
+            logger.Payload.Server = server;
+
             while (true)
             {
                 var authData = WSNet2Helper.GenAuthData(pKey, userId);
-                client = new WSNet2Client(server, appId, userId, authData);
+                client = new WSNet2Client(server, appId, userId, authData, logger);
                 props = new Dictionary<string, object>(){
                     {"name", userId},
                 };
@@ -56,7 +64,7 @@ namespace WSNet2.Sample
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"({userId}) Serve Error: {e}");
+                    logger.Error(e, "({0}) ServerError: {1}", userId, e);
                 }
                 await Task.Delay(1000);
             }
@@ -64,7 +72,7 @@ namespace WSNet2.Sample
 
         async Task<Room> JoinRandomRoom()
         {
-            Console.WriteLine($"({userId}) Trying to join random room");
+            logger.Debug("({0}) Trying to join random room", userId);
             var query = new Query();
             query.Equal("game", "pong");
             query.Equal("state", GameStateCode.WaitingPlayer.ToString());
@@ -86,7 +94,8 @@ namespace WSNet2.Sample
                 query,
                 props,
                 onJoined,
-                onFailed);
+                onFailed,
+                logger);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>
@@ -101,13 +110,13 @@ namespace WSNet2.Sample
             var room = await roomJoined.Task;
             cts.Token.ThrowIfCancellationRequested();
 
-            Console.WriteLine($"({userId}) Room joined {room.Id}");
+            logger.Info("({0}) Room joined {1}", userId, room.Id);
             return room;
         }
 
         async Task<Room> CreateRoom()
         {
-            Console.WriteLine($"({userId}) Trying to create room");
+            logger.Debug("({0}) Trying to create room", userId);
 
             var cts = new CancellationTokenSource();
             uint MaxPlayers = 3;
@@ -139,7 +148,7 @@ namespace WSNet2.Sample
             var roomOpt = new RoomOption(MaxPlayers, (uint)searchGroup, pubProps, privProps);
             roomOpt.WithClientDeadline(Deadline);
 
-            client.Create(roomOpt, cliProps, onJoined, onFailed);
+            client.Create(roomOpt, cliProps, onJoined, onFailed, logger);
 
             // FIXME: 起動しとかないとコールバック呼ばれないが汚い
             _ = Task.Run(async () =>
@@ -155,7 +164,7 @@ namespace WSNet2.Sample
             var room = await roomJoined.Task;
             cts.Token.ThrowIfCancellationRequested();
 
-            Console.WriteLine($"({userId}) Room created ${room.Id}");
+            logger.Info("({0}) Room created {1}", userId, room.Id);
             return room;
         }
 
@@ -168,7 +177,7 @@ namespace WSNet2.Sample
             }
             catch (Exception e)
             {
-                // Console.WriteLine($"({userId}) Failed to join room {e}");
+                logger.Error(e, "({0}) Failed to join room {1}", userId, e);
             }
 
             if (room == null)
@@ -220,11 +229,11 @@ namespace WSNet2.Sample
                 cts.Token.ThrowIfCancellationRequested();
                 client.ProcessCallback();
 
-                Console.WriteLine("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
+                logger.Debug("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
 
                 if (closedError != null)
                 {
-                    Console.WriteLine($"Closed Error {closedError}");
+                    logger.Error(null, "Closed Error {0}", closedError);
                     break;
                 }
 
@@ -238,7 +247,7 @@ namespace WSNet2.Sample
                         {
                             if (p.Id.StartsWith("gamemaster"))
                             {
-                                Console.WriteLine($"Switch master to {p.Id}");
+                                logger.Info("Switch master to {0}", p.Id);
                                 room.ChangeRoomProperty(
                                     null, null, null,
                                     null, null, null,
@@ -251,7 +260,7 @@ namespace WSNet2.Sample
 
                         if (10000 <= new TimeSpan(timer.NowTick - syncStart).TotalMilliseconds)
                         {
-                            Console.WriteLine("Waiting MasterClient timeout.");
+                            logger.Debug("Waiting MasterClient timeout.");
                             room.Leave();
                             break;
                         }
@@ -298,7 +307,7 @@ namespace WSNet2.Sample
 
                 foreach (var ev in events)
                 {
-                    Console.WriteLine("send {0} to {1}", ev.Code, room.Master.Id);
+                    logger.Info("send {0} to {1}", ev.Code, room.Master.Id);
                     room.RPC(RPCPlayerEvent, ev, new string[] { room.Master.Id });
                 }
                 events.Clear();
@@ -306,7 +315,7 @@ namespace WSNet2.Sample
                 await Task.Delay(100);
             }
 
-            Console.WriteLine(userId + " left from " + room.Id);
+            logger.Info("{0} left room {1}", userId, room.Id);
         }
     }
 }
