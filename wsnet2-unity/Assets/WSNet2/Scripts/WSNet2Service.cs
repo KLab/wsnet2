@@ -30,16 +30,14 @@ namespace WSNet2
         Dictionary<string, WSNet2Client> clients;
         Dictionary<string, WSNet2Client> newClients;
 
+        IWSNet2Logger<WSNet2LogPayload> defaultLogger;
+
         void Initialize()
         {
             clients = new Dictionary<string, WSNet2Client>();
             newClients = new Dictionary<string, WSNet2Client>();
             DontDestroyOnLoad(this.gameObject);
-
-            if (WSNet2Logger.Logger is WSNet2Logger.DefaultConsoleLogger) {
-                WSNet2Logger.Logger = new DefaultUnityLogger();
-                WSNet2Logger.Info("DefaultUnityLogger Installed");
-            }
+            defaultLogger = new DefaultUnityLogger();
         }
 
         /// <summary>
@@ -52,7 +50,8 @@ namespace WSNet2
         /// <param name="appId">WSNetに登録してあるApplicationID</param>
         /// <param name="userId">プレイヤーID</param>
         /// <param name="authData">認証データ</param>
-        public WSNet2Client GetClient(string baseUri, string appId, string userId, string authData)
+        /// <param name="logger">Logger</param>
+        public WSNet2Client GetClient(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
         {
             var key = $"{userId}{keyDelimiter}{appId}";
 
@@ -71,7 +70,7 @@ namespace WSNet2
                 return cli;
             }
 
-            cli = new WSNet2Client(baseUri, appId, userId, authData);
+            cli = new WSNet2Client(baseUri, appId, userId, authData, logger ?? defaultLogger);
 
             // Note: ProcessCallback 内で clients の追加を直接行うと InvalidOperationException が発生する
             newClients[key] = cli;

@@ -31,11 +31,14 @@ namespace WSNet2.Core
         BlockingCollection<byte[]> evBufPool;
         uint evSeqNum;
 
+        Logger logger;
+
         /// <summary>
         ///   コンストラクタ
         /// </summary>
-        public Connection(Room room, string clientId, JoinedRoom joined)
+        public Connection(Room room, string clientId, JoinedRoom joined, Logger logger)
         {
+            this.logger = logger;
             this.canceller = new CancellationTokenSource();
             this.room = room;
             this.appId = joined.roomInfo.appId;
@@ -63,6 +66,7 @@ namespace WSNet2.Core
         public void Cancel()
         {
             canceller.Cancel();
+            logger?.Debug("connection canceled");
         }
 
         /// <summary>
@@ -114,6 +118,7 @@ namespace WSNet2.Core
                 }
                 catch (WebSocketException e)
                 {
+                    logger?.Error(e, "websocket exception: {0}", e);
                     switch (e.WebSocketErrorCode)
                     {
                         case WebSocketError.NotAWebSocket:
@@ -128,6 +133,7 @@ namespace WSNet2.Core
                 }
                 catch (Exception e)
                 {
+                    logger?.Error(e, "connection exception: {0}", e);
                     // retry
                     lastException = e;
                 }
@@ -148,6 +154,8 @@ namespace WSNet2.Core
                 }
 
                 room.handleError(lastException);
+
+                logger?.Info("reconnect: {0}", reconnection);
 
                 await retryInterval;
             }
@@ -189,7 +197,7 @@ namespace WSNet2.Core
             ws.Options.SetRequestHeader("Wsnet2-User", clientId);
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
 
-            WSNet2Logger.Info("Connecting to {0}", uri);
+            logger?.Info("connecting to {0}", uri);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(WSNet2Settings.ConnectTimeoutMilliSec);
             await ws.ConnectAsync(uri, cts.Token);
