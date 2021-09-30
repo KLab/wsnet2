@@ -86,8 +86,7 @@ func (q *PropQuery) containBool(val []byte) bool {
 	return q.Op == OpNotContain
 }
 
-func (q *PropQuery) containNum(val []byte) bool {
-	elemType := binary.NumListElementType[binary.Type(val[0])]
+func (q *PropQuery) containNum(val []byte, elemType binary.Type) bool {
 	queryType := binary.Type(q.Val[0])
 	if elemType != queryType {
 		log.Debugf("containNum: type mismatch: query=%v, list=%v", queryType, binary.Type(val[0]))
@@ -105,7 +104,8 @@ func (q *PropQuery) containNum(val []byte) bool {
 }
 
 func (q *PropQuery) contain(val []byte) bool {
-	switch binary.Type(val[0]) {
+	listtype := binary.Type(val[0])
+	switch listtype {
 	case binary.TypeNull:
 		return q.Op == OpNotContain
 	case binary.TypeList:
@@ -121,13 +121,14 @@ func (q *PropQuery) contain(val []byte) bool {
 		return q.Op == OpNotContain
 	case binary.TypeBools:
 		return q.containBool(val)
-	case binary.TypeSBytes, binary.TypeBytes, binary.TypeChars, binary.TypeShorts,
-		binary.TypeUShorts, binary.TypeInts, binary.TypeUInts, binary.TypeLongs,
-		binary.TypeULongs, binary.TypeFloats, binary.TypeDoubles:
-		return q.containNum(val)
+	default:
+		elemtype, ok := binary.NumListElementType[listtype]
+		if ok {
+			return q.containNum(val, elemtype)
+		}
 	}
 
-	log.Errorf("PropQuery.contain: property is not a list: %v", binary.Type(val[0]))
+	log.Errorf("PropQuery.contain: property is not a list: %v", listtype)
 	return false
 }
 
