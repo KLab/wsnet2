@@ -18,8 +18,8 @@ import (
 	"wsnet2/binary"
 	"wsnet2/common"
 	"wsnet2/game"
-	"wsnet2/hub/metrics"
 	"wsnet2/log"
+	"wsnet2/metrics"
 	"wsnet2/pb"
 )
 
