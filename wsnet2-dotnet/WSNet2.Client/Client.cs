@@ -96,6 +96,9 @@ namespace WSNet2.DotnetClient
         {
             var query = new Query();
             query.Between("bbb", 20, 80);
+            query.Contain("ccc", "a");
+            query.Contain("ddd", 2);
+            query.Contain("eee", 1.1);
 
             var roomsrc = new TaskCompletionSource<PublicRoom[]>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -225,6 +228,9 @@ namespace WSNet2.DotnetClient
                 var pubProps = new Dictionary<string, object>(){
                     {"aaa", "public"},
                     {"bbb", (int)rand.Next(100)},
+                    {"ccc", new object[]{1, 3, "a", 3.5f}},
+                    {"ddd", new int[]{2, 4, 5, 8}},
+                    {"eee", new double[]{-10, 1.1, 0.5}},
                 };
                 var privProps = new Dictionary<string, object>(){
                     {"aaa", "private"},

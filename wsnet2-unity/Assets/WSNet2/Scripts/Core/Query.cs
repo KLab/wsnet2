@@ -16,6 +16,8 @@ namespace WSNet2.Core
             LessEqual,
             GreaterThan,
             GreaterEqual,
+            Contain,
+            NotContain,
         }
 
         [MessagePackObject]
@@ -582,6 +584,143 @@ namespace WSNet2.Core
             return this;
         }
 
+        /// <summary>
+        ///   Listに含まれる条件を追加
+        /// </summary>
+        public Query Contain(string key, bool val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, sbyte val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, byte val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, char val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, short val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, ushort val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, int val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, uint val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, long val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, ulong val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, float val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, double val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+        public Query Contain(string key, string val)
+        {
+            and(new Condition(key, Op.Contain, serialize(val)));
+            return this;
+        }
+
+        /// <summary>
+        ///   Listに含まれない条件を追加
+        /// </summary>
+        public Query NotContain(string key, bool val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, sbyte val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, byte val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, char val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, short val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, ushort val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, int val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, uint val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, long val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, ulong val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, float val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, double val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
+        public Query NotContain(string key, string val)
+        {
+            and(new Condition(key, Op.NotContain, serialize(val)));
+            return this;
+        }
 
         private void and(Condition cond)
         {
