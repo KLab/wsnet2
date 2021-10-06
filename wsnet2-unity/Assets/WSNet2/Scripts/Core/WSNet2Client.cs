@@ -127,7 +127,6 @@ namespace WSNet2.Core
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
-            var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Create()");
 
             var param = new CreateParam();
@@ -136,7 +135,7 @@ namespace WSNet2.Core
 
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom("/rooms", content, onSuccess, onFailed, logger));
+            Task.Run(() => connectToRoom("/rooms", content, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -156,7 +155,6 @@ namespace WSNet2.Core
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
-            var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Join(roomId={0})", roomId);
 
             var param = new JoinParam(){
@@ -165,7 +163,7 @@ namespace WSNet2.Core
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, onSuccess, onFailed, logger));
+            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -185,7 +183,6 @@ namespace WSNet2.Core
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
-            var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Join(number={0})", number);
 
             var param = new JoinParam(){
@@ -194,7 +191,7 @@ namespace WSNet2.Core
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, onSuccess, onFailed, logger));
+            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -214,7 +211,6 @@ namespace WSNet2.Core
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
-            var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.RandomJoin(group={0})", group);
 
             var param = new JoinParam(){
@@ -223,7 +219,7 @@ namespace WSNet2.Core
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, onSuccess, onFailed, logger));
+            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -241,7 +237,6 @@ namespace WSNet2.Core
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
-            var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Watch(roomId={0})", roomId);
 
             var param = new JoinParam(){
@@ -250,7 +245,7 @@ namespace WSNet2.Core
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, onSuccess, onFailed, logger));
+            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -268,7 +263,6 @@ namespace WSNet2.Core
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
-            var logger = prepareLogger(roomLogger);
             logger?.Debug("WSNet2Client.Watch(number={0})", number);
 
             var param = new JoinParam(){
@@ -277,7 +271,7 @@ namespace WSNet2.Core
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, onSuccess, onFailed, logger));
+            Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -354,7 +348,7 @@ namespace WSNet2.Core
             byte[] content,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
-            Logger logger)
+            IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             try
             {
@@ -364,6 +358,7 @@ namespace WSNet2.Core
                     throw new RoomNotFoundException(res.msg);
                 }
 
+                var logger = prepareLogger(roomLogger);
                 var room = new Room(res.room, userId, logger);
                 logger?.Info("Joined to room: {0}", room.Id);
 
