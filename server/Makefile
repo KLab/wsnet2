@@ -43,7 +43,7 @@ install-go-tools:
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
 	go install github.com/favadi/protoc-go-inject-tag@v1.0.0
 	go install golang.org/x/tools/cmd/stringer@v0.1.1
-	go install honnef.co/go/tools/cmd/staticcheck@2020.2.4
+	go install honnef.co/go/tools/cmd/staticcheck@2021.1.1
 
 build: $(TARGETS)
 
