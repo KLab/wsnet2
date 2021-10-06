@@ -30,7 +30,6 @@ type bot struct {
 	muWrite     sync.Mutex
 	deadline    time.Duration
 	newDeadline chan time.Duration
-	ready       chan struct{}
 	done        chan struct{}
 	seq         int
 }
