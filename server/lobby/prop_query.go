@@ -96,7 +96,7 @@ func (q *PropQuery) containNum(val []byte, elemType binary.Type) bool {
 	hdrSize := 3       // Type byte + length(16bit)
 	qData := q.Val[1:] // remove Type byte
 	for i := hdrSize; i < len(val); i += elemSize {
-		if bytes.Compare(val[i:i+elemSize], qData) == 0 {
+		if bytes.Equal(val[i:i+elemSize], qData) {
 			return q.Op == OpContain
 		}
 	}
@@ -114,7 +114,7 @@ func (q *PropQuery) contain(val []byte) bool {
 			return q.Op == OpNotContain
 		}
 		for _, v := range l.(binary.List) {
-			if bytes.Compare(v, q.Val) == 0 {
+			if bytes.Equal(v, q.Val) {
 				return q.Op == OpContain
 			}
 		}
