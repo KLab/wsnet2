@@ -13,6 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: dotnet build
-        run: ./build-commit
+        run:  dotnet build WSNet2.sln
       - name: dotnet test
-        run: dotnet test WSNet2.Core.Test/WSNet2.Core.Test.csproj
+        run:  dotnet test WSNet2.sln
