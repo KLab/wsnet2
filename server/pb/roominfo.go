@@ -6,17 +6,15 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/vmihailenco/msgpack/v5"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func (r *RoomInfo) SetCreated(t time.Time) error {
-	var err error
+func (r *RoomInfo) SetCreated(t time.Time) {
 	if r.Created == nil {
 		r.Created = &Timestamp{}
 	}
-	r.Created.Timestamp, err = ptypes.TimestampProto(t)
-	return err
+	r.Created.Timestamp = timestamppb.New(t)
 }
 
 func (n *RoomNumber) Scan(val interface{}) error {
