@@ -87,7 +87,7 @@ func newClient(info *pb.ClientInfo, room IRoom, isPlayer bool) (*Client, ErrorWi
 		evbuf: NewEvBuf(ClientEventBufSize),
 
 		waitPeer: make(chan *Peer, 1),
-		newPeer:  make(chan *Peer, 2),
+		newPeer:  make(chan *Peer, 1),
 
 		authKey: RandomHex(ClientAuthKeyLen),
 
