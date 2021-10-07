@@ -140,7 +140,7 @@ loop:
 			break loop
 
 		case <-c.room.Done():
-			c.room.Logger().Debugf("room done: client=%v", c.Id)
+			c.room.Logger().Infof("room done: client=%v", c.Id)
 			curPeer.Close("room closed")
 			if !t.Stop() {
 				<-t.C
@@ -148,7 +148,7 @@ loop:
 			break loop
 
 		case <-c.removed:
-			c.room.Logger().Debugf("client removed: client=%v", c.Id)
+			c.room.Logger().Infof("client removed: client=%v", c.Id)
 			if !t.Stop() {
 				<-t.C
 			}
@@ -190,6 +190,7 @@ loop:
 			msg, err := ConstructMsg(c, m)
 			if err != nil {
 				// おかしなデータを送ってくるクライアントは遮断する
+				c.room.Logger().Infof("invalid message: client=%v %v", c.Id, err)
 				c.room.SendMessage(
 					&MsgClientError{
 						Sender: c,
@@ -223,7 +224,7 @@ loop:
 			t.Reset(deadline)
 
 		case err := <-c.evErr:
-			c.room.Logger().Debugf("error from EventLoop: client=%v %v", c.Id, err)
+			c.room.Logger().Infof("error from EventLoop: client=%v %v", c.Id, err)
 			c.room.SendMessage(
 				&MsgClientError{
 					Sender: c,
@@ -232,7 +233,7 @@ loop:
 			break loop
 		}
 	}
-	c.room.Logger().Debugf("Client.MsgLoop close: client=%v", c.Id)
+	c.room.Logger().Infof("Client.MsgLoop close: client=%v", c.Id)
 	close(c.done)
 
 	go func() {
@@ -293,7 +294,7 @@ func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
 func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
-	c.room.Logger().Debugf("attach peer: client=%v peer=%p", c.Id, p)
+	c.room.Logger().Infof("attach peer: client=%v peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -329,7 +330,7 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 // Peer.MsgLoopで切断やエラーを検知したときに呼ばれる.
 // websocketの切断は呼び出し側で行う
 func (c *Client) DetachPeer(p *Peer) {
-	c.room.Logger().Debugf("detach peer: client=%v, peer=%p", c.Id, p)
+	c.room.Logger().Infof("detach peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -346,7 +347,7 @@ func (c *Client) DetachPeer(p *Peer) {
 // DetachAndClosePeer : peerを切り離して、peerのwebsocketをcloseする.
 // Client側のエラーによりpeerを切断する場合はこっち
 func (c *Client) DetachAndClosePeer(p *Peer, err error) {
-	c.room.Logger().Debugf("detach and close peer: client=%v, peer=%p", c.Id, p)
+	c.room.Logger().Infof("detach and close peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

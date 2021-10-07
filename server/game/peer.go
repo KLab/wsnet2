@@ -169,7 +169,7 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 		p.client.room.Logger().Debugf("peer already closed: client=%v peer=%p %v", p.client.Id, p, msg)
 		return
 	}
-	p.client.room.Logger().Debugf("peer close: client=%v peer=%p %v", p.client.Id, p, msg)
+	p.client.room.Logger().Infof("peer close: client=%v peer=%p %v", p.client.Id, p, msg)
 	metrics.MessageSent.Add(1)
 	p.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, msg))
 	p.conn.Close()
