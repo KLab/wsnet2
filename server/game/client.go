@@ -236,6 +236,12 @@ loop:
 	c.room.Logger().Infof("Client.MsgLoop close: client=%v", c.Id)
 	close(c.done)
 
+	select {
+	case peer := <-c.newPeer:
+		c.room.Logger().Infof("Unprocessed new peer: client=%v, peer=%p", c.Id, peer)
+	default:
+	}
+
 	go func() {
 		time.Sleep(ClientWaitAfterClose)
 		c.room.Repo().RemoveClient(c)
@@ -305,9 +311,14 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 
 	select {
 	case <-c.removed:
-		c.room.Logger().Debugf("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
+		c.room.Logger().Infof("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
 		return xerrors.Errorf("client has been removed: %s", c.removeCause)
 	default:
+	}
+
+	if c.isDone() {
+		c.room.Logger().Infof("client has been done: client=%v peer=%p", c.Id, p)
+		return xerrors.Errorf("client has been done")
 	}
 
 	// msgSeqNumの後のメッセージから送信してもらう(再送含む)
@@ -340,6 +351,10 @@ func (c *Client) DetachPeer(p *Peer) {
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
 	c.peer = nil
+	if c.isDone() {
+		c.room.Logger().Infof("client has been done: client=%v peer=%p", c.Id, p)
+		return // すでにMsgLoopから抜けている
+	}
 	c.newPeer <- nil
 	c.waitPeer = make(chan *Peer, 1)
 }
@@ -359,8 +374,21 @@ func (c *Client) DetachAndClosePeer(p *Peer, err error) {
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
 	c.peer = nil
+	if c.isDone() {
+		c.room.Logger().Infof("client has been done: client=%v peer=%p", c.Id, p)
+		return // すでにMsgLoopから抜けている
+	}
 	c.newPeer <- nil
 	c.waitPeer = make(chan *Peer, 1)
+}
+
+func (c *Client) isDone() bool {
+	select {
+	case <-c.done:
+		return true
+	default:
+	}
+	return false
 }
 
 func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
