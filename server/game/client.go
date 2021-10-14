@@ -238,7 +238,11 @@ loop:
 
 	select {
 	case peer := <-c.newPeer:
-		c.room.Logger().Infof("Unprocessed new peer: client=%v, peer=%p", c.Id, peer)
+		if peer != nil {
+			c.room.Logger().Infof("Unprocessed new peer: client=%v, peer=%p", c.Id, peer)
+			peer.Close("unprocessed (client closed)")
+			go c.drainMsg(peer.MsgCh())
+		}
 	default:
 	}
 
