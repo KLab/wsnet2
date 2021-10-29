@@ -7,25 +7,34 @@ namespace WSNet2.Core
     /// </summary>
     public enum EvType
     {
-        regularEvType = 30,
-        responseEvType = 128,
-        localEvType = 0x10000,
-
         PeerReady = 1,
         Pong,
 
-        Joined = regularEvType,
+        Joined = EvTypeExt.regularEvType,
         Left,
         RoomProp,
         ClientProp,
         MasterSwitched,
         Message,
 
-        Succeeded = responseEvType,
+        Succeeded = EvTypeExt.responseEvType,
         PermissionDenied,
         TargetNotFound,
 
-        Closed = localEvType,
+        Closed = EvTypeExt.localEvType,
+    }
+
+    static class EvTypeExt
+    {
+        public const int regularEvType = 30;
+        public const int responseEvType = 128;
+        public const int localEvType = 0x10000;
+
+        public static bool IsRegular(this EvType type)
+        {
+            // responseもregularに含まれる(SequenceNumを持つ)
+            return (int)type >= regularEvType && (int)type < localEvType;
+        }
     }
 
     /// <summary>
@@ -42,7 +51,7 @@ namespace WSNet2.Core
         public EvType Type { get; private set; }
 
         /// <summary>通常メッセージか</summary>
-        public bool IsRegular { get{ return Type >= EvType.regularEvType && Type < EvType.localEvType; } }
+        public bool IsRegular { get => Type.IsRegular(); }
 
         /// <summary>通し番号</summary>
         public uint SequenceNum { get; private set; }

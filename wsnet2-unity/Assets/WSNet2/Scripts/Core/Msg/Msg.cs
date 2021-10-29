@@ -2,11 +2,9 @@ namespace WSNet2.Core
 {
     public enum MsgType
     {
-        regularMsgType = 30,
-
         Ping = 1,
 
-        Leave = regularMsgType,
+        Leave = MsgTypeExt.regularMsgType,
         RoomProp,
         ClientProp,
         SwitchMaster,
@@ -14,5 +12,12 @@ namespace WSNet2.Core
         ToMaster,
         Broadcast,
         Kick,
+    }
+
+    static class MsgTypeExt
+    {
+        public const int regularMsgType = 30;
+
+        public static bool IsRegular(this MsgType type) => (int)type >= regularMsgType;
     }
 }
