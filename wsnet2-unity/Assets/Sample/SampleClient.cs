@@ -76,7 +76,8 @@ public class SampleClient : MonoBehaviour
                 Debug.Log("created: room="+room.Id);
                 StartCoroutine(HandleRoom(room));
             },
-            (e) => Debug.Log("create failed: "+ e));
+            (e) => Debug.Log("create failed: "+ e),
+            new DefaultUnityLogger());
     }
 
     IEnumerator HandleRoom(Room room)
