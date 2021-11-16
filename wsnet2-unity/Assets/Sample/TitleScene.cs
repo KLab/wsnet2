@@ -82,7 +82,8 @@ namespace Sample
                     G.GameRoom = room;
                     SceneManager.LoadScene("Game");
                 },
-                (e) => Debug.Log("create failed: " + e)
+                (e) => Debug.Log("create failed: " + e),
+                new DefaultUnityLogger()
             );
         }
 
@@ -112,7 +113,8 @@ namespace Sample
                     G.GameRoom = room;
                     SceneManager.LoadScene("Game");
                 },
-                (e) => Debug.Log("join failed: " + e)
+                (e) => Debug.Log("join failed: " + e),
+                new DefaultUnityLogger()
             );
         }
 
@@ -135,7 +137,8 @@ namespace Sample
                     G.GameRoom = room;
                     SceneManager.LoadScene("Game");
                 },
-                (e) => Debug.Log("watch failed: " + e));
+                (e) => Debug.Log("watch failed: " + e),
+                new DefaultUnityLogger());
             },
             (e) => Debug.Log("search failed: " + e));
         }
