@@ -55,8 +55,7 @@ func (cmd *normalBot) Execute(args []string) {
 		return
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
 	queries = []lobby.PropQuery{{Key: "key1", Op: lobby.OpEqual, Val: binary.MarshalInt(1024)}}
 
@@ -68,7 +67,7 @@ func (cmd *normalBot) Execute(args []string) {
 
 	for i := 0; i < 5; i++ {
 		go func(id int) {
-			watcher, done, err := SpawnWatcher(room.RoomInfo.Id, fmt.Sprintf("watcher-%d", id))
+			watcher, err := SpawnWatcher(room.RoomInfo.Id, fmt.Sprintf("watcher-%d", id))
 			if err != nil {
 				return
 			}
@@ -84,7 +83,7 @@ func (cmd *normalBot) Execute(args []string) {
 			watcher.SendMessage(binary.MsgTypeBroadcast, binary.MarshalStr8("MsgTypeBroadcast from watcher"))
 			time.Sleep(time.Second)
 			watcher.Close()
-			<-done
+			<-watcher.done
 		}(i)
 		time.Sleep(time.Millisecond * 10)
 	}
@@ -128,7 +127,7 @@ func (cmd *normalBot) Execute(args []string) {
 		bot.SendMessage(binary.MsgTypeClientProp, props)
 	}()
 
-	//	<-done
+	//	<-bot.done
 	time.Sleep(8 * time.Second)
 
 	logger.Debug("reconnect test")
@@ -138,8 +137,7 @@ func (cmd *normalBot) Execute(args []string) {
 		return
 	}
 
-	done = make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
 	go SpawnPlayer(room.RoomInfo.Id, "99999", nil)
 	go func() {
@@ -165,7 +163,7 @@ func (cmd *normalBot) Execute(args []string) {
 		bot.Close()
 	}()
 
-	<-done
+	<-bot.done
 
 	time.Sleep(3 * time.Second)
 	logger.Debug("reconnect test after leave")
@@ -175,7 +173,6 @@ func (cmd *normalBot) Execute(args []string) {
 		return
 	}
 
-	done = make(chan bool)
-	go bot.EventLoop(done)
-	<-done
+	go bot.EventLoop()
+	<-bot.done
 }

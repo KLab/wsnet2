@@ -59,7 +59,7 @@ func (cmd *stressBot) Run(mid int, queue <-chan struct{}) {
 		if !ok {
 			break
 		}
-		master, rid, done, err := SpawnMaster(fmt.Sprintf("master-%03d:%03d", mid, seq))
+		master, rid, err := SpawnMaster(fmt.Sprintf("master-%03d:%03d", mid, seq))
 		if err != nil {
 			continue
 		}
@@ -77,11 +77,11 @@ func (cmd *stressBot) Run(mid int, queue <-chan struct{}) {
 			go func(cid int) {
 				defer wgWatchers.Done()
 				time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
-				_, done, err := SpawnWatcher(rid, fmt.Sprintf("watcher-%03d:%03d-%03d", mid, seq, cid))
+				watcher, err := SpawnWatcher(rid, fmt.Sprintf("watcher-%03d:%03d-%03d", mid, seq, cid))
 				if err != nil {
 					return
 				}
-				<-done
+				<-watcher.done
 			}(i)
 		}
 		wgPlayers.Wait()
@@ -89,7 +89,7 @@ func (cmd *stressBot) Run(mid int, queue <-chan struct{}) {
 		time.Sleep(time.Millisecond * time.Duration(100)) // MsgLeaveが処理される前にPeerが切断されるとGameにエラーログが出力されるので少し待つ
 		master.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, ""))
 		master.Close()
-		<-done
+		<-master.done
 		wgWatchers.Wait()
 		seq++
 	}
@@ -97,7 +97,7 @@ func (cmd *stressBot) Run(mid int, queue <-chan struct{}) {
 
 func (cmd *stressBot) SpawnAndRunPlayer(roomId, userId string) {
 	time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
-	player, done, err := SpawnPlayer(roomId, userId, nil)
+	player, err := SpawnPlayer(roomId, userId, nil)
 	if err != nil {
 		return
 	}
@@ -106,7 +106,7 @@ func (cmd *stressBot) SpawnAndRunPlayer(roomId, userId string) {
 	time.Sleep(time.Millisecond * time.Duration(100)) // MsgLeaveが処理される前にPeerが切断されるとGameにエラーログが出力されるので少し待つ
 	player.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, ""))
 	player.Close()
-	<-done
+	<-player.done
 }
 
 func play(player *bot) {

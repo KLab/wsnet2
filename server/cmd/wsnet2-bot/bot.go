@@ -30,7 +30,7 @@ type bot struct {
 	muWrite     sync.Mutex
 	deadline    time.Duration
 	newDeadline chan time.Duration
-	done        chan struct{}
+	done        chan bool
 	seq         int
 }
 
@@ -264,6 +264,7 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 	logger.Debugf("[bot:%v] response: %v", b.userId, res)
 
 	b.conn = conn
+	b.done = make(chan bool)
 	go b.pinger()
 
 	return nil
@@ -311,8 +312,8 @@ func (b *bot) pinger() {
 	}
 }
 
-func (b *bot) EventLoop(done chan bool) {
-	defer close(done)
+func (b *bot) EventLoop() {
+	defer close(b.done)
 	for {
 		_, p, err := b.conn.ReadMessage()
 		if err != nil {
@@ -397,108 +398,104 @@ func (b *bot) EventLoop(done chan bool) {
 	}
 }
 
-func SpawnMaster(name string) (*bot, string, <-chan bool, error) {
+func SpawnMaster(name string) (*bot, string, error) {
 	bot := NewBot(appID, appKey, name, binary.Dict{})
 
 	logger.Debugf("spawnMaster: %v", name)
 	room, err := bot.CreateRoom(binary.Dict{})
 	if err != nil {
 		logger.Errorf("create room error: %v", err)
-		return nil, "", nil, err
+		return nil, "", err
 	}
 	logger.Debugf("CreateRoom: %v", room.RoomInfo.Id)
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("dial game error: %v", err)
-		return nil, "", nil, err
+		return nil, "", err
 	}
-	done := make(chan bool)
-	go bot.EventLoop(done)
 
-	return bot, room.RoomInfo.Id, done, nil
+	go bot.EventLoop()
+
+	return bot, room.RoomInfo.Id, nil
 }
 
-func SpawnPlayer(roomId, userId string, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+func SpawnPlayer(roomId, userId string, queries []lobby.PropQuery) (*bot, error) {
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.JoinRoom(roomId, queries)
 	if err != nil {
 		logger.Errorf("[bot:%v] join room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
 
-func SpawnWatcher(roomId, userId string) (*bot, <-chan bool, error) {
+func SpawnWatcher(roomId, userId string) (*bot, error) {
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.WatchRoom(roomId, nil)
 	if err != nil {
 		logger.Errorf("[bot:%v] watch room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial watch error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
 
-func SpawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+func SpawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQuery) (*bot, error) {
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.JoinRoomByNumber(roomNumber, queries)
 	if err != nil {
 		logger.Errorf("[bot:%v] join room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
 
-func SpawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+func SpawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.PropQuery) (*bot, error) {
 	logger.Infof("SpawnPlayerAtRandom(%v,%v,%v)", userId, searchGroup, queries)
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.JoinRoomAtRandom(searchGroup, queries)
 	if err != nil {
 		logger.Errorf("[bot:%v] join room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
