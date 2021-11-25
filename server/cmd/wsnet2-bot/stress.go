@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 	"wsnet2/binary"
-
-	"github.com/gorilla/websocket"
 )
 
 type stressBot struct {
@@ -85,10 +83,7 @@ func (cmd *stressBot) Run(mid int, queue <-chan struct{}) {
 			}(i)
 		}
 		wgPlayers.Wait()
-		master.SendMessage(binary.MsgTypeLeave, []byte{})
-		time.Sleep(time.Millisecond * time.Duration(100)) // MsgLeaveが処理される前にPeerが切断されるとGameにエラーログが出力されるので少し待つ
-		master.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, ""))
-		master.Close()
+		master.LeaveAndClose()
 		<-master.done
 		wgWatchers.Wait()
 		seq++
@@ -102,10 +97,7 @@ func (cmd *stressBot) SpawnAndRunPlayer(roomId, userId string) {
 		return
 	}
 	play(player)
-	player.SendMessage(binary.MsgTypeLeave, []byte{})
-	time.Sleep(time.Millisecond * time.Duration(100)) // MsgLeaveが処理される前にPeerが切断されるとGameにエラーログが出力されるので少し待つ
-	player.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, ""))
-	player.Close()
+	player.LeaveAndClose()
 	<-player.done
 }
 
