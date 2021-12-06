@@ -32,6 +32,7 @@ type subcmd interface {
 var cmds = []subcmd{
 	NewNormalBot(),
 	NewStressBot(),
+	NewStaticBot(),
 }
 
 var lobbyPrefix string = "http://192.168.0.1:3000"
