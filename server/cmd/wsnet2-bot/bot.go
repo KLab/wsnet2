@@ -277,10 +277,12 @@ func (b *bot) WriteMessage(messageType int, data []byte) error {
 }
 
 func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
+	b.muWrite.Lock()
+	defer b.muWrite.Unlock()
 	b.seq++
 	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload)
 	logger.Debugf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
-	return b.WriteMessage(websocket.BinaryMessage, msg)
+	return b.conn.WriteMessage(websocket.BinaryMessage, msg)
 }
 
 func (b *bot) Close() error {
