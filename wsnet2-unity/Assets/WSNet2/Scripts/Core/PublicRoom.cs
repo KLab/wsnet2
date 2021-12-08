@@ -8,38 +8,49 @@ namespace WSNet2.Core
     /// </summary>
     public class PublicRoom
     {
-        RoomInfo roomInfo;
+        /// <summary>RoomID</summary>
+        public string Id => info.id;
 
-        public string Id => roomInfo.id;
+        /// <summary>検索可能</summary>
+        public bool Visible => info.visible;
 
-        public bool Visible => roomInfo.visible;
+        /// <summary>入室可能</summary>
+        public bool Joinable => info.joinable;
 
-        public bool Joinable => roomInfo.joinable;
+        /// <summary>観戦可能</summary>
+        public bool Watchable => info.watchable;
 
-        public bool Watchable => roomInfo.watchable;
+        /// <summary>部屋番号</summary>
+        public int Number => info.number;
 
-        public int Number => roomInfo.number;
+        /// <summary>検索グループ</summary>
+        public uint SearchGroup => info.searchGroup;
 
-        public uint SearchGroup => roomInfo.searchGroup;
+        /// <summary>最大人数</summary>
+        public uint MaxPlayers => info.maxPlayers;
 
-        public uint MaxPlayers => roomInfo.maxPlayers;
+        /// <summary>プレイヤー人数</summary>
+        public uint PlayerCount => info.players;
 
-        public uint Players => roomInfo.players;
+        /// <summary>観戦人数</summary>
+        public uint WatcherCount => info.watchers;
 
-        public uint Watchers => roomInfo.watchers;
-
-        public IReadOnlyDictionary<string, object> PublicProps { get; private set; }
+        /// <summary>ルームの公開プロパティ</summary>
+        public IReadOnlyDictionary<string, object> PublicProps => publicProps;
 
         public DateTime Created { get; private set; }
 
+        protected RoomInfo info;
+        protected Dictionary<string, object> publicProps;
+
         public PublicRoom(RoomInfo roomInfo)
         {
-            this.roomInfo = roomInfo;
+            info = roomInfo;
 
             var reader = Serialization.NewReader(roomInfo.publicProps);
-            this.PublicProps = reader.ReadDict();
+            publicProps = reader.ReadDict();
 
-            this.Created = DateTimeOffset.FromUnixTimeSeconds(roomInfo.created).DateTime;
+            Created = DateTimeOffset.FromUnixTimeSeconds(roomInfo.created).DateTime;
         }
     }
 }
