@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using MessagePack;
 
@@ -15,6 +17,7 @@ namespace WSNet2.Core
         string appId;
         string userId;
         string bearer;
+        HMAC hmac;
 
         List<Room> rooms = new List<Room>();
         CallbackPool callbackPool = new CallbackPool();
@@ -27,14 +30,16 @@ namespace WSNet2.Core
         /// <param name="baseUri">LobbyのURI</param>
         /// <param name="appId">Wsnetに登録してあるApplication ID</param>
         /// <param name="userId">プレイヤーIDとなるID</param>
+        /// <param name="macKey">改ざん防止鍵</param>
         /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
         /// <param name="logger">Logger</param>
-        public WSNet2Client(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger)
+        public WSNet2Client(string baseUri, string appId, string userId, string macKey, string authData, IWSNet2Logger<WSNet2LogPayload> logger)
         {
             this.appId = appId;
             this.userId = userId;
             this.SetBaseUri(baseUri);
             this.UpdateAuthData(authData);
+            this.hmac = new HMACMD5(Encoding.ASCII.GetBytes(macKey));
             this.logger = prepareLogger(logger);
             checkMinThreads();
         }
@@ -359,7 +364,7 @@ namespace WSNet2.Core
                 }
 
                 var logger = prepareLogger(roomLogger);
-                var room = new Room(res.room, userId, logger);
+                var room = new Room(res.room, userId, hmac, logger);
                 logger?.Info("Joined to room: {0}", room.Id);
 
                 callbackPool.Add(() =>

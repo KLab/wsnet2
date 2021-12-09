@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace WSNet2.Core
@@ -30,12 +31,14 @@ namespace WSNet2.Core
         /// </remarks>
         BlockingCollection<bool> hasMsg;
 
+        HMAC hmac;
+
         /// <summary>
         ///   コンストラクタ
         /// </summary>
         /// <param name="poolSize">保持できるMsg数</param>
         /// <param name="initialBufSize">各Msg(SerialWriter)の初期バッファサイズ</param>
-        public MsgPool(int poolSize, int initialBufSize)
+        public MsgPool(int poolSize, int initialBufSize, HMAC hmac)
         {
             sequenceNum = 0;
             tookSeqNum = 0;
@@ -46,6 +49,8 @@ namespace WSNet2.Core
             }
 
             hasMsg = new BlockingCollection<bool>(1);
+
+            this.hmac = hmac;
         }
 
         /// <summary>
@@ -101,7 +106,8 @@ namespace WSNet2.Core
         {
             lock(this)
             {
-                writeMsgType(MsgType.Leave);
+                var writer = writeMsgType(MsgType.Leave);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -115,6 +121,7 @@ namespace WSNet2.Core
             {
                 var writer = writeMsgType(MsgType.SwitchMaster);
                 writer.Write(newMasterId);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -154,6 +161,7 @@ namespace WSNet2.Core
             {
                 var writer = writeMsgType(MsgType.ClientProp);
                 writer.Write(props);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -167,6 +175,7 @@ namespace WSNet2.Core
             {
                 var writer = writeMsgType(MsgType.Kick);
                 writer.Write(targetId);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -179,6 +188,7 @@ namespace WSNet2.Core
             lock(this)
             {
                 var writer = writeRPCHeader(id, targets);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -188,6 +198,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -197,6 +208,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -206,6 +218,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -215,6 +228,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -224,6 +238,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -233,6 +248,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -242,6 +258,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -251,6 +268,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -260,6 +278,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -269,6 +288,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -278,6 +298,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -287,6 +308,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -296,6 +318,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -305,6 +328,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -314,6 +338,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -323,6 +348,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -332,6 +358,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -341,6 +368,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -350,6 +378,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -359,6 +388,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -368,6 +398,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -377,6 +408,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -386,6 +418,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -395,6 +428,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -404,6 +438,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -413,6 +448,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -422,6 +458,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }
@@ -431,6 +468,7 @@ namespace WSNet2.Core
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }

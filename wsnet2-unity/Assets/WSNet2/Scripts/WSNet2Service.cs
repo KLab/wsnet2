@@ -49,9 +49,10 @@ namespace WSNet2
         /// <param name="baseUri">LobbyのURI</param>
         /// <param name="appId">WSNetに登録してあるApplicationID</param>
         /// <param name="userId">プレイヤーID</param>
+        /// <param name="macKey">改ざん防止鍵</param>
         /// <param name="authData">認証データ</param>
         /// <param name="logger">Logger</param>
-        public WSNet2Client GetClient(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
+        public WSNet2Client GetClient(string baseUri, string appId, string userId, string macKey, string authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
         {
             var key = $"{userId}{keyDelimiter}{appId}";
 
@@ -70,7 +71,7 @@ namespace WSNet2
                 return cli;
             }
 
-            cli = new WSNet2Client(baseUri, appId, userId, authData, logger ?? defaultLogger);
+            cli = new WSNet2Client(baseUri, appId, userId, macKey, authData, logger ?? defaultLogger);
 
             // Note: ProcessCallback 内で clients の追加を直接行うと InvalidOperationException が発生する
             newClients[key] = cli;

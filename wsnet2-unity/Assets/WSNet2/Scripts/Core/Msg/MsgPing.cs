@@ -1,4 +1,5 @@
 using System;
+using System.Security.Cryptography;
 
 namespace WSNet2.Core
 {
@@ -10,15 +11,13 @@ namespace WSNet2.Core
 
         public MsgPing()
         {
-            buf = new byte[9]{
-                (byte)MsgType.Ping,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            };
+            buf = new byte[9+32];
+            buf[0] = (byte)MsgType.Ping;
 
             Value = new ArraySegment<byte>(buf);
         }
 
-        public ulong SetTimestamp()
+        public ulong SetTimestamp(HMAC hmac)
         {
             var now = DateTime.UtcNow;
             var unix = (ulong)((DateTimeOffset)now).ToUnixTimeMilliseconds();
@@ -31,6 +30,10 @@ namespace WSNet2.Core
             buf[6] = (byte)((unix & 0xff0000) >> 16);
             buf[7] = (byte)((unix & 0xff00) >> 8);
             buf[8] = (byte)(unix & 0xff);
+
+            var hash = hmac.ComputeHash(buf, 0, 9);
+            Buffer.BlockCopy(hash, 0, buf, 9, hash.Length);
+            Value = Value.Slice(0, 9+hash.Length);
 
             return unix;
         }
