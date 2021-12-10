@@ -15,9 +15,10 @@ namespace WSNet2.Core.Test
 
             var key = "testAppKey1";
             var cliId = "testClient1";
+            var macKey = "testMacKey1";
 
             var before = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds();
-            var base64 = authgen.Generate(key, cliId);
+            var base64 = authgen.Generate(key, cliId, macKey);
 
             Console.WriteLine(base64);
 
@@ -27,6 +28,8 @@ namespace WSNet2.Core.Test
             var nonce = new Span<byte>(data, 0, 8).ToArray();
             var tdata = new Span<byte>(data, 8, 8).ToArray();
             var hash = new Span<byte>(data, 16, 32).ToArray();
+            var iv = new Span<byte>(data, 48, 16).ToArray();
+            var ckey = new Span<byte>(data, 64, data.Length-64).ToArray();
 
             var bkey = Encoding.ASCII.GetBytes(key);
 
@@ -43,6 +46,15 @@ namespace WSNet2.Core.Test
             ms.Write(tdata);
             var hmac = new HMACSHA256(bkey);
             Assert.AreEqual(hash, hmac.ComputeHash(ms.ToArray()));
+
+            // check macKey
+            var aes = Aes.Create();
+            var rdr = new StreamReader(
+                new CryptoStream(
+                    new MemoryStream(ckey),
+                    Aes.Create().CreateDecryptor(SHA256.Create().ComputeHash(bkey), iv),
+                    CryptoStreamMode.Read));
+            Assert.AreEqual(rdr.ReadLine(), macKey);
         }
     }
 }

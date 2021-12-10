@@ -194,7 +194,7 @@ namespace WSNet2.Core
         private async Task<ClientWebSocket> Connect(CancellationToken ct)
         {
             var ws = new ClientWebSocket();
-            var authdata = authgen.Generate(authKey, clientId);
+            var authdata = authgen.GenerateForConnect(authKey, clientId);
             ws.Options.SetRequestHeader("Authorization", "Bearer " + authdata);
             ws.Options.SetRequestHeader("Wsnet2-App", appId);
             ws.Options.SetRequestHeader("Wsnet2-User", clientId);

@@ -146,7 +146,7 @@ namespace WSNet2.DotnetClient
             Serialization.Register<StrMessage>(0);
 
             var macKey = "testmackey";
-            var authData = authgen.Generate("testapppkey", userid);
+            var authData = authgen.Generate("testapppkey", userid, macKey);
 
             var client = new WSNet2Client(
                 "http://localhost:8080",
