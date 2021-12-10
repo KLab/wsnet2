@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace WSNet2.Core.Test
 {
@@ -11,7 +12,7 @@ namespace WSNet2.Core.Test
         [OneTimeSetUp]
         public void OneTimeSetup()
         {
-            msgpool = new MsgPool(2, 128);
+            msgpool = new MsgPool(2, 128, new HMACMD5(new byte[]{0}));
         }
 
         [Test]
