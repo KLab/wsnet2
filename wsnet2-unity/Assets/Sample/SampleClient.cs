@@ -49,11 +49,13 @@ public class SampleClient : MonoBehaviour
         Serialization.Register<StrMessage>(1);
 
         var userid = "id0001";
+        var macKey = "id0001mackey";
         cli = WSNet2Service.Instance.GetClient(
             "http://localhost:8080",
             "testapp",
             userid,
-            authgen.Generate("testapppkey", userid));
+            macKey,
+            authgen.Generate("testapppkey", userid, macKey));
 
         var pubProps = new Dictionary<string, object>(){
             {"aaa", "public"},

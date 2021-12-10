@@ -11,27 +11,43 @@ namespace WSNet2.Core
 
         public string Generate(string key, string clientId, string macKey)
         {
-            // result: nonce 64bit, timestamp 64bit, hmac 256bit
+            // result: nonce 64bits, timestamp 64bits, hmac 256bits, iv 64bits, crypted macKey *bits
 
             byte[] bkey = Encoding.ASCII.GetBytes(key);
-            var ms = new MemoryStream(clientId.Length+8+8+32);
-            var offset = GenAuthData(ms, bkey, clientId);
-            EncryptMACKey(ms, bkey, macKey);
+            byte[] bcid = Encoding.UTF8.GetBytes(clientId);
+            byte[] bmkey = Encoding.ASCII.GetBytes(macKey);
+            using var ms = new MemoryStream(bcid.Length + 8 + 8 + 32 + 8 + macKey.Length + 16);
+            var offset = GenAuthData(ms, bkey, bcid);
+
+            // iv
+            var iv = new byte[16];
+            for (var i=0; i<16; i++) iv[i] = (byte)rand.Next(256);
+            ms.Write(iv, 0, iv.Length);
+
+            // crypted macKey
+            using var aes = Aes.Create();
+            aes.Key = SHA256.Create().ComputeHash(bkey);
+            aes.IV = iv;
+            using var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write);
+            cs.Write(bmkey, 0, bmkey.Length);
+            cs.FlushFinalBlock();
+
             return Convert.ToBase64String(ms.ToArray(), offset, (int)ms.Length - offset);
         }
 
         public string GenerateForConnect(string key, string clientId)
         {
             byte[] bkey = Encoding.ASCII.GetBytes(key);
-            var ms = new MemoryStream(clientId.Length+8+8);
-            var offset = GenAuthData(ms, bkey, clientId);
+            byte[] bcid = Encoding.UTF8.GetBytes(clientId);
+            var ms = new MemoryStream(bcid.Length+8+8);
+            var offset = GenAuthData(ms, bkey, bcid);
             return Convert.ToBase64String(ms.ToArray(), offset, (int)ms.Length - offset);
         }
 
-        int GenAuthData(MemoryStream ms, byte[] bkey, string clientId)
+        int GenAuthData(MemoryStream ms, byte[] bkey, byte[] bcid)
         {
             // clientId
-            ms.Write(Encoding.UTF8.GetBytes(clientId));
+            ms.Write(bcid, 0, bcid.Length);
             var offset = (int)ms.Length;
 
             // nonce
@@ -54,23 +70,9 @@ namespace WSNet2.Core
             var hmac = new HMACSHA256(bkey);
             var hash = hmac.ComputeHash(ms.ToArray());
 
-            ms.Write(hash);
+            ms.Write(hash, 0, hash.Length);
 
             return offset;
-        }
-
-        public void EncryptMACKey(MemoryStream ms, byte[] bkey, string macKey)
-        {
-            var iv = new byte[16];
-            for (var i=0; i<16; i++) iv[i] = (byte)rand.Next(256);
-            ms.Write(iv);
-
-            using var aes = Aes.Create();
-            aes.Key = SHA256.Create().ComputeHash(bkey);
-            aes.IV = iv;
-
-            using var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write, true);
-            cs.Write(Encoding.ASCII.GetBytes(macKey));
         }
     }
 }

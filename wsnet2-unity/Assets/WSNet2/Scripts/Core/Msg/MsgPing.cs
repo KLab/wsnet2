@@ -8,16 +8,20 @@ namespace WSNet2.Core
         public ArraySegment<byte> Value { get; private set; }
 
         byte[] buf;
+        HMAC hmac;
+        int hsize;
 
-        public MsgPing()
+        public MsgPing(HMAC hmac)
         {
-            buf = new byte[9+32];
+            this.hmac = hmac;
+            this.hsize = hmac.HashSize / 8;
+            this.buf = new byte[9 + hsize];
             buf[0] = (byte)MsgType.Ping;
 
             Value = new ArraySegment<byte>(buf);
         }
 
-        public ulong SetTimestamp(HMAC hmac)
+        public ulong SetTimestamp()
         {
             var now = DateTime.UtcNow;
             var unix = (ulong)((DateTimeOffset)now).ToUnixTimeMilliseconds();
@@ -32,8 +36,7 @@ namespace WSNet2.Core
             buf[8] = (byte)(unix & 0xff);
 
             var hash = hmac.ComputeHash(buf, 0, 9);
-            Buffer.BlockCopy(hash, 0, buf, 9, hash.Length);
-            Value = Value.Slice(0, 9+hash.Length);
+            Buffer.BlockCopy(hash, 0, buf, 9, hsize);
 
             return unix;
         }

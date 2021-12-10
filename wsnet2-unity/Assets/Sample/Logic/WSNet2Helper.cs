@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using WSNet2.Core;
 
@@ -75,10 +76,19 @@ namespace Sample.Logic
         /// </summary>
         /// <param name="key">アプリケーション固有の鍵</param>
         /// <param name="userid">ユーザID</param>
-        /// <returns></returns>
-        public static string GenAuthData(string key, string userid)
+        /// <param name="macKey">改ざん防止鍵</param>
+        /// <returns>macKey, authData</returns>
+        public static (string, string) GenAuthData(string key, string userid)
         {
-            return authgen.Generate(key, userid);
+            var macKey = RandomString(8);
+            return (macKey, authgen.Generate(key, userid, macKey));
+        }
+
+        static string RandomString(int n)
+        {
+            const string s = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var rand = new Random();
+            return Enumerable.Repeat(0, n).Aggregate("", (a, _) => $"{a}{s[rand.Next(s.Length)]}");
         }
 
         static bool RegisterTypesOnce = false;

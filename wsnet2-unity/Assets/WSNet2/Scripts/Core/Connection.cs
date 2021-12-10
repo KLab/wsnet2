@@ -339,7 +339,7 @@ namespace WSNet2.Core
         /// </summary>
         private async Task Pinger(ClientWebSocket ws, CancellationToken ct)
         {
-            var msg = new MsgPing();
+            var msg = new MsgPing(hmac);
 
             try
             {
@@ -348,7 +348,7 @@ namespace WSNet2.Core
                     ct.ThrowIfCancellationRequested();
 
                     var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
-                    var time = (uint)msg.SetTimestamp(hmac);
+                    var time = (uint)msg.SetTimestamp();
                     lastPingTime = time;
                     await Send(ws, msg.Value, ct);
                     try
