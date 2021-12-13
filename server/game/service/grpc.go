@@ -61,7 +61,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 		return nil, status.Errorf(codes.NotFound, "Invalid app_id: %v", in.AppId)
 	}
 
-	res, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo)
+	res, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo, in.MacKey)
 	if err != nil {
 		log.Infof("create room error: %+v", err)
 		return nil, status.Errorf(err.Code(), "CreateRoom failed: %s", err)
@@ -96,7 +96,7 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
 	}
 
-	res, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo)
+	res, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo, in.MacKey)
 	if err != nil {
 		log.Infof("join room error: %+v", err)
 		return nil, status.Errorf(err.Code(), "JoinRoom failed: %s", err)
@@ -118,7 +118,7 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
 	}
 
-	res, err := repo.WatchRoom(ctx, in.RoomId, in.ClientInfo)
+	res, err := repo.WatchRoom(ctx, in.RoomId, in.ClientInfo, in.MacKey)
 	if err != nil {
 		log.Infof("watch room error: %+v", err)
 		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)

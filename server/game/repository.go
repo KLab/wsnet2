@@ -114,7 +114,7 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 	return repos, nil
 }
 
-func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
+func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, master *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -142,7 +142,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 		loglevel = log.Level(op.LogLevel)
 	}
 
-	room, joined, ewc := NewRoom(ctx, repo, info, master, op.ClientDeadline, repo.conf, loglevel)
+	room, joined, ewc := NewRoom(ctx, repo, info, master, macKey, op.ClientDeadline, repo.conf, loglevel)
 	if ewc != nil {
 		tx.Rollback()
 		return nil, WithCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
@@ -183,15 +183,15 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	}, nil
 }
 
-func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
-	return repo.joinRoom(ctx, id, client, true)
+func (repo *Repository) JoinRoom(ctx context.Context, id string, client *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, ErrorWithCode) {
+	return repo.joinRoom(ctx, id, client, macKey, true)
 }
 
-func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo) (*pb.JoinedRoomRes, ErrorWithCode) {
-	return repo.joinRoom(ctx, id, client, false)
+func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, ErrorWithCode) {
+	return repo.joinRoom(ctx, id, client, macKey, false)
 }
 
-func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, isPlayer bool) (*pb.JoinedRoomRes, ErrorWithCode) {
+func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, macKey string, isPlayer bool) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -204,9 +204,9 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	errch := make(chan ErrorWithCode, 1)
 	var msg Msg
 	if isPlayer {
-		msg = &MsgJoin{client, jch, errch}
+		msg = &MsgJoin{client, macKey, jch, errch}
 	} else {
-		msg = &MsgWatch{client, jch, errch}
+		msg = &MsgWatch{client, macKey, jch, errch}
 	}
 
 	select {
