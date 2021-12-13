@@ -54,8 +54,7 @@ public class SampleClient : MonoBehaviour
             "http://localhost:8080",
             "testapp",
             userid,
-            macKey,
-            authgen.Generate("testapppkey", userid, macKey));
+            authgen.Generate("testapppkey", userid));
 
         var pubProps = new Dictionary<string, object>(){
             {"aaa", "public"},
