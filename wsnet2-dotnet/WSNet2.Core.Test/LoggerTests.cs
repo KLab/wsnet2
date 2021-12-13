@@ -33,7 +33,7 @@ namespace WSNet2.Core.Test
             var logger = new Logger();
             logger.Payload.Foo = 100;
 
-            var cli = new WSNet2Client("https://example.com", "TestAppId", "TestUser", "", "", logger); 
+            var cli = new WSNet2Client("https://example.com", "TestAppId", "TestUser", new AuthData("", "", ""), logger); 
 
             logger.Log(WSNet2LogLevel.Warning, null, "Hello {0}", "World");
 

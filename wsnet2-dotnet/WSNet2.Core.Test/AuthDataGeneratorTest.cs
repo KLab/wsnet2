@@ -15,23 +15,17 @@ namespace WSNet2.Core.Test
 
             var key = "testAppKey1";
             var cliId = "testClient1";
-            var macKey = "testMacKey1";
 
             var before = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds();
-            var base64 = authgen.Generate(key, cliId, macKey);
-
-            Console.WriteLine(base64);
+            var authdata = authgen.Generate(key, cliId);
 
             var after = ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds();
-            var data = Convert.FromBase64String(base64);
 
+            // check bearer
+            var data = Convert.FromBase64String(authdata.Bearer.Substring("Bearar ".Length));
             var nonce = new Span<byte>(data, 0, 8).ToArray();
             var tdata = new Span<byte>(data, 8, 8).ToArray();
             var hash = new Span<byte>(data, 16, 32).ToArray();
-            var iv = new Span<byte>(data, 48, 16).ToArray();
-            var ckey = new Span<byte>(data, 64, data.Length-64).ToArray();
-
-            var bkey = Encoding.ASCII.GetBytes(key);
 
             // check timestamp
             var timestamp = tdata[0] << 56 | tdata[1] << 48 | tdata[2] << 40 |
@@ -44,17 +38,19 @@ namespace WSNet2.Core.Test
             ms.Write(Encoding.UTF8.GetBytes(cliId));
             ms.Write(nonce);
             ms.Write(tdata);
-            var hmac = new HMACSHA256(bkey);
+            var hmac = new HMACSHA256(Encoding.ASCII.GetBytes(key));
             Assert.AreEqual(hash, hmac.ComputeHash(ms.ToArray()));
 
-            // check macKey
-            var aes = Aes.Create();
+            // check mackey
+            var encdata = Convert.FromBase64String(authdata.EncryptedMACKey);
+            var encKey = new Span<byte>(encdata, 16, encdata.Length-16).ToArray();
+            using var aes = Aes.Create();
+            aes.Key = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(key));
+            aes.IV = new Span<byte>(encdata, 0, 16).ToArray();
             var rdr = new StreamReader(
                 new CryptoStream(
-                    new MemoryStream(ckey),
-                    Aes.Create().CreateDecryptor(SHA256.Create().ComputeHash(bkey), iv),
-                    CryptoStreamMode.Read));
-            Assert.AreEqual(rdr.ReadLine(), macKey);
+                    new MemoryStream(encKey), aes.CreateDecryptor(), CryptoStreamMode.Read));
+            Assert.AreEqual(rdr.ReadLine(), authdata.MACKey);
         }
     }
 }

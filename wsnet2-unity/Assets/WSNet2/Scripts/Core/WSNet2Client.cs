@@ -16,8 +16,7 @@ namespace WSNet2.Core
         string baseUri;
         string appId;
         string userId;
-        string bearer;
-        HMAC hmac;
+        AuthData authData;
 
         List<Room> rooms = new List<Room>();
         CallbackPool callbackPool = new CallbackPool();
@@ -30,16 +29,14 @@ namespace WSNet2.Core
         /// <param name="baseUri">LobbyのURI</param>
         /// <param name="appId">Wsnetに登録してあるApplication ID</param>
         /// <param name="userId">プレイヤーIDとなるID</param>
-        /// <param name="macKey">改ざん防止鍵</param>
         /// <param name="authData">認証情報（アプリAPIサーバから入手）</param>
         /// <param name="logger">Logger</param>
-        public WSNet2Client(string baseUri, string appId, string userId, string macKey, string authData, IWSNet2Logger<WSNet2LogPayload> logger)
+        public WSNet2Client(string baseUri, string appId, string userId, AuthData authData, IWSNet2Logger<WSNet2LogPayload> logger)
         {
             this.appId = appId;
             this.userId = userId;
             this.SetBaseUri(baseUri);
             this.UpdateAuthData(authData);
-            this.hmac = new HMACMD5(Encoding.ASCII.GetBytes(macKey));
             this.logger = prepareLogger(logger);
             checkMinThreads();
         }
@@ -57,9 +54,9 @@ namespace WSNet2.Core
         ///   認証データを更新
         /// </summary>
         /// <param name="authData">認証情報</param>
-        public void UpdateAuthData(string authData)
+        public void UpdateAuthData(AuthData authData)
         {
-            this.bearer = "Bearer " + authData;
+            this.authData = authData;
         }
 
         /// <summary>
@@ -134,13 +131,16 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Create()");
 
-            var param = new CreateParam();
-            param.roomOption = roomOption;
-            param.clientInfo = new ClientInfo(userId, clientProps);
+            var param = new CreateParam(){
+                roomOption = roomOption,
+                clientInfo = new ClientInfo(userId, clientProps),
+                encryptedMACKey = authData.EncryptedMACKey,
+            };
+            var hmac = new HMACSHA1(Encoding.ASCII.GetBytes(authData.MACKey));
 
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom("/rooms", content, onSuccess, onFailed, roomLogger));
+            Task.Run(() => connectToRoom("/rooms", content, authData, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -165,10 +165,11 @@ namespace WSNet2.Core
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
+                encryptedMACKey = authData.EncryptedMACKey,
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, onSuccess, onFailed, roomLogger));
+            Task.Run(() => connectToRoom($"/rooms/join/id/{roomId}", content, authData, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -193,10 +194,11 @@ namespace WSNet2.Core
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
+                encryptedMACKey = authData.EncryptedMACKey,
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, onSuccess, onFailed, roomLogger));
+            Task.Run(() => connectToRoom($"/rooms/join/number/{number}", content, authData, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -221,10 +223,11 @@ namespace WSNet2.Core
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
+                encryptedMACKey = authData.EncryptedMACKey,
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, onSuccess, onFailed, roomLogger));
+            Task.Run(() => connectToRoom($"/rooms/join/random/{group}", content, authData, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -247,10 +250,11 @@ namespace WSNet2.Core
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
+                encryptedMACKey = authData.EncryptedMACKey,
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, onSuccess, onFailed, roomLogger));
+            Task.Run(() => connectToRoom($"/rooms/watch/id/{roomId}", content, authData, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -273,10 +277,11 @@ namespace WSNet2.Core
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
+                encryptedMACKey = authData.EncryptedMACKey,
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, onSuccess, onFailed, roomLogger));
+            Task.Run(() => connectToRoom($"/rooms/watch/number/{number}", content, authData, onSuccess, onFailed, roomLogger));
         }
 
         /// <summary>
@@ -335,7 +340,7 @@ namespace WSNet2.Core
             var cli = new HttpClient();
             cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
             cli.DefaultRequestHeaders.Add("Wsnet2-User", userId);
-            cli.DefaultRequestHeaders.Add("Authorization", bearer);
+            cli.DefaultRequestHeaders.Add("Authorization", authData.Bearer);
 
             var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
             var body = await res.Content.ReadAsByteArrayAsync();
@@ -351,6 +356,7 @@ namespace WSNet2.Core
         private async Task connectToRoom(
             string path,
             byte[] content,
+            AuthData authData,
             Action<Room> onSuccess,
             Action<Exception> onFailed,
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
@@ -364,6 +370,7 @@ namespace WSNet2.Core
                 }
 
                 var logger = prepareLogger(roomLogger);
+                var hmac = new HMACSHA1(Encoding.ASCII.GetBytes(authData.MACKey));
                 var room = new Room(res.room, userId, hmac, logger);
                 logger?.Info("Joined to room: {0}", room.Id);
 
