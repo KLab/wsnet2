@@ -8,11 +8,13 @@ import (
 type CreateParam struct {
 	RoomOption pb.RoomOption `json:"room"`
 	ClientInfo pb.ClientInfo `json:"client"`
+	EncMACKey  string        `json:"emk"`
 }
 
 type JoinParam struct {
 	Queries    []lobby.PropQueries `json:"query"`
 	ClientInfo pb.ClientInfo       `json:"client"`
+	EncMACKey  string              `json:"emk"`
 }
 
 type SearchParam struct {
