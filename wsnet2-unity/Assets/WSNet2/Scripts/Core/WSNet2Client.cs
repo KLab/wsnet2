@@ -131,12 +131,12 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Create()");
 
+            var authData = this.authData;
             var param = new CreateParam(){
                 roomOption = roomOption,
                 clientInfo = new ClientInfo(userId, clientProps),
                 encryptedMACKey = authData.EncryptedMACKey,
             };
-            var hmac = new HMACSHA1(Encoding.ASCII.GetBytes(authData.MACKey));
 
             var content = MessagePackSerializer.Serialize(param);
 
@@ -162,6 +162,7 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Join(roomId={0})", roomId);
 
+            var authData = this.authData;
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
@@ -191,6 +192,7 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Join(number={0})", number);
 
+            var authData = this.authData;
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
@@ -220,6 +222,7 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.RandomJoin(group={0})", group);
 
+            var authData = this.authData;
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
@@ -247,6 +250,7 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Watch(roomId={0})", roomId);
 
+            var authData = this.authData;
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
@@ -274,6 +278,7 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Watch(number={0})", number);
 
+            var authData = this.authData;
             var param = new JoinParam(){
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),

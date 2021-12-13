@@ -12,7 +12,7 @@ namespace WSNet2.Core.Test
         [OneTimeSetUp]
         public void OneTimeSetup()
         {
-            msgpool = new MsgPool(2, 128, new HMACMD5(new byte[]{0}));
+            msgpool = new MsgPool(2, 128, new HMACSHA1(new byte[]{0}));
         }
 
         [Test]
