@@ -3,9 +3,11 @@ package auth
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"hash"
 	"strings"
 
 	"golang.org/x/xerrors"
@@ -61,4 +63,20 @@ func EncryptMACKey(key, macKey string) (string, error) {
 	cipher.NewCBCEncrypter(b, iv).CryptBlocks(buf[bs:], src)
 
 	return base64.StdEncoding.EncodeToString(buf), nil
+}
+
+func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, bool) {
+	hs := mac.Size()
+	if len(data) < hs {
+		return nil, false
+	}
+
+	h := data[len(data)-hs:]
+	data = data[:len(data)-hs]
+
+	mac.Write(data)
+	sum := mac.Sum(nil)
+	mac.Reset()
+
+	return data, hmac.Equal(h, sum)
 }

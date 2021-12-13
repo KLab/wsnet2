@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"golang.org/x/xerrors"
 
+	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/metrics"
 )
@@ -206,6 +207,13 @@ loop:
 			break loop
 		}
 		metrics.MessageRecv.Add(1)
+
+		data, ok := auth.ValidateMsgHMAC(p.client.hmac, data)
+		if !ok {
+			p.client.room.Logger().Errorf("Peer Invalid Msg HMAC: client=%v peer=%p: %v", p.client.Id, p, data)
+			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, "invalid msg")
+			break loop
+		}
 
 		msg, err := binary.UnmarshalMsg(data)
 		if err != nil {

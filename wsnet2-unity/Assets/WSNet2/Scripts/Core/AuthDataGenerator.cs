@@ -82,12 +82,13 @@ namespace WSNet2.Core
         string EncryptMACKey(string key, string macKey)
         {
             using var aes = Aes.Create();
+            aes.Padding = PaddingMode.Zeros;
 
             var bmkey = Encoding.ASCII.GetBytes(macKey);
-            var ms = new MemoryStream(bmkey.Length+aes.BlockSize*2);
+            var ms = new MemoryStream(macKey.Length + aes.BlockSize/4);
 
             // iv
-            var iv = new byte[16];
+            var iv = new byte[aes.BlockSize/8];
             for (var i = 0; i < iv.Length; i++) iv[i] = (byte)rand.Next(256);
             ms.Write(iv, 0, iv.Length);
 

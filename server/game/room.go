@@ -325,7 +325,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	master, err := NewPlayer(msg.Info, r)
+	master, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		msg.Err <- err
 		return xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err)
@@ -378,7 +378,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		return err
 	}
 
-	client, err := NewPlayer(msg.Info, r)
+	client, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		err = WithCode(
 			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
@@ -432,7 +432,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		return err
 	}
 
-	client, err := NewWatcher(msg.Info, r)
+	client, err := NewWatcher(msg.Info, msg.MACKey, r)
 	if err != nil {
 		err = WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
