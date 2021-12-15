@@ -43,7 +43,7 @@ type bot struct {
 func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
 	macKey := auth.GenMACKey()
 	hmac := hmac.New(sha1.New, []byte(macKey))
-	emk, _ := auth.EncryptMACKey(macKey, appKey)
+	emk, _ := auth.EncryptMACKey(appKey, macKey)
 
 	return &bot{
 		appId:  appId,

@@ -186,7 +186,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
 		return
 	}
-	macKey, err := auth.DecryptMACKey(param.EncMACKey, appKey)
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
@@ -247,7 +247,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	macKey, err := auth.DecryptMACKey(param.EncMACKey, appKey)
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
@@ -291,7 +291,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	macKey, err := auth.DecryptMACKey(param.EncMACKey, appKey)
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
@@ -335,7 +335,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	macKey, err := auth.DecryptMACKey(param.EncMACKey, appKey)
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
@@ -404,7 +404,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	macKey, err := auth.DecryptMACKey(param.EncMACKey, appKey)
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
@@ -449,7 +449,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	macKey, err := auth.DecryptMACKey(param.EncMACKey, appKey)
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return

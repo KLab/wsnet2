@@ -14,7 +14,7 @@ import (
 )
 
 // DecryptMACKey decodes a MACKey
-func DecryptMACKey(encMKey, appKey string) (string, error) {
+func DecryptMACKey(appKey, encMKey string) (string, error) {
 	data, err := base64.StdEncoding.DecodeString(encMKey)
 	if err != nil {
 		return "", err
@@ -36,7 +36,7 @@ func DecryptMACKey(encMKey, appKey string) (string, error) {
 }
 
 // EncryptMAckey encrypts macKey and returns base64 string
-func EncryptMACKey(macKey, appKey string) (string, error) {
+func EncryptMACKey(appKey, macKey string) (string, error) {
 	ckey := sha256.Sum256([]byte(appKey))
 	b, err := aes.NewCipher(ckey[:])
 	if err != nil {
@@ -65,6 +65,7 @@ func EncryptMACKey(macKey, appKey string) (string, error) {
 	return base64.StdEncoding.EncodeToString(buf), nil
 }
 
+// ValidateMsgHMAC validates the hmac of a websocket message.
 func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, bool) {
 	dlen := len(data) - mac.Size()
 	if dlen < 0 {

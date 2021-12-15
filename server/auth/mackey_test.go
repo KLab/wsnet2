@@ -3,15 +3,15 @@ package auth
 import "testing"
 
 func TestMACKey(t *testing.T) {
-	key := "testkey2"
+	appkey := "testkey2"
 	mackey := "testMACKey2"
 
-	encMkey, err := EncryptMACKey(mackey, key)
+	encMkey, err := EncryptMACKey(appkey, mackey)
 	if err != nil {
 		t.Fatalf("EncryptMACKey: %v", err)
 	}
 
-	r, err := DecryptMACKey(encMkey, key)
+	r, err := DecryptMACKey(appkey, encMkey)
 	if err != nil {
 		t.Fatalf("DecryptMACKey: %v", err)
 	}
