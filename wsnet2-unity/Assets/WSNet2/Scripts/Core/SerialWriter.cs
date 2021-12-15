@@ -804,7 +804,12 @@ namespace WSNet2.Core
 
         public void AppendHMAC(HMAC hmac)
         {
-            var hash = hmac.ComputeHash(buf, 0, pos);
+            byte[] hash;
+            lock (hmac)
+            {
+                hash = hmac.ComputeHash(buf, 0, pos);
+            }
+
             expand(hash.Length);
             Buffer.BlockCopy(hash, 0, buf, pos, hash.Length);
             pos += hash.Length;

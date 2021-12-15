@@ -148,6 +148,7 @@ namespace WSNet2.Core
                 writer.Write(clientDeadline);
                 writer.Write(publicProps);
                 writer.Write(privateProps);
+                writer.AppendHMAC(hmac);
                 return sequenceNum;
             }
         }

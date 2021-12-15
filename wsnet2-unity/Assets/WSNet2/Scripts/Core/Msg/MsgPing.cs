@@ -35,7 +35,12 @@ namespace WSNet2.Core
             buf[7] = (byte)((unix & 0xff00) >> 8);
             buf[8] = (byte)(unix & 0xff);
 
-            var hash = hmac.ComputeHash(buf, 0, 9);
+            byte[] hash;
+            lock (hmac)
+            {
+                hash = hmac.ComputeHash(buf, 0, 9);
+            }
+
             Buffer.BlockCopy(hash, 0, buf, 9, hsize);
 
             return unix;
