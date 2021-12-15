@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha1"
 	"errors"
 	"fmt"
+	"hash"
 	"net"
 	"net/http"
 	"strconv"
@@ -32,9 +35,16 @@ type bot struct {
 	newDeadline chan time.Duration
 	done        chan struct{}
 	seq         int
+	macKey      string
+	hmac        hash.Hash
+	encMACKey   string
 }
 
 func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
+	macKey := auth.GenMACKey()
+	hmac := hmac.New(sha1.New, []byte(macKey))
+	emk, _ := auth.EncryptMACKey(macKey, appKey)
+
 	return &bot{
 		appId:  appId,
 		appKey: appKey,
@@ -45,6 +55,10 @@ func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
 		},
+
+		macKey:    macKey,
+		hmac:      hmac,
+		encMACKey: emk,
 	}
 }
 
@@ -63,6 +77,7 @@ func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
+		EncMACKey: b.encMACKey,
 	}
 
 	var res service.LobbyResponse
@@ -97,6 +112,7 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
+		EncMACKey: b.encMACKey,
 	}
 
 	var res service.LobbyResponse
@@ -129,6 +145,7 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
+		EncMACKey: b.encMACKey,
 	}
 
 	var res service.LobbyResponse
@@ -156,6 +173,7 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
+		EncMACKey: b.encMACKey,
 	}
 
 	var res service.LobbyResponse
@@ -277,7 +295,7 @@ func (b *bot) WriteMessage(messageType int, data []byte) error {
 
 func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
 	b.seq++
-	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload)
+	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload, b.hmac)
 	logger.Debugf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
 	return b.WriteMessage(websocket.BinaryMessage, msg)
 }
@@ -298,7 +316,7 @@ func (b *bot) pinger() {
 		select {
 		case <-t.C:
 			msg := binary.NewMsgPing(time.Now())
-			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal(b.hmac)); err != nil {
 				logger.Debugf("pinger: WrteMessage error: %v", err)
 				return
 			}

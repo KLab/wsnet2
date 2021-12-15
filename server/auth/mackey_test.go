@@ -6,7 +6,7 @@ func TestMACKey(t *testing.T) {
 	key := "testkey2"
 	mackey := "testMACKey2"
 
-	encMkey, err := EncryptMACKey(key, mackey)
+	encMkey, err := EncryptMACKey(mackey, key)
 	if err != nil {
 		t.Fatalf("EncryptMACKey: %v", err)
 	}

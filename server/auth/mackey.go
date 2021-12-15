@@ -14,13 +14,13 @@ import (
 )
 
 // DecryptMACKey decodes a MACKey
-func DecryptMACKey(encMKey, key string) (string, error) {
+func DecryptMACKey(encMKey, appKey string) (string, error) {
 	data, err := base64.StdEncoding.DecodeString(encMKey)
 	if err != nil {
 		return "", err
 	}
 
-	ckey := sha256.Sum256([]byte(key))
+	ckey := sha256.Sum256([]byte(appKey))
 	b, err := aes.NewCipher(ckey[:])
 	if err != nil {
 		return "", err
@@ -36,8 +36,8 @@ func DecryptMACKey(encMKey, key string) (string, error) {
 }
 
 // EncryptMAckey encrypts macKey and returns base64 string
-func EncryptMACKey(key, macKey string) (string, error) {
-	ckey := sha256.Sum256([]byte(key))
+func EncryptMACKey(macKey, appKey string) (string, error) {
+	ckey := sha256.Sum256([]byte(appKey))
 	b, err := aes.NewCipher(ckey[:])
 	if err != nil {
 		return "", err
@@ -66,14 +66,11 @@ func EncryptMACKey(key, macKey string) (string, error) {
 }
 
 func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, bool) {
-	hs := mac.Size()
-	if len(data) < hs {
+	dlen := len(data) - mac.Size()
+	if dlen < 0 {
 		return nil, false
 	}
-
-	h := data[len(data)-hs:]
-	data = data[:len(data)-hs]
-
+	data, h := data[:dlen], data[dlen:]
 	return data, hmac.Equal(h, CalculateMsgHMAC(mac, data))
 }
 
