@@ -47,6 +47,7 @@ namespace WSNet2.Core.Test
             using var aes = Aes.Create();
             aes.Key = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(key));
             aes.IV = new Span<byte>(encdata, 0, 16).ToArray();
+            aes.Padding = PaddingMode.Zeros;
             var rdr = new StreamReader(
                 new CryptoStream(
                     new MemoryStream(encKey), aes.CreateDecryptor(), CryptoStreamMode.Read));
