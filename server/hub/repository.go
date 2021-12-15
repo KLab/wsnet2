@@ -85,7 +85,7 @@ func (r *Repository) RemoveHub(hub *Hub) {
 	log.Debugf("hub removed from repository: room=%v", rid)
 }
 
-func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo) (*pb.JoinedRoomRes, game.ErrorWithCode) {
+func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, game.ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -98,6 +98,7 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	errch := make(chan game.ErrorWithCode, 1)
 	msg := &game.MsgWatch{
 		Info:   client,
+		MACKey: macKey,
 		Joined: jch,
 		Err:    errch,
 	}

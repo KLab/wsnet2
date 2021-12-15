@@ -74,9 +74,17 @@ func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, bool) {
 	h := data[len(data)-hs:]
 	data = data[:len(data)-hs]
 
-	mac.Write(data)
-	sum := mac.Sum(nil)
-	mac.Reset()
+	return data, hmac.Equal(h, CalculateMsgHMAC(mac, data))
+}
 
-	return data, hmac.Equal(h, sum)
+func CalculateMsgHMAC(mac hash.Hash, data []byte) []byte {
+	mac.Write(data)
+	defer mac.Reset()
+	return mac.Sum(nil)
+}
+
+func GenMACKey() string {
+	buf := make([]byte, 16/4*3)
+	rand.Read(buf)
+	return base64.StdEncoding.EncodeToString(buf)
 }

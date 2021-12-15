@@ -1,9 +1,12 @@
 package binary
 
 import (
+	"hash"
 	"time"
 
 	"golang.org/x/xerrors"
+
+	"wsnet2/auth"
 )
 
 // Msg from client via websocket
@@ -19,7 +22,7 @@ import (
 type Msg interface {
 	Type() MsgType
 	Payload() []byte
-	Marshal() []byte
+	Marshal(hmac hash.Hash) []byte
 }
 
 type RegularMsg interface {
@@ -100,10 +103,11 @@ type nonregularMsg struct {
 
 func (m *nonregularMsg) Type() MsgType   { return m.mtype }
 func (m *nonregularMsg) Payload() []byte { return m.payload }
-func (m *nonregularMsg) Marshal() []byte {
-	data := make([]byte, 1+len(m.payload))
+func (m *nonregularMsg) Marshal(hmac hash.Hash) []byte {
+	data := make([]byte, 1+len(m.payload)+hmac.Size())
 	data[0] = byte(m.mtype)
 	copy(data[1:], m.payload)
+	copy(data[1+len(m.payload):], auth.CalculateMsgHMAC(hmac, data[:1+len(m.payload)]))
 	return data
 }
 
@@ -116,15 +120,16 @@ type regularMsg struct {
 func (m *regularMsg) Type() MsgType    { return m.mtype }
 func (m *regularMsg) Payload() []byte  { return m.payload }
 func (m *regularMsg) SequenceNum() int { return m.seqNum }
-func (m *regularMsg) Marshal() []byte {
-	return BuildRegularMsgFrame(m.mtype, m.seqNum, m.payload)
+func (m *regularMsg) Marshal(hmac hash.Hash) []byte {
+	return BuildRegularMsgFrame(m.mtype, m.seqNum, m.payload, hmac)
 }
 
-func BuildRegularMsgFrame(t MsgType, seq int, payload []byte) []byte {
-	data := make([]byte, 1+3+len(payload))
+func BuildRegularMsgFrame(t MsgType, seq int, payload []byte, hmac hash.Hash) []byte {
+	data := make([]byte, 1+3+len(payload)+hmac.Size())
 	data[0] = byte(t)
 	put24(data[1:4], seq)
 	copy(data[4:], payload)
+	copy(data[4+len(payload):], auth.CalculateMsgHMAC(hmac, data[:4+len(payload)]))
 	return data
 }
 
