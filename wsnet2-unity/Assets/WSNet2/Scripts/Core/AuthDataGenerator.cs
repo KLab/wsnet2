@@ -69,14 +69,10 @@ namespace WSNet2.Core
 
         string RandomString(int n)
         {
-            const string pool = "0123456789ABDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-            var s = new StringBuilder(n);
-            for (var i = 0; i < n; i++)
-            {
-                s.Append(pool[rand.Next(pool.Length)]);
-            }
-
-            return s.ToString();
+            var rand = RandomNumberGenerator.Create();
+            var buf = new byte[(int)((n+3)/4)*3];
+            rand.GetBytes(buf);
+            return Convert.ToBase64String(buf).Substring(0, n);
         }
 
         string EncryptMACKey(string key, string macKey)
