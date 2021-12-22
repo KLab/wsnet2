@@ -126,7 +126,7 @@ namespace WSNet2.DotnetClient
                 {
                     props += $"{kv.Key}:{kv.Value},";
                 }
-                Console.WriteLine($"{room.Id} #{room.Number:D3} {room.Players}/{room.MaxPlayers} [{props}] {room.Created}");
+                Console.WriteLine($"{room.Id} #{room.Number:D3} {room.PlayerCount}/{room.MaxPlayers} [{props}] {room.Created}");
             }
         }
 

@@ -8,31 +8,10 @@ namespace WSNet2.Core
     /// <summary>
     ///   Room
     /// </summary>
-    public class Room
+    public class Room : PublicRoom
     {
         /// <summary>RoomのMasterをRPCの対象に指定</summary>
         public const string[] RPCToMaster = null;
-
-        /// <summary>RoomID</summary>
-        public string Id { get => info.id; }
-
-        /// <summary>部屋番号</summary>
-        public int Number { get => info.number; }
-
-        /// <summary>検索可能</summary>
-        public bool Visible { get => info.visible; }
-
-        /// <summary>入室可能</summary>
-        public bool Joinable { get => info.joinable; }
-
-        /// <summary>観戦可能</summary>
-        public bool Watchable { get => info.watchable; }
-
-        /// <summary>検索グループ</summary>
-        public uint SearchGroup { get => info.searchGroup; }
-
-        /// <summary>最大人数</summary>
-        public uint MaxPlayers { get => info.maxPlayers; }
 
         /// <summary>通信タイムアウト時間(秒)
         public uint ClientDeadline { get => clientDeadline; }
@@ -49,17 +28,11 @@ namespace WSNet2.Core
         /// <summary>部屋内の全Player</summary>
         public IReadOnlyDictionary<string, Player> Players { get => players; }
 
-        /// <summary>ルームの公開プロパティ</summary>
-        public IReadOnlyDictionary<string, object> PublicProps { get => publicProps; }
-
         /// <summary>ルームの非公開プロパティ</summary>
         public IReadOnlyDictionary<string, object> PrivateProps { get => privateProps; }
 
         /// <summary>マスタークライアント</summary>
         public Player Master { get => players[masterId]; }
-
-        /// <summary>観戦人数</summary>
-        public uint Watchers { get => info.watchers; }
 
         /// <summary>Ping応答時間 (millisec)</summary>
         public ulong RttMillisec { get; private set; }
@@ -129,11 +102,9 @@ namespace WSNet2.Core
         public Action<Exception> OnErrorClosed;
 
         string myId;
-        Dictionary<string, object> publicProps;
         Dictionary<string, object> privateProps;
         Dictionary<string, Player> players;
         string masterId;
-        RoomInfo info;
         uint clientDeadline;
 
         CallbackPool callbackPool;
@@ -150,10 +121,9 @@ namespace WSNet2.Core
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
         /// <param naem="logger">Logger</param>
-        public Room(JoinedRoom joined, string myId, HMAC hmac, Logger logger)
+        public Room(JoinedRoom joined, string myId, HMAC hmac, Logger logger) : base(joined.roomInfo)
         {
             this.myId = myId;
-            this.info = joined.roomInfo;
             this.clientDeadline = joined.deadline;
 
             logger?.SetRoomInfo(Id, Number);
@@ -169,10 +139,7 @@ namespace WSNet2.Core
 
             this.callbackPool = new CallbackPool(() => this.Running);
 
-            var reader = Serialization.NewReader(info.publicProps);
-            publicProps = reader.ReadDict();
-
-            reader = Serialization.NewReader(info.privateProps);
+            var reader = Serialization.NewReader(info.privateProps);
             privateProps = reader.ReadDict();
 
             players = new Dictionary<string, Player>(joined.players.Length);
