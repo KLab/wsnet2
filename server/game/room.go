@@ -372,7 +372,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		return err
 	}
 
-	if r.MaxPlayers >= uint32(len(r.players)) {
+	if r.MaxPlayers <= uint32(len(r.players)) {
 		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 		msg.Err <- WithCode(err, codes.ResourceExhausted)
 		return err
