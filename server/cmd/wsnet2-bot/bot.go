@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -32,6 +33,16 @@ type bot struct {
 	newDeadline chan time.Duration
 	done        chan bool
 	seq         int
+	stat        statics
+	muStat      sync.Mutex
+}
+
+type statics struct {
+	received int64
+	sum      int64
+	sum2     int64
+	min      int64
+	max      int64
 }
 
 func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
@@ -265,6 +276,9 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 
 	b.conn = conn
 	b.done = make(chan bool)
+	b.stat = statics{
+		min: math.MaxInt64,
+	}
 	go b.pinger()
 
 	return nil
@@ -381,7 +395,19 @@ func (b *bot) EventLoop() {
 				lg.Errorf("failed to unmarshal EvPongPayload: %v", err)
 				break
 			}
-			lg.Debugf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp), 0), pongPayload.Watchers)
+			lg.Debugf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp)/1000000000, int64(pongPayload.Timestamp)%1000000000), pongPayload.Watchers)
+			rtt := (time.Now().UnixNano() - int64(pongPayload.Timestamp)) / 1000
+			b.muStat.Lock()
+			if b.stat.min > rtt {
+				b.stat.min = rtt
+			}
+			if b.stat.max < rtt {
+				b.stat.max = rtt
+			}
+			b.stat.sum += rtt
+			b.stat.sum2 += rtt * rtt
+			b.stat.received++
+			b.muStat.Unlock()
 		case binary.EvTypeMasterSwitched:
 			newMasterId, err := binary.UnmarshalEvMasterSwitchedPayload(ev.Payload())
 			if err != nil {
