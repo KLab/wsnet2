@@ -27,6 +27,9 @@ func DecryptMACKey(appKey, encMKey string) (string, error) {
 	}
 
 	bs := b.BlockSize()
+	if len(data) < bs*2 {
+		return "", xerrors.Errorf("data too short")
+	}
 	iv := data[:bs]
 	dst := make([]byte, len(data)-bs)
 
