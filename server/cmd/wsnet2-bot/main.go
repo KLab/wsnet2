@@ -38,7 +38,7 @@ var lobbyPrefix string = "http://192.168.0.1:3000"
 
 func main() {
 	verbose := flag.Bool("v", false, "verbose")
-	flag.StringVar(&lobbyPrefix, "lobby", "http://localhost:8000", "lobby schema://host:port")
+	flag.StringVar(&lobbyPrefix, "lobby", "http://localhost:8080", "lobby schema://host:port")
 	flag.Parse()
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	rand.Seed(seed.Int64())

@@ -207,7 +207,7 @@ loop:
 		}
 		metrics.MessageRecv.Add(1)
 
-		msg, err := binary.UnmarshalMsg(data)
+		msg, err := binary.UnmarshalMsg(p.client.hmac, data)
 		if err != nil {
 			p.client.room.Logger().Errorf("Peer UnmarshalMsg error: client=%v peer=%p %v: %v", p.client.Id, p, err, data)
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())

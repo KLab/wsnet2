@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -8,7 +9,27 @@ namespace WSNet2.Core
     {
         Random rand = new Random();
 
-        public string Generate(string key, string clientId)
+        /// <summary>
+        /// WSNet2Clientに渡すAuthDataを生成する
+        /// </summary>
+        /// <param name="key">wsnet2に登録したapp key</param>
+        /// <param name="clientId">wsnet2上でのclientId</param>
+        /// <returns>AuthData</returns>
+        /// <remarks>
+        /// 本番運用ではkeyはクライアントに含めないでください。
+        /// つまり、この生成処理はAPIサーバで行います。
+        /// このAPI通信でmacKeyを暗号化することで中間者攻撃を防げます。
+        /// </remarks>
+        public AuthData Generate(string key, string clientId)
+        {
+            var bearer = GenerateBearer(key, clientId);
+            var macKey = RandomString(16);
+            var encMKey = EncryptMACKey(key, macKey);
+
+            return new AuthData(bearer: bearer, macKey: macKey, encMKey: encMKey);
+        }
+
+        public string GenerateBearer(string key, string clientId)
         {
             // clientId, nonce 64bit, timestamp 64bit, hmac 256bit
             var l = Encoding.UTF8.GetByteCount(clientId);
@@ -43,7 +64,38 @@ namespace WSNet2.Core
 
             Buffer.BlockCopy(hash, 0, data, l+16, 32);
 
-            return Convert.ToBase64String(data, l, 16+32);
+            return $"Bearer {Convert.ToBase64String(data, l, 16+32)}";
+        }
+
+        string RandomString(int n)
+        {
+            var rand = RandomNumberGenerator.Create();
+            var buf = new byte[(int)((n+3)/4)*3];
+            rand.GetBytes(buf);
+            return Convert.ToBase64String(buf).Substring(0, n);
+        }
+
+        string EncryptMACKey(string key, string macKey)
+        {
+            using var aes = Aes.Create();
+            aes.Padding = PaddingMode.Zeros;
+
+            var bmkey = Encoding.ASCII.GetBytes(macKey);
+            var ms = new MemoryStream(macKey.Length + aes.BlockSize/4);
+
+            // iv
+            var iv = new byte[aes.BlockSize/8];
+            for (var i = 0; i < iv.Length; i++) iv[i] = (byte)rand.Next(256);
+            ms.Write(iv, 0, iv.Length);
+
+            // encrypt macKey
+            aes.Key = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(key));
+            aes.IV = iv;
+            using var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write);
+            cs.Write(bmkey, 0, bmkey.Length);
+            cs.FlushFinalBlock();
+
+            return Convert.ToBase64String(ms.ToArray());
         }
     }
 }

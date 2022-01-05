@@ -11,6 +11,9 @@ namespace WSNet2.Core
 
         [Key("client")]
         public ClientInfo clientInfo;
+
+        [Key("emk")]
+        public string encryptedMACKey;
     }
 
     [MessagePackObject]
@@ -21,6 +24,9 @@ namespace WSNet2.Core
 
         [Key("client")]
         public ClientInfo clientInfo;
+
+        [Key("emk")]
+        public string encryptedMACKey;
     }
 
     [MessagePackObject]

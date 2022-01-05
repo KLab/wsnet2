@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace WSNet2.Core
@@ -120,7 +121,7 @@ namespace WSNet2.Core
         /// <param name="joined">lobbyからの入室完了レスポンス</param>
         /// <param name="myId">自身のID</param>
         /// <param naem="logger">Logger</param>
-        public Room(JoinedRoom joined, string myId, Logger logger) : base(joined.roomInfo)
+        public Room(JoinedRoom joined, string myId, HMAC hmac, Logger logger) : base(joined.roomInfo)
         {
             this.myId = myId;
             this.clientDeadline = joined.deadline;
@@ -128,7 +129,7 @@ namespace WSNet2.Core
             logger?.SetRoomInfo(Id, Number);
             this.logger = logger;
 
-            this.con = new Connection(this, myId, joined, logger);
+            this.con = new Connection(this, myId, hmac, joined, logger);
 
             this.rpcMap = new Dictionary<Delegate, byte>();
             this.rpcActions = new List<Action<string, SerialReader>>();
