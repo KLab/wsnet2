@@ -150,16 +150,16 @@ func renderErrorResponse(w http.ResponseWriter, msg string, status int, err erro
 	http.Error(w, msg, status)
 }
 
-func (sv *LobbyService) authUser(h header) error {
+func (sv *LobbyService) authUser(h header) (string, error) {
 	appKey, found := sv.roomService.GetAppKey(h.appId)
 	if !found {
-		return xerrors.Errorf("Invalid appId: %v", h.appId)
+		return "", xerrors.Errorf("Invalid appId: %v", h.appId)
 	}
 	expired := time.Now().Add(-time.Duration(sv.conf.AuthDataExpire))
 	if err := auth.ValidAuthData(h.authData, appKey, h.userId, expired); err != nil {
-		return xerrors.Errorf("invalid authdata: %w", err)
+		return "", xerrors.Errorf("invalid authdata: %w", err)
 	}
-	return nil
+	return appKey, nil
 }
 
 // 部屋を作成する
@@ -175,21 +175,26 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("handleCreateRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	appKey, err := sv.authUser(h)
+	if err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param CreateParam
-	err := msgpackDecode(r.Body, &param)
-	if err != nil {
+	if err := msgpackDecode(r.Body, &param); err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
 	}
 
 	// TODO: 必要に応じて一部のパラメータを上書き？
 
-	room, err := sv.roomService.Create(ctx, h.appId, &param.RoomOption, &param.ClientInfo)
+	room, err := sv.roomService.Create(ctx, h.appId, &param.RoomOption, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to create room", http.StatusInternalServerError, err)
 		return
@@ -229,15 +234,22 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 
 	log.Infof("handleJoinRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	appKey, err := sv.authUser(h)
+	if err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
-	err := msgpackDecode(r.Body, &param)
+	err = msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
 	}
 
@@ -249,7 +261,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
@@ -266,15 +278,22 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 
 	log.Infof("handleJoinRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	appKey, err := sv.authUser(h)
+	if err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
-	err := msgpackDecode(r.Body, &param)
+	err = msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
 	}
 
@@ -286,7 +305,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
@@ -303,22 +322,29 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 
 	log.Infof("handleJoinRoomAtRandom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	appKey, err := sv.authUser(h)
+	if err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
-	err := msgpackDecode(r.Body, &param)
+	err = msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
 	}
 
 	vars := JoinVars(mux.Vars(r))
 	searchGroup := vars.searchGroup()
 
-	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err)
 		return
@@ -332,7 +358,7 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	if _, err := sv.authUser(h); err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
@@ -365,15 +391,22 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 
 	log.Infof("handleWatchRoom: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	appKey, err := sv.authUser(h)
+	if err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
-	err := msgpackDecode(r.Body, &param)
+	err = msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
 	}
 
@@ -385,7 +418,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return
@@ -403,15 +436,22 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 
 	log.Infof("handleWatchRoomByNumber: appID=%s, userID=%s", h.appId, h.userId)
 
-	if err := sv.authUser(h); err != nil {
+	appKey, err := sv.authUser(h)
+	if err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
 		return
 	}
 
 	var param JoinParam
-	err := msgpackDecode(r.Body, &param)
+	err = msgpackDecode(r.Body, &param)
 	if err != nil {
 		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+
+	macKey, err := auth.DecryptMACKey(appKey, param.EncMACKey)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read MAC Key", http.StatusBadRequest, err)
 		return
 	}
 
@@ -423,7 +463,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo)
+	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err)
 		return

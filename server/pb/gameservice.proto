@@ -17,12 +17,14 @@ message CreateRoomReq {
 	string app_id = 1;
 	RoomOption room_option = 2;
 	ClientInfo master_info = 3;
+	string mac_key = 4;
 }
 
 message JoinRoomReq {
 	string app_id = 1;
 	string room_id = 2;
 	ClientInfo client_info = 3;
+	string mac_key = 4;
 }
 
 message JoinedRoomRes {

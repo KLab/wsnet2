@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Collections;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace WSNet2.Core
 {
@@ -799,6 +800,19 @@ namespace WSNet2.Core
             buf[pos+6] = (byte)((v & 0xff00) >> 8);
             buf[pos+7] = (byte)(v & 0xff);
             pos += 8;
+        }
+
+        public void AppendHMAC(HMAC hmac)
+        {
+            byte[] hash;
+            lock (hmac)
+            {
+                hash = hmac.ComputeHash(buf, 0, pos);
+            }
+
+            expand(hash.Length);
+            Buffer.BlockCopy(hash, 0, buf, pos, hash.Length);
+            pos += hash.Length;
         }
 
         private void expand(int size)

@@ -2,7 +2,10 @@ package hub
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha1"
 	"fmt"
+	"hash"
 	"net/http"
 	"strconv"
 	"strings"
@@ -65,6 +68,8 @@ type Hub struct {
 	// hub -> game に使う conn
 	gameConn *websocket.Conn
 	muWrite  sync.Mutex
+	macKey   string
+	hmac     hash.Hash
 
 	logger *zap.SugaredLogger
 }
@@ -79,6 +84,8 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 		zap.String("room", string(roomId)),
 		zap.String("clientId", clientId),
 	).Sugar()
+
+	macKey := auth.GenMACKey()
 
 	hub := &Hub{
 		roomId:   RoomID(roomId),
@@ -100,6 +107,9 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 		watchers: make(map[ClientID]*game.Client),
 
 		lastMsg: make(binary.Dict),
+
+		macKey: macKey,
+		hmac:   hmac.New(sha1.New, []byte(macKey)),
 
 		logger: logger,
 		// todo: hubをもっと埋める
@@ -214,6 +224,7 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 			Id:    h.clientId,
 			IsHub: true,
 		},
+		MacKey: h.macKey,
 	}
 
 	res, err := client.Watch(context.TODO(), req)
@@ -245,7 +256,7 @@ func (h *Hub) pinger() {
 		select {
 		case <-t.C:
 			msg := binary.NewMsgPing(time.Now())
-			if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+			if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal(h.hmac)); err != nil {
 				h.logger.Errorf("pinger: WrteMessage error: %v\n", err)
 				return
 			}
@@ -272,7 +283,7 @@ func (h *Hub) nodeCountUpdater() {
 			if nodeCount != h.lastNodeCount {
 				msg := binary.NewMsgNodeCount(uint32(nodeCount))
 				metrics.MessageSent.Add(1)
-				if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal()); err != nil {
+				if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal(h.hmac)); err != nil {
 					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
 					return
 				}
@@ -530,7 +541,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		return err
 	}
 
-	client, err := game.NewWatcher(msg.Info, h)
+	client, err := game.NewWatcher(msg.Info, msg.MACKey, h)
 	if err != nil {
 		err = game.WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", h.ID(), msg.Info.Id, err),
@@ -573,7 +584,7 @@ func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	// client->hubとhub->gameでseq が異なるからmsgの使いまわしができない。
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
 	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
-	packet := binary.BuildRegularMsgFrame(msg.Type(), int(h.seq), msg.Payload())
+	packet := binary.BuildRegularMsgFrame(msg.Type(), int(h.seq), msg.Payload(), h.hmac)
 	metrics.MessageSent.Add(1)
 	return h.WriteMessage(websocket.BinaryMessage, packet)
 }

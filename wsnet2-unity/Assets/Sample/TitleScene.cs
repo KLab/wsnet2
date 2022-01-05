@@ -49,7 +49,6 @@ namespace Sample
         /// </summary>
         public static uint Deadline = 3;
 
-
         /// <summary>
         /// 部屋作成ボタンコールバック
         /// </summary>
@@ -159,6 +158,7 @@ namespace Sample
         /// </summary>
         void prepareWSNet2Client()
         {
+            var authData = Logic.WSNet2Helper.GenAuthData(appKeyInput.text, userIdInput.text);
             Debug.Log($"lobby {lobbyInput.text}");
             Debug.Log($"appId {appIdInput.text}");
             Debug.Log($"appKey {appKeyInput.text}");
@@ -169,7 +169,7 @@ namespace Sample
                 lobbyInput.text,
                 appIdInput.text,
                 userIdInput.text,
-                Logic.WSNet2Helper.GenAuthData(appKeyInput.text, userIdInput.text));
+                authData);
         }
     }
 }

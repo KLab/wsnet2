@@ -126,7 +126,7 @@ namespace WSNet2.DotnetClient
                 {
                     props += $"{kv.Key}:{kv.Value},";
                 }
-                Console.WriteLine($"{room.Id} #{room.Number:D3} {room.Players}/{room.MaxPlayers} [{props}] {room.Created}");
+                Console.WriteLine($"{room.Id} #{room.Number:D3} {room.PlayerCount}/{room.MaxPlayers} [{props}] {room.Created}");
             }
         }
 
@@ -146,6 +146,7 @@ namespace WSNet2.DotnetClient
             Serialization.Register<StrMessage>(0);
 
             var authData = authgen.Generate("testapppkey", userid);
+            Console.WriteLine($"mackey: {authData.MACKey}");
 
             var client = new WSNet2Client(
                 "http://localhost:8080",

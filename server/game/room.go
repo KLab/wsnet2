@@ -54,7 +54,7 @@ type roomPlayerLog struct {
 	TimeStamp time.Time `json:"timestamp,omitempty"`
 }
 
-func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
+func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, macKey string, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
 	pubProps, iProps, err := common.InitProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, WithCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
@@ -96,7 +96,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 		return nil, nil, WithCode(
 			xerrors.Errorf("NewRoom write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
-	case r.msgCh <- &MsgCreate{masterInfo, jch, ech}:
+	case r.msgCh <- &MsgCreate{masterInfo, macKey, jch, ech}:
 	}
 
 	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
@@ -325,7 +325,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	master, err := NewPlayer(msg.Info, r)
+	master, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		msg.Err <- err
 		return xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err)
@@ -372,13 +372,13 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		return err
 	}
 
-	if r.MaxPlayers == uint32(len(r.players)) {
+	if r.MaxPlayers <= uint32(len(r.players)) {
 		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 		msg.Err <- WithCode(err, codes.ResourceExhausted)
 		return err
 	}
 
-	client, err := NewPlayer(msg.Info, r)
+	client, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		err = WithCode(
 			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
@@ -432,7 +432,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		return err
 	}
 
-	client, err := NewWatcher(msg.Info, r)
+	client, err := NewWatcher(msg.Info, msg.MACKey, r)
 	if err != nil {
 		err = WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),

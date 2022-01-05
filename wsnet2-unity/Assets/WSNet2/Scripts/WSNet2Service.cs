@@ -51,7 +51,7 @@ namespace WSNet2
         /// <param name="userId">プレイヤーID</param>
         /// <param name="authData">認証データ</param>
         /// <param name="logger">Logger</param>
-        public WSNet2Client GetClient(string baseUri, string appId, string userId, string authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
+        public WSNet2Client GetClient(string baseUri, string appId, string userId, AuthData authData, IWSNet2Logger<WSNet2LogPayload> logger=null)
         {
             var key = $"{userId}{keyDelimiter}{appId}";
 

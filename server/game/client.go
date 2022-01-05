@@ -1,7 +1,10 @@
 package game
 
 import (
+	"crypto/hmac"
+	"crypto/sha1"
 	"fmt"
+	"hash"
 	"sync"
 	"time"
 
@@ -52,19 +55,20 @@ type Client struct {
 	newPeer   chan *Peer
 
 	authKey string
+	hmac    hash.Hash
 
 	evErr chan error
 }
 
-func NewPlayer(info *pb.ClientInfo, room IRoom) (*Client, ErrorWithCode) {
-	return newClient(info, room, true)
+func NewPlayer(info *pb.ClientInfo, macKey string, room IRoom) (*Client, ErrorWithCode) {
+	return newClient(info, macKey, room, true)
 }
 
-func NewWatcher(info *pb.ClientInfo, room IRoom) (*Client, ErrorWithCode) {
-	return newClient(info, room, false)
+func NewWatcher(info *pb.ClientInfo, macKey string, room IRoom) (*Client, ErrorWithCode) {
+	return newClient(info, macKey, room, false)
 }
 
-func newClient(info *pb.ClientInfo, room IRoom, isPlayer bool) (*Client, ErrorWithCode) {
+func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*Client, ErrorWithCode) {
 	props, iProps, err := common.InitProps(info.Props)
 	if err != nil {
 		return nil, WithCode(
@@ -90,6 +94,7 @@ func newClient(info *pb.ClientInfo, room IRoom, isPlayer bool) (*Client, ErrorWi
 		newPeer:  make(chan *Peer, 1),
 
 		authKey: RandomHex(ClientAuthKeyLen),
+		hmac:    hmac.New(sha1.New, []byte(macKey)),
 
 		evErr: make(chan error),
 	}

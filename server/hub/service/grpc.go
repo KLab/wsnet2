@@ -52,7 +52,7 @@ func (sv *HubService) serveGRPC(ctx context.Context) <-chan error {
 func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
 	log.Infof("Watch request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
 
-	res, err := sv.repo.WatchRoom(ctx, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo)
+	res, err := sv.repo.WatchRoom(ctx, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo, in.MacKey)
 	if err != nil {
 		log.Infof("watch room error: %+v", err)
 		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)

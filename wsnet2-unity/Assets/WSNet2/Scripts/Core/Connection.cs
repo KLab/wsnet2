@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Net.WebSockets;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Threading;
 
@@ -20,6 +21,7 @@ namespace WSNet2.Core
 
         Uri uri;
         string authKey;
+        HMAC hmac;
         volatile int pingInterval;
         volatile uint lastPingTime;
         CancellationTokenSource pingerDelayCanceller;
@@ -36,7 +38,7 @@ namespace WSNet2.Core
         /// <summary>
         ///   コンストラクタ
         /// </summary>
-        public Connection(Room room, string clientId, JoinedRoom joined, Logger logger)
+        public Connection(Room room, string clientId, HMAC hmac, JoinedRoom joined, Logger logger)
         {
             this.logger = logger;
             this.canceller = new CancellationTokenSource();
@@ -45,6 +47,7 @@ namespace WSNet2.Core
             this.clientId = clientId;
             this.uri = new Uri(joined.url);
             this.authKey = joined.authKey;
+            this.hmac = hmac;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
             this.sendSemaphore = new SemaphoreSlim(1, 1);
@@ -57,7 +60,7 @@ namespace WSNet2.Core
                 evBufPool.Add(new byte[WSNet2Settings.EvBufInitialSize]);
             }
 
-            this.msgPool = new MsgPool(WSNet2Settings.MsgPoolSize, WSNet2Settings.MsgBufInitialSize);
+            this.msgPool = new MsgPool(WSNet2Settings.MsgPoolSize, WSNet2Settings.MsgBufInitialSize, hmac);
         }
 
         /// <summary>
@@ -191,8 +194,8 @@ namespace WSNet2.Core
         private async Task<ClientWebSocket> Connect(CancellationToken ct)
         {
             var ws = new ClientWebSocket();
-            var authdata = authgen.Generate(authKey, clientId);
-            ws.Options.SetRequestHeader("Authorization", "Bearer " + authdata);
+            var authdata = authgen.GenerateBearer(authKey, clientId);
+            ws.Options.SetRequestHeader("Authorization", authdata);
             ws.Options.SetRequestHeader("Wsnet2-App", appId);
             ws.Options.SetRequestHeader("Wsnet2-User", clientId);
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
@@ -336,7 +339,7 @@ namespace WSNet2.Core
         /// </summary>
         private async Task Pinger(ClientWebSocket ws, CancellationToken ct)
         {
-            var msg = new MsgPing();
+            var msg = new MsgPing(hmac);
 
             try
             {

@@ -40,6 +40,7 @@ type JoinedInfo struct {
 // gRPCリクエストよりwsnet内で発生
 type MsgCreate struct {
 	Info   *pb.ClientInfo
+	MACKey string
 	Joined chan<- *JoinedInfo
 	Err    chan<- ErrorWithCode
 }
@@ -54,6 +55,7 @@ func (m *MsgCreate) SenderID() ClientID {
 // gRPCリクエストよりwsnet内で発生
 type MsgJoin struct {
 	Info   *pb.ClientInfo
+	MACKey string
 	Joined chan<- *JoinedInfo
 	Err    chan<- ErrorWithCode
 }
@@ -68,6 +70,7 @@ func (m *MsgJoin) SenderID() ClientID {
 // gRPCリクエストよりwsnet内で発生
 type MsgWatch struct {
 	Info   *pb.ClientInfo
+	MACKey string
 	Joined chan<- *JoinedInfo
 	Err    chan<- ErrorWithCode
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Security.Cryptography;
 
 namespace WSNet2.Core
 {
@@ -7,13 +8,15 @@ namespace WSNet2.Core
         public ArraySegment<byte> Value { get; private set; }
 
         byte[] buf;
+        HMAC hmac;
+        int hsize;
 
-        public MsgPing()
+        public MsgPing(HMAC hmac)
         {
-            buf = new byte[9]{
-                (byte)MsgType.Ping,
-                0, 0, 0, 0, 0, 0, 0, 0,
-            };
+            this.hmac = hmac;
+            this.hsize = hmac.HashSize / 8;
+            this.buf = new byte[9 + hsize];
+            buf[0] = (byte)MsgType.Ping;
 
             Value = new ArraySegment<byte>(buf);
         }
@@ -31,6 +34,14 @@ namespace WSNet2.Core
             buf[6] = (byte)((unix & 0xff0000) >> 16);
             buf[7] = (byte)((unix & 0xff00) >> 8);
             buf[8] = (byte)(unix & 0xff);
+
+            byte[] hash;
+            lock (hmac)
+            {
+                hash = hmac.ComputeHash(buf, 0, 9);
+            }
+
+            Buffer.BlockCopy(hash, 0, buf, 9, hsize);
 
             return unix;
         }
