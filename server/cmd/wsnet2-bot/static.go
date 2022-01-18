@@ -27,7 +27,7 @@ func (cmd *staticBot) Execute(args []string) {
 	case 1:
 		lifetime, _ = strconv.Atoi(args[0])
 	}
-	master, rid, err := SpawnMaster(fmt.Sprintf("master-999"))
+	master, rid, err := SpawnMaster("master-999")
 	if err != nil {
 		logger.Errorf("spawn master: %v", err)
 		return
@@ -103,5 +103,4 @@ func (cmd *staticBot) play(player *bot, lifetime time.Duration) {
 	case <-player.done:
 	}
 	close(done)
-	return
 }
