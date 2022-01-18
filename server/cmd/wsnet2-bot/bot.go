@@ -419,8 +419,8 @@ func (b *bot) EventLoop() {
 				lg.Errorf("failed to unmarshal EvPongPayload: %v", err)
 				break
 			}
-			lg.Debugf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp)/1000000000, int64(pongPayload.Timestamp)%1000000000), pongPayload.Watchers)
-			rtt := (time.Now().UnixNano() - int64(pongPayload.Timestamp)) / 1000
+			lg.Debugf("ts=%v watchers=%v", time.UnixMilli(int64(pongPayload.Timestamp)), pongPayload.Watchers)
+			rtt := (time.Now().UnixMicro() - (int64(pongPayload.Timestamp) * 1000))
 			b.muStat.Lock()
 			if b.stat.min > rtt {
 				b.stat.min = rtt
