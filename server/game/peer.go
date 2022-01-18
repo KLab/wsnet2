@@ -193,7 +193,7 @@ loop:
 		_, data, err := p.conn.ReadMessage()
 		if err != nil {
 			logger := p.client.room.Logger()
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
 				logger.Infof("Peer closed: client=%v peer=%p %v", p.client.Id, p, err)
 			} else if websocket.IsUnexpectedCloseError(err) {
 				logger.Errorf("Peer close error: client=%v peer=%p %v", p.client.Id, p, err)

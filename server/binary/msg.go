@@ -162,7 +162,7 @@ func UnmarshalMsg(hmac hash.Hash, data []byte) (Msg, error) {
 
 func NewMsgPing(timestamp time.Time) Msg {
 	payload := make([]byte, 8)
-	put64(payload, uint64(timestamp.Unix()))
+	put64(payload, uint64(timestamp.UnixMilli()))
 	return &nonregularMsg{
 		mtype:   MsgTypePing,
 		payload: payload,

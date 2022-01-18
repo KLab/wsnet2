@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -33,11 +34,21 @@ type bot struct {
 	muWrite     sync.Mutex
 	deadline    time.Duration
 	newDeadline chan time.Duration
-	done        chan struct{}
+	done        chan bool
 	seq         int
 	macKey      string
 	hmac        hash.Hash
 	encMACKey   string
+	stat        statics
+	muStat      sync.Mutex
+}
+
+type statics struct {
+	received int64
+	sum      int64
+	sum2     int64
+	min      int64
+	max      int64
 }
 
 func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
@@ -282,6 +293,10 @@ func (b *bot) DialGame(url, authKey string, seq int) error {
 	logger.Debugf("[bot:%v] response: %v", b.userId, res)
 
 	b.conn = conn
+	b.done = make(chan bool)
+	b.stat = statics{
+		min: math.MaxInt64,
+	}
 	go b.pinger()
 
 	return nil
@@ -294,10 +309,19 @@ func (b *bot) WriteMessage(messageType int, data []byte) error {
 }
 
 func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
+	b.muWrite.Lock()
+	defer b.muWrite.Unlock()
 	b.seq++
 	msg := binary.BuildRegularMsgFrame(msgType, b.seq, payload, b.hmac)
 	logger.Debugf("[bot:%v] %v: seq=%v, %v", b.userId, msgType, b.seq, payload)
-	return b.WriteMessage(websocket.BinaryMessage, msg)
+	return b.conn.WriteMessage(websocket.BinaryMessage, msg)
+}
+
+func (b *bot) SendPingMessage(t time.Time) error {
+	b.muWrite.Lock()
+	defer b.muWrite.Unlock()
+	msg := binary.NewMsgPing(t)
+	return b.conn.WriteMessage(websocket.BinaryMessage, msg.Marshal(b.hmac))
 }
 
 func (b *bot) Close() error {
@@ -315,8 +339,7 @@ func (b *bot) pinger() {
 	for {
 		select {
 		case <-t.C:
-			msg := binary.NewMsgPing(time.Now())
-			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal(b.hmac)); err != nil {
+			if err := b.SendPingMessage(time.Now()); err != nil {
 				logger.Debugf("pinger: WrteMessage error: %v", err)
 				return
 			}
@@ -329,8 +352,8 @@ func (b *bot) pinger() {
 	}
 }
 
-func (b *bot) EventLoop(done chan bool) {
-	defer close(done)
+func (b *bot) EventLoop() {
+	defer close(b.done)
 	for {
 		_, p, err := b.conn.ReadMessage()
 		if err != nil {
@@ -396,7 +419,19 @@ func (b *bot) EventLoop(done chan bool) {
 				lg.Errorf("failed to unmarshal EvPongPayload: %v", err)
 				break
 			}
-			lg.Debugf("ts=%v watchers=%v", time.Unix(int64(pongPayload.Timestamp), 0), pongPayload.Watchers)
+			lg.Debugf("ts=%v watchers=%v", time.UnixMilli(int64(pongPayload.Timestamp)), pongPayload.Watchers)
+			rtt := (time.Now().UnixMicro() - (int64(pongPayload.Timestamp) * 1000))
+			b.muStat.Lock()
+			if b.stat.min > rtt {
+				b.stat.min = rtt
+			}
+			if b.stat.max < rtt {
+				b.stat.max = rtt
+			}
+			b.stat.sum += rtt
+			b.stat.sum2 += rtt * rtt
+			b.stat.received++
+			b.muStat.Unlock()
 		case binary.EvTypeMasterSwitched:
 			newMasterId, err := binary.UnmarshalEvMasterSwitchedPayload(ev.Payload())
 			if err != nil {
@@ -415,108 +450,111 @@ func (b *bot) EventLoop(done chan bool) {
 	}
 }
 
-func SpawnMaster(name string) (*bot, string, <-chan bool, error) {
+func (b *bot) LeaveAndClose() {
+	b.SendMessage(binary.MsgTypeLeave, []byte{})
+	time.Sleep(time.Millisecond * time.Duration(100)) // MsgLeaveが処理される前にPeerが切断されるとGameにエラーログが出力されるので少し待つ
+	b.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, ""))
+	b.Close()
+}
+
+func SpawnMaster(name string) (*bot, string, error) {
 	bot := NewBot(appID, appKey, name, binary.Dict{})
 
 	logger.Debugf("spawnMaster: %v", name)
 	room, err := bot.CreateRoom(binary.Dict{})
 	if err != nil {
 		logger.Errorf("create room error: %v", err)
-		return nil, "", nil, err
+		return nil, "", err
 	}
 	logger.Debugf("CreateRoom: %v", room.RoomInfo.Id)
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("dial game error: %v", err)
-		return nil, "", nil, err
+		return nil, "", err
 	}
-	done := make(chan bool)
-	go bot.EventLoop(done)
 
-	return bot, room.RoomInfo.Id, done, nil
+	go bot.EventLoop()
+
+	return bot, room.RoomInfo.Id, nil
 }
 
-func SpawnPlayer(roomId, userId string, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+func SpawnPlayer(roomId, userId string, queries []lobby.PropQuery) (*bot, error) {
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.JoinRoom(roomId, queries)
 	if err != nil {
 		logger.Errorf("[bot:%v] join room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
 
-func SpawnWatcher(roomId, userId string) (*bot, <-chan bool, error) {
+func SpawnWatcher(roomId, userId string) (*bot, error) {
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.WatchRoom(roomId, nil)
 	if err != nil {
 		logger.Errorf("[bot:%v] watch room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial watch error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
 
-func SpawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+func SpawnPlayerByNumber(roomNumber int32, userId string, queries []lobby.PropQuery) (*bot, error) {
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.JoinRoomByNumber(roomNumber, queries)
 	if err != nil {
 		logger.Errorf("[bot:%v] join room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
 
-func SpawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.PropQuery) (*bot, <-chan bool, error) {
+func SpawnPlayerAtRandom(userId string, searchGroup uint32, queries []lobby.PropQuery) (*bot, error) {
 	logger.Infof("SpawnPlayerAtRandom(%v,%v,%v)", userId, searchGroup, queries)
 	bot := NewBot(appID, appKey, userId, binary.Dict{})
 
 	room, err := bot.JoinRoomAtRandom(searchGroup, queries)
 	if err != nil {
 		logger.Errorf("[bot:%v] join room error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = bot.DialGame(room.Url, room.AuthKey, 0)
 	if err != nil {
 		logger.Errorf("[bot:%v] dial game error: %v", userId, err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	done := make(chan bool)
-	go bot.EventLoop(done)
+	go bot.EventLoop()
 
-	return bot, done, nil
+	return bot, nil
 }
