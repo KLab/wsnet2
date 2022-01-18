@@ -317,6 +317,13 @@ func (b *bot) SendMessage(msgType binary.MsgType, payload []byte) error {
 	return b.conn.WriteMessage(websocket.BinaryMessage, msg)
 }
 
+func (b *bot) SendPingMessage(t time.Time) error {
+	b.muWrite.Lock()
+	defer b.muWrite.Unlock()
+	msg := binary.NewMsgPing(t)
+	return b.conn.WriteMessage(websocket.BinaryMessage, msg.Marshal(b.hmac))
+}
+
 func (b *bot) Close() error {
 	return b.conn.Close()
 }
@@ -332,8 +339,7 @@ func (b *bot) pinger() {
 	for {
 		select {
 		case <-t.C:
-			msg := binary.NewMsgPing(time.Now())
-			if err := b.WriteMessage(websocket.BinaryMessage, msg.Marshal(b.hmac)); err != nil {
+			if err := b.SendPingMessage(time.Now()); err != nil {
 				logger.Debugf("pinger: WrteMessage error: %v", err)
 				return
 			}
