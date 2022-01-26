@@ -31,20 +31,12 @@ func CalculateHMAC(key []byte, args ...[]byte) []byte {
 // ValidAuthData validates authData.
 // authData: base64 encoded [64bit nonce, 64bit timestamp, 256bit hmac]
 func ValidAuthData(authData, key, userId string, expired time.Time) error {
-	d, err := base64.StdEncoding.DecodeString(authData)
+	data, err := ValidAuthDataHash(authData, key, userId)
 	if err != nil {
-		return xerrors.Errorf("invalid authdata: %w", err)
-	}
-	if len(d) != 8+8+32 {
-		return xerrors.Errorf("invalid authdata: length=%v", len(d))
+		return err
 	}
 
-	nonce, timedata, hmac := d[:8], d[8:16], d[16:]
-
-	if !ValidHMAC(hmac, []byte(key), []byte(userId), nonce, timedata) {
-		return xerrors.Errorf("invalid authdata: hmac mismatch")
-	}
-
+	timedata := data[8:16]
 	unixtime := binary.BigEndian.Uint64(timedata)
 	timestamp := time.Unix(int64(unixtime), 0)
 
@@ -57,6 +49,26 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 	}
 
 	return nil
+}
+
+// ValidAuthdataHash validate authdata hash.
+// This function does not check the timestamp in authdata.
+func ValidAuthDataHash(authData, key, userId string) ([]byte, error) {
+	d, err := base64.StdEncoding.DecodeString(authData)
+	if err != nil {
+		return nil, xerrors.Errorf("invalid authdata: %w", err)
+	}
+	if len(d) != 8+8+32 {
+		return nil, xerrors.Errorf("invalid authdata: length=%v", len(d))
+	}
+
+	data, hmac := d[:16], d[16:]
+
+	if !ValidHMAC(hmac, []byte(key), []byte(userId), data) {
+		return nil, xerrors.Errorf("invalid authdata: hmac mismatch")
+	}
+
+	return data, nil
 }
 
 // GenerateAuthData generates base64 encoded authdata.

@@ -127,7 +127,8 @@ func (c *Client) NodeCount() uint32 {
 }
 
 func (c *Client) ValidAuthData(authData string) error {
-	return auth.ValidAuthData(authData, c.authKey, c.Id, time.Now().Add(-ClientAuthDataDeadline))
+	_, err := auth.ValidAuthDataHash(authData, c.authKey, c.Id)
+	return err
 }
 
 // MsgLoop goroutine.
