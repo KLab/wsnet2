@@ -24,10 +24,6 @@ const (
 	ClientWaitAfterClose = time.Second * 30
 
 	ClientAuthKeyLen = 32
-
-	// ClientAuthDataDeadline : クライアントのAuthDataの有効時間
-	// client側で接続時に毎回生成するので短くて良い
-	ClientAuthDataDeadline = time.Second * 10
 )
 
 type ClientID string
@@ -127,6 +123,7 @@ func (c *Client) NodeCount() uint32 {
 }
 
 func (c *Client) ValidAuthData(authData string) error {
+	// clientのtimestampは信用できないのでhashだけ検証
 	_, err := auth.ValidAuthDataHash(authData, c.authKey, c.Id)
 	return err
 }
