@@ -26,7 +26,7 @@ namespace WSNet2.Core
         /// <summary>ログ出力メソッド (必須)</summary>
         void Log(WSNet2LogLevel logLevel, Exception exception, string format, params object[] args);
 
-// Unityの場合C#8.0がサポートされるまで無効
+        // Unityの場合C#8.0がサポートされるまで無効
 #if !UNITY_2 && !UNITY_3 && !UNITY_4 && !UNITY_5 && !UNITY_5_3_OR_NEWER || CSHARP_8_0_OR_NEWER
 
         void Log(WSNet2LogLevel logLevel, Exception exception, string message)
@@ -42,7 +42,7 @@ namespace WSNet2.Core
         void Log<T1, T2, T3, T4, T5>(WSNet2LogLevel logLevel, Exception exception, string format, T1 a1, T2 a2, T3 a3, T4 a4, T5 a5)
             => Log(logLevel, exception, format, (object)a1, (object)a2, (object)a3, (object)a4, (object)a5);
 
-        private static object[] empty = new object[]{};
+        private static object[] empty = new object[] { };
 #endif
     }
 

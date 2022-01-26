@@ -33,7 +33,7 @@ namespace WSNet2.Core
         public bool withNumber;
 
         [Key("search_group")]
-        public uint  searchGroup;
+        public uint searchGroup;
 
         [Key("client_deadline")]
         public uint clientDeadline;

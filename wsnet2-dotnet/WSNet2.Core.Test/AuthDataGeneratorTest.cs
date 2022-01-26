@@ -29,7 +29,7 @@ namespace WSNet2.Core.Test
 
             // check timestamp
             var timestamp = tdata[0] << 56 | tdata[1] << 48 | tdata[2] << 40 |
-                tdata[3] << 32 |tdata[4] << 24 | tdata[5] << 16 | tdata[6] << 8 | tdata[7];
+                tdata[3] << 32 | tdata[4] << 24 | tdata[5] << 16 | tdata[6] << 8 | tdata[7];
             Assert.GreaterOrEqual(timestamp, before);
             Assert.LessOrEqual(timestamp, after);
 
@@ -43,7 +43,7 @@ namespace WSNet2.Core.Test
 
             // check mackey
             var encdata = Convert.FromBase64String(authdata.EncryptedMACKey);
-            var encKey = new Span<byte>(encdata, 16, encdata.Length-16).ToArray();
+            var encKey = new Span<byte>(encdata, 16, encdata.Length - 16).ToArray();
             using var aes = Aes.Create();
             aes.Key = SHA256.Create().ComputeHash(Encoding.ASCII.GetBytes(key));
             aes.IV = new Span<byte>(encdata, 0, 16).ToArray();

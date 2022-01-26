@@ -80,7 +80,7 @@ namespace WSNet2.Core
         {
             expand(2);
             buf[pos] = (byte)Type.SByte;
-            buf[pos+1] = (byte)((int)v - (int)sbyte.MinValue);
+            buf[pos + 1] = (byte)((int)v - (int)sbyte.MinValue);
             pos += 2;
         }
 
@@ -92,7 +92,7 @@ namespace WSNet2.Core
         {
             expand(2);
             buf[pos] = (byte)Type.Byte;
-            buf[pos+1] = v;
+            buf[pos + 1] = v;
             pos += 2;
         }
 
@@ -242,14 +242,14 @@ namespace WSNet2.Core
             var len = utf8.GetByteCount(v);
             if (len <= byte.MaxValue)
             {
-                expand(len+2);
+                expand(len + 2);
                 buf[pos] = (byte)Type.Str8;
                 pos++;
                 Put8(len);
             }
             else if (len <= ushort.MaxValue)
             {
-                expand(len+3);
+                expand(len + 3);
                 buf[pos] = (byte)Type.Str16;
                 pos++;
                 Put16(len);
@@ -287,20 +287,21 @@ namespace WSNet2.Core
 
             expand(4);
             buf[pos] = (byte)Type.Obj;
-            buf[pos+1] = (byte)id;
+            buf[pos + 1] = (byte)id;
             pos += 4;
 
             var start = pos;
             v.Serialize(this);
 
             var size = pos - start;
-            if (size > ushort.MaxValue) {
+            if (size > ushort.MaxValue)
+            {
                 var msg = string.Format("Serialized data is too big: {0}", size);
                 throw new SerializationException(msg);
             }
 
-            buf[start-2] = (byte)((size & 0xff00) >> 8);
-            buf[start-1] = (byte)(size & 0xff);
+            buf[start - 2] = (byte)((size & 0xff00) >> 8);
+            buf[start - 1] = (byte)(size & 0xff);
         }
 
         /// <summary>
@@ -395,22 +396,22 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            var len = (count+7) / 8;
+            var len = (count + 7) / 8;
             expand(3 + len);
             buf[pos] = (byte)Type.Bools;
             pos++;
             Put16(count);
 
-            for (var i=0; i<count; i++)
+            for (var i = 0; i < count; i++)
             {
                 if (i % 8 == 0)
                 {
-                    buf[pos + i/8] = 0;
+                    buf[pos + i / 8] = 0;
                 }
 
                 if (vals[i])
                 {
-                    buf[pos + i/8] += (byte)(1 << ( 7 - (i % 8)));
+                    buf[pos + i / 8] += (byte)(1 << (7 - (i % 8)));
                 }
             }
 
@@ -494,7 +495,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*2);
+            expand(3 + count * 2);
             buf[pos] = (byte)Type.Chars;
             pos++;
             Put16(count);
@@ -523,7 +524,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*2);
+            expand(3 + count * 2);
             buf[pos] = (byte)Type.Shorts;
             pos++;
             Put16(count);
@@ -553,7 +554,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*2);
+            expand(3 + count * 2);
             buf[pos] = (byte)Type.UShorts;
             pos++;
             Put16(count);
@@ -582,7 +583,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*4);
+            expand(3 + count * 4);
             buf[pos] = (byte)Type.Ints;
             pos++;
             Put16(count);
@@ -612,7 +613,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*4);
+            expand(3 + count * 4);
             buf[pos] = (byte)Type.UInts;
             pos++;
             Put16(count);
@@ -641,7 +642,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*8);
+            expand(3 + count * 8);
             buf[pos] = (byte)Type.Longs;
             pos++;
             Put16(count);
@@ -670,7 +671,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*8);
+            expand(3 + count * 8);
             buf[pos] = (byte)Type.ULongs;
             pos++;
             Put16(count);
@@ -699,7 +700,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*4);
+            expand(3 + count * 4);
             buf[pos] = (byte)Type.Floats;
             pos++;
             Put16(count);
@@ -738,7 +739,7 @@ namespace WSNet2.Core
                 throw new SerializationException(msg);
             }
 
-            expand(3 + count*4);
+            expand(3 + count * 4);
             buf[pos] = (byte)Type.Doubles;
             pos++;
             Put16(count);
@@ -768,37 +769,37 @@ namespace WSNet2.Core
         public void Put16(int v)
         {
             buf[pos] = (byte)((v & 0xff00) >> 8);
-            buf[pos+1] = (byte)(v & 0xff);
+            buf[pos + 1] = (byte)(v & 0xff);
             pos += 2;
         }
 
         public void Put24(int v)
         {
             buf[pos] = (byte)((v & 0xff0000) >> 16);
-            buf[pos+1] = (byte)((v & 0xff00) >> 8);
-            buf[pos+2] = (byte)(v & 0xff);
+            buf[pos + 1] = (byte)((v & 0xff00) >> 8);
+            buf[pos + 2] = (byte)(v & 0xff);
             pos += 3;
         }
 
         public void Put32(long v)
         {
             buf[pos] = (byte)((v & 0xff000000) >> 24);
-            buf[pos+1] = (byte)((v & 0xff0000) >> 16);
-            buf[pos+2] = (byte)((v & 0xff00) >> 8);
-            buf[pos+3] = (byte)(v & 0xff);
+            buf[pos + 1] = (byte)((v & 0xff0000) >> 16);
+            buf[pos + 2] = (byte)((v & 0xff00) >> 8);
+            buf[pos + 3] = (byte)(v & 0xff);
             pos += 4;
         }
 
         public void Put64(ulong v)
         {
             buf[pos] = (byte)((v & 0xff00000000000000) >> 56);
-            buf[pos+1] = (byte)((v & 0xff000000000000) >> 48);
-            buf[pos+2] = (byte)((v & 0xff0000000000) >> 40);
-            buf[pos+3] = (byte)((v & 0xff00000000) >> 32);
-            buf[pos+4] = (byte)((v & 0xff000000) >> 24);
-            buf[pos+5] = (byte)((v & 0xff0000) >> 16);
-            buf[pos+6] = (byte)((v & 0xff00) >> 8);
-            buf[pos+7] = (byte)(v & 0xff);
+            buf[pos + 1] = (byte)((v & 0xff000000000000) >> 48);
+            buf[pos + 2] = (byte)((v & 0xff0000000000) >> 40);
+            buf[pos + 3] = (byte)((v & 0xff00000000) >> 32);
+            buf[pos + 4] = (byte)((v & 0xff000000) >> 24);
+            buf[pos + 5] = (byte)((v & 0xff0000) >> 16);
+            buf[pos + 6] = (byte)((v & 0xff00) >> 8);
+            buf[pos + 7] = (byte)(v & 0xff);
             pos += 8;
         }
 
@@ -818,9 +819,10 @@ namespace WSNet2.Core
         private void expand(int size)
         {
             int len = buf.Length;
-            if (len < pos+size)
+            if (len < pos + size)
             {
-                while (len < pos+size) {
+                while (len < pos + size)
+                {
                     len *= 2;
                 }
                 Array.Resize(ref buf, len);
@@ -919,8 +921,8 @@ namespace WSNet2.Core
             }
 
             var size = pos - start;
-            buf[start-2] = (byte)((size & 0xff00) >> 8);
-            buf[start-1] = (byte)(size & 0xff);
+            buf[start - 2] = (byte)((size & 0xff00) >> 8);
+            buf[start - 1] = (byte)(size & 0xff);
         }
 
     }

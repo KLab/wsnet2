@@ -12,7 +12,7 @@ namespace WSNet2.Core.Test
         [OneTimeSetUp]
         public void OneTimeSetup()
         {
-            msgpool = new MsgPool(2, 128, new HMACSHA1(new byte[]{0}));
+            msgpool = new MsgPool(2, 128, new HMACSHA1(new byte[] { 0 }));
         }
 
         [Test]
@@ -21,10 +21,10 @@ namespace WSNet2.Core.Test
             testRoomPropPayload(true, false, false, 10, 20, 30, null, null);
             testRoomPropPayload(
                 false, true, false, 11, 21, 31,
-                new Dictionary<string, object>(){{"k1", 100}}, null);
+                new Dictionary<string, object>() { { "k1", 100 } }, null);
             testRoomPropPayload(
                 false, false, true, 12, 22, 32,
-                null, new Dictionary<string, object>(){{"k2", new int[]{1,2,3}}});
+                null, new Dictionary<string, object>() { { "k2", new int[] { 1, 2, 3 } } });
         }
 
         void testRoomPropPayload(

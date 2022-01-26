@@ -166,7 +166,7 @@ namespace WSNet2.Core
         {
         }
 
-        protected SerializationException(SerializationInfo info, StreamingContext context) : base (info, context)
+        protected SerializationException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

@@ -28,7 +28,7 @@ namespace WSNet2.Core
             [Key(2)]
             public byte[] val;
 
-            public Condition(){}
+            public Condition() { }
 
             public Condition(string key, Op op, byte[] val)
             {

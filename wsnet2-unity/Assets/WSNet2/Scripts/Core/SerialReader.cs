@@ -133,9 +133,9 @@ namespace WSNet2.Core
         {
             checkType(Type.Float);
             var b = (int)Get32();
-            if ((b & (1<<31)) != 0)
+            if ((b & (1 << 31)) != 0)
             {
-                b ^= 1<<31;
+                b ^= 1 << 31;
             }
             else
             {
@@ -152,9 +152,9 @@ namespace WSNet2.Core
         {
             checkType(Type.Double);
             var b = (long)Get64();
-            if ((b & ((long)1<<63)) != 0)
+            if ((b & ((long)1 << 63)) != 0)
             {
-                b ^= (long)1<<63;
+                b ^= (long)1 << 63;
             }
             else
             {
@@ -210,7 +210,8 @@ namespace WSNet2.Core
             checkLength(size);
 
             var obj = recycle;
-            if (obj == null) {
+            if (obj == null)
+            {
                 obj = new T();
             }
 
@@ -418,14 +419,14 @@ namespace WSNet2.Core
             }
 
             int b = 0;
-            for (var i=0; i<count; i++)
+            for (var i = 0; i < count; i++)
             {
                 if (i % 8 == 0)
                 {
                     b = Get8();
                 }
 
-                vals[i] = (b & (1 << (7-i%8))) != 0;
+                vals[i] = (b & (1 << (7 - i % 8))) != 0;
             }
 
             return vals;
@@ -686,9 +687,9 @@ namespace WSNet2.Core
             for (var i = 0; i < count; i++)
             {
                 var b = (int)Get32();
-                if ((b & (1<<31)) != 0)
+                if ((b & (1 << 31)) != 0)
                 {
-                    b ^= 1<<31;
+                    b ^= 1 << 31;
                 }
                 else
                 {
@@ -722,9 +723,9 @@ namespace WSNet2.Core
             for (var i = 0; i < count; i++)
             {
                 var b = (long)Get64();
-                if ((b & ((long)1<<63)) != 0)
+                if ((b & ((long)1 << 63)) != 0)
                 {
-                    b ^= (long)1<<63;
+                    b ^= (long)1 << 63;
                 }
                 else
                 {
@@ -824,7 +825,7 @@ namespace WSNet2.Core
         {
             checkLength(2);
             var n = (int)buf[pos] << 8;
-            n += (int)buf[pos+1];
+            n += (int)buf[pos + 1];
             pos += 2;
             return n;
         }
@@ -833,8 +834,8 @@ namespace WSNet2.Core
         {
             checkLength(3);
             var n = (int)buf[pos] << 16;
-            n += (int)buf[pos+1] << 8;
-            n += (int)buf[pos+2];
+            n += (int)buf[pos + 1] << 8;
+            n += (int)buf[pos + 2];
             pos += 3;
             return n;
         }
@@ -843,9 +844,9 @@ namespace WSNet2.Core
         {
             checkLength(4);
             var n = (uint)buf[pos] << 24;
-            n += (uint)buf[pos+1] << 16;
-            n += (uint)buf[pos+2] << 8;
-            n += (uint)buf[pos+3];
+            n += (uint)buf[pos + 1] << 16;
+            n += (uint)buf[pos + 2] << 8;
+            n += (uint)buf[pos + 3];
             pos += 4;
             return n;
         }
@@ -854,13 +855,13 @@ namespace WSNet2.Core
         {
             checkLength(8);
             var n = (ulong)buf[pos] << 56;
-            n += (ulong)buf[pos+1] << 48;
-            n += (ulong)buf[pos+2] << 40;
-            n += (ulong)buf[pos+3] << 32;
-            n += (ulong)buf[pos+4] << 24;
-            n += (ulong)buf[pos+5] << 16;
-            n += (ulong)buf[pos+6] << 8;
-            n += (ulong)buf[pos+7];
+            n += (ulong)buf[pos + 1] << 48;
+            n += (ulong)buf[pos + 2] << 40;
+            n += (ulong)buf[pos + 3] << 32;
+            n += (ulong)buf[pos + 4] << 24;
+            n += (ulong)buf[pos + 5] << 16;
+            n += (ulong)buf[pos + 6] << 8;
+            n += (ulong)buf[pos + 7];
             pos += 8;
             return n;
         }
@@ -880,7 +881,8 @@ namespace WSNet2.Core
         {
             checkLength(1);
             var t = (Type)buf[pos];
-            if (t != want) {
+            if (t != want)
+            {
                 var msg = String.Format("Type mismatch: {0} wants {1}", t, want);
                 throw new SerializationException(msg);
             }
@@ -893,7 +895,8 @@ namespace WSNet2.Core
         {
             checkLength(1);
             var t = (Type)buf[pos];
-            if (t != want1 && t != want2) {
+            if (t != want1 && t != want2)
+            {
                 var msg = String.Format("Type mismatch: {0} wants {1} or {2}", t, want1, want2);
                 throw new SerializationException(msg);
             }
@@ -906,7 +909,8 @@ namespace WSNet2.Core
         {
             checkLength(1);
             var t = (Type)buf[pos];
-            if (t != want1 && t != want2 && t != want3) {
+            if (t != want1 && t != want2 && t != want3)
+            {
                 var msg = String.Format("Type mismatch: {0} wants {1}, {2} or {3}", t, want1, want2, want3);
                 throw new SerializationException(msg);
             }
@@ -924,7 +928,7 @@ namespace WSNet2.Core
             object elem = null;
 
             var t = (Type)Enum.ToObject(typeof(Type), buf[pos]);
-            switch(t)
+            switch (t)
             {
                 case Type.Null:
                     break;
@@ -969,7 +973,7 @@ namespace WSNet2.Core
                     elem = ReadString();
                     break;
                 case Type.Obj:
-                    var cid = buf[pos+1];
+                    var cid = buf[pos + 1];
                     var read = readFuncs[cid];
                     if (read == null)
                     {

@@ -11,7 +11,7 @@ namespace WSNet2.DotnetClient
     {
         string str;
 
-        public StrMessage(){}
+        public StrMessage() { }
         public StrMessage(string str)
         {
             this.str = str;
@@ -41,7 +41,8 @@ namespace WSNet2.DotnetClient
 
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
-            while(true){
+            while (true)
+            {
                 ct.ThrowIfCancellationRequested();
                 cli.ProcessCallback();
                 await Task.Delay(1000);
@@ -55,7 +56,7 @@ namespace WSNet2.DotnetClient
         static void RPCMessages(string senderId, StrMessage[] msgs)
         {
             var strs = string.Join<StrMessage>(',', msgs);
-            Console.WriteLine($"OnRPCMessages [{senderId}]: {strs}"); 
+            Console.WriteLine($"OnRPCMessages [{senderId}]: {strs}");
         }
         static void RPCString(string senderId, string str)
         {
@@ -79,9 +80,10 @@ namespace WSNet2.DotnetClient
 
         static Cmd? getCmd(string[] args)
         {
-            if (args.Length > 0) {
+            if (args.Length > 0)
+            {
                 var arg = args[0];
-                foreach(var c in Enum.GetValues(typeof(Cmd)))
+                foreach (var c in Enum.GetValues(typeof(Cmd)))
                 {
                     if (arg == c.ToString())
                     {
@@ -108,11 +110,13 @@ namespace WSNet2.DotnetClient
                 10,
                 true,
                 false,
-                (rs) => {
+                (rs) =>
+                {
                     Console.WriteLine($"onSuccess: {rs.Length}");
                     roomsrc.TrySetResult(rs);
                 },
-                (e) => {
+                (e) =>
+                {
                     Console.WriteLine($"onFailed: {e}");
                     roomsrc.TrySetCanceled();
                 });
@@ -133,7 +137,7 @@ namespace WSNet2.DotnetClient
         static async Task Main(string[] args)
         {
             var cmd = getCmd(args);
-            if (cmd==null)
+            if (cmd == null)
             {
                 printHelp();
                 return;
@@ -170,7 +174,8 @@ namespace WSNet2.DotnetClient
             };
 
             var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Action<Room> onJoined = (Room room) => {
+            Action<Room> onJoined = (Room room) =>
+            {
                 roomJoined.TrySetResult(room);
 
                 room.OnError += (e) => Console.WriteLine($"OnError: {e}");
@@ -241,7 +246,7 @@ namespace WSNet2.DotnetClient
 
                 client.Create(roomOpt, cliProps, onJoined, onFailed, null);
             }
-            else if(cmd == Cmd.join)
+            else if (cmd == Cmd.join)
             {
                 var number = int.Parse(args[1]);
                 client.Join(number, null, cliProps, onJoined, onFailed, null);
@@ -258,17 +263,21 @@ namespace WSNet2.DotnetClient
                 var room = await roomJoined.Task;
                 var rp = "";
                 var rpp = "";
-                foreach (var kv in room.PublicProps){
+                foreach (var kv in room.PublicProps)
+                {
                     rp += $"{kv.Key}:{kv.Value},";
                 }
-                foreach (var kv in room.PrivateProps){
+                foreach (var kv in room.PrivateProps)
+                {
                     rpp += $"{kv.Key}:{kv.Value},";
                 }
                 Console.WriteLine($"joined room = {room.Id} [{room.Number}]; pub[{rp}] priv[{rpp}]");
 
-                foreach (var p in room.Players){
+                foreach (var p in room.Players)
+                {
                     var pp = $"  player {p.Key}: ";
-                    foreach (var kv in p.Value.Props) {
+                    foreach (var kv in p.Value.Props)
+                    {
                         pp += $"{kv.Key}:{kv.Value}, ";
                     }
                     Console.WriteLine(pp);
@@ -276,24 +285,25 @@ namespace WSNet2.DotnetClient
 
                 int i = 0;
 
-                while (true) {
+                while (true)
+                {
                     cts.Token.ThrowIfCancellationRequested();
                     var str = Console.ReadLine();
 
                     cts.Token.ThrowIfCancellationRequested();
 
-                    if (str=="leave")
+                    if (str == "leave")
                     {
                         room.Leave();
                         continue;
                     }
 
-                    if (str=="pause")
+                    if (str == "pause")
                     {
                         room.Pause();
                         continue;
                     }
-                    if (str=="restart")
+                    if (str == "restart")
                     {
                         room.Restart();
                         continue;
@@ -303,12 +313,13 @@ namespace WSNet2.DotnetClient
                     {
                         var newMaster = str.Substring("switchmaster ".Length);
                         Console.WriteLine($"switch master to {newMaster}");
-                        try{
+                        try
+                        {
                             room.SwitchMaster(
                                 room.Players[newMaster],
                                 (t, id) => Console.WriteLine($"SwitchMaster({id}) error: {t}"));
                         }
-                        catch(Exception e)
+                        catch (Exception e)
                         {
                             Console.WriteLine($"switch master error: {e.Message}");
                         }
@@ -319,10 +330,12 @@ namespace WSNet2.DotnetClient
                     {
                         var target = str.Substring("kick ".Length);
                         Console.WriteLine($"kick {target}");
-                        try{
+                        try
+                        {
                             room.Kick(room.Players[target]);
                         }
-                        catch(Exception e){
+                        catch (Exception e)
+                        {
                             Console.WriteLine($"kick error: {e.Message}");
                         }
                         continue;
@@ -350,7 +363,8 @@ namespace WSNet2.DotnetClient
                             clientDeadline: deadline,
                             publicProps: pubProps,
                             privateProps: privProps,
-                            onErrorResponse: (t,v,j,w,sg,mp,cd,pub,priv) => {
+                            onErrorResponse: (t, v, j, w, sg, mp, cd, pub, priv) =>
+                            {
                                 var f = !v.HasValue ? "-" : v.Value ? "V" : "x";
                                 f += !j.HasValue ? "-" : j.Value ? "J" : "x";
                                 f += !w.HasValue ? "-" : w.Value ? "W" : "x";
@@ -380,7 +394,7 @@ namespace WSNet2.DotnetClient
                         var strs = str.Split(' ');
                         if (strs.Length == 3)
                         {
-                            var prop = new Dictionary<string, object>(){{strs[1], strs[2]}};
+                            var prop = new Dictionary<string, object>() { { strs[1], strs[2] } };
                             room.ChangeMyProperty(prop);
                         }
                         else
@@ -390,7 +404,8 @@ namespace WSNet2.DotnetClient
                         continue;
                     }
 
-                    switch(i%3){
+                    switch (i % 3)
+                    {
                         case 0:
                             Console.WriteLine($"rpc to master: {str}");
                             var msg = new StrMessage(str);
@@ -418,7 +433,7 @@ namespace WSNet2.DotnetClient
             }
             catch (Exception e)
             {
-                Console.WriteLine("exception: "+e);
+                Console.WriteLine("exception: " + e);
                 cts.Cancel();
             }
         }

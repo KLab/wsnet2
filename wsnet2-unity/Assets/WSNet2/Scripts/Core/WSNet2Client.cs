@@ -72,9 +72,9 @@ namespace WSNet2.Core
         public void ProcessCallback()
         {
             callbackPool.Process();
-            lock(rooms)
+            lock (rooms)
             {
-                for (var i = rooms.Count-1; i >= 0; i--)
+                for (var i = rooms.Count - 1; i >= 0; i--)
                 {
                     rooms[i].ProcessCallback();
                     if (rooms[i].Closed)
@@ -132,7 +132,8 @@ namespace WSNet2.Core
             logger?.Debug("WSNet2Client.Create()");
 
             var authData = this.authData;
-            var param = new CreateParam(){
+            var param = new CreateParam()
+            {
                 roomOption = roomOption,
                 clientInfo = new ClientInfo(userId, clientProps),
                 encryptedMACKey = authData.EncryptedMACKey,
@@ -163,7 +164,8 @@ namespace WSNet2.Core
             logger?.Debug("WSNet2Client.Join(roomId={0})", roomId);
 
             var authData = this.authData;
-            var param = new JoinParam(){
+            var param = new JoinParam()
+            {
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
                 encryptedMACKey = authData.EncryptedMACKey,
@@ -193,7 +195,8 @@ namespace WSNet2.Core
             logger?.Debug("WSNet2Client.Join(number={0})", number);
 
             var authData = this.authData;
-            var param = new JoinParam(){
+            var param = new JoinParam()
+            {
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
                 encryptedMACKey = authData.EncryptedMACKey,
@@ -223,7 +226,8 @@ namespace WSNet2.Core
             logger?.Debug("WSNet2Client.RandomJoin(group={0})", group);
 
             var authData = this.authData;
-            var param = new JoinParam(){
+            var param = new JoinParam()
+            {
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId, clientProps),
                 encryptedMACKey = authData.EncryptedMACKey,
@@ -251,7 +255,8 @@ namespace WSNet2.Core
             logger?.Debug("WSNet2Client.Watch(roomId={0})", roomId);
 
             var authData = this.authData;
-            var param = new JoinParam(){
+            var param = new JoinParam()
+            {
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
                 encryptedMACKey = authData.EncryptedMACKey,
@@ -279,7 +284,8 @@ namespace WSNet2.Core
             logger?.Debug("WSNet2Client.Watch(number={0})", number);
 
             var authData = this.authData;
-            var param = new JoinParam(){
+            var param = new JoinParam()
+            {
                 queries = query?.condsList,
                 clientInfo = new ClientInfo(userId),
                 encryptedMACKey = authData.EncryptedMACKey,
@@ -328,7 +334,8 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.Search(group={0})", group);
 
-            var param = new SearchParam(){
+            var param = new SearchParam()
+            {
                 group = group,
                 queries = query?.condsList,
                 limit = limit,
@@ -382,7 +389,7 @@ namespace WSNet2.Core
                 callbackPool.Add(() =>
                 {
                     onSuccess(room);
-                    lock(rooms)
+                    lock (rooms)
                     {
                         rooms.Add(room);
                     }
@@ -406,7 +413,7 @@ namespace WSNet2.Core
                 var res = await post("/rooms/search", content);
                 var count = res.rooms?.Length ?? 0;
                 var rooms = new PublicRoom[count];
-                for (var i=0; i<count; i++)
+                for (var i = 0; i < count; i++)
                 {
                     rooms[i] = new PublicRoom(res.rooms[i]);
                 }

@@ -173,10 +173,11 @@ namespace WSNet2.Core
         /// </summary>
         internal async Task Start()
         {
-            try{
+            try
+            {
                 await con.Start();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 callbackPool.Add(() =>
                 {
@@ -205,7 +206,7 @@ namespace WSNet2.Core
         /// </summary>
         public int RegisterRPC(Action<string> rpc)
         {
-            return registerRPC(rpc, (senderId, reader) => rpc (senderId));
+            return registerRPC(rpc, (senderId, reader) => rpc(senderId));
         }
         public int RegisterRPC(Action<string, bool> rpc)
         {
@@ -624,7 +625,7 @@ namespace WSNet2.Core
             uint? clientDeadline = null,
             IDictionary<string, object> publicProps = null,
             IDictionary<string, object> privateProps = null,
-            Action<EvType,bool?,bool?,bool?,uint?,uint?,uint?,IDictionary<string,object>,IDictionary<string,object>> onErrorResponse = null)
+            Action<EvType, bool?, bool?, bool?, uint?, uint?, uint?, IDictionary<string, object>, IDictionary<string, object>> onErrorResponse = null)
         {
             if (Me != Master)
             {
@@ -953,7 +954,7 @@ namespace WSNet2.Core
             }
 
             logger?.Info("joined: {0}", ev.ClientID);
-            callbackPool.Add(()=>
+            callbackPool.Add(() =>
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
                 players[player.Id] = player;
@@ -1087,7 +1088,7 @@ namespace WSNet2.Core
             {
                 var player = players[ev.ClientID];
                 var props = ev.GetProps(player.Props);
-                foreach(var kv in props)
+                foreach (var kv in props)
                 {
                     player.Props[kv.Key] = kv.Value;
                 }

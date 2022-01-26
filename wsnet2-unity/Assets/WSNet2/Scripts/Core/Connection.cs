@@ -55,7 +55,7 @@ namespace WSNet2.Core
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
                 new ConcurrentStack<byte[]>(), WSNet2Settings.EvPoolSize);
-            for (var i = 0; i<WSNet2Settings.EvPoolSize; i++)
+            for (var i = 0; i < WSNet2Settings.EvPoolSize; i++)
             {
                 evBufPool.Add(new byte[WSNet2Settings.EvBufInitialSize]);
             }
@@ -147,7 +147,8 @@ namespace WSNet2.Core
                     cts.Cancel();
                 }
 
-                if (canceller.IsCancellationRequested) {
+                if (canceller.IsCancellationRequested)
+                {
                     return;
                 }
 
@@ -221,11 +222,11 @@ namespace WSNet2.Core
 
                     if (ev.IsRegular)
                     {
-                        if (ev.SequenceNum != evSeqNum+1)
+                        if (ev.SequenceNum != evSeqNum + 1)
                         {
                             // todo: reconnectable?
                             evBufPool.Add(ev.BufferArray);
-                            throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum+1}");
+                            throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum + 1}");
                         }
 
                         evSeqNum++;
@@ -235,8 +236,8 @@ namespace WSNet2.Core
                     {
                         case EvType.PeerReady:
                             var evpr = ev as EvPeerReady;
-                            var sender = Task.Run(async() => await Sender(ws, evpr.LastMsgSeqNum+1, ct));
-                            var pinger = Task.Run(async() => await Pinger(ws, ct));
+                            var sender = Task.Run(async () => await Sender(ws, evpr.LastMsgSeqNum + 1, ct));
+                            var pinger = Task.Run(async () => await Pinger(ws, ct));
                             senderTaskSource.TrySetResult(sender);
                             pingerTaskSource.TrySetResult(pinger);
                             break;
@@ -270,7 +271,7 @@ namespace WSNet2.Core
                 var pos = 0;
                 while (true)
                 {
-                    var seg = new ArraySegment<byte>(buf, pos, buf.Length-pos);
+                    var seg = new ArraySegment<byte>(buf, pos, buf.Length - pos);
                     var ret = await ws.ReceiveAsync(seg, ct);
 
                     if (ret.CloseStatus.HasValue)
@@ -283,7 +284,7 @@ namespace WSNet2.Core
                                 evBufPool.Add(buf);
                                 return new EvClosed(ret.CloseStatusDescription);
                             default:
-                                throw new Exception("ws status:("+ret.CloseStatus.Value+") "+ret.CloseStatusDescription);
+                                throw new Exception("ws status:(" + ret.CloseStatus.Value + ") " + ret.CloseStatusDescription);
                         }
                     }
 
@@ -294,7 +295,7 @@ namespace WSNet2.Core
                     }
 
                     // メッセージがbufに収まらないときはbufをリサイズして続きを受信
-                    Array.Resize(ref buf, buf.Length*2);
+                    Array.Resize(ref buf, buf.Length * 2);
                 }
 
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));

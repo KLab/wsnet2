@@ -20,7 +20,7 @@ namespace WSNet2.Core.Test
 
             // ()*() = ()
             query.And();
-            var expect = new object[]{new object[]{}};
+            var expect = new object[] { new object[] { } };
             Assert.AreEqual(
                 MessagePackSerializer.SerializeToJson(expect),
                 MessagePackSerializer.SerializeToJson(query.condsList));
@@ -102,7 +102,7 @@ namespace WSNet2.Core.Test
 
             // ()*() = ()
             query.Or();
-            var expect = new object[]{new object[]{}};
+            var expect = new object[] { new object[] { } };
             Assert.AreEqual(
                 MessagePackSerializer.Serialize(expect),
                 MessagePackSerializer.Serialize(query.condsList));
@@ -218,7 +218,7 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect), 
+                MessagePackSerializer.Serialize(expect),
                 MessagePackSerializer.Serialize(query.condsList));
         }
 
@@ -278,7 +278,7 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect), 
+                MessagePackSerializer.Serialize(expect),
                 MessagePackSerializer.Serialize(query.condsList));
 
             query.Equal("k3", 100);
@@ -345,13 +345,13 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect), 
+                MessagePackSerializer.Serialize(expect),
                 MessagePackSerializer.Serialize(query.condsList));
         }
 
         private byte[] serialize(int val)
         {
-            lock(writer)
+            lock (writer)
             {
                 writer.Reset();
                 writer.Write(val);
@@ -361,7 +361,7 @@ namespace WSNet2.Core.Test
 
         private byte[] serialize(string val)
         {
-            lock(writer)
+            lock (writer)
             {
                 writer.Reset();
                 writer.Write(val);
