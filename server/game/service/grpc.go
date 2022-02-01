@@ -130,3 +130,18 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 
 	return res, nil
 }
+
+func (sv *GameService) GetRoomInfo(ctx context.Context, in *pb.GetRoomInfoReq) (*pb.GetRoomInfoRes, error) {
+	log.Infof("GetRoomInfo: app=%v, room=%v, client=%v", in.AppId, in.RoomId)
+	repo, ok := sv.repos[in.AppId]
+	if !ok {
+		log.Infof("invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
+	}
+	res, err := repo.GetRoomInfo(ctx, in.RoomId)
+	if err != nil {
+		log.Errorf("GetRoomInfo failed: roomID=%v: %v", in.RoomId, err)
+		return nil, err
+	}
+	return res, err
+}

@@ -128,6 +128,16 @@ func msgNodeCount(sender *Client, m binary.Msg) (Msg, error) {
 	}, nil
 }
 
+// MsgGetRoomInfo : 部屋情報の取得
+type MsgGetRoomInfo struct {
+	Res chan<- *pb.GetRoomInfoRes
+}
+
+func (*MsgGetRoomInfo) msg() {}
+func (m *MsgGetRoomInfo) SenderID() ClientID {
+	return ClientID("<<<admin>>>") // TODO: これどうする？
+}
+
 // MsgLeave : 退室メッセージ
 // クライアントの自発的な退室リクエスト
 type MsgLeave struct {

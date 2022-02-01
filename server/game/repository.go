@@ -418,3 +418,34 @@ func (repo *Repository) GetRoomCount() int {
 	defer repo.mu.Unlock()
 	return len(repo.rooms)
 }
+
+func (repo *Repository) GetRoomInfo(ctx context.Context, id string) (*pb.GetRoomInfoRes, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
+	room, err := repo.GetRoom(id)
+	if err != nil {
+		return nil, WithCode(xerrors.Errorf("GetRoomInfo: %w", err), codes.NotFound)
+	}
+
+	ch := make(chan *pb.GetRoomInfoRes, 1)
+	msg := &MsgGetRoomInfo{Res: ch}
+	select {
+	case <-ctx.Done():
+		return nil, WithCode(
+			xerrors.Errorf("GetRoomInfo write msg timeout or context done: room=%v", room.Id),
+			codes.DeadlineExceeded)
+	case room.msgCh <- msg:
+	}
+
+	var res *pb.GetRoomInfoRes
+	select {
+	case <-ctx.Done():
+		return nil, WithCode(
+			xerrors.Errorf("GetRoomInfo response timeout or context done: room=%v", room.Id),
+			codes.DeadlineExceeded)
+	case res = <-ch:
+	}
+
+	return res, nil
+}

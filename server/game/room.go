@@ -291,6 +291,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgSwitchMaster(m)
 	case *MsgKick:
 		return r.msgKick(m)
+	case *MsgGetRoomInfo:
+		return r.msgGetRoomInfo(m)
 	case *MsgClientError:
 		return r.msgClientError(m)
 	default:
@@ -658,6 +660,24 @@ func (r *Room) msgKick(msg *MsgKick) error {
 	r.muClients.RUnlock()
 
 	r.removeClient(target, xerrors.Errorf("client kicked: room=%v client=%v", r.ID(), target.Id))
+	return nil
+}
+
+func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
+	ri := r.RoomInfo.Clone()
+
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+	cis := make([]*pb.ClientInfo, len(r.masterOrder))
+	for _, id := range r.masterOrder {
+		cis = append(cis, r.players[id].ClientInfo.Clone())
+	}
+
+	msg.Res <- &pb.GetRoomInfoRes{
+		RoomInfo:    ri,
+		ClientInfos: cis,
+	}
+
 	return nil
 }
 

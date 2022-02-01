@@ -11,6 +11,7 @@ service Game {
 	rpc Create (CreateRoomReq) returns (JoinedRoomRes);
 	rpc Join (JoinRoomReq) returns (JoinedRoomRes);
 	rpc Watch (JoinRoomReq) returns (JoinedRoomRes);
+	rpc GetRoomInfo (GetRoomInfoReq) returns (GetRoomInfoRes);
 }
 
 message CreateRoomReq {
@@ -44,4 +45,14 @@ message JoinedRoomRes {
 
 	// client read deadline
 	uint32 deadline = 6;
+}
+
+message GetRoomInfoReq {
+	string app_id = 1;
+	string room_id = 2;
+}
+
+message GetRoomInfoRes {
+	RoomInfo room_info = 1;
+	repeated ClientInfo client_infos = 2;
 }
