@@ -298,15 +298,12 @@ namespace WSNet2.Core
                         break;
                     }
 
-                    // バッファの空きが少ないときは拡張する
+                    // バッファの空きが少ないときは拡張して続きを受信
                     if (buf.Length - pos < EvBufExpandSize)
                     {
                         var expandSize = (buf.Length < EvBufExpandSize) ? buf.Length : EvBufExpandSize;
                         Array.Resize(ref buf, buf.Length + expandSize);
                     }
-
-                    // メッセージがbufに収まらないときはbufをリサイズして続きを受信
-                    Array.Resize(ref buf, buf.Length * 2);
                 }
 
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
