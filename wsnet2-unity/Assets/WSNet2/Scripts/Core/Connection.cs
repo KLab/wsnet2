@@ -9,6 +9,10 @@ namespace WSNet2.Core
 {
     class Connection
     {
+        /// <summary>受信バッファ拡張単位</summary>
+        /// <remarks>Ethernet frame payload size</remarks>
+        const int EvBufExpandSize = 1500;
+
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         public MsgPool msgPool { get; private set; }
@@ -294,8 +298,12 @@ namespace WSNet2.Core
                         break;
                     }
 
-                    // メッセージがbufに収まらないときはbufをリサイズして続きを受信
-                    Array.Resize(ref buf, buf.Length * 2);
+                    // バッファの空きが少ないときは拡張して続きを受信
+                    if (buf.Length - pos < EvBufExpandSize)
+                    {
+                        var expandSize = (buf.Length < EvBufExpandSize) ? buf.Length : EvBufExpandSize;
+                        Array.Resize(ref buf, buf.Length + expandSize);
+                    }
                 }
 
                 return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
