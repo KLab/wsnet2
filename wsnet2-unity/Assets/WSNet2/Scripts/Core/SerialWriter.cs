@@ -918,6 +918,8 @@ namespace WSNet2.Core
                 case IEnumerable e:
                     Write(e);
                     break;
+                default:
+                    throw new SerializationException($"unknown element type: {elem.GetType()}");
             }
 
             var size = pos - start;
