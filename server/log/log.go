@@ -148,7 +148,8 @@ func InitLogger(logconf *config.LogConf) func() {
 		core = zapcore.NewTee(core, core2)
 	}
 
-	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true))
+	host, _ := os.Hostname()
+	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true)).With(zap.String("host", host))
 	rootLogger = logger
 	wrappedLogger = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
 
