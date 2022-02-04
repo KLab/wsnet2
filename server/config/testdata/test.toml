@@ -9,6 +9,7 @@ hostname = "wsnetgame.localhost"
 retry_count = 3
 heartbeat_interval = "10s"
 max_rooms = 123
+max_clients = 1234
 
 log_stdout_console = true
 log_stdout_level = 3
