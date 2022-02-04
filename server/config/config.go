@@ -63,6 +63,8 @@ type GameConf struct {
 
 	// MaxRooms : 最大部屋数
 	MaxRooms int `toml:"max_rooms"`
+	// MaxClients : サーバ当たりの最大クライアント数
+	MaxClients int `toml:"max_clients"`
 
 	DefaultMaxPlayers uint32 `toml:"default_max_players"`
 	DefaultDeadline   uint32 `toml:"default_deadline"`
@@ -87,6 +89,9 @@ type HubConf struct {
 
 	TLSCert string `toml:"tls_cert"`
 	TLSKey  string `toml:"tls_key"`
+
+	// MaxClients : サーバ当たりの最大クライアント数
+	MaxClients int `toml:"max_clients"`
 
 	DefaultLoglevel uint32 `toml:"default_loglevel"`
 
@@ -154,7 +159,8 @@ func Load(conffile string) (*Config, error) {
 			RetryCount: 5,
 			MaxRoomNum: 999999,
 
-			MaxRooms: 1000,
+			MaxRooms:   1000,
+			MaxClients: 5000,
 
 			DefaultMaxPlayers: 10,
 			DefaultDeadline:   5,
@@ -176,6 +182,8 @@ func Load(conffile string) (*Config, error) {
 		Hub: HubConf{
 			Hostname:   hostname,
 			PublicName: hostname,
+
+			MaxClients: 5000,
 
 			DefaultLoglevel: 2,
 
