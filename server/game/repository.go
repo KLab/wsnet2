@@ -203,7 +203,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	repo.mu.RLock()
 	clients := len(repo.clients)
 	repo.mu.RUnlock()
-	if clients >= repo.conf.MaxClients && !client.IsHub { /* 上限に達していてもHubからの接続は受け付ける */
+	if clients >= repo.conf.MaxClients && !client.IsHub { // 上限に達していてもHubからの接続は受け付ける
 		return nil, WithCode(
 			xerrors.Errorf("reached to the max_clients"), codes.ResourceExhausted)
 	}
