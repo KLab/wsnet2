@@ -120,10 +120,15 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 
 	repo.mu.RLock()
 	rooms := len(repo.rooms)
+	clients := len(repo.clients)
 	repo.mu.RUnlock()
 	if rooms >= repo.conf.MaxRooms {
 		return nil, WithCode(
 			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
+	}
+	if clients >= repo.conf.MaxClients {
+		return nil, WithCode(
+			xerrors.Errorf("reached to the max_clients"), codes.ResourceExhausted)
 	}
 
 	tx, err := repo.db.Beginx()
@@ -194,6 +199,14 @@ func (repo *Repository) WatchRoom(ctx context.Context, id string, client *pb.Cli
 func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.ClientInfo, macKey string, isPlayer bool) (*pb.JoinedRoomRes, ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
+
+	repo.mu.RLock()
+	clients := len(repo.clients)
+	repo.mu.RUnlock()
+	if clients >= repo.conf.MaxClients {
+		return nil, WithCode(
+			xerrors.Errorf("reached to the max_clients"), codes.ResourceExhausted)
+	}
 
 	room, err := repo.GetRoom(id)
 	if err != nil {

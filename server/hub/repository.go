@@ -89,6 +89,14 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
+	r.mu.RLock()
+	clients := len(r.clients)
+	r.mu.RUnlock()
+	if clients >= r.conf.MaxClients {
+		return nil, game.WithCode(
+			xerrors.Errorf("reached to the max_clients"), codes.ResourceExhausted)
+	}
+
 	hub, err := r.GetOrCreateHub(appId, roomId)
 	if err != nil {
 		return nil, game.WithCode(xerrors.Errorf("WatchRoom: %w", err), codes.NotFound)
