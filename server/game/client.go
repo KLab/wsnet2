@@ -304,6 +304,16 @@ func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
 	return nil
 }
 
+func (c *Client) sendNewPeer(p *Peer) error {
+	select {
+	case <-c.removed:
+		c.room.Logger().Debugf("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
+		return xerrors.Errorf("client has been removed %s", c.removeCause)
+	case c.newPeer <- p:
+		return nil
+	}
+}
+
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
 func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
@@ -340,8 +350,7 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 		c.peer.Close("new peer attached")
 	}
 	c.peer = p
-	c.newPeer <- p
-	return nil
+	return c.sendNewPeer(p)
 }
 
 // DetachPeer : peerを切り離す.
@@ -362,7 +371,7 @@ func (c *Client) DetachPeer(p *Peer) {
 		c.room.Logger().Debugf("client has been done: client=%v peer=%p", c.Id, p)
 		return // すでにMsgLoopから抜けている
 	}
-	c.newPeer <- nil
+	_ = c.sendNewPeer(nil)
 	c.waitPeer = make(chan *Peer, 1)
 }
 
@@ -385,7 +394,7 @@ func (c *Client) DetachAndClosePeer(p *Peer, err error) {
 		c.room.Logger().Debugf("client has been done: client=%v peer=%p", c.Id, p)
 		return // すでにMsgLoopから抜けている
 	}
-	c.newPeer <- nil
+	_ = c.sendNewPeer(nil)
 	c.waitPeer = make(chan *Peer, 1)
 }
 
