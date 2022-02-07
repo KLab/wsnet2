@@ -47,10 +47,6 @@ const (
 	// payload:
 	// - UInt: node count
 	MsgTypeNodeCount
-
-	// MsgTypeGetRoomInfo : 部屋情報取得
-	// payload: なし
-	MsgTypeGetRoomInfo
 )
 const (
 	// regular msg
