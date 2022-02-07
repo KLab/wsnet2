@@ -666,8 +666,8 @@ func (r *Room) msgKick(msg *MsgKick) error {
 func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 	ri := r.RoomInfo.Clone()
 
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	cis := make([]*pb.ClientInfo, len(r.masterOrder))
 	for _, id := range r.masterOrder {
 		cis = append(cis, r.players[id].ClientInfo.Clone())
