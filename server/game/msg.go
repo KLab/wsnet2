@@ -9,8 +9,6 @@ import (
 	"wsnet2/pb"
 )
 
-const adminID = "#[admin]"
-
 type Msg interface {
 	msg()
 	SenderID() ClientID
@@ -137,7 +135,7 @@ type MsgGetRoomInfo struct {
 
 func (*MsgGetRoomInfo) msg() {}
 func (m *MsgGetRoomInfo) SenderID() ClientID {
-	return ClientID(adminID)
+	return ClientID("")
 }
 
 // MsgLeave : 退室メッセージ
