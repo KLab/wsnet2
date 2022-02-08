@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -291,6 +292,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgSwitchMaster(m)
 	case *MsgKick:
 		return r.msgKick(m)
+	case *MsgAdminKick:
+		return r.msgAdminKick(m)
 	case *MsgGetRoomInfo:
 		return r.msgGetRoomInfo(m)
 	case *MsgClientError:
@@ -660,6 +663,21 @@ func (r *Room) msgKick(msg *MsgKick) error {
 	r.muClients.RUnlock()
 
 	r.removeClient(target, xerrors.Errorf("client kicked: room=%v client=%v", r.ID(), target.Id))
+	return nil
+}
+
+func (r *Room) msgAdminKick(msg *MsgAdminKick) error {
+	r.muClients.RLock()
+	target, ok := r.players[msg.Target]
+	r.muClients.RUnlock() // msgKick と違って sendTo() を使わないのですぐにアンロックする
+
+	if !ok {
+		msg.Res <- fmt.Errorf("MsgAdminKick: player not found: room=%v, target=%v", r.Id, msg.Target)
+		return nil
+	}
+
+	r.removeClient(target, fmt.Errorf("client kicked by admin: room=%v client=%v", r.ID(), msg.Target))
+	msg.Res <- nil
 	return nil
 }
 

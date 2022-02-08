@@ -12,7 +12,10 @@ service Game {
 	rpc Join (JoinRoomReq) returns (JoinedRoomRes);
 	rpc Watch (JoinRoomReq) returns (JoinedRoomRes);
 	rpc GetRoomInfo (GetRoomInfoReq) returns (GetRoomInfoRes);
+	rpc Kick (KickReq) returns (Empty);
 }
+
+message Empty {}
 
 message CreateRoomReq {
 	string app_id = 1;
@@ -55,4 +58,10 @@ message GetRoomInfoReq {
 message GetRoomInfoRes {
 	RoomInfo room_info = 1;
 	repeated ClientInfo client_infos = 2;
+}
+
+message KickReq {
+	string app_id = 1;
+	string room_id = 2;
+	string client_id = 3;
 }

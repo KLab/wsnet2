@@ -129,13 +129,28 @@ func msgNodeCount(sender *Client, m binary.Msg) (Msg, error) {
 }
 
 // MsgGetRoomInfo : 部屋情報の取得
+// gRPCから実行される
 type MsgGetRoomInfo struct {
 	Res chan<- *pb.GetRoomInfoRes
 }
 
+var adminClientID = ClientID("")
+
 func (*MsgGetRoomInfo) msg() {}
 func (m *MsgGetRoomInfo) SenderID() ClientID {
-	return ClientID("")
+	return adminClientID
+}
+
+// MsgAdmingKick : 指定したClientをKickする
+// gRPCから実行される
+type MsgAdminKick struct {
+	Target ClientID
+	Res    chan<- error
+}
+
+func (*MsgAdminKick) msg() {}
+func (m *MsgAdminKick) SenderID() ClientID {
+	return adminClientID
 }
 
 // MsgLeave : 退室メッセージ

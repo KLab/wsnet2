@@ -449,3 +449,35 @@ func (repo *Repository) GetRoomInfo(ctx context.Context, id string) (*pb.GetRoom
 
 	return res, nil
 }
+
+func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
+	room, err := repo.GetRoom(roomID)
+	if err != nil {
+		return WithCode(xerrors.Errorf("AdminKick: can not find room %q; %w", roomID, err), codes.NotFound)
+	}
+
+	ch := make(chan error, 1)
+	msg := &MsgAdminKick{
+		Target: ClientID(userID),
+		Res:    ch,
+	}
+	select {
+	case <-ctx.Done():
+		return WithCode(
+			xerrors.Errorf("AdminKick write msg timeout or context done: room=%v", room.Id),
+			codes.DeadlineExceeded)
+	case room.msgCh <- msg:
+	}
+
+	select {
+	case <-ctx.Done():
+		return WithCode(
+			xerrors.Errorf("GetRoomInfo response timeout or context done: room=%v", room.Id),
+			codes.DeadlineExceeded)
+	case err = <-ch:
+		return err
+	}
+}
