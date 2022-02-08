@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
-	"strings"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -55,9 +54,6 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 // ValidAuthdataHash validate authdata hash.
 // This function does not check the timestamp in authdata.
 func ValidAuthDataHash(authData, key, userId string) ([]byte, error) {
-	if strings.HasPrefix(userId, "#") {
-		return nil, xerrors.Errorf("invalid user ID: %q", userId)
-	}
 	d, err := base64.StdEncoding.DecodeString(authData)
 	if err != nil {
 		return nil, xerrors.Errorf("invalid authdata: %w", err)
