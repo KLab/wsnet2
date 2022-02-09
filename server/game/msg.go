@@ -27,6 +27,8 @@ var _ Msg = &MsgSwitchMaster{}
 var _ Msg = &MsgKick{}
 var _ Msg = &MsgClientError{}
 
+const adminClientID = ClientID("")
+
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
 type JoinedInfo struct {
 	Room     *pb.RoomInfo
@@ -126,6 +128,29 @@ func msgNodeCount(sender *Client, m binary.Msg) (Msg, error) {
 		Sender: sender,
 		Count:  count,
 	}, nil
+}
+
+// MsgGetRoomInfo : 部屋情報の取得
+// gRPCから実行される
+type MsgGetRoomInfo struct {
+	Res chan<- *pb.GetRoomInfoRes
+}
+
+func (*MsgGetRoomInfo) msg() {}
+func (m *MsgGetRoomInfo) SenderID() ClientID {
+	return adminClientID
+}
+
+// MsgAdmingKick : 指定したClientをKickする
+// gRPCから実行される
+type MsgAdminKick struct {
+	Target ClientID
+	Res    chan<- error
+}
+
+func (*MsgAdminKick) msg() {}
+func (m *MsgAdminKick) SenderID() ClientID {
+	return adminClientID
 }
 
 // MsgLeave : 退室メッセージ

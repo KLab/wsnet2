@@ -50,7 +50,7 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 }
 
 func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.JoinedRoomRes, error) {
-	log.Infof("Create request: %v, master=%v", in.AppId, in.MasterInfo.Id)
+	log.Infof("gRPC Create request: %v, master=%v", in.AppId, in.MasterInfo.Id)
 	sv.fillRoomOption(in.RoomOption)
 	log.Debugf("option: %v", in.RoomOption)
 	log.Debugf("master: %v", in.MasterInfo)
@@ -87,7 +87,7 @@ func (sv *GameService) fillRoomOption(op *pb.RoomOption) {
 }
 
 func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
-	log.Infof("Join request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
+	log.Infof("gRPC Join request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
 	log.Debugf("client: %v", in.ClientInfo)
 
 	repo, ok := sv.repos[in.AppId]
@@ -110,7 +110,7 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 }
 
 func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
-	log.Infof("Watch request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
+	log.Infof("gRPC Watch request: %v, room=%v, client=%v", in.AppId, in.RoomId, in.ClientInfo.Id)
 
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
@@ -129,4 +129,33 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 	log.Infof("Watch room: room=%v, client=%v", res.RoomInfo.Id, in.ClientInfo.Id)
 
 	return res, nil
+}
+
+func (sv *GameService) GetRoomInfo(ctx context.Context, in *pb.GetRoomInfoReq) (*pb.GetRoomInfoRes, error) {
+	log.Infof("gRPC GetRoomInfo: app=%v, room=%v, client=%v", in.AppId, in.RoomId)
+	repo, ok := sv.repos[in.AppId]
+	if !ok {
+		log.Infof("invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
+	}
+	res, err := repo.GetRoomInfo(ctx, in.RoomId)
+	if err != nil {
+		log.Errorf("GetRoomInfo failed: roomID=%v: %v", in.RoomId, err)
+		return nil, err
+	}
+	return res, err
+}
+
+func (sv *GameService) Kick(ctx context.Context, in *pb.KickReq) (*pb.Empty, error) {
+	log.Infof("gRPC Kick: %+v", in)
+	repo, ok := sv.repos[in.AppId]
+	if !ok {
+		log.Infof("invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
+	}
+	err := repo.AdminKick(ctx, in.RoomId, in.ClientId)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
 }
