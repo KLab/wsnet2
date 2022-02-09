@@ -17,6 +17,11 @@ type JoinParam struct {
 	EncMACKey  string              `json:"emk"`
 }
 
+type ListParam struct {
+	RoomIDs []string            `json:"ids"`
+	Queries []lobby.PropQueries `json:"query"`
+}
+
 type SearchParam struct {
 	SearchGroup    uint32              `json:"group"`
 	Queries        []lobby.PropQueries `json:"query"`
