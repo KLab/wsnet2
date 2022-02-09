@@ -27,6 +27,8 @@ var _ Msg = &MsgSwitchMaster{}
 var _ Msg = &MsgKick{}
 var _ Msg = &MsgClientError{}
 
+const adminClientID = ClientID("")
+
 // JoinedInfo : MsgCreate/MsgJoin成功時点の情報
 type JoinedInfo struct {
 	Room     *pb.RoomInfo
@@ -133,8 +135,6 @@ func msgNodeCount(sender *Client, m binary.Msg) (Msg, error) {
 type MsgGetRoomInfo struct {
 	Res chan<- *pb.GetRoomInfoRes
 }
-
-var adminClientID = ClientID("")
 
 func (*MsgGetRoomInfo) msg() {}
 func (m *MsgGetRoomInfo) SenderID() ClientID {
