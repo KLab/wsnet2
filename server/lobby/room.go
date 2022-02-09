@@ -243,7 +243,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 }
 
 func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, error) {
-	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
+	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinAtRandom: RoomCache error: %w", err)
 	}
@@ -303,8 +303,8 @@ func (rs *RoomService) List(ctx context.Context, appId string, roomIds []string,
 	return filter(rooms, props, queries, len(rooms), false, false), nil
 }
 
-func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
-	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
+func (rs *RoomService) Search(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
+	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
 	}

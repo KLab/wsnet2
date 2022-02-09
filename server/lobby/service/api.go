@@ -87,7 +87,7 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
 	r.HandleFunc("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom).Methods("POST")
 	r.HandleFunc("/rooms/list", sv.handleListRooms).Methods("POST")
-	r.HandleFunc("/rooms/search", sv.handleSearchRoom).Methods("POST")
+	r.HandleFunc("/rooms/search", sv.handleSearchRooms).Methods("POST")
 	r.HandleFunc("/rooms/watch/id/{roomId}", sv.handleWatchRoom).Methods("POST")
 	r.HandleFunc("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber).Methods("POST")
 }
@@ -382,7 +382,7 @@ func (sv *LobbyService) handleListRooms(w http.ResponseWriter, r *http.Request) 
 	renderFoundRoomsResponse(w, rooms)
 }
 
-func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request) {
+func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
 
 	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
@@ -401,10 +401,10 @@ func (sv *LobbyService) handleSearchRoom(w http.ResponseWriter, r *http.Request)
 
 	log.Debugf("%#v", param)
 
-	rooms, err := sv.roomService.Search(
+	rooms, err := sv.roomService.Search(r.Context(),
 		h.appId, param.SearchGroup, param.Queries, int(param.Limit), param.CheckJoinable, param.CheckWatchable)
 	if err != nil {
-		renderErrorResponse(w, "Failed to search room", http.StatusInternalServerError, err)
+		renderErrorResponse(w, "Failed to search rooms", http.StatusInternalServerError, err)
 		return
 	}
 	log.Debugf("%#v", rooms)
