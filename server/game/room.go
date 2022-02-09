@@ -47,6 +47,10 @@ type Room struct {
 	playerLogs []roomPlayerLog
 
 	logger *zap.SugaredLogger
+
+	chRoomInfo   chan struct{}
+	mRoomInfo    sync.Mutex // used by updateRoomInfo
+	lastRoomInfo *pb.RoomInfo
 }
 
 type roomPlayerLog struct {
@@ -84,10 +88,14 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 		lastMsg:     make(binary.Dict),
 
 		logger: log.Get(loglevel).With(zap.String("room", info.Id)).Sugar(),
+
+		chRoomInfo:   make(chan struct{}, 1),
+		lastRoomInfo: info.Clone(),
 	}
 
 	metrics.Rooms.Add(1)
 	go r.MsgLoop()
+	go r.roomInfoUpdater()
 
 	jch := make(chan *JoinedInfo, 1)
 	ech := make(chan ErrorWithCode, 1)
@@ -237,11 +245,48 @@ func (r *Room) removePlayer(c *Client, err error) {
 	}
 
 	r.RoomInfo.Players = uint32(len(r.players))
-	r.repo.updateRoomInfo(r)
+	r.updateRoomInfo()
 
 	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
 
 	r.removeLastMsg(cid)
+}
+
+func (r *Room) roomInfoUpdater() {
+	for {
+		select {
+		case <-r.done:
+			return
+		case <-r.chRoomInfo:
+			for {
+				// mRoomInfo.Lock() はすぐにロック取れるので、先にDB接続を確保する
+				conn, err := r.repo.db.Connx(context.Background())
+				if err != nil {
+					log.Errorf("roomInfoUpdater(): failed to get db conn: %v", err)
+					time.Sleep(time.Second)
+					continue
+				}
+
+				r.mRoomInfo.Lock()
+				ri := r.lastRoomInfo
+				r.mRoomInfo.Unlock()
+
+				r.repo.updateRoomInfo(ri, conn) // closes conn
+				break
+			}
+		}
+	}
+}
+
+func (r *Room) updateRoomInfo() {
+	r.mRoomInfo.Lock()
+	r.lastRoomInfo = r.RoomInfo.Clone()
+	r.mRoomInfo.Unlock()
+
+	select {
+	case r.chRoomInfo <- struct{}{}:
+	default:
+	}
 }
 
 func (r *Room) removeWatcher(c *Client, err error) {
@@ -259,8 +304,7 @@ func (r *Room) removeWatcher(c *Client, err error) {
 	delete(r.watchers, cid)
 
 	r.RoomInfo.Watchers -= c.nodeCount
-	r.repo.updateRoomInfo(r)
-
+	r.updateRoomInfo()
 	c.Removed(err)
 }
 
@@ -399,7 +443,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		TimeStamp: time.Now(),
 	})
 	r.RoomInfo.Players = uint32(len(r.players))
-	r.repo.updateRoomInfo(r)
+	r.updateRoomInfo()
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := client.ClientInfo.Clone()
@@ -447,7 +491,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	}
 	r.watchers[client.ID()] = client
 	r.RoomInfo.Watchers += client.nodeCount
-	r.repo.updateRoomInfo(r)
+	r.updateRoomInfo()
 
 	rinfo := r.RoomInfo.Clone()
 	players := make([]*pb.ClientInfo, 0, len(r.players))
@@ -475,7 +519,7 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 	r.RoomInfo.Watchers = (r.RoomInfo.Watchers - c.nodeCount) + msg.Count
 	r.logger.Debugf("Update NodeCount: %v before=%v after=%v (total=%v)", c.ID(), c.nodeCount, msg.Count, r.RoomInfo.Watchers)
 	c.nodeCount = msg.Count
-	r.repo.updateRoomInfo(r)
+	r.updateRoomInfo()
 	return nil
 }
 
@@ -525,7 +569,7 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 		r.logger.Debugf("Room update PrivateProps: %v", r.privateProps)
 	}
 
-	r.repo.updateRoomInfo(r)
+	r.updateRoomInfo()
 
 	if msg.ClientDeadline != 0 {
 		deadline := time.Duration(msg.ClientDeadline) * time.Second
