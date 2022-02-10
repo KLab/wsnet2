@@ -17,15 +17,15 @@ type JoinParam struct {
 	EncMACKey  string              `json:"emk"`
 }
 
-type ListParam struct {
-	RoomIDs []string            `json:"ids"`
-	Queries []lobby.PropQueries `json:"query"`
-}
-
 type SearchParam struct {
 	SearchGroup    uint32              `json:"group"`
 	Queries        []lobby.PropQueries `json:"query"`
 	Limit          uint32              `json:"limit"`
 	CheckJoinable  bool                `json:"joinable,omitempty"`
 	CheckWatchable bool                `json:"watchable,omitempty"`
+}
+
+type SearchByIdsParam struct {
+	RoomIDs []string            `json:"ids"`
+	Queries []lobby.PropQueries `json:"query"`
 }

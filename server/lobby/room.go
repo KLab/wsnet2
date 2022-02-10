@@ -277,7 +277,16 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 		http.StatusOK, "No joinable room found")
 }
 
-func (rs *RoomService) List(ctx context.Context, appId string, roomIds []string, queries []PropQueries) ([]*pb.RoomInfo, error) {
+func (rs *RoomService) Search(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
+	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
+	if err != nil {
+		return nil, xerrors.Errorf("RoomCache error: %w", err)
+	}
+
+	return filter(rooms, props, queries, limit, joinable, watchable), nil
+}
+
+func (rs *RoomService) SearchByIds(ctx context.Context, appId string, roomIds []string, queries []PropQueries) ([]*pb.RoomInfo, error) {
 	if len(roomIds) == 0 {
 		return []*pb.RoomInfo{}, nil
 	}
@@ -301,15 +310,6 @@ func (rs *RoomService) List(ctx context.Context, appId string, roomIds []string,
 		}
 	}
 	return filter(rooms, props, queries, len(rooms), false, false), nil
-}
-
-func (rs *RoomService) Search(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
-	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
-	if err != nil {
-		return nil, xerrors.Errorf("RoomCache error: %w", err)
-	}
-
-	return filter(rooms, props, queries, limit, joinable, watchable), nil
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {

@@ -86,8 +86,8 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	r.HandleFunc("/rooms/join/id/{roomId}", sv.handleJoinRoom).Methods("POST")
 	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
 	r.HandleFunc("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom).Methods("POST")
-	r.HandleFunc("/rooms/list", sv.handleListRooms).Methods("POST")
 	r.HandleFunc("/rooms/search", sv.handleSearchRooms).Methods("POST")
+	r.HandleFunc("/rooms/search/ids", sv.handleSearchByIds).Methods("POST")
 	r.HandleFunc("/rooms/watch/id/{roomId}", sv.handleWatchRoom).Methods("POST")
 	r.HandleFunc("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber).Methods("POST")
 }
@@ -354,34 +354,6 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	renderJoinedRoomResponse(w, room)
 }
 
-func (sv *LobbyService) handleListRooms(w http.ResponseWriter, r *http.Request) {
-	h := parseSpecificHeader(r)
-
-	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
-
-	if _, err := sv.authUser(h); err != nil {
-		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
-		return
-	}
-
-	var param ListParam
-	err := msgpackDecode(r.Body, &param)
-	if err != nil {
-		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
-		return
-	}
-
-	log.Debugf("%#v", param)
-
-	rooms, err := sv.roomService.List(r.Context(), h.appId, param.RoomIDs, param.Queries)
-	if err != nil {
-		renderErrorResponse(w, "Failed to list rooms", http.StatusInternalServerError, err)
-		return
-	}
-
-	renderFoundRoomsResponse(w, rooms)
-}
-
 func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
 
@@ -408,6 +380,34 @@ func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request
 		return
 	}
 	log.Debugf("%#v", rooms)
+
+	renderFoundRoomsResponse(w, rooms)
+}
+
+func (sv *LobbyService) handleSearchByIds(w http.ResponseWriter, r *http.Request) {
+	h := parseSpecificHeader(r)
+
+	log.Infof("handleSearchRoom: appID=%s, userID=%s", h.appId, h.userId)
+
+	if _, err := sv.authUser(h); err != nil {
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err)
+		return
+	}
+
+	var param SearchByIdsParam
+	err := msgpackDecode(r.Body, &param)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err)
+		return
+	}
+
+	log.Debugf("%#v", param)
+
+	rooms, err := sv.roomService.SearchByIds(r.Context(), h.appId, param.RoomIDs, param.Queries)
+	if err != nil {
+		renderErrorResponse(w, "Failed to list rooms", http.StatusInternalServerError, err)
+		return
+	}
 
 	renderFoundRoomsResponse(w, rooms)
 }
