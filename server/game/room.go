@@ -260,18 +260,26 @@ func (r *Room) roomInfoUpdater() {
 		case <-r.chRoomInfo:
 			for {
 				// mRoomInfo.Lock() はすぐにロック取れるので、先にDB接続を確保する
+				t1 := time.Now()
 				conn, err := r.repo.db.Connx(context.Background())
 				if err != nil {
 					log.Errorf("roomInfoUpdater(): failed to get db conn: %v", err)
 					time.Sleep(time.Second)
 					continue
 				}
+				if d := time.Since(t1); d > time.Second {
+					log.Infof("roomInfoUpdater(): took %v to get a db conn", d)
+				}
 
 				r.mRoomInfo.Lock()
 				ri := r.lastRoomInfo
 				r.mRoomInfo.Unlock()
 
-				r.repo.updateRoomInfo(ri, conn) // closes conn
+				r.repo.updateRoomInfo(ri, conn)
+				conn.Close()
+				if d := time.Since(t1); d > time.Second {
+					log.Infof("roomInfoUpdater(): took %v to update room info", d)
+				}
 				break
 			}
 		}
