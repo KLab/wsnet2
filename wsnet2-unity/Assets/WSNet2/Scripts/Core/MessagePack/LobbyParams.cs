@@ -47,4 +47,14 @@ namespace WSNet2.Core
         [Key("watchable")]
         public bool checkWatchable;
     }
+
+    [MessagePackObject]
+    public class SearchByIdsParam
+    {
+        [Key("ids")]
+        public string[] ids;
+
+        [Key("query")]
+        public List<List<Query.Condition>> queries;
+    }
 }
