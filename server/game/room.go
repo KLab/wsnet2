@@ -277,9 +277,6 @@ func (r *Room) roomInfoUpdater() {
 
 				r.repo.updateRoomInfo(ri, conn)
 				conn.Close()
-				if d := time.Since(t1); d > time.Second {
-					log.Infof("roomInfoUpdater(): took %v to update room info", d)
-				}
 				break
 			}
 		}
