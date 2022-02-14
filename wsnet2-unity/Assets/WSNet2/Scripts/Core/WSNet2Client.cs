@@ -358,7 +358,8 @@ namespace WSNet2.Core
         {
             logger?.Debug("WSNet2Client.GetRoomsByIds({0})", string.Join(", ", roomIds));
 
-            var param = new SearchByIdsParam(){
+            var param = new SearchByIdsParam()
+            {
                 ids = roomIds,
                 queries = query?.condsList,
             };
