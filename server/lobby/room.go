@@ -11,6 +11,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
 	"wsnet2/binary"
@@ -42,7 +43,7 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		db:        db,
 		conf:      conf,
 		apps:      make(map[string]*pb.App),
-		grpcPool:  common.NewGrpcPool(grpc.WithInsecure()),
+		grpcPool:  common.NewGrpcPool(grpc.WithTransportCredentials(insecure.NewCredentials())),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
 		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 		hubCache:  common.NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
