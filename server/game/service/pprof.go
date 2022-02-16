@@ -23,8 +23,8 @@ func (sv *GameService) servePprof(ctx context.Context) <-chan error {
 			var err error
 			d, err = time.ParseDuration(p)
 			if err != nil {
-				w.WriteHeader(400)
-				w.Write([]byte("bad duration"))
+				w.WriteHeader(http.StatusBadRequest)
+				w.Write([]byte(fmt.Sprintf("invalid duration: %q; %v", p, err)))
 				return
 			}
 		}
