@@ -39,7 +39,8 @@ namespace WSNet2.Core
             Encoding.UTF8.GetBytes(clientId, 0, clientId.Length, data, 0);
 
             // nonce
-            data[l + 0] = (byte)rand.Next(256);
+            // monoのSystem.Net.HttpのバグでBearer tokenが'/'開始だとFormatExceptionになってしまうため、先頭6bitが1になるを避ける
+            data[l + 0] = (byte)rand.Next(252);
             data[l + 1] = (byte)rand.Next(256);
             data[l + 2] = (byte)rand.Next(256);
             data[l + 3] = (byte)rand.Next(256);
