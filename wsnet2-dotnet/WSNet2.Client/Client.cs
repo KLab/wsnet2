@@ -68,6 +68,7 @@ namespace WSNet2.DotnetClient
             create,
             join,
             search,
+            ids,
             watch,
         }
 
@@ -121,7 +122,32 @@ namespace WSNet2.DotnetClient
                     roomsrc.TrySetCanceled();
                 });
 
-            var rooms = await roomsrc.Task;
+            PrintRooms(await roomsrc.Task);
+        }
+
+
+        static async Task SearchByIds(WSNet2Client client, string[] ids)
+        {
+            var roomsrc = new TaskCompletionSource<PublicRoom[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            client.SearchByIds(
+                ids, null,
+                (rs) =>
+                {
+                    Console.WriteLine($"onSuccess: {rs.Length}");
+                    roomsrc.TrySetResult(rs);
+                },
+                (e) =>
+                {
+                    Console.WriteLine($"onFailed: {e}");
+                    roomsrc.TrySetCanceled();
+                });
+
+            PrintRooms(await roomsrc.Task);
+        }
+
+        static void PrintRooms(PublicRoom[] rooms)
+        {
             Console.WriteLine("rooms:");
             foreach (var room in rooms)
             {
@@ -165,6 +191,12 @@ namespace WSNet2.DotnetClient
             if (cmd.Value == Cmd.search)
             {
                 await Search(client);
+                cts.Cancel();
+                return;
+            }
+            if (cmd.Value == Cmd.ids)
+            {
+                await SearchByIds(client, args.Skip(1).ToArray());
                 cts.Cancel();
                 return;
             }

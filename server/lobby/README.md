@@ -84,8 +84,23 @@ POST /rooms/search
 |------|-------------|-----------|-----------|------|
 | レスポンスのmsgpackエンコード失敗 | InternalServerError | - | lobby/service/api.go: renderResponse() | - |
 | ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
-| リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleSearchRoom() | - |
+| リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleSearchRooms() | - |
 | GameCacheからの取得失敗 | InternalServerError | - | lobby/room_cache.go: roomCacheQuery.do() | - |
+
+※該当する部屋が無かった場合は、200 OKでroomsが空配列になります
+
+
+## Search Rooms by Room IDs
+
+POST /rooms/search/ids
+
+### エラーレスポンス
+| 概要 | HTTP Status | gRPC Code | 発生箇所  | 備考 |
+|------|-------------|-----------|-----------|------|
+| レスポンスのmsgpackエンコード失敗 | InternalServerError | - | lobby/service/api.go: renderResponse() | - |
+| ユーザ認証失敗 | Unauthorized | - | lobby/service/api.go: LobbyService.authUser() | - |
+| リクエストbodyのmsgpackデコード失敗 | BadRequest | - | lobby/service/api.go: handleSearchByIds() | - |
+| DBからの取得失敗 | InternalServerError | - | lobby/room.go: rs.SearchByIds() | - |
 
 ※該当する部屋が無かった場合は、200 OKでroomsが空配列になります
 

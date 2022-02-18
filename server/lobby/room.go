@@ -244,7 +244,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 }
 
 func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, error) {
-	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
+	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinAtRandom: RoomCache error: %w", err)
 	}
@@ -278,13 +278,39 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 		http.StatusOK, "No joinable room found")
 }
 
-func (rs *RoomService) Search(appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
-	rooms, props, err := rs.roomCache.GetRooms(appId, searchGroup)
+func (rs *RoomService) Search(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
+	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
 	}
 
 	return filter(rooms, props, queries, limit, joinable, watchable), nil
+}
+
+func (rs *RoomService) SearchByIds(ctx context.Context, appId string, roomIds []string, queries []PropQueries) ([]*pb.RoomInfo, error) {
+	if len(roomIds) == 0 {
+		return []*pb.RoomInfo{}, nil
+	}
+
+	sql, params, err := sqlx.In("SELECT * FROM room WHERE app_id = ? AND id IN (?)", appId, roomIds)
+	if err != nil {
+		return nil, xerrors.Errorf("sqlx.In: %w", err)
+	}
+
+	var rooms []*pb.RoomInfo
+	err = rs.db.SelectContext(ctx, &rooms, sql, params...)
+	if err != nil {
+		return nil, xerrors.Errorf("Select: %w", err)
+	}
+
+	props := make([]binary.Dict, len(rooms))
+	for i, r := range rooms {
+		props[i], err = unmarshalProps(r.PublicProps)
+		if err != nil {
+			return nil, xerrors.Errorf("unmarshalProps(room=%v): %w", r.Id, err)
+		}
+	}
+	return filter(rooms, props, queries, len(rooms), false, false), nil
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {

@@ -344,7 +344,28 @@ namespace WSNet2.Core
             };
             var content = MessagePackSerializer.Serialize(param);
 
-            Task.Run(() => search(content, onSuccess, onFailed));
+            Task.Run(() => search("/rooms/search", content, onSuccess, onFailed));
+        }
+
+        /// <summary>
+        ///   部屋IDによる部屋検索
+        /// </summary>
+        /// <param name="roomIds">取得する部屋のIDリスト</param>
+        /// <param name="query">検索クエリ</param>
+        /// <param name="onSuccess">成功時callback. 引数は検索でヒットした部屋一覧</param>
+        /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
+        public void SearchByIds(string[] roomIds, Query query, Action<PublicRoom[]> onSuccess, Action<Exception> onFailed)
+        {
+            logger?.Debug("WSNet2Client.GetRoomsByIds({0})", string.Join(", ", roomIds));
+
+            var param = new SearchByIdsParam()
+            {
+                ids = roomIds,
+                queries = query?.condsList,
+            };
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => search("/rooms/search/ids", content, onSuccess, onFailed));
         }
 
         private async Task<LobbyResponse> post(string path, byte[] content)
@@ -404,13 +425,14 @@ namespace WSNet2.Core
         }
 
         private async Task search(
+            string path,
             byte[] content,
             Action<PublicRoom[]> onSuccess,
             Action<Exception> onFailed)
         {
             try
             {
-                var res = await post("/rooms/search", content);
+                var res = await post(path, content);
                 var count = res.rooms?.Length ?? 0;
                 var rooms = new PublicRoom[count];
                 for (var i = 0; i < count; i++)

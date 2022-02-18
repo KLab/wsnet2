@@ -24,3 +24,8 @@ type SearchParam struct {
 	CheckJoinable  bool                `json:"joinable,omitempty"`
 	CheckWatchable bool                `json:"watchable,omitempty"`
 }
+
+type SearchByIdsParam struct {
+	RoomIDs []string            `json:"ids"`
+	Queries []lobby.PropQueries `json:"query"`
+}

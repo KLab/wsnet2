@@ -1,6 +1,7 @@
 package lobby
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -33,7 +34,7 @@ func newRoomCacheQuery(db *sqlx.DB, expire time.Duration, sql string, args ...in
 	}
 }
 
-func (q *roomCacheQuery) do() ([]*pb.RoomInfo, []binary.Dict, error) {
+func (q *roomCacheQuery) do(ctx context.Context) ([]*pb.RoomInfo, []binary.Dict, error) {
 	q.Lock()
 	defer q.Unlock()
 
@@ -44,7 +45,7 @@ func (q *roomCacheQuery) do() ([]*pb.RoomInfo, []binary.Dict, error) {
 	}
 
 	rooms := []*pb.RoomInfo{}
-	err := q.db.Select(&rooms, q.query, q.args...)
+	err := q.db.SelectContext(ctx, &rooms, q.query, q.args...)
 	if err != nil {
 		q.result = nil
 		q.lastError = err
@@ -85,7 +86,7 @@ func NewRoomCache(db *sqlx.DB, expire time.Duration) *RoomCache {
 	}
 }
 
-func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]*pb.RoomInfo, []binary.Dict, error) {
+func (c *RoomCache) GetRooms(ctx context.Context, appId string, searchGroup uint32) ([]*pb.RoomInfo, []binary.Dict, error) {
 	c.Lock()
 	q := c.queries[appId][searchGroup]
 	if q == nil {
@@ -97,5 +98,5 @@ func (c *RoomCache) GetRooms(appId string, searchGroup uint32) ([]*pb.RoomInfo, 
 	}
 	c.Unlock()
 
-	return q.do()
+	return q.do(ctx)
 }
