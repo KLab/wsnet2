@@ -301,7 +301,6 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 
 func (repo *Repository) updateRoomInfo(ri *pb.RoomInfo, conn *sqlx.Conn) {
 	// DBへの反映は遅延して良い
-	defer conn.Close()
 	q, args, err := sqlx.Named(roomUpdateQuery, ri)
 	if err != nil {
 		log.Errorf("faild to build room update query: err=%v, q=%q, ri=%+v", err, roomUpdateQuery, ri)
