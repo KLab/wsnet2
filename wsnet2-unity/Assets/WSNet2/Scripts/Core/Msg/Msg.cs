@@ -1,4 +1,4 @@
-namespace WSNet2.Core
+﻿namespace WSNet2.Core
 {
     public enum MsgType
     {

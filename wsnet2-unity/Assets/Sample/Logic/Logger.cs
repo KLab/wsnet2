@@ -1,4 +1,4 @@
-namespace Sample.Logic
+﻿namespace Sample.Logic
 {
     static class Logger
     {

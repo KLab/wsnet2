@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace WSNet2.Core
 {

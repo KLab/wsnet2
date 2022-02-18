@@ -1,4 +1,4 @@
-using WSNet2.Core;
+﻿using WSNet2.Core;
 
 namespace Sample.Logic
 {
