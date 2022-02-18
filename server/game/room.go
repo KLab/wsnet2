@@ -273,6 +273,10 @@ func (r *Room) roomInfoUpdater() {
 
 				r.mRoomInfo.Lock()
 				ri := r.lastRoomInfo
+				select{
+				case <-r.chRoomInfo:
+				default:
+				}
 				r.mRoomInfo.Unlock()
 
 				r.repo.updateRoomInfo(ri, conn)
@@ -285,8 +289,8 @@ func (r *Room) roomInfoUpdater() {
 
 func (r *Room) updateRoomInfo() {
 	r.mRoomInfo.Lock()
+	defer r.mRoomInfo.Unlock()
 	r.lastRoomInfo = r.RoomInfo.Clone()
-	r.mRoomInfo.Unlock()
 
 	select {
 	case r.chRoomInfo <- struct{}{}:
