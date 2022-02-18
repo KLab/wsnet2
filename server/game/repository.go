@@ -299,14 +299,17 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	return nil, WithCode(xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err), codes.Internal)
 }
 
-func (repo *Repository) updateRoomInfo(room *Room) {
+func (repo *Repository) updateRoomInfo(ri *pb.RoomInfo, conn *sqlx.Conn) {
 	// DBへの反映は遅延して良い
-	ri := room.RoomInfo.Clone()
-	go func() {
-		if _, err := repo.db.NamedExec(roomUpdateQuery, ri); err != nil {
-			log.Errorf("Repository updateRoomInfo error: %v", err)
-		}
-	}()
+	q, args, err := sqlx.Named(roomUpdateQuery, ri)
+	if err != nil {
+		log.Errorf("faild to build room update query: err=%v, q=%q, ri=%+v", err, roomUpdateQuery, ri)
+		return
+	}
+
+	if _, err := conn.ExecContext(context.Background(), q, args...); err != nil {
+		log.Errorf("Repository updateRoomInfo error: room=%v err=%v", ri.Id, err)
+	}
 }
 
 type roomHistory struct {
