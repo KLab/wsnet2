@@ -1,4 +1,4 @@
-namespace WSNet2.Core
+﻿namespace WSNet2.Core
 {
     /// <summary>
     ///   Gameサーバ側のPeerの準備完了通知

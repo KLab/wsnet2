@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using WSNet2.Core;
 
 namespace Sample
