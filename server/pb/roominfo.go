@@ -2,6 +2,7 @@ package pb
 
 import (
 	"database/sql/driver"
+	"strconv"
 	"time"
 
 	"golang.org/x/xerrors"
@@ -24,6 +25,13 @@ func (n *RoomNumber) Scan(val interface{}) error {
 		return nil
 	case int64:
 		n.Number = int32(v)
+		return nil
+	case []byte:
+		num, err := strconv.Atoi(string(v))
+		if err != nil {
+			return err
+		}
+		n.Number = int32(num)
 		return nil
 	}
 	return xerrors.Errorf("invalid value type: %T %v", val, val)
