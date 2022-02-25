@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 )
 
@@ -27,6 +26,10 @@ type server struct {
 	WebSocketPort int    `db:"ws_port"`
 	Status        int    `db:"status"`
 	HeartBeat     int64  `db:"heartbeat"`
+}
+
+func printServersHeader() {
+	fmt.Println("type\tid\thost\tpublic\tgrpc\twebsocket\tstatus\theartbeat")
 }
 
 func printServer(typ string, s server) {
@@ -49,13 +52,13 @@ var serversCmd = &cobra.Command{
 	Long:  "Show all game and/or hub servers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if verbose {
-			fmt.Println("type\tid\thost\tpublic\tgrpc\twebsocket\tstatus\theartbeat")
+			printServersHeader()
 		}
 
 		if !serversHubOnly {
 			const sql = "select * from game_server"
 			var servers []server
-			err := sqlx.SelectContext(cmd.Context(), db, &servers, sql)
+			err := db.SelectContext(cmd.Context(), &servers, sql)
 			if err != nil {
 				return err
 			}
@@ -66,7 +69,7 @@ var serversCmd = &cobra.Command{
 		if !serversGameOnly {
 			const sql = "select * from hub_server"
 			var servers []server
-			err := sqlx.SelectContext(cmd.Context(), db, &servers, sql)
+			err := db.SelectContext(cmd.Context(), &servers, sql)
 			if err != nil {
 				return err
 			}

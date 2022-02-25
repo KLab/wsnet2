@@ -7,7 +7,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +25,7 @@ var appsCmd = &cobra.Command{
 		const sql = "SELECT `id`, `key`, `name` FROM `app`"
 
 		var apps []*app
-		err := sqlx.SelectContext(cmd.Context(), db, &apps, sql)
+		err := db.SelectContext(cmd.Context(), &apps, sql)
 		if err != nil {
 			panic(err)
 		}
