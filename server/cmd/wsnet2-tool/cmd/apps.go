@@ -5,8 +5,6 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 )
 
@@ -31,11 +29,11 @@ var appsCmd = &cobra.Command{
 		}
 
 		if verbose {
-			fmt.Println("id\tkey\tname")
+			cmd.Println("id\tkey\tname")
 		}
 
 		for _, app := range apps {
-			fmt.Printf("%s\t%s\t%q\n", app.Id, app.Key, app.Name)
+			cmd.Printf("%s\t%s\t%q\n", app.Id, app.Key, app.Name)
 		}
 	},
 }

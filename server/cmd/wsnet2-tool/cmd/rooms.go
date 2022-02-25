@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
 	"wsnet2/pb"
@@ -33,11 +34,11 @@ var roomsCmd = &cobra.Command{
 		}
 
 		if verbose {
-			printRoomsHeader()
+			printRoomsHeader(cmd)
 		}
 
 		for _, r := range rooms {
-			err := printRoom(r, hosts)
+			err := printRoom(cmd, r, hosts)
 			if err != nil {
 				return err
 			}
@@ -67,17 +68,17 @@ func hostMap(ctx context.Context) (map[uint32]*server, error) {
 	return m, nil
 }
 
-func printRoomsHeader() {
-	fmt.Println("id\tapp\thost\tflags\tnumber\tgroup\tmax_players\tplayers\twatchers\tcreated\tprops")
+func printRoomsHeader(cmd *cobra.Command) {
+	cmd.Println("id\tapp\thost\tflags\tnumber\tgroup\tmax_players\tplayers\twatchers\tcreated\tprops")
 }
 
-func printRoom(r *pb.RoomInfo, h map[uint32]*server) error {
+func printRoom(cmd *cobra.Command, r *pb.RoomInfo, h map[uint32]*server) error {
 	p, err := parsePropsSimple(r.PublicProps)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%v\t%v\t%v\t%06d\t%d\t%d\t%d\t%d\t%v\t%s\n",
+	cmd.Printf("%v\t%v\t%v\t%06d\t%d\t%d\t%d\t%d\t%v\t%s\n",
 		r.Id, h[r.HostId].HostName, roomFlags(r), r.Number.Number,
 		r.SearchGroup, r.MaxPlayers, r.Players, r.Watchers,
 		r.Created.Time(), p)
@@ -108,7 +109,7 @@ func parsePropsSimple(data []byte) (string, error) {
 	out := []byte{'{'}
 	for k, d := range dic {
 		if len(d) == 0 {
-			return "", fmt.Errorf("No payload: key=%v", k)
+			return "", xerrors.Errorf("No payload: key=%v", k)
 		}
 
 		out = append(out, []byte(k)...)

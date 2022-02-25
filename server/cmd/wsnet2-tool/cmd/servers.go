@@ -5,7 +5,6 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,23 +27,6 @@ type server struct {
 	HeartBeat     int64  `db:"heartbeat"`
 }
 
-func printServersHeader() {
-	fmt.Println("type\tid\thost\tpublic\tgrpc\twebsocket\tstatus\theartbeat")
-}
-
-func printServer(typ string, s server) {
-	st := serverStatusStr[s.Status]
-	hb := time.Unix(s.HeartBeat, 0)
-	v := time.Duration(conf.Lobby.ValidHeartBeat)
-	ok := "Available"
-	if hb.Before(time.Now().Add(-v)) {
-		ok = "Dead"
-	}
-
-	fmt.Printf("%s\t%d\t%s\t%s\t%d\t%d\t%s:%s\t%v\n",
-		typ, s.Id, s.HostName, s.PublicName, s.GRPCPort, s.WebSocketPort, st, ok, hb)
-}
-
 // serversCmd represents the servers command
 var serversCmd = &cobra.Command{
 	Use:   "servers",
@@ -52,7 +34,7 @@ var serversCmd = &cobra.Command{
 	Long:  "Show all game and/or hub servers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if verbose {
-			printServersHeader()
+			printServersHeader(cmd)
 		}
 
 		if !serversHubOnly {
@@ -63,7 +45,7 @@ var serversCmd = &cobra.Command{
 				return err
 			}
 			for _, s := range servers {
-				printServer("game", s)
+				printServer(cmd, "game", s)
 			}
 		}
 		if !serversGameOnly {
@@ -74,7 +56,7 @@ var serversCmd = &cobra.Command{
 				return err
 			}
 			for _, s := range servers {
-				printServer("hub", s)
+				printServer(cmd, "hub", s)
 			}
 		}
 		return nil
@@ -86,4 +68,21 @@ func init() {
 
 	serversCmd.Flags().BoolVarP(&serversGameOnly, "game", "g", false, "show game servers only")
 	serversCmd.Flags().BoolVarP(&serversHubOnly, "hub", "u", false, "show hub servers only")
+}
+
+func printServersHeader(cmd *cobra.Command) {
+	cmd.Println("type\tid\thost\tpublic\tgrpc\twebsocket\tstatus\theartbeat")
+}
+
+func printServer(cmd *cobra.Command, typ string, s server) {
+	st := serverStatusStr[s.Status]
+	hb := time.Unix(s.HeartBeat, 0)
+	v := time.Duration(conf.Lobby.ValidHeartBeat)
+	ok := "Available"
+	if hb.Before(time.Now().Add(-v)) {
+		ok = "Dead"
+	}
+
+	cmd.Printf("%s\t%d\t%s\t%s\t%d\t%d\t%s:%s\t%v\n",
+		typ, s.Id, s.HostName, s.PublicName, s.GRPCPort, s.WebSocketPort, st, ok, hb)
 }
