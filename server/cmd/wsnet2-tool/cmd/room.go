@@ -62,7 +62,7 @@ var roomCmd = &cobra.Command{
 		}
 
 		cmd.SetOut(os.Stdout)
-		cmd.Print(string(j))
+		cmd.Println(string(j))
 
 		return nil
 	},
