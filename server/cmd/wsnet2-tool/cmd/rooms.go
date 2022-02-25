@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/xerrors"
@@ -33,6 +34,7 @@ var roomsCmd = &cobra.Command{
 			return err
 		}
 
+		cmd.SetOut(os.Stdout)
 		if verbose {
 			printRoomsHeader(cmd)
 		}

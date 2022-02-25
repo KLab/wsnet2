@@ -5,6 +5,8 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 )
 
@@ -28,6 +30,7 @@ var appsCmd = &cobra.Command{
 			panic(err)
 		}
 
+		cmd.SetOut(os.Stdout)
 		if verbose {
 			cmd.Println("id\tkey\tname")
 		}

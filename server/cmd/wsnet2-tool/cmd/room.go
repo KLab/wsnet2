@@ -7,6 +7,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"wsnet2/binary"
 	"wsnet2/pb"
 
@@ -60,6 +61,7 @@ var roomCmd = &cobra.Command{
 			return err
 		}
 
+		cmd.SetOut(os.Stdout)
 		cmd.Print(string(j))
 
 		return nil

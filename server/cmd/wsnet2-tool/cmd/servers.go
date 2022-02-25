@@ -5,6 +5,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -33,6 +34,8 @@ var serversCmd = &cobra.Command{
 	Short: "Show all game/hub servers",
 	Long:  "Show all game and/or hub servers",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SetOut(os.Stdout)
+
 		if verbose {
 			printServersHeader(cmd)
 		}
