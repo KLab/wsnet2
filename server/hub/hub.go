@@ -481,6 +481,8 @@ func (h *Hub) dispatch(msg game.Msg) error {
 	switch m := msg.(type) {
 	case *game.MsgWatch:
 		return h.msgWatch(m)
+	case *game.MsgLeave:
+		return h.msgLeave(m)
 	case *game.MsgPing:
 		return h.msgPing(m)
 	case *game.MsgClientError:
@@ -566,6 +568,11 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		MasterId: h.master,
 		Deadline: h.deadline,
 	}
+	return nil
+}
+
+func (h *Hub) msgLeave(msg *game.MsgLeave) error {
+	h.removeClient(msg.Sender, nil)
 	return nil
 }
 
