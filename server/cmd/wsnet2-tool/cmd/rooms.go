@@ -27,7 +27,7 @@ var roomsCmd = &cobra.Command{
 			return err
 		}
 
-		const roomsql = "SELECT * FROM room WHERE number is not null"
+		const roomsql = "SELECT * FROM room"
 		var rooms []*pb.RoomInfo
 		err = db.SelectContext(cmd.Context(), &rooms, roomsql)
 		if err != nil {
