@@ -5,17 +5,46 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"wsnet2/binary"
 	"wsnet2/pb"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+type grpcServer struct {
+	RoomId string `db:"room_id"`
+	App    string `db:"app_id"`
+	Host   string `db:"hostname"`
+	Port   int    `db:"grpc_port"`
+}
+
+func selectGrpcServers(ctx context.Context, ids []string) (map[string]*grpcServer, error) {
+	q, p, err := sqlx.In(
+		"SELECT r.id room_id, r.app_id, s.hostname, s.grpc_port FROM room r JOIN game_server s ON r.host_id = s.id WHERE r.id IN (?)", ids)
+	if err != nil {
+		return nil, xerrors.Errorf("build query: %w", err)
+	}
+	var svrs []*grpcServer
+	err = db.SelectContext(ctx, &svrs, q, p...)
+	if err != nil {
+		return nil, xerrors.Errorf("select grpc servers: %w", err)
+	}
+
+	m := make(map[string]*grpcServer)
+	for _, s := range svrs {
+		m[s.RoomId] = s
+	}
+
+	return m, nil
+}
 
 // roomCmd represents the room command
 var roomCmd = &cobra.Command{
@@ -26,43 +55,43 @@ var roomCmd = &cobra.Command{
 		if len(args) == 0 {
 			return xerrors.Errorf("need roomid\n")
 		}
-		rid := args[0]
 
-		var svr struct {
-			App  string `db:"app_id"`
-			Host string `db:"hostname"`
-			Port int    `db:"grpc_port"`
-		}
-		err := db.GetContext(cmd.Context(), &svr,
-			"SELECT r.app_id, s.hostname, s.grpc_port FROM room r JOIN game_server s ON r.host_id = s.id WHERE r.id = ?", rid)
+		svrs, err := selectGrpcServers(cmd.Context(), args)
 		if err != nil {
 			return err
 		}
 
-		conn, err := grpc.Dial(fmt.Sprintf("%s:%d", svr.Host, svr.Port),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			return err
-		}
+		for _, id := range args {
+			svr, ok := svrs[id]
+			if !ok {
+				return xerrors.Errorf("room not found: %v", id)
+			}
 
-		res, err := pb.NewGameClient(conn).GetRoomInfo(
-			cmd.Context(), &pb.GetRoomInfoReq{AppId: svr.App, RoomId: rid})
-		if err != nil {
-			return err
-		}
+			conn, err := grpc.Dial(fmt.Sprintf("%s:%d", svr.Host, svr.Port),
+				grpc.WithTransportCredentials(insecure.NewCredentials()))
+			if err != nil {
+				return err
+			}
 
-		out, err := formatRoom(res)
-		if err != nil {
-			return err
-		}
+			res, err := pb.NewGameClient(conn).GetRoomInfo(
+				cmd.Context(), &pb.GetRoomInfoReq{AppId: svr.App, RoomId: id})
+			if err != nil {
+				return err
+			}
 
-		j, err := json.Marshal(out)
-		if err != nil {
-			return err
-		}
+			out, err := formatRoom(res)
+			if err != nil {
+				return err
+			}
 
-		cmd.SetOut(os.Stdout)
-		cmd.Println(string(j))
+			j, err := json.Marshal(out)
+			if err != nil {
+				return err
+			}
+
+			cmd.SetOut(os.Stdout)
+			cmd.Println(string(j))
+		}
 
 		return nil
 	},
