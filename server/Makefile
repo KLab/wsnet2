@@ -1,11 +1,12 @@
 # binaries to build
-TARGETS := bin/wsnet2-lobby bin/wsnet2-game bin/wsnet2-hub bin/wsnet2-bot
+TARGETS := bin/wsnet2-lobby bin/wsnet2-game bin/wsnet2-hub bin/wsnet2-bot bin/wsnet2-tool
 
 # dependencies
 PKG_LOBBY := cmd/wsnet2-lobby lobby lobby/service    auth binary common config log pb
 PKG_GAME  := cmd/wsnet2-game  game  game/service     auth binary common config log pb
 PKG_HUB   := cmd/wsnet2-hub   hub   hub/service game auth binary common config log pb
 PKG_BOT   := cmd/wsnet2-bot   lobby lobby/service    auth binary common config log pb
+PKG_TOOL  := cmd/wsnet2-tool cmd/wsnet2-tool/cmd          binary        config     pb
 
 # protoc targets
 proto := $(wildcard pb/*.proto)
@@ -64,6 +65,9 @@ bin/wsnet2-hub: $(PKG_HUB:%=%/*.go) $(pb.go) $(string.go)
 bin/wsnet2-bot: $(PKG_BOT:%=%/*.go) $(pb.go) $(string.go)
 	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
 
+bin/wsnet2-tool: $(PKG_TOOL:%=%/*.go) $(pb.go) $(string.go)
+	$(GOBUILD) -o $@ $(@:bin/%=./cmd/%)
+
 %.pb.go: %.proto
 	protoc --proto_path=pb --go_out=module=wsnet2:. --go-grpc_out=module=wsnet2:. "$<"
 	protoc-go-inject-tag --input="$@"
@@ -83,3 +87,4 @@ lobby: bin/wsnet2-lobby
 game: bin/wsnet2-game
 hub: bin/wsnet2-hub
 bot: bin/wsnet2-bot
+tool: bin/wsnet2-tool
