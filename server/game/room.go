@@ -273,7 +273,7 @@ func (r *Room) roomInfoUpdater() {
 
 				r.mRoomInfo.Lock()
 				ri := r.lastRoomInfo
-				select{
+				select {
 				case <-r.chRoomInfo:
 				default:
 				}
@@ -739,7 +739,7 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
-	cis := make([]*pb.ClientInfo, len(r.masterOrder))
+	cis := make([]*pb.ClientInfo, 0, len(r.masterOrder))
 	for _, id := range r.masterOrder {
 		cis = append(cis, r.players[id].ClientInfo.Clone())
 	}
