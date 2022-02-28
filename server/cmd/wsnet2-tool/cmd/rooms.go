@@ -80,8 +80,13 @@ func printRoom(cmd *cobra.Command, r *pb.RoomInfo, h map[uint32]*server) error {
 		return err
 	}
 
+	var num int32
+	if r.Number != nil {
+		num = r.Number.Number
+	}
+
 	cmd.Printf("%v\t%v\t%v\t%v\t%06d\t%d\t%d\t%d\t%d\t%v\t%s\n",
-		r.Id, r.AppId, h[r.HostId].HostName, roomFlags(r), r.Number.Number,
+		r.Id, r.AppId, h[r.HostId].HostName, roomFlags(r), num,
 		r.SearchGroup, r.MaxPlayers, r.Players, r.Watchers,
 		r.Created.Time(), p)
 
