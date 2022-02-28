@@ -20,10 +20,10 @@ import (
 )
 
 type grpcServer struct {
-	RoomId string `db:"room_id"`
-	App    string `db:"app_id"`
-	Host   string `db:"hostname"`
-	Port   int    `db:"grpc_port"`
+	Room string `db:"room_id"`
+	App  string `db:"app_id"`
+	Host string `db:"hostname"`
+	Port int    `db:"grpc_port"`
 }
 
 func selectGrpcServers(ctx context.Context, ids []string) (map[string]*grpcServer, error) {
@@ -40,15 +40,20 @@ func selectGrpcServers(ctx context.Context, ids []string) (map[string]*grpcServe
 
 	m := make(map[string]*grpcServer)
 	for _, s := range svrs {
-		m[s.RoomId] = s
+		m[s.Room] = s
 	}
 
 	return m, nil
 }
 
+func (s *grpcServer) Dial() (*grpc.ClientConn, error) {
+	return grpc.Dial(fmt.Sprintf("%s:%d", s.Host, s.Port),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+}
+
 // roomCmd represents the room command
 var roomCmd = &cobra.Command{
-	Use:   "room",
+	Use:   "room <roomid>...",
 	Short: "Show room info",
 	Long:  "Show room info",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -67,8 +72,7 @@ var roomCmd = &cobra.Command{
 				return xerrors.Errorf("room not found: %v", id)
 			}
 
-			conn, err := grpc.Dial(fmt.Sprintf("%s:%d", svr.Host, svr.Port),
-				grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := svr.Dial()
 			if err != nil {
 				return err
 			}
