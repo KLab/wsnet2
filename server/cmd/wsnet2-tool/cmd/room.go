@@ -134,20 +134,15 @@ func formatRoom(res *pb.GetRoomInfoRes) (map[string]interface{}, error) {
 
 	ps := make([]map[string]interface{}, 0)
 	for _, c := range cs {
-		// todo: remove
-		if c.Id == "" {
-			continue
-		}
-
 		props, err := binary.UnmarshalRecursive(c.Props)
 		if err != nil {
 			return nil, err
 		}
 
 		p := map[string]interface{}{
-			"id": c.Id,
-			// todo: is_master flag
-			"props": props,
+			"id":        c.Id,
+			"is_master": c.Id == res.MasterId,
+			"props":     props,
 		}
 
 		ps = append(ps, p)
