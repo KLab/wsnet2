@@ -39,6 +39,11 @@ type Repository struct {
 }
 
 func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repository, error) {
+	// レコードが残っていると再起動したとき元いた部屋に入れないので削除しておく
+	if _, err := db.Exec("DELETE FROM hub WHERE `host_id` = ?", hostId); err != nil {
+		return nil, err
+	}
+
 	repo := &Repository{
 		hostId:   hostId,
 		conf:     conf,
