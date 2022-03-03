@@ -747,6 +747,7 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 	msg.Res <- &pb.GetRoomInfoRes{
 		RoomInfo:    ri,
 		ClientInfos: cis,
+		MasterId:    r.master.Id,
 	}
 
 	return nil
