@@ -6,7 +6,7 @@ import (
 
 type RawObj struct {
 	ClassId byte
-	Body    interface{}
+	Body    []interface{}
 }
 
 // UnmarshalRecursive unmarshal all bytes recursive
@@ -46,16 +46,17 @@ func unmarshalRecursive(src []byte) (interface{}, int, error) {
 	case *Obj:
 		o := RawObj{
 			ClassId: v.ClassId,
+			Body:    []interface{}{},
 		}
-
-		if len(v.Body) == 0 {
-			return o, n, nil
+		b := v.Body
+		for len(b) > 0 {
+			v, n1, err := unmarshalRecursive(b)
+			if err != nil {
+				return o, n, err
+			}
+			o.Body = append(o.Body, v)
+			b = b[n1:]
 		}
-		b, err := UnmarshalRecursive(v.Body)
-		if err != nil {
-			return o, n, err
-		}
-		o.Body = b
 		return o, n, err
 	case Dict:
 		o := make(map[string]interface{})
