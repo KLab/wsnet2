@@ -55,6 +55,12 @@ const (
 	// EvTypeMessage : その他の通常メッセージ
 	// payload: (any)
 	EvTypeMessage
+
+	// EvTypeRejoined : クライアントが再入室した
+	// payload:
+	//  - str8: client ID
+	//  - Dict: properties
+	EvTypeRejoined
 )
 const (
 	// EvTypeSucceeded:
@@ -247,6 +253,35 @@ func UnmarshalEvJoinedPayload(payload []byte) (*pb.ClientInfo, error) {
 	_, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvJoined payload (client props): %w", e)
+	}
+	um.Props = payload
+
+	return &um, nil
+}
+
+// NewEvRejoined : 再入室イベント
+func NewEvRejoined(cli *pb.ClientInfo) *RegularEvent {
+	payload := MarshalStr8(cli.Id)
+	payload = append(payload, cli.Props...) // cli.Props marshaled as TypeDict
+
+	return &RegularEvent{EvTypeRejoined, payload}
+}
+
+func UnmarshalEvRejoinedPayload(payload []byte) (*pb.ClientInfo, error) {
+	um := pb.ClientInfo{}
+
+	// client id
+	d, l, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvRejoined payload (client id): %w", e)
+	}
+	um.Id = d.(string)
+	payload = payload[l:]
+
+	// client props
+	_, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvRejoined payload (client props): %w", e)
 	}
 	um.Props = payload
 

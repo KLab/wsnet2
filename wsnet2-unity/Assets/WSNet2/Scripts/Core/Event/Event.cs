@@ -16,6 +16,7 @@ namespace WSNet2.Core
         ClientProp,
         MasterSwitched,
         Message,
+        Rejoined,
 
         Succeeded = EvTypeExt.responseEvType,
         PermissionDenied,
@@ -93,6 +94,9 @@ namespace WSNet2.Core
                     break;
                 case EvType.Message:
                     ev = new EvRPC(reader);
+                    break;
+                case EvType.Rejoined:
+                    ev = new EvRejoined(reader);
                     break;
 
                 case EvType.Succeeded:
