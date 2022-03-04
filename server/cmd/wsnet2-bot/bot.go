@@ -393,7 +393,6 @@ func (b *bot) EventLoop() {
 				panic(err)
 			}
 			lg.Debugf("rejoin: name=%v props=%v", name, props)
-
 		case binary.EvTypePermissionDenied:
 			lg.Debugf("%v", string(ev.Payload()))
 		case binary.EvTypeTargetNotFound:
