@@ -531,14 +531,9 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	h.muClients.Lock()
 	defer h.muClients.Unlock()
 
+	// Playerとして参加中の観戦は不許可
 	if _, ok := h.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", h.ID(), msg.SenderID())
-		msg.Err <- game.WithCode(err, codes.AlreadyExists)
-		return err
-	}
-	// 他のhub経由で観戦している場合は考慮しない（Gameでの直接観戦も同様）
-	if _, ok := h.watchers[msg.SenderID()]; ok {
-		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", h.ID(), msg.SenderID())
 		msg.Err <- game.WithCode(err, codes.AlreadyExists)
 		return err
 	}
@@ -551,7 +546,12 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		msg.Err <- err
 		return err
 	}
+	oldc, rejoin := h.watchers[client.ID()]
 	h.watchers[client.ID()] = client
+	if rejoin {
+		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		h.RoomInfo.Watchers -= oldc.NodeCount()
+	}
 	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers += client.NodeCount()
 

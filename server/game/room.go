@@ -494,14 +494,9 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
+	// Playerとして参加中に観戦は不許可
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- WithCode(err, codes.AlreadyExists)
-		return err
-	}
-	// hub経由で観戦している場合は考慮しない
-	if _, ok := r.watchers[msg.SenderID()]; ok {
-		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
 		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
@@ -514,7 +509,12 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		msg.Err <- err
 		return err
 	}
+	oldc, rejoin := r.watchers[client.ID()]
 	r.watchers[client.ID()] = client
+	if rejoin {
+		oldc.Removed(xerrors.Errorf(""))
+		r.RoomInfo.Watchers -= oldc.nodeCount
+	}
 	r.RoomInfo.Watchers += client.nodeCount
 	r.updateRoomInfo()
 
