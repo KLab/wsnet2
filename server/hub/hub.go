@@ -604,6 +604,8 @@ func (h *Hub) dispatchEvent(ev binary.Event) error {
 		return h.evPeerReady(ev)
 	case binary.EvTypeJoined:
 		return h.evJoined(ev)
+	case binary.EvTypeRejoined:
+		return h.evRejoined(ev)
 	case binary.EvTypeLeft:
 		return h.evLeft(ev)
 	case binary.EvTypeRoomProp:
@@ -662,6 +664,27 @@ func (h *Hub) evJoined(ev binary.Event) error {
 		ClientInfo: ci,
 		props:      props,
 	}
+
+	h.broadcast(ev.(*binary.RegularEvent))
+	return nil
+}
+
+func (h *Hub) evRejoined(ev binary.Event) error {
+	ci, err := binary.UnmarshalEvRejoinedPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvRejoined payload error: %w", err)
+	}
+	props, iProps, err := common.InitProps(ci.Props)
+	if err != nil {
+		return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	ci.Props = iProps
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	h.players[ClientID(ci.Id)].ClientInfo = ci
+	h.players[ClientID(ci.Id)].props = props
 
 	h.broadcast(ev.(*binary.RegularEvent))
 	return nil
