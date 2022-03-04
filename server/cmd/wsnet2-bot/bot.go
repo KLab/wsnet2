@@ -385,6 +385,15 @@ func (b *bot) EventLoop() {
 				panic(err)
 			}
 			lg.Debugf("name=%v props=%v", name, props)
+		case binary.EvTypeRejoined:
+			namelen := int(p[6])
+			name := string(p[7 : 7+namelen])
+			props, _, err := binary.Unmarshal(p[7+namelen:])
+			if err != nil {
+				panic(err)
+			}
+			lg.Debugf("rejoin: name=%v props=%v", name, props)
+
 		case binary.EvTypePermissionDenied:
 			lg.Debugf("%v", string(ev.Payload()))
 		case binary.EvTypeTargetNotFound:
