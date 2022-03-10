@@ -512,7 +512,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	oldc, rejoin := r.watchers[client.ID()]
 	r.watchers[client.ID()] = client
 	if rejoin {
-		oldc.Removed(xerrors.Errorf(""))
+		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
 		r.RoomInfo.Watchers -= oldc.nodeCount
 	}
 	r.RoomInfo.Watchers += client.nodeCount
