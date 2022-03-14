@@ -27,14 +27,13 @@ type ErrorWithType interface {
 type errorWithType struct {
 	error
 	errType ErrType
-	msg     string
 }
 
-func withType(err error, errType ErrType, msg string) ErrorWithType {
+func withType(err error, errType ErrType) ErrorWithType {
 	if err == nil {
 		return nil
 	}
-	return &errorWithType{err, errType, msg}
+	return &errorWithType{err, errType}
 }
 
 func (e *errorWithType) ErrType() ErrType {
@@ -42,7 +41,25 @@ func (e *errorWithType) ErrType() ErrType {
 }
 
 func (e *errorWithType) Message() string {
-	return e.msg
+	switch e.errType {
+	case ErrArgument:
+		return "Invalid argument"
+	case ErrRoomLimit:
+		return "Reached to the max room number"
+	case ErrNoJoinableRoom:
+		return "No joinable room found"
+	case ErrRoomFull:
+		return "Room full"
+	case ErrAlreadyJoined:
+		return "Already exists"
+	case ErrNoWatchableRoom:
+		return "No watchable room found"
+	}
+	return ""
+}
+
+func (e *errorWithType) Error() string {
+	return fmt.Sprintf("%v: %v", e.Message(), e.error.Error())
 }
 
 func (e *errorWithType) Unwrap() error {
@@ -50,6 +67,8 @@ func (e *errorWithType) Unwrap() error {
 }
 
 func (e *errorWithType) Format(f fmt.State, c rune) {
+	f.Write([]byte(e.Message()))
+	f.Write([]byte(": "))
 	if m, ok := e.error.(xerrors.Formatter); ok {
 		xerrors.FormatError(m, f, c)
 	} else {

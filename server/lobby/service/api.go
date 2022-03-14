@@ -140,9 +140,10 @@ func renderFoundRoomsResponse(w http.ResponseWriter, rooms []*pb.RoomInfo) {
 }
 
 func renderErrorResponse(w http.ResponseWriter, msg string, status int, err error) {
+	logmsg := msg
 	if e, ok := err.(lobby.ErrorWithType); ok {
 		if m := e.Message(); m != "" {
-			msg = fmt.Sprintf("%s: %s", msg, e.Message())
+			msg = m
 		}
 		switch e.ErrType() {
 		case lobby.ErrArgument:
@@ -161,7 +162,7 @@ func renderErrorResponse(w http.ResponseWriter, msg string, status int, err erro
 			return
 		}
 	}
-	log.Errorf("ErrorResponse: %d %s: %+v", status, msg, err)
+	log.Errorf("ErrorResponse: %d %s: %+v", status, logmsg, err)
 	http.Error(w, msg, status)
 }
 

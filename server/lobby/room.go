@@ -93,9 +93,9 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 		if ok {
 			switch st.Code() {
 			case codes.InvalidArgument:
-				err = withType(err, ErrArgument, "Invalid argument")
+				err = withType(err, ErrArgument)
 			case codes.ResourceExhausted:
-				err = withType(err, ErrRoomLimit, "Reached to the max room number")
+				err = withType(err, ErrRoomLimit)
 			}
 		}
 		return nil, err
@@ -165,15 +165,15 @@ func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInf
 		if ok {
 			switch st.Code() {
 			case codes.NotFound: // roomが既に消えた
-				err = withType(err, ErrNoJoinableRoom, "No joinable room found")
+				err = withType(err, ErrNoJoinableRoom)
 			case codes.FailedPrecondition: // joinableでなくなっていた
-				err = withType(err, ErrNoJoinableRoom, "No joinable room found")
+				err = withType(err, ErrNoJoinableRoom)
 			case codes.ResourceExhausted: // 満室
-				err = withType(err, ErrRoomFull, "Room full")
+				err = withType(err, ErrRoomFull)
 			case codes.AlreadyExists: // 既に入室している
-				err = withType(err, ErrAlreadyJoined, "Already exists")
+				err = withType(err, ErrAlreadyJoined)
 			case codes.InvalidArgument:
-				err = withType(err, ErrArgument, "Invalid argument")
+				err = withType(err, ErrArgument)
 			}
 		}
 		return nil, err
@@ -194,7 +194,7 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 	if err != nil {
 		return nil, withType(
 			xerrors.Errorf("JoinById: Failed to get room: app=%v room=%v: %w", appId, roomId, err),
-			ErrNoJoinableRoom, "No joinable room found")
+			ErrNoJoinableRoom)
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -206,7 +206,7 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
-			ErrNoJoinableRoom, "No joinable room found")
+			ErrNoJoinableRoom)
 	}
 
 	return rs.join(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
@@ -222,7 +222,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 	if err != nil {
 		return nil, withType(
 			xerrors.Errorf("JoinByNumber: Failed to get room: app=%v number=%v: %w", appId, roomNumber, err),
-			ErrNoJoinableRoom, "No joinable room found")
+			ErrNoJoinableRoom)
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -234,7 +234,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("JoinByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
-			ErrNoJoinableRoom, "No joinable room found")
+			ErrNoJoinableRoom)
 	}
 
 	return rs.join(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
@@ -272,7 +272,7 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 
 	return nil, withType(
 		xerrors.Errorf("JoinAtRandom: Failed to join all rooms"),
-		ErrNoJoinableRoom, "No joinable room found")
+		ErrNoJoinableRoom)
 }
 
 func (rs *RoomService) Search(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, limit int, joinable, watchable bool) ([]*pb.RoomInfo, error) {
@@ -366,13 +366,13 @@ func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientIn
 		if ok {
 			switch st.Code() {
 			case codes.NotFound: // roomが既に消えた
-				err = withType(err, ErrNoWatchableRoom, "No watchable room found")
+				err = withType(err, ErrNoWatchableRoom)
 			case codes.FailedPrecondition: // watchableでなくなっていた
-				err = withType(err, ErrNoWatchableRoom, "No watchable room found")
+				err = withType(err, ErrNoWatchableRoom)
 			case codes.AlreadyExists: // 既に入室している
-				err = withType(err, ErrAlreadyJoined, "Already exists")
+				err = withType(err, ErrAlreadyJoined)
 			case codes.InvalidArgument:
-				err = withType(err, ErrArgument, "Invalid argument")
+				err = withType(err, ErrArgument)
 			}
 		}
 		return nil, err
@@ -393,7 +393,7 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 	if err != nil {
 		return nil, withType(
 			xerrors.Errorf("WatchById: failed to get room: app=%v room=%v %w", appId, roomId, err),
-			ErrNoWatchableRoom, "No watchable room found")
+			ErrNoWatchableRoom)
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -405,7 +405,7 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
-			ErrNoWatchableRoom, "No joinable room found")
+			ErrNoWatchableRoom)
 	}
 
 	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
@@ -421,7 +421,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 	if err != nil {
 		return nil, withType(
 			xerrors.Errorf("WatchByNumber: failed to get room: app=%v number=%v %w", appId, roomNumber, err),
-			ErrNoWatchableRoom, "No watchable room found")
+			ErrNoWatchableRoom)
 	}
 
 	props, err := unmarshalProps(room.PublicProps)
@@ -433,7 +433,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("WatchByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
-			ErrNoWatchableRoom, "No joinable room found")
+			ErrNoWatchableRoom)
 	}
 
 	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
