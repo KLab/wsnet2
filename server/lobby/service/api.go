@@ -149,7 +149,9 @@ func renderErrorResponse(w http.ResponseWriter, msg string, status int, err erro
 		case lobby.ErrArgument:
 			status = http.StatusBadRequest
 		case lobby.ErrRoomLimit:
-			status = http.StatusServiceUnavailable
+			log.Debugf("Failed with status OK: %+v", err)
+			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeRoomLimit})
+			return
 		case lobby.ErrAlreadyJoined:
 			status = http.StatusConflict
 		case lobby.ErrRoomFull:
