@@ -6,39 +6,50 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// ErrorWithStatus : HTTPステータスコードとerrorの組
-type ErrorWithStatus interface {
+type ErrType int
+
+const (
+	ErrArgument = ErrType(iota + 1)
+	ErrRoomLimit
+	ErrNoJoinableRoom
+	ErrRoomFull
+	ErrAlreadyJoined
+	ErrNoWatchableRoom
+)
+
+// ErrorWithErrType : ErrTypeとerrorの組
+type ErrorWithType interface {
 	error
-	Status() int
+	ErrType() ErrType
 	Message() string
 }
 
-type errorWithStatus struct {
+type errorWithType struct {
 	error
-	status int
-	msg    string
+	errType ErrType
+	msg     string
 }
 
-func withStatus(err error, status int, msg string) ErrorWithStatus {
+func withType(err error, errType ErrType, msg string) ErrorWithType {
 	if err == nil {
 		return nil
 	}
-	return &errorWithStatus{err, status, msg}
+	return &errorWithType{err, errType, msg}
 }
 
-func (e *errorWithStatus) Status() int {
-	return e.status
+func (e *errorWithType) ErrType() ErrType {
+	return e.errType
 }
 
-func (e *errorWithStatus) Message() string {
+func (e *errorWithType) Message() string {
 	return e.msg
 }
 
-func (e *errorWithStatus) Unwrap() error {
+func (e *errorWithType) Unwrap() error {
 	return e.error
 }
 
-func (e *errorWithStatus) Format(f fmt.State, c rune) {
+func (e *errorWithType) Format(f fmt.State, c rune) {
 	if m, ok := e.error.(xerrors.Formatter); ok {
 		xerrors.FormatError(m, f, c)
 	} else {
