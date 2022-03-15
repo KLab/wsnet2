@@ -397,9 +397,14 @@ namespace WSNet2.Core
             try
             {
                 var res = await post(path, content);
-                if (res.room == null)
+                switch (res.type)
                 {
-                    throw new RoomNotFoundException(res.msg);
+                    case LobbyResponseType.RoomLimit:
+                        throw new RoomLimitException(res.msg);
+                    case LobbyResponseType.NoRoomFound:
+                        throw new RoomNotFoundException(res.msg);
+                    case LobbyResponseType.RoomFull:
+                        throw new RoomFullException(res.msg);
                 }
 
                 var logger = prepareLogger(roomLogger);
