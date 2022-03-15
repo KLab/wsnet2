@@ -59,6 +59,11 @@ namespace WSNet2.Core
         public Action<Player> OnOtherPlayerJoined;
 
         /// <summary>
+        ///   他のプレイヤーの再入室イベント
+        /// </summary>
+        public Action<Player> OnOtherPlayerRejoined;
+
+        /// <summary>
         ///   他のプレイヤーの退室通知
         /// </summary>
         /// OnOtherPlayerLeft(player)
@@ -889,6 +894,9 @@ namespace WSNet2.Core
                 case EvJoined evJoined:
                     OnEvJoined(evJoined);
                     break;
+                case EvRejoined evRejoined:
+                    OnEvRejoined(evRejoined);
+                    break;
                 case EvLeft evLeft:
                     OnEvLeft(evLeft);
                     break;
@@ -961,6 +969,37 @@ namespace WSNet2.Core
                 if (OnOtherPlayerJoined != null)
                 {
                     OnOtherPlayerJoined(player);
+                }
+            });
+        }
+
+        /// <summary>
+        ///   再入室イベント
+        /// </summary>
+        private void OnEvRejoined(EvRejoined ev)
+        {
+            if (ev.ClientID == myId)
+            {
+                logger?.Info("rejoined: me");
+                callbackPool.Add(() =>
+                {
+                    Me.Props = ev.GetProps(Me.Props);
+                    if (OnJoined != null)
+                    {
+                        OnJoined(Me);
+                    }
+                });
+                return;
+            }
+
+            logger?.Info("rejoined: {0}", ev.ClientID);
+            callbackPool.Add(() =>
+            {
+                var player = players[ev.ClientID];
+                player.Props = ev.GetProps(player.Props);
+                if (OnOtherPlayerRejoined != null)
+                {
+                    OnOtherPlayerRejoined(player);
                 }
             });
         }

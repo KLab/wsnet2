@@ -170,7 +170,7 @@ namespace WSNet2.DotnetClient
             }
 
             var rand = new Random();
-            var userid = $"user{rand.Next(99):000}";
+            var userid = ((cmd == Cmd.join || cmd == Cmd.watch) && args.Length > 2) ? args[2] : $"user{rand.Next(99):000}";
             Console.WriteLine($"user id: {userid}");
 
             Serialization.Register<StrMessage>(0);
@@ -215,6 +215,7 @@ namespace WSNet2.DotnetClient
                 room.OnJoined += (me) => Console.WriteLine($"OnJoined: {me.Id}");
                 room.OnClosed += (m) => Console.WriteLine($"OnClosed: {m}");
                 room.OnOtherPlayerJoined += (p) => Console.WriteLine($"OnOtherPlayerJoined: {p.Id}");
+                room.OnOtherPlayerRejoined += (p) => Console.WriteLine($"OnOtherPlayerRejoined: {p.Id}");
                 room.OnOtherPlayerLeft += (p) => Console.WriteLine($"OnOtherplayerleft: {p.Id}");
                 room.OnMasterPlayerSwitched += (p, n) => Console.WriteLine($"OnMasterPlayerSwitched: {p.Id} -> {n.Id}");
                 room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
