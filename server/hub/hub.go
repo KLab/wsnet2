@@ -143,7 +143,7 @@ func (h *Hub) Done() <-chan struct{} {
 }
 
 func (h *Hub) Timeout(c *game.Client) {
-	// TODO: 実装
+	h.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
@@ -181,9 +181,6 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 
 	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(h.watchers, cid)
-
-	// pong.Watchersで上書きされるのでなくてもいいかも？
-	h.RoomInfo.Watchers -= c.NodeCount()
 
 	c.Removed(err)
 }
@@ -283,6 +280,7 @@ func (h *Hub) nodeCountUpdater() {
 			if nodeCount != h.lastNodeCount {
 				msg := binary.NewMsgNodeCount(uint32(nodeCount))
 				metrics.MessageSent.Add(1)
+				h.logger.Debugf("nodeCountUpdater: watchers= %#v", h.watchers)
 				if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal(h.hmac)); err != nil {
 					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
 					return
@@ -552,7 +550,6 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
 		h.RoomInfo.Watchers -= oldc.NodeCount()
 	}
-	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers += client.NodeCount()
 
 	rinfo := h.RoomInfo.Clone()
@@ -573,6 +570,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 
 func (h *Hub) msgLeave(msg *game.MsgLeave) error {
 	h.removeClient(msg.Sender, nil)
+	h.RoomInfo.Watchers -= msg.Sender.NodeCount()
 	return nil
 }
 
@@ -583,6 +581,7 @@ func (h *Hub) msgPing(msg *game.MsgPing) error {
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 	h.removeClient(msg.Sender, msg.Err)
+	h.RoomInfo.Watchers -= msg.Sender.NodeCount()
 	return nil
 }
 
