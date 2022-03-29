@@ -282,7 +282,6 @@ func (h *Hub) nodeCountUpdater() {
 			if nodeCount != h.lastNodeCount {
 				msg := binary.NewMsgNodeCount(uint32(nodeCount))
 				metrics.MessageSent.Add(1)
-				h.logger.Debugf("nodeCountUpdater: watchers= %#v", h.watchers)
 				if err := h.WriteMessage(websocket.BinaryMessage, msg.Marshal(h.hmac)); err != nil {
 					h.logger.Errorf("nodeCountUpdater: WrteMessage error: %v\n", err)
 					return
