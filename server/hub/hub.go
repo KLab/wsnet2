@@ -182,6 +182,8 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(h.watchers, cid)
 
+	h.RoomInfo.Watchers -= c.NodeCount()
+
 	c.Removed(err)
 }
 
@@ -570,18 +572,18 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 
 func (h *Hub) msgLeave(msg *game.MsgLeave) error {
 	h.removeClient(msg.Sender, nil)
-	h.RoomInfo.Watchers -= msg.Sender.NodeCount()
 	return nil
 }
 
 func (h *Hub) msgPing(msg *game.MsgPing) error {
+	h.muClients.RLock()
 	ev := binary.NewEvPong(msg.Timestamp, h.RoomInfo.Watchers, h.lastMsg)
+	h.muClients.RUnlock()
 	return msg.Sender.SendSystemEvent(ev)
 }
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 	h.removeClient(msg.Sender, msg.Err)
-	h.RoomInfo.Watchers -= msg.Sender.NodeCount()
 	return nil
 }
 
@@ -631,6 +633,10 @@ func (h *Hub) evPong(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
 	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
 	h.RoomInfo.Watchers = pong.Watchers
 	h.lastMsg = pong.LastMsg
 	return nil
