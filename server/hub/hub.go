@@ -143,7 +143,7 @@ func (h *Hub) Done() <-chan struct{} {
 }
 
 func (h *Hub) Timeout(c *game.Client) {
-	// TODO: 実装
+	h.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
@@ -182,7 +182,6 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(h.watchers, cid)
 
-	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers -= c.NodeCount()
 
 	c.Removed(err)
@@ -552,7 +551,6 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
 		h.RoomInfo.Watchers -= oldc.NodeCount()
 	}
-	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers += client.NodeCount()
 
 	rinfo := h.RoomInfo.Clone()
@@ -577,7 +575,9 @@ func (h *Hub) msgLeave(msg *game.MsgLeave) error {
 }
 
 func (h *Hub) msgPing(msg *game.MsgPing) error {
+	h.muClients.RLock()
 	ev := binary.NewEvPong(msg.Timestamp, h.RoomInfo.Watchers, h.lastMsg)
+	h.muClients.RUnlock()
 	return msg.Sender.SendSystemEvent(ev)
 }
 
@@ -632,6 +632,10 @@ func (h *Hub) evPong(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
 	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
 	h.RoomInfo.Watchers = pong.Watchers
 	h.lastMsg = pong.LastMsg
 	return nil
