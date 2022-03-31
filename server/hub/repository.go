@@ -50,7 +50,7 @@ func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repositor
 		db:       db,
 		grpcPool: common.NewGrpcPool(grpc.WithTransportCredentials(insecure.NewCredentials())),
 
-		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(time.Second*5)), /* TODO: 第三引数はconfigから持ってくる（ValidHeartBeat） */
+		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
 			ReadBufferSize:  1024,
