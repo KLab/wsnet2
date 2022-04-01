@@ -268,10 +268,8 @@ func (h *Hub) pinger() {
 	}
 }
 
-const updateInterval = 1 // TODO: config化
-
 func (h *Hub) nodeCountUpdater() {
-	t := time.NewTicker(time.Duration(updateInterval) * time.Second)
+	t := time.NewTicker(time.Duration(h.repo.conf.NodeCountInterval))
 	defer t.Stop()
 	for {
 		select {

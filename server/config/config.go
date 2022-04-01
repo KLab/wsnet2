@@ -95,7 +95,11 @@ type HubConf struct {
 
 	DefaultLoglevel uint32 `toml:"default_loglevel"`
 
+	// ValidHeartBeat : HeartBeatの有効期間（GameCacheで使用）
+	ValidHeartBeat Duration `toml:"valid_heartbeat"`
+
 	HeartBeatInterval Duration `toml:"heartbeat_interval"`
+	NodeCountInterval Duration `toml:"nodecount_interval"`
 
 	DbMaxConns int `toml:"db_max_conns"`
 
@@ -187,7 +191,10 @@ func Load(conffile string) (*Config, error) {
 
 			DefaultLoglevel: 2,
 
+			ValidHeartBeat: Duration(5 * time.Second),
+
 			HeartBeatInterval: Duration(2 * time.Second),
+			NodeCountInterval: Duration(1 * time.Second),
 
 			DbMaxConns: 0,
 
