@@ -132,22 +132,39 @@ func renderJoinedRoomResponse(w http.ResponseWriter, room *pb.JoinedRoomRes) {
 
 func renderFoundRoomsResponse(w http.ResponseWriter, rooms []*pb.RoomInfo) {
 	log.Debugf("found rooms: %#v", rooms)
-	renderResponse(w, &LobbyResponse{Msg: "OK", Rooms: rooms})
+	t := ResponseTypeOK
+	if len(rooms) == 0 {
+		t = ResponseTypeNoRoomFound
+	}
+	renderResponse(w, &LobbyResponse{Msg: "OK", Type: t, Rooms: rooms})
 }
 
 func renderErrorResponse(w http.ResponseWriter, msg string, status int, err error) {
-	if ews, ok := err.(lobby.ErrorWithStatus); ok {
-		status = ews.Status()
-		if m := ews.Message(); m != "" {
+	logmsg := msg
+	if e, ok := err.(lobby.ErrorWithType); ok {
+		if m := e.Message(); m != "" {
 			msg = m
 		}
+		switch e.ErrType() {
+		case lobby.ErrArgument:
+			status = http.StatusBadRequest
+		case lobby.ErrRoomLimit:
+			log.Debugf("Failed with status OK: %+v", err)
+			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeRoomLimit})
+			return
+		case lobby.ErrAlreadyJoined:
+			status = http.StatusConflict
+		case lobby.ErrRoomFull:
+			log.Debugf("Failed with status OK: %+v", err)
+			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeRoomFull})
+			return
+		case lobby.ErrNoJoinableRoom, lobby.ErrNoWatchableRoom:
+			log.Debugf("Failed with status OK: %+v", err)
+			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeNoRoomFound})
+			return
+		}
 	}
-	if status == http.StatusOK {
-		log.Debugf("Failed with status OK: %+v", err)
-		renderResponse(w, &LobbyResponse{Msg: msg})
-		return
-	}
-	log.Errorf("ErrorResponse: %d %s: %+v", status, msg, err)
+	log.Errorf("ErrorResponse: %d %s: %+v", status, logmsg, err)
 	http.Error(w, msg, status)
 }
 

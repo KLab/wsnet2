@@ -418,19 +418,19 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
-	if _, ok := r.players[msg.SenderID()]; ok {
-		err := xerrors.Errorf("Player already exists. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- WithCode(err, codes.AlreadyExists)
-		return err
+	// Timeout前の再入室はclientを差し替え、EvJoinedではなくEvRejoinedを通知
+	oldp, rejoin := r.players[msg.SenderID()]
+	if rejoin {
+		r.logger.Warnf("Player aleady exists (rejoin). room=%v, client=%v", r.ID(), msg.SenderID())
 	}
-	// hub経由で観戦している場合は考慮しない
+	// 観戦しながらの入室は不許可（ただしhub経由で観戦している場合は考慮しない）
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
 		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
 
-	if r.MaxPlayers <= uint32(len(r.players)) {
+	if !rejoin && r.MaxPlayers <= uint32(len(r.players)) {
 		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
 		msg.Err <- WithCode(err, codes.ResourceExhausted)
 		return err
@@ -445,14 +445,26 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		return err
 	}
 	r.players[client.ID()] = client
-	r.masterOrder = append(r.masterOrder, client.ID())
-	r.playerLogs = append(r.playerLogs, roomPlayerLog{
-		PlayerID:  client.Id,
-		Message:   "Join",
-		TimeStamp: time.Now(),
-	})
-	r.RoomInfo.Players = uint32(len(r.players))
-	r.updateRoomInfo()
+	if rejoin {
+		oldp.Removed(xerrors.Errorf("client rejoined as a new client"))
+		if r.master == oldp {
+			r.master = client
+		}
+		r.playerLogs = append(r.playerLogs, roomPlayerLog{
+			PlayerID:  client.Id,
+			Message:   "Rejoin",
+			TimeStamp: time.Now(),
+		})
+	} else {
+		r.masterOrder = append(r.masterOrder, client.ID())
+		r.playerLogs = append(r.playerLogs, roomPlayerLog{
+			PlayerID:  client.Id,
+			Message:   "Join",
+			TimeStamp: time.Now(),
+		})
+		r.RoomInfo.Players = uint32(len(r.players))
+		r.updateRoomInfo()
+	}
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := client.ClientInfo.Clone()
@@ -461,7 +473,11 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		players = append(players, c.ClientInfo.Clone())
 	}
 	msg.Joined <- &JoinedInfo{rinfo, players, client, r.master.ID(), r.deadline}
-	r.broadcast(binary.NewEvJoined(cinfo))
+	if rejoin {
+		r.broadcast(binary.NewEvRejoined(cinfo))
+	} else {
+		r.broadcast(binary.NewEvJoined(cinfo))
+	}
 
 	r.writeLastMsg(client.ID())
 
@@ -478,14 +494,9 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
+	// Playerとして参加中に観戦は不許可
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
-		msg.Err <- WithCode(err, codes.AlreadyExists)
-		return err
-	}
-	// hub経由で観戦している場合は考慮しない
-	if _, ok := r.watchers[msg.SenderID()]; ok {
-		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", r.ID(), msg.SenderID())
 		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return err
 	}
@@ -498,7 +509,12 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 		msg.Err <- err
 		return err
 	}
+	oldc, rejoin := r.watchers[client.ID()]
 	r.watchers[client.ID()] = client
+	if rejoin {
+		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		r.RoomInfo.Watchers -= oldc.nodeCount
+	}
 	r.RoomInfo.Watchers += client.nodeCount
 	r.updateRoomInfo()
 
@@ -712,7 +728,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 
-	// removeClientがmuClientsのロックを取るため呼び出し前にUnlockしておく
+	// removeClientがmuClientsのLockを取るため呼び出し前にRUnlockしておく
 	r.muClients.RUnlock()
 
 	r.removeClient(target, xerrors.Errorf("client kicked: room=%v client=%v", r.ID(), target.Id))

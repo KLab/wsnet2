@@ -143,7 +143,7 @@ func (h *Hub) Done() <-chan struct{} {
 }
 
 func (h *Hub) Timeout(c *game.Client) {
-	// TODO: 実装
+	h.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
@@ -182,7 +182,6 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(h.watchers, cid)
 
-	// pong.Watchersで上書きされるのでなくてもいいかも？
 	h.RoomInfo.Watchers -= c.NodeCount()
 
 	c.Removed(err)
@@ -269,10 +268,8 @@ func (h *Hub) pinger() {
 	}
 }
 
-const updateInterval = 1 // TODO: config化
-
 func (h *Hub) nodeCountUpdater() {
-	t := time.NewTicker(time.Duration(updateInterval) * time.Second)
+	t := time.NewTicker(time.Duration(h.repo.conf.NodeCountInterval))
 	defer t.Stop()
 	for {
 		select {
@@ -481,6 +478,8 @@ func (h *Hub) dispatch(msg game.Msg) error {
 	switch m := msg.(type) {
 	case *game.MsgWatch:
 		return h.msgWatch(m)
+	case *game.MsgLeave:
+		return h.msgLeave(m)
 	case *game.MsgPing:
 		return h.msgPing(m)
 	case *game.MsgClientError:
@@ -529,14 +528,9 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	h.muClients.Lock()
 	defer h.muClients.Unlock()
 
+	// Playerとして参加中の観戦は不許可
 	if _, ok := h.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", h.ID(), msg.SenderID())
-		msg.Err <- game.WithCode(err, codes.AlreadyExists)
-		return err
-	}
-	// 他のhub経由で観戦している場合は考慮しない（Gameでの直接観戦も同様）
-	if _, ok := h.watchers[msg.SenderID()]; ok {
-		err := xerrors.Errorf("Watcher already exists. room=%v, client=%v", h.ID(), msg.SenderID())
 		msg.Err <- game.WithCode(err, codes.AlreadyExists)
 		return err
 	}
@@ -549,8 +543,12 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		msg.Err <- err
 		return err
 	}
+	oldc, rejoin := h.watchers[client.ID()]
 	h.watchers[client.ID()] = client
-	// pong.Watchersで上書きされるのでなくてもいいかも？
+	if rejoin {
+		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		h.RoomInfo.Watchers -= oldc.NodeCount()
+	}
 	h.RoomInfo.Watchers += client.NodeCount()
 
 	rinfo := h.RoomInfo.Clone()
@@ -569,8 +567,15 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	return nil
 }
 
+func (h *Hub) msgLeave(msg *game.MsgLeave) error {
+	h.removeClient(msg.Sender, nil)
+	return nil
+}
+
 func (h *Hub) msgPing(msg *game.MsgPing) error {
+	h.muClients.RLock()
 	ev := binary.NewEvPong(msg.Timestamp, h.RoomInfo.Watchers, h.lastMsg)
+	h.muClients.RUnlock()
 	return msg.Sender.SendSystemEvent(ev)
 }
 
@@ -597,6 +602,8 @@ func (h *Hub) dispatchEvent(ev binary.Event) error {
 		return h.evPeerReady(ev)
 	case binary.EvTypeJoined:
 		return h.evJoined(ev)
+	case binary.EvTypeRejoined:
+		return h.evRejoined(ev)
 	case binary.EvTypeLeft:
 		return h.evLeft(ev)
 	case binary.EvTypeRoomProp:
@@ -623,6 +630,10 @@ func (h *Hub) evPong(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPong payload error: %w", err)
 	}
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
 	h.RoomInfo.Watchers = pong.Watchers
 	h.lastMsg = pong.LastMsg
 	return nil
@@ -655,6 +666,27 @@ func (h *Hub) evJoined(ev binary.Event) error {
 		ClientInfo: ci,
 		props:      props,
 	}
+
+	h.broadcast(ev.(*binary.RegularEvent))
+	return nil
+}
+
+func (h *Hub) evRejoined(ev binary.Event) error {
+	ci, err := binary.UnmarshalEvRejoinedPayload(ev.Payload())
+	if err != nil {
+		return xerrors.Errorf("Unmarshal EvRejoined payload error: %w", err)
+	}
+	props, iProps, err := common.InitProps(ci.Props)
+	if err != nil {
+		return xerrors.Errorf("PublicProps unmarshal error: %w", err)
+	}
+	ci.Props = iProps
+
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+
+	h.players[ClientID(ci.Id)].ClientInfo = ci
+	h.players[ClientID(ci.Id)].props = props
 
 	h.broadcast(ev.(*binary.RegularEvent))
 	return nil
