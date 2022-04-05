@@ -50,8 +50,8 @@ func (s *grpcServer) Dial() (*grpc.ClientConn, error) {
 // roomCmd represents the room command
 var roomCmd = &cobra.Command{
 	Use:   "room <roomid>...",
-	Short: "Show room info",
-	Long:  "Show room info",
+	Short: "Show active room info",
+	Long:  "Show active room info",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return xerrors.Errorf("need roomid\n")
