@@ -104,7 +104,7 @@ func selectRoomHistoryForList(ctx context.Context, limit int, at *time.Time) ([]
 }
 
 func playerIds(data []byte) ([]string, error) {
-	var logs []map[string]any
+	var logs []map[string]interface{}
 	err := json.Unmarshal(data, &logs)
 	if err != nil {
 		return nil, err
