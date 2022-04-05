@@ -89,7 +89,7 @@ func selectRoomHistory(ctx context.Context, ids []string) (map[string]*roomHisto
 }
 
 func formatRoomHistory(r *roomHistory) (map[string]interface{}, error) {
-	var number interface{} = "-"
+	var number int32
 	if r.Number.Valid {
 		number = r.Number.Int32
 	}
