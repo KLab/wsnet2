@@ -13,6 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: make and test
-        run: cd server && docker-compose run builder /bin/bash -eo pipefail -c "make all && go test ./... && ./bin/staticcheck -f=json -fail '' ./... > ../staticcheck-output.json"
+        run: cd server && docker-compose run --rm builder /bin/bash -eo pipefail -c "make all && go test ./... && ./bin/staticcheck -f=json -fail '' ./... > ../staticcheck-output.json"
       - name: staticcheck pr comment
         run: cat staticcheck-output.json | sed s#/repo/##g | jq -f ${{ github.workspace }}/.github/workflows/staticcheck-to-rdjsonl.jq -c | reviewdog -tee -f=rdjsonl -name=staticcheck -reporter=github-pr-review -level=warning
