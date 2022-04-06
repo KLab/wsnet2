@@ -58,6 +58,7 @@ message GetRoomInfoReq {
 message GetRoomInfoRes {
 	RoomInfo room_info = 1;
 	repeated ClientInfo client_infos = 2;
+	string master_id = 3;
 }
 
 message KickReq {
