@@ -225,8 +225,9 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 		},
 		MacKey: h.macKey,
 	}
-
-	res, err := client.Watch(context.TODO(), req)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	res, err := client.Watch(ctx, req)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to 'Watch' request to game server: %w", err)
 	}
