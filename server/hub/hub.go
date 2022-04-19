@@ -46,7 +46,7 @@ type Hub struct {
 	privateProps binary.Dict
 
 	msgCh          chan game.Msg
-	evCh           chan binary.Event // TODO: drainとかちゃんと考える
+	evCh           chan binary.Event
 	ready          chan struct{}
 	done           chan struct{}
 	normallyClosed bool
@@ -453,6 +453,7 @@ Loop:
 		}
 	}
 	h.drainMsg()
+	h.drainEv()
 	h.logger.Debug("Hub.ProcessLoop() finish")
 }
 
@@ -470,6 +471,17 @@ func (h *Hub) drainMsg() {
 		case msg := <-h.msgCh:
 			h.logger.Debugf("Discard msg: %T %v", msg, msg)
 		case <-ch:
+			return
+		}
+	}
+}
+
+func (h *Hub) drainEv() {
+	for {
+		select {
+		case ev := <-h.evCh:
+			h.logger.Debugf("Discard ev: %T %v", ev, ev)
+		default:
 			return
 		}
 	}
