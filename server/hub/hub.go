@@ -405,7 +405,7 @@ func (h *Hub) Start() {
 	go h.pinger()
 	go h.nodeCountUpdater()
 
-	// TODO: どこで h.gameConn を Close するか考える
+	defer h.gameConn.Close()
 	for {
 		_, b, err := h.gameConn.ReadMessage()
 		if err != nil {
