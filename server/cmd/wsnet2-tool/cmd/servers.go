@@ -10,6 +10,7 @@ import (
 var (
 	serversGameOnly bool
 	serversHubOnly  bool
+	serversAll      bool
 
 	serverStatusStr = []string{"Starting", "Running", "Closing"}
 )
@@ -67,6 +68,7 @@ func init() {
 
 	serversCmd.Flags().BoolVarP(&serversGameOnly, "game", "g", false, "show game servers only")
 	serversCmd.Flags().BoolVarP(&serversHubOnly, "hub", "u", false, "show hub servers only")
+	serversCmd.Flags().BoolVarP(&serversAll, "all", "a", false, "show all servers including dead servers")
 }
 
 func printServersHeader(cmd *cobra.Command) {
@@ -79,6 +81,9 @@ func printServer(cmd *cobra.Command, typ string, s server) {
 	v := time.Duration(conf.Lobby.ValidHeartBeat)
 	ok := "Available"
 	if hb.Before(time.Now().Add(-v)) {
+		if !serversAll {
+			return
+		}
 		ok = "Dead"
 	}
 
