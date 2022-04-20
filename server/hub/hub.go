@@ -108,11 +108,13 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 
 		lastMsg: make(binary.Dict),
 
+		lastNodeCount: 0,
+		seq:           0,
+
 		macKey: macKey,
 		hmac:   hmac.New(sha1.New, []byte(macKey)),
 
 		logger: logger,
-		// todo: hubをもっと埋める
 	}
 
 	return hub
@@ -187,11 +189,11 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	c.Removed(err)
 }
 
-func (h *Hub) dialGame(url, authKey string, seq int) error {
+func (h *Hub) dialGame(url, authKey string) error {
 	hdr := http.Header{}
 	hdr.Add("Wsnet2-App", h.appId)
 	hdr.Add("Wsnet2-User", h.clientId)
-	hdr.Add("Wsnet2-LastEventSeq", strconv.Itoa(seq))
+	hdr.Add("Wsnet2-LastEventSeq", strconv.Itoa(h.seq))
 
 	authdata, err := auth.GenerateAuthData(authKey, h.clientId, time.Now())
 	if err != nil {
@@ -397,7 +399,7 @@ func (h *Hub) Start() {
 	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
 	h.logger.Debugf("Dial Game: %v\n", url)
 
-	err = h.dialGame(url, res.AuthKey, 0)
+	err = h.dialGame(url, res.AuthKey)
 	if err != nil {
 		h.logger.Errorf("Failed to dial game server: %v\n", err)
 		return
