@@ -10,7 +10,7 @@ namespace WSNet2.Core.Test
         [OneTimeSetUp]
         public void Setup()
         {
-            writer = Serialization.NewWriter();
+            writer = WSNet2Serializer.NewWriter();
         }
 
         [Test]

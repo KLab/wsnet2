@@ -28,10 +28,10 @@ namespace Sample.Logic
             if (!RegisterTypesOnce)
             {
                 RegisterTypesOnce = true;
-                Serialization.Register<Sample.Logic.GameState>(10);
-                Serialization.Register<Sample.Logic.Bar>(11);
-                Serialization.Register<Sample.Logic.Ball>(12);
-                Serialization.Register<Sample.Logic.PlayerEvent>(20);
+                WSNet2Serializer.Register<Sample.Logic.GameState>(10);
+                WSNet2Serializer.Register<Sample.Logic.Bar>(11);
+                WSNet2Serializer.Register<Sample.Logic.Ball>(12);
+                WSNet2Serializer.Register<Sample.Logic.PlayerEvent>(20);
             }
         }
     }

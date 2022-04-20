@@ -64,7 +64,7 @@ namespace WSNet2.Core
         /// </summary>
         public static Event Parse(ArraySegment<byte> buf)
         {
-            var reader = Serialization.NewReader(buf);
+            var reader = WSNet2Serializer.NewReader(buf);
             var type = (EvType)reader.Get8();
 
             Event ev;

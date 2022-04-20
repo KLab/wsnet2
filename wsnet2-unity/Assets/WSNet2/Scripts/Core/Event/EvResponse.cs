@@ -83,25 +83,25 @@ namespace WSNet2.Core
 
         public RoomPropPayload GetRoomPropPayload()
         {
-            var reader = Serialization.NewReader(Payload);
+            var reader = WSNet2Serializer.NewReader(Payload);
             return new RoomPropPayload(reader);
         }
 
         public Dictionary<string, object> GetClientPropPayload()
         {
-            var reader = Serialization.NewReader(Payload);
+            var reader = WSNet2Serializer.NewReader(Payload);
             return reader.ReadDict();
         }
 
         public string GetSwitchMasterPayload()
         {
-            var reader = Serialization.NewReader(Payload);
+            var reader = WSNet2Serializer.NewReader(Payload);
             return reader.ReadString();
         }
 
         public string GetKickPayload()
         {
-            var reader = Serialization.NewReader(Payload);
+            var reader = WSNet2Serializer.NewReader(Payload);
             return reader.ReadString();
         }
     }

@@ -46,7 +46,7 @@ public class SampleClient : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        Serialization.Register<StrMessage>(1);
+        WSNet2Serializer.Register<StrMessage>(1);
 
         var userid = "id0001";
         cli = WSNet2Service.Instance.GetClient(

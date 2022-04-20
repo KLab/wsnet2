@@ -45,7 +45,7 @@ namespace WSNet2.Core
             pool = new SerialWriter[poolSize];
             for (var i = 0; i < pool.Length; i++)
             {
-                pool[i] = Serialization.NewWriter(initialBufSize);
+                pool[i] = WSNet2Serializer.NewWriter(initialBufSize);
             }
 
             hasMsg = new BlockingCollection<bool>(1);

@@ -74,7 +74,7 @@ namespace WSNet2.Core
             this.searchGroup = searchGroup;
             this.maxPlayers = maxPlayers;
 
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();

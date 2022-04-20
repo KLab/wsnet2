@@ -41,7 +41,7 @@ namespace WSNet2.Core.Test
             var msg = msgpool.Take(seqnum).Value;
             var buf = new byte[3 + msg.Count];
             msg.CopyTo(buf, 3);
-            var reader = Serialization.NewReader(new ArraySegment<byte>(buf));
+            var reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(buf));
             var ev = new EvResponse(EvType.PermissionDenied, reader);
             var payload = ev.GetRoomPropPayload();
 

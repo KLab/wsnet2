@@ -173,7 +173,7 @@ namespace WSNet2.DotnetClient
             var userid = ((cmd == Cmd.join || cmd == Cmd.watch) && args.Length > 2) ? args[2] : $"user{rand.Next(99):000}";
             Console.WriteLine($"user id: {userid}");
 
-            Serialization.Register<StrMessage>(0);
+            WSNet2Serializer.Register<StrMessage>(0);
 
             var authData = authgen.Generate("testapppkey", userid);
             Console.WriteLine($"mackey: {authData.MACKey}");
@@ -270,6 +270,7 @@ namespace WSNet2.DotnetClient
                     {"ccc", new object[]{1, 3, "a", 3.5f}},
                     {"ddd", new int[]{2, 4, 5, 8}},
                     {"eee", new double[]{-10, 1.1, 0.5}},
+                    {"strmcg", new StrMessage("msg!")},
                 };
                 var privProps = new Dictionary<string, object>(){
                     {"aaa", "private"},

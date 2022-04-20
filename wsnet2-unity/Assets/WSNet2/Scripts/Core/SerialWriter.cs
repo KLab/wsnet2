@@ -257,7 +257,7 @@ namespace WSNet2.Core
             else
             {
                 var msg = string.Format("string too long: {0}", len);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             utf8.GetBytes(v, 0, v.Length, buf, pos);
@@ -282,7 +282,7 @@ namespace WSNet2.Core
             if (id == null)
             {
                 var msg = string.Format("Type {0} is not registered", t);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(4);
@@ -297,7 +297,7 @@ namespace WSNet2.Core
             if (size > ushort.MaxValue)
             {
                 var msg = string.Format("Serialized data is too big: {0}", size);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             buf[start - 2] = (byte)((size & 0xff00) >> 8);
@@ -327,7 +327,7 @@ namespace WSNet2.Core
                 count++;
                 if (count > byte.MaxValue)
                 {
-                    throw new SerializationException("Too many list content");
+                    throw new WSNet2SerializerException("Too many list content");
                 }
 
                 writeElement(elem);
@@ -356,7 +356,7 @@ namespace WSNet2.Core
             if (count > byte.MaxValue)
             {
                 var msg = string.Format("Too many dictionary content: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
             Put8(count);
 
@@ -366,7 +366,7 @@ namespace WSNet2.Core
                 if (klen > byte.MaxValue)
                 {
                     var msg = string.Format("Too long key: \"{0}\"", kv.Key);
-                    throw new SerializationException(msg);
+                    throw new WSNet2SerializerException(msg);
                 }
                 expand(klen + 1);
                 Put8(klen);
@@ -393,7 +393,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             var len = (count + 7) / 8;
@@ -433,7 +433,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count);
@@ -463,7 +463,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count);
@@ -492,7 +492,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 2);
@@ -521,7 +521,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 2);
@@ -551,7 +551,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 2);
@@ -580,7 +580,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 4);
@@ -610,7 +610,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 4);
@@ -639,7 +639,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 8);
@@ -668,7 +668,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 8);
@@ -697,7 +697,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 4);
@@ -736,7 +736,7 @@ namespace WSNet2.Core
             if (count > ushort.MaxValue)
             {
                 var msg = string.Format("Too long array: {0}", count);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             expand(3 + count * 4);
@@ -919,7 +919,7 @@ namespace WSNet2.Core
                     Write(e);
                     break;
                 default:
-                    throw new SerializationException($"unknown element type: {elem.GetType()}");
+                    throw new WSNet2SerializerException($"unknown element type: {elem.GetType()}");
             }
 
             var size = pos - start;

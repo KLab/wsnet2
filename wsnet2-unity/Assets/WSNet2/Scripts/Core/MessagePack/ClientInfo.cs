@@ -20,7 +20,7 @@ namespace WSNet2.Core
         {
             this.Id = id;
 
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
