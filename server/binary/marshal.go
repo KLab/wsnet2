@@ -2,6 +2,7 @@ package binary
 
 import (
 	"math"
+	"unicode/utf16"
 
 	"golang.org/x/xerrors"
 )
@@ -641,7 +642,7 @@ func unmarshalBytes(src []byte) ([]int, int, error) {
 	return vals, l, nil
 }
 
-// MarshalChars marshals 16bit code-point array
+// MarshalChars marshals code-point array to UTF-16 sequence
 // format:
 //  - TypeChars
 //  - 16bit count
@@ -651,7 +652,8 @@ func MarshalChars(vals []rune) []byte {
 		return MarshalNull()
 	}
 
-	count := len(vals)
+	s := utf16.Encode(vals)
+	count := len(s)
 	if count > math.MaxUint16 {
 		count = math.MaxUint16
 	}
@@ -660,9 +662,7 @@ func MarshalChars(vals []rune) []byte {
 	put16(buf[1:], count)
 
 	for i := 0; i < count; i++ {
-		// todo: support surrogate pair
-		v := clamp(int(vals[i]), 0, math.MaxUint16)
-		put16(buf[3+i*CharDataSize:], v)
+		put16(buf[3+i*CharDataSize:], int(s[i]))
 	}
 
 	return buf
@@ -677,12 +677,11 @@ func unmarshalChars(src []byte) ([]rune, int, error) {
 	if len(src) < l {
 		return nil, 0, xerrors.Errorf("Unmarshal UShorts error: not enough data (%v)", len(src))
 	}
-	vals := make([]rune, count)
+	s := make([]uint16, count)
 	for i := 0; i < count; i++ {
-		// todo: support surrogate pair
-		vals[i] = rune(get16(src[3+i*CharDataSize:]))
+		s[i] = uint16(get16(src[3+i*CharDataSize:]))
 	}
-	return vals, l, nil
+	return utf16.Decode(s), l, nil
 }
 
 // MarshalShorts marshals signed 16bit integer array

@@ -738,6 +738,19 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(v, r);
         }
 
+        [TestCase("あ", new byte[] { (byte)Type.Chars, 0x00, 0x01, 0x30, 0x42 })]
+        [TestCase("🍣", new byte[] { (byte)Type.Chars, 0x00, 0x02, 0xd8, 0x3c, 0xdf, 0x63 })]
+        public void TestChars(string s, byte[] expect)
+        {
+            var v = s.ToCharArray();
+            writer.Write(v);
+            Assert.AreEqual(expect, writer.ArraySegment());
+
+            var reader = Serialization.NewReader(writer.ArraySegment());
+            var r = new String(reader.ReadChars());
+            Assert.AreEqual(s, r);
+        }
+
         [TestCase(new short[] { }, new byte[] { (byte)Type.Shorts, 0x00, 0x00 })]
         [TestCase(new short[] { 0, 1, short.MinValue, short.MaxValue },
                   new byte[] { (byte)Type.Shorts, 0, 4, 0x80, 0x00, 0x80, 0x01, 0x00, 0x00, 0xff, 0xff })]
