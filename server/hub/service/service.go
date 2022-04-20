@@ -105,7 +105,6 @@ func (s *HubService) Serve(ctx context.Context) error {
 }
 
 // heartbeat :
-// TODO: 一時停止する仕組みが必要
 func (s *HubService) heartbeat(ctx context.Context) <-chan error {
 	wait := make(chan struct{})
 	go func() {

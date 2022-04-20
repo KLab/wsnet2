@@ -46,7 +46,7 @@ type Hub struct {
 	privateProps binary.Dict
 
 	msgCh          chan game.Msg
-	evCh           chan binary.Event // TODO: drainとかちゃんと考える
+	evCh           chan binary.Event
 	ready          chan struct{}
 	done           chan struct{}
 	normallyClosed bool
@@ -108,11 +108,13 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 
 		lastMsg: make(binary.Dict),
 
+		lastNodeCount: 0,
+		seq:           0,
+
 		macKey: macKey,
 		hmac:   hmac.New(sha1.New, []byte(macKey)),
 
 		logger: logger,
-		// todo: hubをもっと埋める
 	}
 
 	return hub
@@ -187,11 +189,11 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 	c.Removed(err)
 }
 
-func (h *Hub) dialGame(url, authKey string, seq int) error {
+func (h *Hub) dialGame(url, authKey string) error {
 	hdr := http.Header{}
 	hdr.Add("Wsnet2-App", h.appId)
 	hdr.Add("Wsnet2-User", h.clientId)
-	hdr.Add("Wsnet2-LastEventSeq", strconv.Itoa(seq))
+	hdr.Add("Wsnet2-LastEventSeq", strconv.Itoa(h.seq))
 
 	authdata, err := auth.GenerateAuthData(authKey, h.clientId, time.Now())
 	if err != nil {
@@ -225,8 +227,9 @@ func (h *Hub) requestWatch(addr string) (*pb.JoinedRoomRes, error) {
 		},
 		MacKey: h.macKey,
 	}
-
-	res, err := client.Watch(context.TODO(), req)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	res, err := client.Watch(ctx, req)
 	if err != nil {
 		return nil, xerrors.Errorf("connectGame: Failed to 'Watch' request to game server: %w", err)
 	}
@@ -396,7 +399,7 @@ func (h *Hub) Start() {
 	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
 	h.logger.Debugf("Dial Game: %v\n", url)
 
-	err = h.dialGame(url, res.AuthKey, 0)
+	err = h.dialGame(url, res.AuthKey)
 	if err != nil {
 		h.logger.Errorf("Failed to dial game server: %v\n", err)
 		return
@@ -405,7 +408,7 @@ func (h *Hub) Start() {
 	go h.pinger()
 	go h.nodeCountUpdater()
 
-	// TODO: どこで h.gameConn を Close するか考える
+	defer h.gameConn.Close()
 	for {
 		_, b, err := h.gameConn.ReadMessage()
 		if err != nil {
@@ -452,6 +455,7 @@ Loop:
 		}
 	}
 	h.drainMsg()
+	h.drainEv()
 	h.logger.Debug("Hub.ProcessLoop() finish")
 }
 
@@ -469,6 +473,17 @@ func (h *Hub) drainMsg() {
 		case msg := <-h.msgCh:
 			h.logger.Debugf("Discard msg: %T %v", msg, msg)
 		case <-ch:
+			return
+		}
+	}
+}
+
+func (h *Hub) drainEv() {
+	for {
+		select {
+		case ev := <-h.evCh:
+			h.logger.Debugf("Discard ev: %T %v", ev, ev)
+		default:
 			return
 		}
 	}

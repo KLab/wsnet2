@@ -103,7 +103,6 @@ func (s *GameService) shutdownRequested() bool {
 }
 
 // heartbeat :
-// TODO: 一時停止する仕組みが必要
 func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 	wait := make(chan struct{})
 	go func() {
