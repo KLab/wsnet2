@@ -328,7 +328,6 @@ type roomHistory struct {
 
 func (repo *Repository) deleteRoom(room *Room) {
 	var err error
-	// TODO: 部屋の履歴を残す必要あり？
 	_, err = repo.db.Exec("DELETE FROM room WHERE id=?", room.ID())
 	if err != nil {
 		log.Errorf("deleteRoom: %w", err)

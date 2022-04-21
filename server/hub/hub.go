@@ -99,7 +99,7 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 		privateProps: make(binary.Dict),
 
 		msgCh: make(chan game.Msg, game.RoomMsgChSize),
-		evCh:  make(chan binary.Event, 1), // FIXME: 値をちゃんと考える
+		evCh:  make(chan binary.Event, 1),
 		ready: make(chan struct{}),
 		done:  make(chan struct{}),
 

@@ -210,8 +210,6 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// TODO: 必要に応じて一部のパラメータを上書き？
-
 	room, err := sv.roomService.Create(ctx, h.appId, &param.RoomOption, &param.ClientInfo, macKey)
 	if err != nil {
 		renderErrorResponse(w, "Failed to create room", http.StatusInternalServerError, err)

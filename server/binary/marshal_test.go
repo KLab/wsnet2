@@ -663,6 +663,10 @@ func TestMarshalChars(t *testing.T) {
 			[]byte{byte(TypeChars), 0, 3, 0x00, 0x00, 0x00, 0x6a, 0x30, 0x42},
 		},
 		{nil, []byte{byte(TypeNull)}},
+		{
+			[]rune("🍣"),
+			[]byte{byte(TypeChars), 0, 2, 0xd8, 0x3c, 0xdf, 0x63},
+		},
 	}
 	for _, test := range tests {
 		b := MarshalChars(test.val)
