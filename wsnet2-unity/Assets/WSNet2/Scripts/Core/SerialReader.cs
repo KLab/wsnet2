@@ -767,7 +767,9 @@ namespace WSNet2.Core
             return list;
         }
 
-        // experimental
+        /// <summary>
+        ///   bool値の辞書を取り出す
+        /// </summary>
         public Dictionary<string, bool> ReadBoolDict()
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)
@@ -791,7 +793,9 @@ namespace WSNet2.Core
 
         // TODO: implement other primitive type dict
 
-        // experimental
+        /// <summary>
+        ///   ulong値の辞書を取り出す
+        /// </summary>
         public Dictionary<string, ulong> ReadULongDict()
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)

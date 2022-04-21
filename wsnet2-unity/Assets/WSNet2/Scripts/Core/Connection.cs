@@ -228,7 +228,6 @@ namespace WSNet2.Core
                     {
                         if (ev.SequenceNum != evSeqNum + 1)
                         {
-                            // todo: reconnectable?
                             evBufPool.Add(ev.BufferArray);
                             throw new Exception($"invalid event sequence number: {ev.SequenceNum} wants {evSeqNum + 1}");
                         }
