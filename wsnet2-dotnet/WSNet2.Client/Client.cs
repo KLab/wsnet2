@@ -130,7 +130,7 @@ namespace WSNet2.DotnetClient
         {
             var roomsrc = new TaskCompletionSource<PublicRoom[]>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            client.SearchByIds(
+            client.Search(
                 ids, null,
                 (rs) =>
                 {

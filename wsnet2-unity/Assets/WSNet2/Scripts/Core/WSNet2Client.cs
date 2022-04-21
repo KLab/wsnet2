@@ -354,7 +354,7 @@ namespace WSNet2.Core
         /// <param name="query">検索クエリ</param>
         /// <param name="onSuccess">成功時callback. 引数は検索でヒットした部屋一覧</param>
         /// <param name="onFailed">失敗時callback. 引数は例外オブジェクト</param>
-        public void SearchByIds(string[] roomIds, Query query, Action<PublicRoom[]> onSuccess, Action<Exception> onFailed)
+        public void Search(string[] roomIds, Query query, Action<PublicRoom[]> onSuccess, Action<Exception> onFailed)
         {
             logger?.Debug("WSNet2Client.GetRoomsByIds({0})", string.Join(", ", roomIds));
 
