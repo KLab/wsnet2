@@ -108,7 +108,6 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {
 		log.Debugf("WSHandler.HandleRoom: GetClient error: %v", err)
-		// TODO: error format
 		http.Error(w, "Bad Request", 400)
 		return
 	}
