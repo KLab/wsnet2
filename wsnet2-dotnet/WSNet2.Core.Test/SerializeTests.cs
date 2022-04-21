@@ -746,7 +746,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = new String(reader.ReadChars());
             Assert.AreEqual(s, r);
         }
