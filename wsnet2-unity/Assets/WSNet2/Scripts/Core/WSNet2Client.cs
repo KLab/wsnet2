@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using MessagePack;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   WSNet2に接続するためのClient

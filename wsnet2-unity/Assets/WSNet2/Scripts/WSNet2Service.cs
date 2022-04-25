@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using WSNet2.Core;
 
 namespace WSNet2
 {

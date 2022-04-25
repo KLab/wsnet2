@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     /// WSNet2のためのLoggerインターフェイス

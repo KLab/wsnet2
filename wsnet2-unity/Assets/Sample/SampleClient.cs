@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using UnityEngine;
 using WSNet2;
-using WSNet2.Core;
 
 public class SampleClient : MonoBehaviour
 {

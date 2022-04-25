@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using WSNet2.Core;
+using WSNet2;
 
 namespace WSNet2.DotnetClient
 {

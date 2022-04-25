@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   送信メッセージを一時的に貯めるPool.

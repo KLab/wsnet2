@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     using ReadFunc = WSNet2Serializer.ReadFunc;
 

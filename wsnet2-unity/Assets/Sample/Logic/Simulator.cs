@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using WSNet2.Core;
+using WSNet2;
 
 #if UNITY_5_3_OR_NEWER
 using Vector2 = UnityEngine.Vector2;

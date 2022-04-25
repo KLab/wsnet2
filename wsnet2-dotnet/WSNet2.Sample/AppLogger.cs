@@ -1,4 +1,4 @@
-using WSNet2.Core;
+using WSNet2;
 using Microsoft.Extensions.Logging;
 using ZLogger;
 using System;

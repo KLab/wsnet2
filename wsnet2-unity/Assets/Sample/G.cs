@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using WSNet2.Core;
+using WSNet2;
 
 namespace Sample
 {
