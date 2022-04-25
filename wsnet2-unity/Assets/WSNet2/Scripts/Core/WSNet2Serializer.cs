@@ -12,7 +12,7 @@ namespace WSNet2.Core
     ///     独自型の登録はこのクラスのstaticメソッドで行う。
     ///   </para>
     /// </remarks>
-    public class Serialization
+    public class WSNet2Serializer
     {
         public delegate object ReadFunc(SerialReader reader, object recycle);
 
@@ -152,21 +152,21 @@ namespace WSNet2.Core
     }
 
     [Serializable()]
-    public class SerializationException : Exception
+    public class WSNet2SerializerException : Exception
     {
-        public SerializationException() : base()
+        public WSNet2SerializerException() : base()
         {
         }
 
-        public SerializationException(string message) : base(message)
+        public WSNet2SerializerException(string message) : base(message)
         {
         }
 
-        public SerializationException(string message, Exception innerException) : base(message, innerException)
+        public WSNet2SerializerException(string message, Exception innerException) : base(message, innerException)
         {
         }
 
-        protected SerializationException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected WSNet2SerializerException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

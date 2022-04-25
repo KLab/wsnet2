@@ -5,7 +5,7 @@ using System.Text;
 
 namespace WSNet2.Core
 {
-    using ReadFunc = Serialization.ReadFunc;
+    using ReadFunc = WSNet2Serializer.ReadFunc;
 
     /// <summary>
     ///   型を保存するデシリアライザ
@@ -196,14 +196,14 @@ namespace WSNet2.Core
             if (tid == null)
             {
                 var msg = string.Format("Type {0} is not registered", t);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             var id = (byte)Get8();
             if (id != (byte)tid)
             {
                 var msg = string.Format("Type mismatch {0} wants {1}", tid, id);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             var size = Get16();
@@ -767,7 +767,9 @@ namespace WSNet2.Core
             return list;
         }
 
-        // experimental
+        /// <summary>
+        ///   bool値の辞書を取り出す
+        /// </summary>
         public Dictionary<string, bool> ReadBoolDict()
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)
@@ -791,7 +793,9 @@ namespace WSNet2.Core
 
         // TODO: implement other primitive type dict
 
-        // experimental
+        /// <summary>
+        ///   ulong値の辞書を取り出す
+        /// </summary>
         public Dictionary<string, ulong> ReadULongDict()
         {
             if (checkType(Type.Dict, Type.Null) == Type.Null)
@@ -873,7 +877,7 @@ namespace WSNet2.Core
             if (rest < want)
             {
                 var msg = String.Format("Not enough data: {0} < {1}", rest, want);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
         }
 
@@ -884,7 +888,7 @@ namespace WSNet2.Core
             if (t != want)
             {
                 var msg = String.Format("Type mismatch: {0} wants {1}", t, want);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             pos++;
@@ -898,7 +902,7 @@ namespace WSNet2.Core
             if (t != want1 && t != want2)
             {
                 var msg = String.Format("Type mismatch: {0} wants {1} or {2}", t, want1, want2);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             pos++;
@@ -912,7 +916,7 @@ namespace WSNet2.Core
             if (t != want1 && t != want2 && t != want3)
             {
                 var msg = String.Format("Type mismatch: {0} wants {1}, {2} or {3}", t, want1, want2, want3);
-                throw new SerializationException(msg);
+                throw new WSNet2SerializerException(msg);
             }
 
             pos++;
@@ -977,7 +981,7 @@ namespace WSNet2.Core
                     var read = readFuncs[cid];
                     if (read == null)
                     {
-                        throw new SerializationException(
+                        throw new WSNet2SerializerException(
                             string.Format("ClassID {0} is not registered", cid));
                     }
                     elem = read(this, recycle);
@@ -1022,7 +1026,7 @@ namespace WSNet2.Core
                     elem = ReadDoubles(recycle as double[]);
                     break;
                 default:
-                    throw new SerializationException(
+                    throw new WSNet2SerializerException(
                         string.Format("Type {0} is not implemented", t));
             }
 

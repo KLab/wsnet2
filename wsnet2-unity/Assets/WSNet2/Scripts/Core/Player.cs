@@ -25,7 +25,7 @@ namespace WSNet2.Core
         public Player(ClientInfo info)
         {
             Id = info.Id;
-            var reader = Serialization.NewReader(info.Props);
+            var reader = WSNet2Serializer.NewReader(info.Props);
             Props = reader.ReadDict();
         }
 

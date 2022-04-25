@@ -104,9 +104,9 @@ namespace WSNet2.Core.Test
         [OneTimeSetUp]
         public void OnTimeSetUp()
         {
-            Serialization.Register<Obj1>((byte)'A');
-            Serialization.Register<Obj2>((byte)'B');
-            writer = Serialization.NewWriter();
+            WSNet2Serializer.Register<Obj1>((byte)'A');
+            WSNet2Serializer.Register<Obj2>((byte)'B');
+            writer = WSNet2Serializer.NewWriter();
         }
 
         [SetUp]
@@ -131,7 +131,7 @@ namespace WSNet2.Core.Test
             writer.Write(b);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadBool();
             Assert.AreEqual(b, r);
         }
@@ -144,7 +144,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadSByte();
             Assert.AreEqual(v, r);
         }
@@ -156,7 +156,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadByte();
             Assert.AreEqual(v, r);
         }
@@ -169,7 +169,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadChar();
             Assert.AreEqual(v, r);
         }
@@ -182,7 +182,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadShort();
             Assert.AreEqual(v, r);
         }
@@ -194,7 +194,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadUShort();
             Assert.AreEqual(v, r);
         }
@@ -207,7 +207,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadInt();
             Assert.AreEqual(v, r);
         }
@@ -220,7 +220,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadUInt();
             Assert.AreEqual(v, r);
         }
@@ -233,7 +233,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadLong();
             Assert.AreEqual(v, r);
         }
@@ -245,7 +245,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadULong();
             Assert.AreEqual(v, r);
         }
@@ -258,7 +258,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadFloat();
             Assert.AreEqual(v, r);
         }
@@ -271,7 +271,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadDouble();
             Assert.AreEqual(v, r);
         }
@@ -286,7 +286,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadString();
             Assert.AreEqual(v, r);
         }
@@ -310,7 +310,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadString();
             Assert.AreEqual(v, r);
         }
@@ -328,7 +328,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             Obj1.NewCount = 0;
             var r = reader.ReadObject<Obj1>();
 
@@ -347,7 +347,7 @@ namespace WSNet2.Core.Test
             writer.Write(v2);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r2 = new Obj2(0, new Obj1());
             Obj1.NewCount = 0;
             r2 = reader.ReadObject(r2);
@@ -362,7 +362,7 @@ namespace WSNet2.Core.Test
             writer.Reset();
             writer.Write(v3);
             Assert.AreEqual(expect, writer.ArraySegment());
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r3 = reader.ReadObject<Obj1>();
             Assert.AreEqual(v3, r3);
 
@@ -375,7 +375,7 @@ namespace WSNet2.Core.Test
             writer.Reset();
             writer.Write(v4);
             Assert.AreEqual(expect, writer.ArraySegment());
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r4 = reader.ReadObject<Obj2>();
             Console.WriteLine(r4);
             Assert.AreEqual(v4, r4);
@@ -432,7 +432,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var recycle = new List<object>(){
                 null,
                 new Obj1(0,""), // 同じindex位置に同じ型のObjectがあると使い回す
@@ -446,7 +446,7 @@ namespace WSNet2.Core.Test
             r.Add(null);
 
             // use recycle
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r2 = reader.ReadList(r);
             Assert.AreEqual(v, r2);
             Assert.AreSame(r, r2);
@@ -456,7 +456,7 @@ namespace WSNet2.Core.Test
             writer.Reset();
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             r = reader.ReadList(recycle);
             Assert.Null(r);
         }
@@ -512,7 +512,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var recycle = new object[]{
                 null,
                 new Obj1(0,""), // 同じindex位置に同じ型のObjectがあると使い回す
@@ -524,7 +524,7 @@ namespace WSNet2.Core.Test
             Assert.AreNotSame(r, recycle);
 
             // use recycle
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r2 = reader.ReadArray(r);
             Assert.AreEqual(v, r2);
             Assert.AreSame(r, r2);
@@ -534,7 +534,7 @@ namespace WSNet2.Core.Test
             writer.Reset();
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             r = reader.ReadArray(recycle);
             Assert.Null(r);
         }
@@ -560,7 +560,7 @@ namespace WSNet2.Core.Test
                 new Obj1(3, "gh"),
             };
 
-            var reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            var reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(bin));
             var recycle = new List<Obj1>(){
                 new Obj1(),
                 new Obj1(),
@@ -574,7 +574,7 @@ namespace WSNet2.Core.Test
 
             r.Add(null);
 
-            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(bin));
             var r2 = reader.ReadList<Obj1>(r);
             Assert.AreEqual(typeof(List<Obj1>), r2.GetType());
             Assert.AreEqual(expect, r2);
@@ -582,7 +582,7 @@ namespace WSNet2.Core.Test
 
             bin = new byte[] { (byte)Type.Null };
             expect = null;
-            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(bin));
             r = reader.ReadList<Obj1>();
             Assert.Null(r);
         }
@@ -608,7 +608,7 @@ namespace WSNet2.Core.Test
                 new Obj1(3, "gh"),
             };
 
-            var reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            var reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(bin));
             var recycle = new Obj1[]{
                 new Obj1(),
                 new Obj1(),
@@ -620,7 +620,7 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(1, Obj1.NewCount);
             Assert.AreNotSame(r, recycle);
 
-            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(bin));
             var r2 = reader.ReadArray<Obj1>(r);
             Assert.AreEqual(typeof(Obj1[]), r2.GetType());
             Assert.AreEqual(expect, r2);
@@ -628,7 +628,7 @@ namespace WSNet2.Core.Test
 
             bin = new byte[] { (byte)Type.Null };
             expect = null;
-            reader = Serialization.NewReader(new ArraySegment<byte>(bin));
+            reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(bin));
             r = reader.ReadArray<Obj1>();
             Assert.Null(r);
         }
@@ -662,7 +662,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var recycle = new Dictionary<string, object>(){
                 {"jkl", new Obj1()},
             };
@@ -678,7 +678,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            reader = Serialization.NewReader(writer.ArraySegment());
+            reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             r = reader.ReadDict();
             Assert.Null(r);
         }
@@ -693,7 +693,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadBools();
             Assert.AreEqual(v, r);
         }
@@ -706,7 +706,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadSBytes();
             Assert.AreEqual(v, r);
         }
@@ -719,7 +719,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadBytes();
             Assert.AreEqual(v, r);
         }
@@ -733,7 +733,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadChars();
             Assert.AreEqual(v, r);
         }
@@ -746,7 +746,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = new String(reader.ReadChars());
             Assert.AreEqual(s, r);
         }
@@ -760,7 +760,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadShorts();
             Assert.AreEqual(v, r);
         }
@@ -774,7 +774,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadUShorts();
             Assert.AreEqual(v, r);
         }
@@ -788,7 +788,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadInts();
             Assert.AreEqual(v, r);
         }
@@ -802,7 +802,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadUInts();
             Assert.AreEqual(v, r);
         }
@@ -820,7 +820,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadLongs();
             Assert.AreEqual(v, r);
         }
@@ -837,7 +837,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadULongs();
             Assert.AreEqual(v, r);
         }
@@ -855,7 +855,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadFloats();
             Assert.AreEqual(v, r);
         }
@@ -873,7 +873,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadDoubles();
             Assert.AreEqual(v, r);
         }
@@ -890,7 +890,7 @@ namespace WSNet2.Core.Test
             writer.Write(v);
             Assert.AreEqual(expect, writer.ArraySegment());
 
-            var reader = Serialization.NewReader(writer.ArraySegment());
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
             var r = reader.ReadStrings();
             Assert.AreEqual(v, r);
         }

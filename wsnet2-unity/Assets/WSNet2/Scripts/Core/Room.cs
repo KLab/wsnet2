@@ -144,7 +144,7 @@ namespace WSNet2.Core
 
             this.callbackPool = new CallbackPool(() => this.Running);
 
-            var reader = Serialization.NewReader(info.privateProps);
+            var reader = WSNet2Serializer.NewReader(info.privateProps);
             privateProps = reader.ReadDict();
 
             players = new Dictionary<string, Player>(joined.players.Length);

@@ -697,7 +697,7 @@ namespace WSNet2.Core
 
         private byte[] serialize()
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -708,7 +708,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(bool val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -719,7 +719,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(sbyte val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -730,7 +730,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(byte val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -741,7 +741,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(char val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -752,7 +752,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(short val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -763,7 +763,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(ushort val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -774,7 +774,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(int val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -785,7 +785,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(uint val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -796,7 +796,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(long val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -807,7 +807,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(ulong val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -818,7 +818,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(float val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -829,7 +829,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(double val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();
@@ -840,7 +840,7 @@ namespace WSNet2.Core
 
         private byte[] serialize(string val)
         {
-            var writer = Serialization.GetWriter();
+            var writer = WSNet2Serializer.GetWriter();
             lock (writer)
             {
                 writer.Reset();

@@ -47,7 +47,7 @@ namespace WSNet2.Core
         {
             info = roomInfo;
 
-            var reader = Serialization.NewReader(roomInfo.publicProps);
+            var reader = WSNet2Serializer.NewReader(roomInfo.publicProps);
             publicProps = reader.ReadDict();
 
             Created = DateTimeOffset.FromUnixTimeSeconds(roomInfo.created).DateTime;
