@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     public class EvClientProp : Event
     {

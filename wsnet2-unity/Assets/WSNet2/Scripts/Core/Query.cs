@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   部屋プロパティのマッチ条件クエリ

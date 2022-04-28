@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-using WSNet2.Core;
+using WSNet2;
 using Sample.Logic;
 
 namespace WSNet2.Sample

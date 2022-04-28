@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   Room

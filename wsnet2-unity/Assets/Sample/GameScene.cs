@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-using WSNet2.Core;
+using WSNet2;
 using Sample.Logic;
 
 namespace Sample

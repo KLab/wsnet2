@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   方を保存するシリアライザ

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Security.Cryptography;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     public class MsgPing
     {

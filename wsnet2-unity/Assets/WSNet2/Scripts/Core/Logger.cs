@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     /// WSNet2内部で使用するLogger

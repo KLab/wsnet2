@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using MessagePack;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     [MessagePackObject]
     public class ClientInfo
