@@ -524,5 +524,32 @@ namespace WSNet2
 
             sequenceNum++;
         }
+
+#if DEBUG
+        /// <summary>
+        ///   PayloadからMsg情報を取り出す（NetworkInformer用）
+        /// </summary>
+        public static (MsgType msgType, byte? rpcId) ParsePayload(ArraySegment<byte> payload)
+        {
+            var reader = WSNet2Serializer.NewReader(payload);
+            var msgType = (MsgType)reader.Get8();
+            byte? rpcId = null;
+            switch (msgType)
+            {
+                case MsgType.ToMaster:
+                case MsgType.Broadcast:
+                    _ = reader.Get24();
+                    rpcId = reader.ReadByte();
+                    break;
+                case MsgType.Target:
+                    _ = reader.Get24();
+                    _ = reader.ReadStrings();
+                    rpcId = reader.ReadByte();
+                    break;
+            }
+
+            return (msgType, rpcId);
+        }
+#endif
     }
 }

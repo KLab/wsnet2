@@ -208,6 +208,7 @@ namespace WSNet2
             logger?.Info("connecting to {0}", uri);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(WSNet2Settings.ConnectTimeoutMilliSec);
+            NetworkInformer.OnRoomConnectRequest(room, uri.AbsoluteUri);
             await ws.ConnectAsync(uri, cts.Token);
             return ws;
         }
@@ -305,7 +306,9 @@ namespace WSNet2
                     }
                 }
 
-                return Event.Parse(new ArraySegment<byte>(buf, 0, pos));
+                var ev = Event.Parse(new ArraySegment<byte>(buf, 0, pos));
+                NetworkInformer.OnRoomReceive(room, pos, ev);
+                return ev;
             }
             catch (Exception)
             {
@@ -388,6 +391,7 @@ namespace WSNet2
             await sendSemaphore.WaitAsync(ct);
             try
             {
+                NetworkInformer.OnRoomSend(room, msg);
                 await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
             }
             finally

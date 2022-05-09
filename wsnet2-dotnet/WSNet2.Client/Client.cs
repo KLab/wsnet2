@@ -175,8 +175,9 @@ namespace WSNet2.DotnetClient
 
             WSNet2Serializer.Register<StrMessage>(0);
 
+            NetworkInformer.SetCallback(NetInfoCallback);
+
             var authData = authgen.Generate("testapppkey", userid);
-            Console.WriteLine($"mackey: {authData.MACKey}");
 
             var client = new WSNet2Client(
                 "http://localhost:8080",
@@ -469,6 +470,31 @@ namespace WSNet2.DotnetClient
             {
                 Console.WriteLine("exception: " + e);
                 cts.Cancel();
+            }
+        }
+
+        static void NetInfoCallback(NetworkInformer.Info info)
+        {
+            switch (info)
+            {
+                case NetworkInformer.LobbySendInfo i:
+                    Console.WriteLine($"NetInfo: LobbySend \"{i.URL}\" {i.BodySize}");
+                    break;
+                case NetworkInformer.LobbyReceiveInfo i:
+                    Console.WriteLine($"Netinfo: LobbyReceive {i.StatusCode} \"{i.URL}\" {i.BodySize}");
+                    break;
+                case NetworkInformer.RoomConnectRequestInfo i:
+                    Console.WriteLine($"NetInfo: RoomConnectRequest {i.URL} {i.RoomID}");
+                    break;
+                case NetworkInformer.RoomSendInfo i:
+                    Console.WriteLine($"NetInfo: RoomSend {i.RoomID} {i.MsgType} {i.BodySize} {i.RPCInfo?.ID} {i.RPCInfo?.MethodName}");
+                    break;
+                case NetworkInformer.RoomReceiveInfo i:
+                    Console.WriteLine($"NetInfo: RoomReceive {i.RoomID} {i.EvType} {i.BodySize} {i.RPCInfo?.ID} {i.RPCInfo?.MethodName}");
+                    break;
+                default:
+                    Console.WriteLine($"NetInfo: ? {info}");
+                    break;
             }
         }
     }
