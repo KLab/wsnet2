@@ -63,24 +63,27 @@ func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repositor
 	return repo, nil
 }
 
-func (r *Repository) GetOrCreateHub(appId AppID, roomId RoomID) (*Hub, error) {
+func (r *Repository) GetOrCreateHub(ctx context.Context, appId AppID, roomId RoomID) (*Hub, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	hub, ok := r.hubs[roomId]
-	if ok {
+	if !ok {
+		hub = NewHub(r, appId, roomId)
+		r.hubs[roomId] = hub
+		go func() {
+			hub.Start()
+			r.RemoveHub(hub)
+		}()
+	}
+	r.mu.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return nil, xerrors.Errorf("GetOrCreateHub timeout or context done: room=%v", hub.ID())
+	case <-hub.Done():
+		return nil, xerrors.Errorf("GetOrCreateHub hub closed: room=%v", hub.ID())
+	case <-hub.Ready():
 		return hub, nil
 	}
-
-	hub = NewHub(r, appId, roomId)
-	r.hubs[roomId] = hub
-
-	go func() {
-		hub.Start()
-		r.RemoveHub(hub)
-	}()
-
-	return hub, nil
 }
 
 func (r *Repository) RemoveHub(hub *Hub) {
@@ -103,7 +106,7 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 			xerrors.Errorf("reached to the max_clients"), codes.ResourceExhausted)
 	}
 
-	hub, err := r.GetOrCreateHub(appId, roomId)
+	hub, err := r.GetOrCreateHub(ctx, appId, roomId)
 	if err != nil {
 		return nil, game.WithCode(xerrors.Errorf("WatchRoom: %w", err), codes.NotFound)
 	}
