@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Runtime.Serialization;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   型を保存するシリアライザ/デシリアライザ

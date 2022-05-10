@@ -1,6 +1,6 @@
 ﻿using MessagePack;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     public partial class Query
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   検索結果で得られる公開部屋情報

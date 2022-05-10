@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using WSNet2;
-using WSNet2.Core;
 
 namespace Sample
 {

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   サーバ側の部屋数上限に達した例外

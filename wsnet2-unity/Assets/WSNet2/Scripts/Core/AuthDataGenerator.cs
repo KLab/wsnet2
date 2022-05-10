@@ -3,7 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     public class AuthDataGenerator
     {

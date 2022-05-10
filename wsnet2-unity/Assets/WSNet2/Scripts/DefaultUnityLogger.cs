@@ -1,5 +1,4 @@
 ﻿using System;
-using WSNet2.Core;
 
 namespace WSNet2
 {

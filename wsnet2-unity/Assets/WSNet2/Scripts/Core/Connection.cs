@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Threading;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     class Connection
     {

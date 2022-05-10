@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 
-namespace WSNet2.Core
+namespace WSNet2
 {
     /// <summary>
     ///   Callbackを溜めておいて後から実行できるようにするやつ.
