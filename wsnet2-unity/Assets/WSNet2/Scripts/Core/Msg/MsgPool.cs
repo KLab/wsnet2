@@ -529,26 +529,121 @@ namespace WSNet2
         /// <summary>
         ///   PayloadからMsg情報を取り出す（NetworkInformer用）
         /// </summary>
-        public static (MsgType msgType, byte? rpcId) ParsePayload(ArraySegment<byte> payload)
+        public static NetworkInformer.RoomSendInfo ParsePayload(Room room, ArraySegment<byte> payload)
         {
+            var bodysize = payload.Count;
             var reader = WSNet2Serializer.NewReader(payload);
             var msgType = (MsgType)reader.Get8();
-            byte? rpcId = null;
             switch (msgType)
             {
-                case MsgType.ToMaster:
-                case MsgType.Broadcast:
-                    _ = reader.Get24();
-                    rpcId = reader.ReadByte();
-                    break;
+                case MsgType.Ping:
+                    return new NetworkInformer.RoomSendPingInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = 0,
+                        TimestampMilliSec = reader.Get64(),
+                    };
+                case MsgType.Leave:
+                    return new NetworkInformer.RoomSendLeaveInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = reader.Get24(),
+                    };
+                case MsgType.RoomProp:
+                    var seqnum = reader.Get24();
+                    var flags = reader.ReadByte();
+                    return new NetworkInformer.RoomSendRoomPropInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = seqnum,
+                        Visible = (flags & 1) != 0,
+                        Joinable = (flags & 2) != 0,
+                        Watchable = (flags & 4) != 0,
+                        SearchGroup = reader.ReadUInt(),
+                        MaxPlayers = reader.ReadUShort(),
+                        ClientDeadline = reader.ReadUShort(),
+                        PublicProps = NetworkInformer.CutOutOne(reader),
+                        PrivateProps = NetworkInformer.CutOutOne(reader),
+                    };
+                case MsgType.ClientProp:
+                    return new NetworkInformer.RoomSendPlayerPropInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = reader.Get24(),
+                        Props = NetworkInformer.CutOutOne(reader),
+                    };
+                case MsgType.SwitchMaster:
+                    return new NetworkInformer.RoomSendSwitchMasterInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = reader.Get24(),
+                        NewMaster = reader.ReadString(),
+                    };
                 case MsgType.Target:
-                    _ = reader.Get24();
-                    _ = reader.ReadStrings();
+                    seqnum = reader.Get24();
+                    var targets = reader.ReadStrings();
+                    var rpcId = reader.ReadByte();
+                    return new NetworkInformer.RoomSendRPCInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = seqnum,
+                        RpcID = rpcId,
+                        MethodName = room.MethodName(rpcId),
+                        Targets = targets,
+                        Param = NetworkInformer.CutOutOne(reader),
+                    };
+                case MsgType.ToMaster:
+                    seqnum = reader.Get24();
                     rpcId = reader.ReadByte();
-                    break;
+                    return new NetworkInformer.RoomSendRPCInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = seqnum,
+                        RpcID = rpcId,
+                        MethodName = room.MethodName(rpcId),
+                        Targets = Room.RPCToMaster,
+                        Param = NetworkInformer.CutOutOne(reader),
+                    };
+                case MsgType.Broadcast:
+                    seqnum = reader.Get24();
+                    rpcId = reader.ReadByte();
+                    return new NetworkInformer.RoomSendRPCInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = seqnum,
+                        RpcID = rpcId,
+                        MethodName = room.MethodName(rpcId),
+                        Targets = new string[0],
+                        Param = NetworkInformer.CutOutOne(reader),
+                    };
+                case MsgType.Kick:
+                    return new NetworkInformer.RoomSendKickInfo()
+                    {
+                        BodySize = bodysize,
+                        RoomID = room.Id,
+                        MsgType = msgType,
+                        SequenceNum = reader.Get24(),
+                        Target = reader.ReadString(),
+                    };
+                default:
+                    throw new Exception($"Unknown MsgType {msgType}");
             }
-
-            return (msgType, rpcId);
         }
 #endif
     }

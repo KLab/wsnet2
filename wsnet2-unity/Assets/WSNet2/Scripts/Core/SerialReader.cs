@@ -817,6 +817,87 @@ namespace WSNet2
             return dict;
         }
 
+        /// <summary>
+        ///   値をひとつ取り出す
+        /// </summary>
+        public object Read(object recycle = null)
+        {
+            if (buf.Count == pos)
+            {
+                return null;
+            }
+
+            var t = (Type)Enum.ToObject(typeof(Type), buf[pos]);
+            switch (t)
+            {
+                case Type.Null:
+                    return null;
+                case Type.True:
+                    return true;
+                case Type.False:
+                    return false;
+                case Type.SByte:
+                    return ReadSByte();
+                case Type.Byte:
+                    return ReadByte();
+                case Type.Short:
+                    return ReadShort();
+                case Type.UShort:
+                    return ReadUShort();
+                case Type.Int:
+                    return ReadInt();
+                case Type.UInt:
+                    return ReadUInt();
+                case Type.Long:
+                    return ReadLong();
+                case Type.ULong:
+                    return ReadULong();
+                case Type.Float:
+                    return ReadFloat();
+                case Type.Double:
+                    return ReadDouble();
+                case Type.Str8:
+                case Type.Str16:
+                    return ReadString();
+                case Type.Obj:
+                    var cid = buf[pos + 1];
+                    var read = readFuncs[cid];
+                    if (read == null)
+                    {
+                        throw new WSNet2SerializerException($"ClassID {cid} is not registered");
+                    }
+                    return read(this, recycle);
+                case Type.List:
+                    return ReadList(recycle as List<object>);
+                case Type.Dict:
+                    return ReadDict(recycle as IDictionary<string, object>);
+                case Type.Bools:
+                    return ReadBools(recycle as bool[]);
+                case Type.SBytes:
+                    return ReadSBytes(recycle as sbyte[]);
+                case Type.Bytes:
+                    return ReadBytes(recycle as byte[]);
+                case Type.Shorts:
+                    return ReadShorts(recycle as short[]);
+                case Type.UShorts:
+                    return ReadUShorts(recycle as ushort[]);
+                case Type.Ints:
+                    return ReadInts(recycle as int[]);
+                case Type.UInts:
+                    return ReadUInts(recycle as uint[]);
+                case Type.Longs:
+                    return ReadLongs(recycle as long[]);
+                case Type.ULongs:
+                    return ReadULongs(recycle as ulong[]);
+                case Type.Floats:
+                    return ReadFloats(recycle as float[]);
+                case Type.Doubles:
+                    return ReadDoubles(recycle as double[]);
+                default:
+                    throw new WSNet2SerializerException($"Type {t} is not implemented");
+            }
+        }
+
         public int Get8()
         {
             checkLength(1);
@@ -929,110 +1010,9 @@ namespace WSNet2
             var st = pos;
             checkLength(len);
 
-            object elem = null;
-
-            var t = (Type)Enum.ToObject(typeof(Type), buf[pos]);
-            switch (t)
-            {
-                case Type.Null:
-                    break;
-                case Type.True:
-                    elem = true;
-                    break;
-                case Type.False:
-                    elem = false;
-                    break;
-                case Type.SByte:
-                    elem = ReadSByte();
-                    break;
-                case Type.Byte:
-                    elem = ReadByte();
-                    break;
-                case Type.Short:
-                    elem = ReadShort();
-                    break;
-                case Type.UShort:
-                    elem = ReadUShort();
-                    break;
-                case Type.Int:
-                    elem = ReadInt();
-                    break;
-                case Type.UInt:
-                    elem = ReadUInt();
-                    break;
-                case Type.Long:
-                    elem = ReadLong();
-                    break;
-                case Type.ULong:
-                    elem = ReadULong();
-                    break;
-                case Type.Float:
-                    elem = ReadFloat();
-                    break;
-                case Type.Double:
-                    elem = ReadDouble();
-                    break;
-                case Type.Str8:
-                case Type.Str16:
-                    elem = ReadString();
-                    break;
-                case Type.Obj:
-                    var cid = buf[pos + 1];
-                    var read = readFuncs[cid];
-                    if (read == null)
-                    {
-                        throw new WSNet2SerializerException(
-                            string.Format("ClassID {0} is not registered", cid));
-                    }
-                    elem = read(this, recycle);
-                    break;
-                case Type.List:
-                    elem = ReadList(recycle as List<object>);
-                    break;
-                case Type.Dict:
-                    elem = ReadDict(recycle as IDictionary<string, object>);
-                    break;
-                case Type.Bools:
-                    elem = ReadBools(recycle as bool[]);
-                    break;
-                case Type.SBytes:
-                    elem = ReadSBytes(recycle as sbyte[]);
-                    break;
-                case Type.Bytes:
-                    elem = ReadBytes(recycle as byte[]);
-                    break;
-                case Type.Shorts:
-                    elem = ReadShorts(recycle as short[]);
-                    break;
-                case Type.UShorts:
-                    elem = ReadUShorts(recycle as ushort[]);
-                    break;
-                case Type.Ints:
-                    elem = ReadInts(recycle as int[]);
-                    break;
-                case Type.UInts:
-                    elem = ReadUInts(recycle as uint[]);
-                    break;
-                case Type.Longs:
-                    elem = ReadLongs(recycle as long[]);
-                    break;
-                case Type.ULongs:
-                    elem = ReadULongs(recycle as ulong[]);
-                    break;
-                case Type.Floats:
-                    elem = ReadFloats(recycle as float[]);
-                    break;
-                case Type.Doubles:
-                    elem = ReadDoubles(recycle as double[]);
-                    break;
-                default:
-                    throw new WSNet2SerializerException(
-                        string.Format("Type {0} is not implemented", t));
-            }
-
+            var elem = Read(recycle);
             pos = st + len;
             return elem;
         }
-
     }
 }

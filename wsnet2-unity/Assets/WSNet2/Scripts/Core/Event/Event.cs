@@ -126,5 +126,15 @@ namespace WSNet2
                 SequenceNum = reader.Get32();
             }
         }
+
+#if DEBUG
+        /// <summary>
+        ///   未読バッファのSerialReader取得（NetworkInformer用
+        /// </summary>
+        public SerialReader GetUnread()
+        {
+            return WSNet2Serializer.NewReader(reader.GetRest());
+        }
+#endif
     }
 }
