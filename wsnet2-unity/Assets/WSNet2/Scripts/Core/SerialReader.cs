@@ -31,7 +31,7 @@ namespace WSNet2
         public ArraySegment<byte> GetRest()
         {
             var start = arrSeg.Offset + pos;
-            var len = arrSeg.Count - start;
+            var len = arrSeg.Count - pos;
             return new ArraySegment<byte>(arrSeg.Array, start, len);
         }
 
@@ -831,10 +831,13 @@ namespace WSNet2
             switch (t)
             {
                 case Type.Null:
+                    pos++;
                     return null;
                 case Type.True:
+                    pos++;
                     return true;
                 case Type.False:
+                    pos++;
                     return false;
                 case Type.SByte:
                     return ReadSByte();
