@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using WSNet2;
 
 namespace WSNet2.DotnetClient
 {
@@ -473,27 +473,71 @@ namespace WSNet2.DotnetClient
             }
         }
 
+        static Dictionary<string, object> emptydict = new Dictionary<string, object>();
+
         static void NetInfoCallback(NetworkInformer.Info info)
         {
+            var str = JsonSerializer.Serialize((object)info, new JsonSerializerOptions { IncludeFields = true });
+            Console.WriteLine($"NetInfo: {info.GetType().Name} {str}");
+
             switch (info)
             {
-                case NetworkInformer.LobbySendInfo i:
-                    Console.WriteLine($"NetInfo: LobbySend \"{i.URL}\" {i.BodySize}");
+                case NetworkInformer.RoomSendRoomPropInfo i:
+                    Console.WriteLine("  public props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PublicProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    Console.WriteLine("  private props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PrivateProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
                     break;
-                case NetworkInformer.LobbyReceiveInfo i:
-                    Console.WriteLine($"Netinfo: LobbyReceive {i.StatusCode} \"{i.URL}\" {i.BodySize}");
+
+                case NetworkInformer.RoomSendPlayerPropInfo i:
+                    Console.WriteLine("  props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.Props).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
                     break;
-                case NetworkInformer.RoomConnectRequestInfo i:
-                    Console.WriteLine($"NetInfo: RoomConnectRequest {i.URL} {i.RoomID}");
+
+                case NetworkInformer.RoomSendRPCInfo i:
+                    Console.WriteLine($"  param: {WSNet2Serializer.NewReader(i.Param).Read()}");
                     break;
-                case NetworkInformer.RoomSendInfo i:
-                    Console.WriteLine($"NetInfo: RoomSend {i.RoomID} {i.MsgType} {i.BodySize} {i.RPCInfo?.ID} {i.RPCInfo?.MethodName}");
+
+                case NetworkInformer.RoomReceiveJoinedInfo i:
+                    Console.WriteLine("  props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.Props).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
                     break;
-                case NetworkInformer.RoomReceiveInfo i:
-                    Console.WriteLine($"NetInfo: RoomReceive {i.RoomID} {i.EvType} {i.BodySize} {i.RPCInfo?.ID} {i.RPCInfo?.MethodName}");
+
+                case NetworkInformer.RoomReceiveRoomPropInfo i:
+                    Console.WriteLine("  public props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PublicProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    Console.WriteLine("  private props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PrivateProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
                     break;
-                default:
-                    Console.WriteLine($"NetInfo: ? {info}");
+
+                case NetworkInformer.RoomReceivePlayerPropInfo i:
+                    Console.WriteLine("  props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.Props).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    break;
+
+                case NetworkInformer.RoomReceiveRPCInfo i:
+                    Console.WriteLine($"  param: {WSNet2Serializer.NewReader(i.Param).Read()}");
                     break;
             }
         }
