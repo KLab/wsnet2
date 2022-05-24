@@ -2,7 +2,6 @@
 
 ## 概要
 
-WSNet2は同期型マルチプレイのためのフレームワークです。
 
 WSNet2 Server は3種類のサーバーを提供します。
 
@@ -10,9 +9,9 @@ WSNet2 Server は3種類のサーバーを提供します。
 
 <dl>
 <dt>Lobbyサーバー</dt>
-<dd>外部からの部屋作成リクエストに応じてRoomを作成したり、参加リクエストに応じてgame/hubサーバーのアドレスを案内します</dd>
+<dd>外部からの部屋作成リクエストに応じてRoomを作成したり、参加リクエストに応じてgame/hubサーバーのRoomにプレイヤーを登録し、接続先のアドレスを案内します。またRoomの検索やランダム入室も受け付けます。</dd>
 <dt>Gameサーバー</dt>
-<dd>Roomを提供します。Gameサーバーに接続したプレーヤーはRoomに参加し、Room内の他のプレーヤーと通信します。
+<dd>Roomを提供します。Roomに参加しGameサーバーに接続したプレーヤーは、Room内の他のプレーヤーと通信します。
 <dt>Hubサーバー</dt>
 <dd>Roomを観戦するためのhubを提供します。hubが仲介することで、大量の観戦者がいてもGameサーバーで行われているゲームの性能への影響を最小限に抑えます。</dd>
 </dl>
@@ -21,7 +20,7 @@ WSNet2 Server は3種類のサーバーを提供します。
 
 ![内部構成](./_doc/wsnet2-internal.drawio.png)
 
-Lobbyサーバーは外部のプレーヤーやサーバーから、部屋の作成、検索、参加、観戦のリクエストを受けます。このAPIはHTTPベースですが、メッセージはJSONではなくmsgpackを利用しています。
+Lobbyサーバーは外部のプレーヤーやサーバーから、Roomの作成、検索、参加、観戦のリクエストを受けます。このAPIはHTTPベースで、メッセージ本文はmsgpackを利用しています。
 
 内部の通信（Lobby→Game、Lobby→Hub)はgRPCを使います。
 
@@ -41,4 +40,3 @@ sequenceDiagram
     Game-->>-Lobby: CreateRoomRes
     Lobby-->>-Client: OK (Room info)
 ````
-
