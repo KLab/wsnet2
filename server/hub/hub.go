@@ -140,6 +140,10 @@ func (h *Hub) Logger() *zap.SugaredLogger {
 	return h.logger
 }
 
+func (h *Hub) Ready() <-chan struct{} {
+	return h.ready
+}
+
 func (h *Hub) Done() <-chan struct{} {
 	return h.done
 }
@@ -603,7 +607,7 @@ func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
 	// client->hubとhub->gameでseq が異なるからmsgの使いまわしができない。
 	// アロケーションもったいないけど頻度は多くないだろうから気にしない。
-	h.seq++ // TODO: EvTypePeerReady がくる前に proxyMessageが呼ばれないか確認する。
+	h.seq++
 	packet := binary.BuildRegularMsgFrame(msg.Type(), int(h.seq), msg.Payload(), h.hmac)
 	metrics.MessageSent.Add(1)
 	return h.WriteMessage(websocket.BinaryMessage, packet)
@@ -659,7 +663,14 @@ func (h *Hub) evPeerReady(ev binary.Event) error {
 	if err != nil {
 		return xerrors.Errorf("Unmarshal EvPeerReady payload error: %w", err)
 	}
+	select {
+	case <-h.ready:
+		// 既にPeerReadyを受け取っている
+		return nil
+	default:
+	}
 	h.seq = seq
+	close(h.ready)
 	return nil
 }
 
