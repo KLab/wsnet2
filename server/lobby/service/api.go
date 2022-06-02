@@ -149,17 +149,17 @@ func renderErrorResponse(w http.ResponseWriter, msg string, status int, err erro
 		case lobby.ErrArgument:
 			status = http.StatusBadRequest
 		case lobby.ErrRoomLimit:
-			log.Debugf("Failed with status OK: %+v", err)
+			log.Infof("Failed with status OK: %+v", err)
 			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeRoomLimit})
 			return
 		case lobby.ErrAlreadyJoined:
 			status = http.StatusConflict
 		case lobby.ErrRoomFull:
-			log.Debugf("Failed with status OK: %+v", err)
+			log.Infof("Failed with status OK: %+v", err)
 			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeRoomFull})
 			return
 		case lobby.ErrNoJoinableRoom, lobby.ErrNoWatchableRoom:
-			log.Debugf("Failed with status OK: %+v", err)
+			log.Infof("Failed with status OK: %+v", err)
 			renderResponse(w, &LobbyResponse{Msg: msg, Type: ResponseTypeNoRoomFound})
 			return
 		}
