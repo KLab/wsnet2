@@ -132,13 +132,13 @@ func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger
 
 func renderJoinedRoomResponse(w http.ResponseWriter, room *pb.JoinedRoomRes, logger log.Logger) {
 	logger = logger.With("room", room.RoomInfo.Id)
-	logger.Debugf("joined room: %#v", room)
+	logger.Debugf("joined room: %v", room)
 	renderResponse(w, &LobbyResponse{Msg: "OK", Room: room}, logger)
 }
 
 func renderFoundRoomsResponse(w http.ResponseWriter, rooms []*pb.RoomInfo, logger log.Logger) {
 	logger = logger.With("rooms", len(rooms))
-	logger.Debugf("found rooms: %#v", rooms)
+	logger.Debugf("found rooms: %v", rooms)
 	t := ResponseTypeOK
 	if len(rooms) == 0 {
 		t = ResponseTypeNoRoomFound
@@ -367,7 +367,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	vars := JoinVars(mux.Vars(r))
 	searchGroup := vars.searchGroup()
 
-	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo, macKey)
+	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err, logger)
 		return

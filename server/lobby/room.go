@@ -101,8 +101,6 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 		return nil, err
 	}
 
-	log.Infof("Created room: %v", res)
-
 	return res, nil
 }
 
@@ -179,8 +177,6 @@ func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInf
 		return nil, err
 	}
 
-	log.Infof("Joined room: %v", res)
-
 	return res, nil
 }
 
@@ -240,7 +236,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 	return rs.join(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
 }
 
-func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, error) {
+func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGroup uint32, queries []PropQueries, clientInfo *pb.ClientInfo, macKey string, logger log.Logger) (*pb.JoinedRoomRes, error) {
 	rooms, props, err := rs.roomCache.GetRooms(ctx, appId, searchGroup)
 	if err != nil {
 		return nil, xerrors.Errorf("JoinAtRandom: RoomCache error: %w", err)
@@ -267,7 +263,7 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 				return nil, e
 			}
 		}
-		log.Debugf("JoinAtRandom: failed to join room: room=%v %v", room.Id, err)
+		logger.Debugf("JoinAtRandom: failed to join: room_id=%v err=%v", room.Id, err)
 	}
 
 	return nil, withType(
@@ -377,8 +373,6 @@ func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientIn
 		}
 		return nil, err
 	}
-
-	log.Infof("Watcher joined room: %v", res)
 
 	return res, nil
 }
