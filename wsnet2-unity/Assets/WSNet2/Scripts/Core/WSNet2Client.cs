@@ -375,8 +375,11 @@ namespace WSNet2
             cli.DefaultRequestHeaders.Add("Wsnet2-User", userId);
             cli.DefaultRequestHeaders.Add("Authorization", authData.Bearer);
 
-            var res = await cli.PostAsync(baseUri + path, new ByteArrayContent(content));
+            var url = baseUri + path;
+            NetworkInformer.OnLobbySend(url, content);
+            var res = await cli.PostAsync(url, new ByteArrayContent(content));
             var body = await res.Content.ReadAsByteArrayAsync();
+            NetworkInformer.OnLobbyReceive(url, res.StatusCode, body);
             if (!res.IsSuccessStatusCode)
             {
                 var msg = System.Text.Encoding.UTF8.GetString(body);

@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using WSNet2;
 
 namespace WSNet2.DotnetClient
 {
@@ -175,8 +175,9 @@ namespace WSNet2.DotnetClient
 
             WSNet2Serializer.Register<StrMessage>(0);
 
+            NetworkInformer.SetCallback(NetInfoCallback);
+
             var authData = authgen.Generate("testapppkey", userid);
-            Console.WriteLine($"mackey: {authData.MACKey}");
 
             var client = new WSNet2Client(
                 "http://localhost:8080",
@@ -469,6 +470,75 @@ namespace WSNet2.DotnetClient
             {
                 Console.WriteLine("exception: " + e);
                 cts.Cancel();
+            }
+        }
+
+        static Dictionary<string, object> emptydict = new Dictionary<string, object>();
+
+        static void NetInfoCallback(NetworkInformer.Info info)
+        {
+            var str = JsonSerializer.Serialize((object)info, new JsonSerializerOptions { IncludeFields = true });
+            Console.WriteLine($"NetInfo: {info.GetType().Name} {str}");
+
+            switch (info)
+            {
+                case NetworkInformer.RoomSendRoomPropInfo i:
+                    Console.WriteLine("  public props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PublicProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    Console.WriteLine("  private props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PrivateProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    break;
+
+                case NetworkInformer.RoomSendPlayerPropInfo i:
+                    Console.WriteLine("  props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.Props).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    break;
+
+                case NetworkInformer.RoomSendRPCInfo i:
+                    Console.WriteLine($"  param: {WSNet2Serializer.NewReader(i.Param).Read()}");
+                    break;
+
+                case NetworkInformer.RoomReceiveJoinedInfo i:
+                    Console.WriteLine("  props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.Props).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    break;
+
+                case NetworkInformer.RoomReceiveRoomPropInfo i:
+                    Console.WriteLine("  public props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PublicProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    Console.WriteLine("  private props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.PrivateProps).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    break;
+
+                case NetworkInformer.RoomReceivePlayerPropInfo i:
+                    Console.WriteLine("  props:");
+                    foreach (var kv in WSNet2Serializer.NewReader(i.Props).ReadDict() ?? emptydict)
+                    {
+                        Console.WriteLine($"    {kv.Key}: {kv.Value}");
+                    }
+                    break;
+
+                case NetworkInformer.RoomReceiveRPCInfo i:
+                    Console.WriteLine($"  param: {WSNet2Serializer.NewReader(i.Param).Read()}");
+                    break;
             }
         }
     }

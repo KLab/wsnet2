@@ -894,5 +894,32 @@ namespace WSNet2.Core.Test
             var r = reader.ReadStrings();
             Assert.AreEqual(v, r);
         }
+
+        [Test]
+        public void TestRead()
+        {
+            writer.Write();
+            writer.Write(true);
+            writer.Write(false);
+            writer.Write(30);
+            writer.Write("abc");
+
+            var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
+
+            var r = reader.Read();
+            Assert.AreEqual(null, r);
+
+            r = reader.Read();
+            Assert.AreEqual(true, r);
+
+            r = reader.Read();
+            Assert.AreEqual(false, r);
+
+            r = reader.Read();
+            Assert.AreEqual(30, r);
+
+            r = reader.Read();
+            Assert.AreEqual("abc", r);
+        }
     }
 }
