@@ -104,7 +104,7 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 	return res, nil
 }
 
-func filter(rooms []*pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int, checkJoinable, checkWatchable bool) []*pb.RoomInfo {
+func filter(rooms []*pb.RoomInfo, props []binary.Dict, queries []PropQueries, limit int, checkJoinable, checkWatchable bool) ([]*pb.RoomInfo, error) {
 	if limit == 0 || limit > len(rooms) {
 		limit = len(rooms)
 	}
@@ -122,7 +122,11 @@ func filter(rooms []*pb.RoomInfo, props []binary.Dict, queries []PropQueries, li
 		} else {
 			// queriesの何れかとマッチするか判定（OR）
 			for _, q := range queries {
-				if q.match(props[i]) {
+				match, err := q.match(props[i])
+				if err != nil {
+					return nil, err
+				}
+				if match {
 					filtered = append(filtered, rooms[i])
 					break
 				}
@@ -132,7 +136,7 @@ func filter(rooms []*pb.RoomInfo, props []binary.Dict, queries []PropQueries, li
 			break
 		}
 	}
-	return filtered
+	return filtered, nil
 }
 
 func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {
@@ -198,7 +202,10 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 		return nil, xerrors.Errorf("JoinById: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false)
+	filtered, err := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinById: filter: %w", err)
+	}
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
@@ -226,7 +233,10 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 		return nil, xerrors.Errorf("JoinByNumber: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false)
+	filtered, err := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinByNumber: filter: %w", err)
+	}
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("JoinByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),
@@ -241,7 +251,10 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 	if err != nil {
 		return nil, xerrors.Errorf("JoinAtRandom: RoomCache error: %w", err)
 	}
-	filtered := filter(rooms, props, queries, 1000, true, false)
+	filtered, err := filter(rooms, props, queries, 1000, true, false)
+	if err != nil {
+		return nil, xerrors.Errorf("JoinAtRandom: filter: %w", err)
+	}
 
 	rand.Shuffle(len(filtered), func(i, j int) { filtered[i], filtered[j] = filtered[j], filtered[i] })
 
@@ -277,7 +290,11 @@ func (rs *RoomService) Search(ctx context.Context, appId string, searchGroup uin
 		return nil, xerrors.Errorf("RoomCache error: %w", err)
 	}
 
-	return filter(rooms, props, queries, limit, joinable, watchable), nil
+	filtered, err := filter(rooms, props, queries, limit, joinable, watchable)
+	if err != nil {
+		return nil, xerrors.Errorf("Search: filter: %w", err)
+	}
+	return filtered, nil
 }
 
 func (rs *RoomService) SearchByIds(ctx context.Context, appId string, roomIds []string, queries []PropQueries) ([]*pb.RoomInfo, error) {
@@ -303,7 +320,11 @@ func (rs *RoomService) SearchByIds(ctx context.Context, appId string, roomIds []
 			return nil, xerrors.Errorf("unmarshalProps(room=%v): %w", r.Id, err)
 		}
 	}
-	return filter(rooms, props, queries, len(rooms), false, false), nil
+	filtered, err := filter(rooms, props, queries, len(rooms), false, false)
+	if err != nil {
+		return nil, xerrors.Errorf("SearchById: filter: %w", err)
+	}
+	return filtered, nil
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {
@@ -395,7 +416,10 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 		return nil, xerrors.Errorf("WatchById: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true)
+	filtered, err := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchById: filter: %w", err)
+	}
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("JoinById: filter result is empty: app=%v room=%v", appId, roomId),
@@ -423,7 +447,10 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 		return nil, xerrors.Errorf("WatchByNumber: unmarshalProps: %w", err)
 	}
 
-	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true)
+	filtered, err := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true)
+	if err != nil {
+		return nil, xerrors.Errorf("WatchByNumber: filter: %w", err)
+	}
 	if len(filtered) == 0 {
 		return nil, withType(
 			xerrors.Errorf("WatchByNumber: filter result is empty: app=%v number=%v: %w", appId, roomNumber, err),

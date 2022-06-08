@@ -41,28 +41,28 @@ func unmarshalProps(props []byte) (binary.Dict, error) {
 	return dict, nil
 }
 
-func (q *PropQuery) match(val []byte) bool {
+func (q *PropQuery) match(val []byte) (bool, error) {
 	if q.Op == OpContain || q.Op == OpNotContain {
-		return q.contain(val)
+		return q.contain(val), nil
 	}
 
 	ret := bytes.Compare(val, q.Val)
 	switch q.Op {
 	case OpEqual:
-		return ret == 0
+		return ret == 0, nil
 	case OpNot:
-		return ret != 0
+		return ret != 0, nil
 	case OpLessThan:
-		return ret < 0
+		return ret < 0, nil
 	case OpLessThanOrEqual:
-		return ret <= 0
+		return ret <= 0, nil
 	case OpGreaterThan:
-		return ret > 0
+		return ret > 0, nil
 	case OpGreaterThanOrEqual:
-		return ret >= 0
+		return ret >= 0, nil
 	}
-	log.Errorf("unsupported operator: %v", q.Op)
-	return false
+
+	return false, xerrors.Errorf("unsupported operator: %v (%s)", q.Op, q.Key)
 }
 
 func (q *PropQuery) containBool(val []byte) bool {
@@ -134,11 +134,15 @@ func (q *PropQuery) contain(val []byte) bool {
 
 type PropQueries []PropQuery
 
-func (pqs *PropQueries) match(props binary.Dict) bool {
+func (pqs *PropQueries) match(props binary.Dict) (bool, error) {
 	for _, q := range *pqs {
-		if !q.match(props[q.Key]) {
-			return false
+		match, err := q.match(props[q.Key])
+		if err != nil {
+			return false, err
+		}
+		if !match {
+			return false, nil
 		}
 	}
-	return true
+	return true, nil
 }
