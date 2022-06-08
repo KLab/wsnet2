@@ -328,26 +328,10 @@ func (rs *RoomService) SearchByIds(ctx context.Context, appId string, roomIds []
 }
 
 func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {
-	rows, err := rs.db.Query("SELECT `host_id`, `watchers` FROM `hub` WHERE `room_id`=?", roomId)
+	var hostIDs []uint32
+	err := rs.db.Select(&hostIDs, "SELECT `host_id` FROM `hub` WHERE `room_id`=? AND `watchers`<?", roomId, rs.conf.HubMaxWatchers)
 	if err != nil {
-		return nil, xerrors.Errorf("watch: failed to select hub: %w", err)
-	}
-	hostIDs := []uint32{}
-	for rows.Next() {
-		var h uint32
-		var w int
-		err = rows.Scan(&h, &w)
-		if err != nil {
-			rows.Close()
-			return nil, xerrors.Errorf("watch: failed to scan hub: %w", err)
-		}
-		if w < rs.conf.HubMaxWatchers {
-			hostIDs = append(hostIDs, h)
-		}
-	}
-	rows.Close()
-	if err = rows.Err(); err != nil {
-		return nil, xerrors.Errorf("watch: failed to select hub: %w", err)
+		return nil, xerrors.Errorf("select hub: %w", err)
 	}
 
 	var hub *common.HubServer
