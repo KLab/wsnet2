@@ -45,6 +45,12 @@ func TestLoad(t *testing.T) {
 
 		HeartBeatInterval: Duration(time.Second * 10),
 
+		ClientConf: ClientConf{
+			EventBufSize:   128,
+			WaitAfterClose: Duration(time.Second * 30),
+			AuthKeyLen:     32,
+		},
+
 		LogConf: LogConf{
 			LogStdoutConsole: true,
 			LogStdoutLevel:   3,
