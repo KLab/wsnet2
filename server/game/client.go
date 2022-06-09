@@ -17,15 +17,6 @@ import (
 	"wsnet2/pb"
 )
 
-const (
-	ClientEventBufSize = 128
-
-	// 部屋が終了した後で再接続が来た時もバッファに残ったデータを送信できるので一定時間残す
-	ClientWaitAfterClose = time.Second * 30
-
-	ClientAuthKeyLen = 32
-)
-
 type ClientID string
 
 type Client struct {
@@ -84,12 +75,12 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 		done:        make(chan struct{}),
 		newDeadline: make(chan time.Duration, 1),
 
-		evbuf: NewEvBuf(ClientEventBufSize),
+		evbuf: NewEvBuf(room.ClientConf().EventBufSize),
 
 		waitPeer: make(chan *Peer, 1),
 		newPeer:  make(chan *Peer, 1),
 
-		authKey: RandomHex(ClientAuthKeyLen),
+		authKey: RandomHex(room.ClientConf().AuthKeyLen),
 		hmac:    hmac.New(sha1.New, []byte(macKey)),
 
 		evErr: make(chan error),
@@ -250,7 +241,7 @@ loop:
 	}
 
 	go func() {
-		time.Sleep(ClientWaitAfterClose)
+		time.Sleep(time.Duration(c.room.ClientConf().WaitAfterClose))
 		c.room.Repo().RemoveClient(c)
 	}()
 

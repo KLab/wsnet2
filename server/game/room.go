@@ -27,6 +27,8 @@ type Room struct {
 	*pb.RoomInfo
 	repo *Repository
 
+	conf *config.GameConf
+
 	deadline time.Duration
 
 	publicProps  binary.Dict
@@ -74,6 +76,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 	r := &Room{
 		RoomInfo: info,
 		repo:     repo,
+		conf:     conf,
 		deadline: time.Duration(deadlineSec) * time.Second,
 
 		publicProps:  pubProps,
@@ -125,6 +128,10 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 
 func (r *Room) ID() RoomID {
 	return RoomID(r.Id)
+}
+
+func (r *Room) ClientConf() *config.ClientConf {
+	return &r.conf.ClientConf
 }
 
 // MsgLoop goroutine dispatch messages.

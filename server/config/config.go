@@ -74,6 +74,7 @@ type GameConf struct {
 
 	DbMaxConns int `toml:"db_max_conns"`
 
+	ClientConf
 	LogConf
 }
 
@@ -103,7 +104,16 @@ type HubConf struct {
 
 	DbMaxConns int `toml:"db_max_conns"`
 
+	ClientConf
 	LogConf
+}
+
+type ClientConf struct {
+	EventBufSize int `toml:"event_buf_size"`
+	// 部屋が終了した後で再接続が来た時もバッファに残ったデータを送信できるので一定時間残す
+	WaitAfterClose Duration `toml:"wait_after_close"`
+
+	AuthKeyLen int `toml:"auth_key_len"`
 }
 
 type LobbyConf struct {
@@ -174,6 +184,12 @@ func Load(conffile string) (*Config, error) {
 
 			DbMaxConns: 0,
 
+			ClientConf: ClientConf{
+				EventBufSize:   128,
+				WaitAfterClose: Duration(30 * time.Second),
+				AuthKeyLen:     32,
+			},
+
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
 				LogPath:        "/var/log/wsnet2/wsnet2-game.log",
@@ -197,6 +213,12 @@ func Load(conffile string) (*Config, error) {
 			NodeCountInterval: Duration(1 * time.Second),
 
 			DbMaxConns: 0,
+
+			ClientConf: ClientConf{
+				EventBufSize:   128,
+				WaitAfterClose: Duration(30 * time.Second),
+				AuthKeyLen:     32,
+			},
 
 			LogConf: LogConf{
 				LogStdoutLevel: 4,
