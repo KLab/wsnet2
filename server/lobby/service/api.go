@@ -110,8 +110,8 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 	return hdr
 }
 
-func prepareLogger(hdr header) log.Logger {
-	return log.GetLoggerWith("app", hdr.appId, "user", hdr.userId)
+func prepareLogger(hdr header, handler string) log.Logger {
+	return log.GetLoggerWith("app", hdr.appId, "user", hdr.userId, "handler", handler)
 }
 
 func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger) {
@@ -197,8 +197,8 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleCreateRoom")
+	logger := prepareLogger(h, "create")
+	logger.Debugf("handleCreateRoom")
 
 	appKey, err := sv.authUser(h)
 	if err != nil {
@@ -254,8 +254,8 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleJoinRoom")
+	logger := prepareLogger(h, "join/id")
+	logger.Debugf("handleJoinRoom")
 
 	appKey, err := sv.authUser(h)
 	if err != nil {
@@ -298,8 +298,8 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	defer cancel()
 
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleJoinRoomByNumber")
+	logger := prepareLogger(h, "join/number")
+	logger.Debugf("handleJoinRoomByNumber")
 
 	appKey, err := sv.authUser(h)
 	if err != nil {
@@ -342,8 +342,8 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	defer cancel()
 
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleJoinRoomAtRandom")
+	logger := prepareLogger(h, "join/random")
+	logger.Debugf("handleJoinRoomAtRandom")
 
 	appKey, err := sv.authUser(h)
 	if err != nil {
@@ -378,8 +378,8 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 
 func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleSearchRoom")
+	logger := prepareLogger(h, "search")
+	logger.Debugf("handleSearchRoom")
 
 	if _, err := sv.authUser(h); err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err, logger)
@@ -408,8 +408,8 @@ func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request
 
 func (sv *LobbyService) handleSearchByIds(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleSearchRoom")
+	logger := prepareLogger(h, "search/ids")
+	logger.Debugf("handleSearchRoom")
 
 	if _, err := sv.authUser(h); err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err, logger)
@@ -440,8 +440,8 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	defer cancel()
 
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleWatchRoom")
+	logger := prepareLogger(h, "watch/id")
+	logger.Debugf("handleWatchRoom")
 
 	appKey, err := sv.authUser(h)
 	if err != nil {
@@ -485,8 +485,8 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	defer cancel()
 
 	h := parseSpecificHeader(r)
-	logger := prepareLogger(h)
-	logger.Infof("handleWatchRoomByNumber")
+	logger := prepareLogger(h, "watch/number")
+	logger.Debugf("handleWatchRoomByNumber")
 
 	appKey, err := sv.authUser(h)
 	if err != nil {
