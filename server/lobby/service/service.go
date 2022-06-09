@@ -18,7 +18,7 @@ type LobbyService struct {
 func New(db *sqlx.DB, conf *config.LobbyConf) (*LobbyService, error) {
 	roomService, err := lobby.NewRoomService(db, conf)
 	if err != nil {
-		return nil, xerrors.Errorf("NewRoomService failure: %w", err)
+		return nil, xerrors.Errorf("NewRoomService: %w", err)
 	}
 	return &LobbyService{
 		conf:        conf,

@@ -125,7 +125,7 @@ func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger
 		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
-	logger.Info("status: OK")
+	logger.Info("response(type=%v): %v", res.Type, res.Msg)
 	w.Header().Set("Content-Type", "application/x-msgpack")
 	w.Write(body.Bytes())
 }
