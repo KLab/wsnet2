@@ -110,6 +110,7 @@ type HubConf struct {
 
 type ClientConf struct {
 	EventBufSize int `toml:"event_buf_size"`
+
 	// 部屋が終了した後で再接続が来た時もバッファに残ったデータを送信できるので一定時間残す
 	WaitAfterClose Duration `toml:"wait_after_close"`
 
