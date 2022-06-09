@@ -284,7 +284,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey)
+	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err, logger)
 		return
@@ -328,7 +328,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey)
+	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to join room", http.StatusInternalServerError, err, logger)
 		return
@@ -397,7 +397,7 @@ func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request
 	logger.Debugf("search param: %#v", param)
 
 	rooms, err := sv.roomService.Search(r.Context(),
-		h.appId, param.SearchGroup, param.Queries, int(param.Limit), param.CheckJoinable, param.CheckWatchable)
+		h.appId, param.SearchGroup, param.Queries, int(param.Limit), param.CheckJoinable, param.CheckWatchable, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to search rooms", http.StatusInternalServerError, err, logger)
 		return
@@ -426,7 +426,7 @@ func (sv *LobbyService) handleSearchByIds(w http.ResponseWriter, r *http.Request
 	logger = logger.With("search_ids", strings.Join(param.RoomIDs, ","))
 	logger.Debugf("search param: %#v", param)
 
-	rooms, err := sv.roomService.SearchByIds(r.Context(), h.appId, param.RoomIDs, param.Queries)
+	rooms, err := sv.roomService.SearchByIds(r.Context(), h.appId, param.RoomIDs, param.Queries, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to list rooms", http.StatusInternalServerError, err, logger)
 		return
@@ -471,7 +471,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	}
 	logger = logger.With("room", roomId)
 
-	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey)
+	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err, logger)
 		return
@@ -516,7 +516,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 	logger = logger.With("number", roomNumber)
 
-	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey)
+	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to watch room", http.StatusInternalServerError, err, logger)
 		return
