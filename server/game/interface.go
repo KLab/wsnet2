@@ -4,6 +4,7 @@ package game
 import (
 	"sync"
 	"time"
+	"wsnet2/config"
 
 	"go.uber.org/zap"
 )
@@ -13,6 +14,8 @@ type RoomID string
 type IRoom interface {
 	ID() RoomID
 	Repo() IRepo
+
+	ClientConf() *config.ClientConf
 
 	Deadline() time.Duration
 	WaitGroup() *sync.WaitGroup

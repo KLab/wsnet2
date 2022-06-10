@@ -20,6 +20,7 @@ import (
 	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/common"
+	"wsnet2/config"
 	"wsnet2/game"
 	"wsnet2/log"
 	"wsnet2/metrics"
@@ -122,6 +123,10 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 
 func (h *Hub) ID() RoomID {
 	return h.roomId
+}
+
+func (h *Hub) ClientConf() *config.ClientConf {
+	return &h.repo.conf.ClientConf
 }
 
 func (h *Hub) Repo() game.IRepo {
