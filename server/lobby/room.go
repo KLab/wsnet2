@@ -139,7 +139,7 @@ func filter(rooms []*pb.RoomInfo, props []binary.Dict, queries []PropQueries, li
 func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {
 	game, err := rs.gameCache.Get(hostId)
 	if err != nil {
-		return nil, xerrors.Errorf("get game server(%s): %w", hostId, err)
+		return nil, xerrors.Errorf("get game server(%v): %w", hostId, err)
 	}
 
 	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
