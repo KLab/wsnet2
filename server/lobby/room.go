@@ -411,7 +411,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true, logger)
 	if len(filtered) == 0 {
 		return nil, withType(
-			xerrors.Errorf("filter result is empty: number=%v", appId, roomNumber),
+			xerrors.Errorf("filter result is empty: number=%v", roomNumber),
 			ErrNoWatchableRoom)
 	}
 
