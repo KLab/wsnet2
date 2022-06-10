@@ -33,6 +33,6 @@ func (r ResponseType) String() string {
 	case ResponseTypeRoomFull:
 		return "RoomFull"
 	default:
-		return fmt.Sprintf("Unknown(%v)", r)
+		return fmt.Sprintf("UnknownType(%v)", byte(r))
 	}
 }
