@@ -11,6 +11,9 @@ heartbeat_interval = "10s"
 max_rooms = 123
 max_clients = 1234
 
+event_buf_size = 512
+wait_after_close = "1m"
+
 log_stdout_console = true
 log_stdout_level = 3
 log_path = "/tmp/wsnet2-game.log"
