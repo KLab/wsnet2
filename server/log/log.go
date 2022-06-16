@@ -22,6 +22,8 @@ var (
 // Level type of loglevel
 type Level int
 
+type Logger = *zap.SugaredLogger
+
 const (
 	// NOLOG output no logs
 	NOLOG Level = iota + 1
@@ -47,6 +49,10 @@ func Get(l Level) *zap.Logger {
 // CurrentLevel returns global log level
 func CurrentLevel() Level {
 	return level
+}
+
+func GetLoggerWith(args ...any) Logger {
+	return Get(level).Sugar().With(args...)
 }
 
 func toZapLevel(l Level) zapcore.Level {

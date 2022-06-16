@@ -8,9 +8,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/vmihailenco/msgpack/v5"
+	"go.uber.org/zap"
 
 	"wsnet2/binary"
+	"wsnet2/log"
 )
+
+var logger log.Logger = zap.NewNop().Sugar()
 
 func TestPropQueryMatchBool(t *testing.T) {
 	props := binary.Dict{
@@ -34,7 +38,7 @@ func TestPropQueryMatchBool(t *testing.T) {
 		{PropQuery{"false", OpNot, binary.MarshalBool(false)}, false},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -86,7 +90,7 @@ func TestPropQueryMatchByte(t *testing.T) {
 		{PropQuery{"MaxUint8", OpGreaterThanOrEqual, binary.MarshalByte(math.MaxUint8)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -138,7 +142,7 @@ func TestPropQueryMatchSByte(t *testing.T) {
 		{PropQuery{"MaxInt8", OpGreaterThanOrEqual, binary.MarshalSByte(math.MaxInt8)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -190,7 +194,7 @@ func TestPropQueryMatchUShort(t *testing.T) {
 		{PropQuery{"MaxUint16", OpGreaterThanOrEqual, binary.MarshalUShort(math.MaxUint16)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -242,7 +246,7 @@ func TestPropQueryMatchShort(t *testing.T) {
 		{PropQuery{"MaxInt16", OpGreaterThanOrEqual, binary.MarshalShort(math.MaxInt16)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -294,7 +298,7 @@ func TestPropQueryMatchUInt(t *testing.T) {
 		{PropQuery{"MaxUint32", OpGreaterThanOrEqual, binary.MarshalUInt(math.MaxUint32)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -346,7 +350,7 @@ func TestPropQueryMatchInt(t *testing.T) {
 		{PropQuery{"MaxInt32", OpGreaterThanOrEqual, binary.MarshalInt(math.MaxInt32)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -398,7 +402,7 @@ func TestPropQueryMatchULong(t *testing.T) {
 		{PropQuery{"MaxUint64", OpGreaterThanOrEqual, binary.MarshalULong(math.MaxUint64)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -450,7 +454,7 @@ func TestPropQueryMatchLong(t *testing.T) {
 		{PropQuery{"MaxInt64", OpGreaterThanOrEqual, binary.MarshalLong(math.MaxInt64)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -474,7 +478,7 @@ func TestPropQueryMatchStr8(t *testing.T) {
 		{PropQuery{"あいうえお", OpNot, binary.MarshalStr8("あいうえお")}, false},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -498,7 +502,7 @@ func TestPropQueryMatchStr16(t *testing.T) {
 		{PropQuery{"あいうえお", OpNot, binary.MarshalStr16("あいうえお")}, false},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v %v, actual=%v, expected=%v", props[test.query.Key], test.query.Op, test.query.Val, actual, test.expected)
 		}
 	}
@@ -539,7 +543,7 @@ func TestPropQueryMatchContains(t *testing.T) {
 		{PropQuery{"ccc", OpNotContain, binary.MarshalFloat(1.1000001)}, true},
 	}
 	for _, test := range tests {
-		if actual := test.query.match(props[test.query.Key]); actual != test.expected {
+		if actual := test.query.match(props[test.query.Key], logger); actual != test.expected {
 			prop, _, _ := binary.UnmarshalAs(props[test.query.Key], binary.TypeNull, binary.TypeList)
 			t.Fatalf("mismatch %v %v %v actual=%v, expected=%v", prop, test.query.Op, test.query.Val, actual, test.expected)
 		}
@@ -561,7 +565,7 @@ func TestPropQueriesMatch(t *testing.T) {
 		{PropQueries{{"0", OpNot, binary.MarshalInt(1)}, {"abc", OpNot, binary.MarshalStr16("def")}}, true},
 	}
 	for _, test := range tests {
-		if actual := test.queries.match(props); actual != test.expected {
+		if actual := test.queries.match(props, logger); actual != test.expected {
 			t.Fatalf("mismatch: %v %v, actual=%v, expected=%v", props, test, actual, test.expected)
 		}
 	}
