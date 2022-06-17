@@ -43,8 +43,10 @@ const (
 	KeyApp = "app"
 	// Client ID
 	KeyClient = "client"
-	// API handler name
+	// Handler name
 	KeyHandler = "handler"
+	// Remote adder
+	KeyRemoteAddr = "remoteAddr"
 	// Room ID
 	KeyRoom = "room"
 	// Room count
