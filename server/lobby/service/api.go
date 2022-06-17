@@ -111,7 +111,7 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 }
 
 func prepareLogger(hdr header, handler string) log.Logger {
-	return log.GetLoggerWith("app", hdr.appId, "user", hdr.userId, "handler", handler)
+	return log.GetLoggerWith(log.KeyApp, hdr.appId, log.KeyClient, hdr.userId, log.KeyHandler, handler)
 }
 
 func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger) {
@@ -131,13 +131,13 @@ func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger
 }
 
 func renderJoinedRoomResponse(w http.ResponseWriter, room *pb.JoinedRoomRes, logger log.Logger) {
-	logger = logger.With("room", room.RoomInfo.Id)
+	logger = logger.With(log.KeyRoom, room.RoomInfo.Id)
 	logger.Debugf("joined room: %v", room)
 	renderResponse(w, &LobbyResponse{Msg: "OK", Room: room}, logger)
 }
 
 func renderFoundRoomsResponse(w http.ResponseWriter, rooms []*pb.RoomInfo, logger log.Logger) {
-	logger = logger.With("rooms", len(rooms))
+	logger = logger.With(log.KeyRoomCount, len(rooms))
 	logger.Debugf("found rooms: %v", rooms)
 	t := ResponseTypeOK
 	if len(rooms) == 0 {
@@ -283,7 +283,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"), logger)
 		return
 	}
-	logger = logger.With("room", roomId)
+	logger = logger.With(log.KeyRoom, roomId)
 
 	room, err := sv.roomService.JoinById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
@@ -328,7 +328,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"), logger)
 		return
 	}
-	logger = logger.With("number", roomNumber)
+	logger = logger.With(log.KeyRoomNumber, roomNumber)
 
 	room, err := sv.roomService.JoinByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
@@ -368,7 +368,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 
 	vars := JoinVars(mux.Vars(r))
 	searchGroup := vars.searchGroup()
-	logger = logger.With("group", searchGroup)
+	logger = logger.With(log.KeySearchGroup, searchGroup)
 
 	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
@@ -396,7 +396,7 @@ func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	logger = logger.With("group", param.SearchGroup)
+	logger = logger.With(log.KeySearchGroup, param.SearchGroup)
 	logger.Debugf("search param: %#v", param)
 
 	rooms, err := sv.roomService.Search(r.Context(),
@@ -426,7 +426,7 @@ func (sv *LobbyService) handleSearchByIds(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	logger = logger.With("ids", strings.Join(param.RoomIDs, ","))
+	logger = logger.With(log.KeyRoomIds, param.RoomIDs)
 	logger.Debugf("search param: %#v", param)
 
 	rooms, err := sv.roomService.SearchByIds(r.Context(), h.appId, param.RoomIDs, param.Queries, logger)
@@ -472,7 +472,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"), logger)
 		return
 	}
-	logger = logger.With("room", roomId)
+	logger = logger.With(log.KeyRoom, roomId)
 
 	room, err := sv.roomService.WatchById(ctx, h.appId, roomId, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {
@@ -517,7 +517,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"), logger)
 		return
 	}
-	logger = logger.With("number", roomNumber)
+	logger = logger.With(log.KeyRoomNumber, roomNumber)
 
 	room, err := sv.roomService.WatchByNumber(ctx, h.appId, roomNumber, param.Queries, &param.ClientInfo, macKey, logger)
 	if err != nil {

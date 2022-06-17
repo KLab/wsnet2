@@ -37,6 +37,26 @@ const (
 	ALL
 )
 
+// key strings for structured logging.
+const (
+	// App ID
+	KeyApp = "app"
+	// Client ID
+	KeyClient = "client"
+	// API handler name
+	KeyHandler = "handler"
+	// Room ID
+	KeyRoom = "room"
+	// Room count
+	KeyRoomCount = "roomCount"
+	// Room IDs
+	KeyRoomIds = "roomIds"
+	// Room number
+	KeyRoomNumber = "roomNum"
+	// SearchGroup
+	KeySearchGroup = "group"
+)
+
 var (
 	level Level = INFO // global log level.
 )
