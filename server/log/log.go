@@ -64,8 +64,8 @@ var (
 )
 
 // Get Logger for custom log level.
-func Get(l Level) *zap.Logger {
-	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l)))
+func Get(l Level) Logger {
+	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l))).Sugar()
 }
 
 // CurrentLevel returns global log level
@@ -74,7 +74,7 @@ func CurrentLevel() Level {
 }
 
 func GetLoggerWith(args ...any) Logger {
-	return Get(level).Sugar().With(args...)
+	return Get(level).With(args...)
 }
 
 func toZapLevel(l Level) zapcore.Level {

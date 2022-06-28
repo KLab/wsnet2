@@ -80,11 +80,11 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
 	clientId := fmt.Sprintf("hub:%d:%s", repo.hostId, roomId)
 
-	logger := log.Get(log.CurrentLevel()).With(
-		zap.String("type", "hub"),
-		zap.String("room", string(roomId)),
-		zap.String("clientId", clientId),
-	).Sugar()
+	logger := log.GetLoggerWith(
+		"type", "hub",
+		"room", string(roomId),
+		"clientId", clientId,
+	)
 
 	macKey := auth.GenMACKey()
 

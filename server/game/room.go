@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc/codes"
 
@@ -48,7 +47,7 @@ type Room struct {
 
 	playerLogs []roomPlayerLog
 
-	logger *zap.SugaredLogger
+	logger log.Logger
 
 	chRoomInfo   chan struct{}
 	mRoomInfo    sync.Mutex // used by updateRoomInfo
@@ -61,7 +60,7 @@ type roomPlayerLog struct {
 	TimeStamp time.Time `json:"timestamp,omitempty"`
 }
 
-func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, macKey string, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
+func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, macKey string, deadlineSec uint32, conf *config.GameConf, logger log.Logger) (*Room, *JoinedInfo, ErrorWithCode) {
 	pubProps, iProps, err := common.InitProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, WithCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
@@ -90,7 +89,7 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 		watchers:    make(map[ClientID]*Client),
 		lastMsg:     make(binary.Dict),
 
-		logger: log.Get(loglevel).With(zap.String("room", info.Id)).Sugar(),
+		logger: logger,
 
 		chRoomInfo:   make(chan struct{}, 1),
 		lastRoomInfo: info.Clone(),
@@ -791,7 +790,7 @@ func (r *Room) WaitGroup() *sync.WaitGroup {
 	return &r.wgClient
 }
 
-func (r *Room) Logger() *zap.SugaredLogger {
+func (r *Room) Logger() log.Logger {
 	return r.logger
 }
 

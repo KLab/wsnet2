@@ -14,6 +14,7 @@ import (
 	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/common"
+	"wsnet2/log"
 	"wsnet2/pb"
 )
 
@@ -43,6 +44,8 @@ type Client struct {
 
 	authKey string
 	hmac    hash.Hash
+
+	logger log.Logger
 
 	evErr chan error
 }
@@ -82,6 +85,8 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 
 		authKey: RandomHex(room.ClientConf().AuthKeyLen),
 		hmac:    hmac.New(sha1.New, []byte(macKey)),
+
+		logger: room.Logger().With(log.KeyClient, info.Id),
 
 		evErr: make(chan error),
 	}
