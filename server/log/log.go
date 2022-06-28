@@ -22,6 +22,8 @@ var (
 // Level type of loglevel
 type Level int
 
+type Logger = *zap.SugaredLogger
+
 const (
 	// NOLOG output no logs
 	NOLOG Level = iota + 1
@@ -33,6 +35,28 @@ const (
 	DEBUG
 	// ALL output all logs
 	ALL
+)
+
+// key strings for structured logging.
+const (
+	// App ID
+	KeyApp = "app"
+	// Client ID
+	KeyClient = "client"
+	// Handler name
+	KeyHandler = "handler"
+	// Remote adder
+	KeyRemoteAddr = "remoteAddr"
+	// Room ID
+	KeyRoom = "room"
+	// Room count
+	KeyRoomCount = "roomCount"
+	// Room IDs
+	KeyRoomIds = "roomIds"
+	// Room number
+	KeyRoomNumber = "roomNum"
+	// SearchGroup
+	KeySearchGroup = "group"
 )
 
 var (
@@ -47,6 +71,10 @@ func Get(l Level) *zap.Logger {
 // CurrentLevel returns global log level
 func CurrentLevel() Level {
 	return level
+}
+
+func GetLoggerWith(args ...any) Logger {
+	return Get(level).Sugar().With(args...)
 }
 
 func toZapLevel(l Level) zapcore.Level {
