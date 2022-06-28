@@ -91,7 +91,12 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	roomId := vars["id"]
 	appId := r.Header.Get("Wsnet2-App")
 	clientId := r.Header.Get("Wsnet2-User")
-	logger := log.GetLoggerWith(log.KeyHandler, "ws:room", log.KeyRoom, roomId, log.KeyApp, appId, log.KeyClient, clientId, log.KeyRemoteAddr, r.RemoteAddr)
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "ws:room",
+		log.KeyRoom, roomId,
+		log.KeyApp, appId,
+		log.KeyClient, clientId,
+		log.KeyRemoteAddr, r.RemoteAddr)
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
 		logger.Errorf("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
@@ -112,14 +117,14 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", 400)
 		return
 	}
-	logger.Debugf("client: %v", cli)
+	logger.Debugf("websocket: client: %v", cli)
 
 	var authData string
 	if ad := r.Header.Get("Authorization"); strings.HasPrefix(ad, "Bearer ") {
 		authData = ad[len("Bearer "):]
 	}
 	if err := cli.ValidAuthData(authData); err != nil {
-		logger.Errorf("websocket: Authenticate: %+v", err)
+		logger.Errorf("websocket: Authentication: %+v", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -133,14 +138,14 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("websocket: upgrade: %v %+v", breq, err)
 		return
 	}
+	metrics.Conns.Add(1)
+	defer metrics.Conns.Add(-1)
 
 	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
 	if err != nil {
 		logger.Errorf("websocket: new peer: %+v", err)
 		return
 	}
-	metrics.Conns.Add(1)
 	<-peer.Done()
-	metrics.Conns.Add(-1)
-	log.Debugf("websocket: finish")
+	logger.Debugf("websocket: finish")
 }
