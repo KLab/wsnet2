@@ -117,7 +117,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", 400)
 		return
 	}
-	logger.Debugf("websocket: client: %v", cli)
+	logger.Infof("websocket: client: %v", clientId)
 
 	var authData string
 	if ad := r.Header.Get("Authorization"); strings.HasPrefix(ad, "Bearer ") {
