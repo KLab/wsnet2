@@ -98,9 +98,9 @@ func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*
 	if err != nil {
 		return nil, xerrors.Errorf("select apps error: %w", err)
 	}
+	log.Debugf("new repos: apps=%v", apps)
 	repos := make(map[pb.AppId]*Repository, len(apps))
 	for _, app := range apps {
-		log.Debugf("new repository: app=%#v", app.Id)
 		repos[app.Id] = &Repository{
 			hostId: hostId,
 			app:    app,
@@ -133,7 +133,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 
 	tx, err := repo.db.Beginx()
 	if err != nil {
-		return nil, WithCode(xerrors.Errorf("begin error: %w", err), codes.Internal)
+		return nil, WithCode(xerrors.Errorf("db.Beginx: %w", err), codes.Internal)
 	}
 
 	info, ewc := repo.newRoomInfo(ctx, tx, op)
@@ -146,16 +146,18 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	if op.LogLevel > 0 {
 		loglevel = log.Level(op.LogLevel)
 	}
+	logger := log.Get(loglevel).With(log.KeyApp, repo.app.Id, log.KeyRoom, info.Id)
+	logger.Infof("new room: %v, num=%v, master=%v", info.Id, info.Number.Number, master.Id)
 
-	room, joined, ewc := NewRoom(ctx, repo, info, master, macKey, op.ClientDeadline, repo.conf, loglevel)
+	room, joined, ewc := NewRoom(ctx, repo, info, master, macKey, op.ClientDeadline, repo.conf, logger)
 	if ewc != nil {
 		tx.Rollback()
-		return nil, WithCode(xerrors.Errorf("NewRoom error: %w", ewc), ewc.Code())
+		return nil, WithCode(xerrors.Errorf("NewRoom: %w", ewc), ewc.Code())
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, WithCode(
-			xerrors.Errorf("failed to commit new room: %w", err), codes.Internal)
+			xerrors.Errorf("commit new room: %w", err), codes.Internal)
 	}
 
 	cli := joined.Client
@@ -164,10 +166,11 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	defer repo.mu.Unlock()
 
 	if len(repo.rooms) >= repo.conf.MaxRooms {
+		logger.Warn("reached to the max_rooms. delete room: %v", room.Id)
 		// 履歴は残さずに部屋を削除
-		_, err := repo.db.Exec("DELETE FROM room WHERE id=?", room.ID())
+		_, err := repo.db.Exec("DELETE FROM room WHERE id=?", room.Id)
 		if err != nil {
-			log.Errorf("delete room: %w", err)
+			logger.Errorf("delete room (%v): %+v", room.Id, err)
 		}
 		return nil, WithCode(
 			xerrors.Errorf("reached to the max_rooms"), codes.ResourceExhausted)
@@ -210,7 +213,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, WithCode(xerrors.Errorf("joinRoom: %w", err), codes.NotFound)
+		return nil, WithCode(xerrors.Errorf("repo.GetRoom: %w", err), codes.NotFound)
 	}
 
 	jch := make(chan *JoinedInfo, 1)
@@ -225,7 +228,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	select {
 	case <-ctx.Done():
 		return nil, WithCode(
-			xerrors.Errorf("joinRoom write msg timeout or context done: room=%v client=%v", room.Id, client.Id),
+			xerrors.Errorf("context done: room=%v", room.Id),
 			codes.DeadlineExceeded)
 	case room.msgCh <- msg:
 	}
@@ -234,10 +237,10 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 	select {
 	case <-ctx.Done():
 		return nil, WithCode(
-			xerrors.Errorf("joinRoom timeout or context done: room=%v", room.ID()),
+			xerrors.Errorf("context done: room=%v", room.Id),
 			codes.DeadlineExceeded)
 	case ewc := <-errch:
-		return nil, WithCode(xerrors.Errorf("joinRoom: %w", ewc), ewc.Code())
+		return nil, WithCode(ewc, ewc.Code())
 	case joined = <-jch:
 	}
 
@@ -299,16 +302,16 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 	return nil, WithCode(xerrors.Errorf("NewRoomInfo try %d times: %w", retryCount, err), codes.Internal)
 }
 
-func (repo *Repository) updateRoomInfo(ri *pb.RoomInfo, conn *sqlx.Conn) {
+func (repo *Repository) updateRoomInfo(ri *pb.RoomInfo, conn *sqlx.Conn, logger log.Logger) {
 	// DBへの反映は遅延して良い
 	q, args, err := sqlx.Named(roomUpdateQuery, ri)
 	if err != nil {
-		log.Errorf("faild to build room update query: err=%v, q=%q, ri=%+v", err, roomUpdateQuery, ri)
+		logger.Errorf("update roominfo query: q=%v, ri=%v, err=%+v", roomUpdateQuery, ri, err)
 		return
 	}
 
 	if _, err := conn.ExecContext(context.Background(), q, args...); err != nil {
-		log.Errorf("Repository updateRoomInfo error: room=%v err=%v", ri.Id, err)
+		logger.Errorf("update roominfo: %v %+v", ri.Id, err)
 	}
 }
 
@@ -328,9 +331,9 @@ type roomHistory struct {
 
 func (repo *Repository) deleteRoom(room *Room) {
 	var err error
-	_, err = repo.db.Exec("DELETE FROM room WHERE id=?", room.ID())
+	_, err = repo.db.Exec("DELETE FROM room WHERE id=?", room.Id)
 	if err != nil {
-		log.Errorf("deleteRoom: %w", err)
+		room.logger.Errorf("delete room record (%v): %+v", room.Id, err)
 		return
 	}
 
@@ -343,7 +346,7 @@ func (repo *Repository) deleteRoom(room *Room) {
 
 	playerLogs, err := json.Marshal(room.playerLogs)
 	if err != nil {
-		log.Errorf("failed to marshal history details: %w", err)
+		room.logger.Errorf("marshal player logs: %+v", err)
 	}
 
 	history := roomHistory{
@@ -362,7 +365,7 @@ func (repo *Repository) deleteRoom(room *Room) {
 
 	_, err = repo.db.NamedExec(roomHistoryInsertQuery, history)
 	if err != nil {
-		log.Errorf("failed to insert to room_history: %w", err)
+		room.logger.Errorf("insert to room_history: %+v", err)
 	}
 }
 
@@ -373,7 +376,7 @@ func (repo *Repository) RemoveRoom(room *Room) {
 	delete(repo.rooms, rid)
 
 	repo.deleteRoom(room)
-	log.Debugf("room removed from repository: room=%v", rid)
+	room.logger.Debugf("room removed from repository: %v", rid)
 }
 
 func (repo *Repository) RemoveClient(cli *Client) {
@@ -384,7 +387,7 @@ func (repo *Repository) RemoveClient(cli *Client) {
 	if cmap, ok := repo.clients[cid]; ok {
 		// IDが同じでも別クライアントの場合には削除しない
 		if c, ok := cmap[rid]; ok && c != cli {
-			log.Debugf("cannot remove client from repository (already replaced new client): room=%v, client=%v", rid, cid)
+			c.logger.Debugf("cannot remove client from repository (already replaced new client): room=%v, client=%v", rid, cid)
 			return
 		}
 		delete(cmap, rid)
@@ -392,7 +395,7 @@ func (repo *Repository) RemoveClient(cli *Client) {
 			delete(repo.clients, cid)
 		}
 	}
-	log.Debugf("client removed from repository: room=%v, client=%v", rid, cid)
+	cli.logger.Debugf("client removed from repository: room=%v, client=%v", rid, cid)
 }
 
 func (repo *Repository) GetRoom(roomId string) (*Room, error) {

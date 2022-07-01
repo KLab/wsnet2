@@ -99,6 +99,8 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 	go c.MsgLoop(room.Deadline())
 	go c.EventLoop()
 
+	c.logger.Debug("new client: %v", c)
+
 	return c, nil
 }
 
@@ -126,7 +128,6 @@ func (c *Client) ValidAuthData(authData string) error {
 
 // MsgLoop goroutine.
 func (c *Client) MsgLoop(deadline time.Duration) {
-	c.room.Logger().Debugf("Client.MsgLoop start: client=%v", c.Id)
 	var peerMsgCh <-chan binary.Msg
 	var curPeer *Peer
 	t := time.NewTimer(deadline)
@@ -134,12 +135,13 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			c.room.Logger().Infof("client timeout: client=%v", c.Id)
+			// todo: 一度もwebsocket接続しなかったClientを計測したい
+			c.logger.Infof("client timeout: %v", c.Id)
 			c.room.Timeout(c)
 			break loop
 
 		case <-c.room.Done():
-			c.room.Logger().Debugf("room done: client=%v", c.Id)
+			c.logger.Infof("client room done: %v", c.Id)
 			curPeer.Close("room closed")
 			if !t.Stop() {
 				<-t.C
@@ -147,14 +149,13 @@ loop:
 			break loop
 
 		case <-c.removed:
-			c.room.Logger().Debugf("client removed: client=%v", c.Id)
+			c.logger.Debugf("client removed: %v", c.Id)
 			if !t.Stop() {
 				<-t.C
 			}
 			break loop
 
 		case newDeadline := <-c.newDeadline:
-			c.room.Logger().Debugf("new deadline: client=%v, deadline=%v", c.Id, newDeadline)
 			if !t.Stop() {
 				<-t.C
 			}
@@ -166,12 +167,11 @@ loop:
 		case peer := <-c.newPeer:
 			go c.drainMsg(peerMsgCh)
 			if peer == nil {
-				c.room.Logger().Infof("Peer detached: client=%v, peer=%p", c.Id, peer)
 				peerMsgCh = nil
 				curPeer = nil
 				continue
 			}
-			c.room.Logger().Infof("New peer attached: client=%v, peer=%p", c.Id, peer)
+			c.logger.Infof("new peer attached: %v peer=%p", c.Id, peer)
 			peerMsgCh = peer.MsgCh()
 			curPeer = peer
 			// つなげて切るだけのクライアントをタイムアウトさせるため、t.Resetしない
@@ -179,17 +179,16 @@ loop:
 		case m, ok := <-peerMsgCh:
 			if !ok {
 				// peer側でchをcloseした.
-				c.room.Logger().Errorf("peerMsgCh closed: client=%v, peer=%p", c.Id, curPeer)
+				c.logger.Debugf("peerMsgCh closed: %v peer=%p", c.Id, curPeer)
 				// DetachPeerは呼ばれているはず
 				peerMsgCh = nil
 				curPeer = nil
 				continue
 			}
-			c.room.Logger().Debugf("peer message: client=%v %v %v", c.Id, m.Type(), m)
 			msg, err := ConstructMsg(c, m)
 			if err != nil {
 				// おかしなデータを送ってくるクライアントは遮断する
-				c.room.Logger().Infof("invalid message: client=%v %v", c.Id, err)
+				c.logger.Errorf("client invalid msg: %v %+v", c.Id, err)
 				c.room.SendMessage(
 					&MsgClientError{
 						Sender: c,
@@ -211,7 +210,7 @@ loop:
 				if !valid {
 					// 再接続時の再送に期待して切断
 					err := xerrors.Errorf("invalid sequence num: %d to %d", cSeq, seq)
-					c.room.Logger().Errorf("msg error: client=%v %s", err)
+					c.logger.Errorf("client msg: %v %+v", c.Id, err)
 					c.DetachAndClosePeer(curPeer, err)
 					continue
 				}
@@ -223,7 +222,7 @@ loop:
 			t.Reset(deadline)
 
 		case err := <-c.evErr:
-			c.room.Logger().Debugf("error from EventLoop: client=%v %v", c.Id, err)
+			c.logger.Errorf("client event: %v %+v", c.Id, err)
 			c.room.SendMessage(
 				&MsgClientError{
 					Sender: c,
@@ -232,13 +231,13 @@ loop:
 			break loop
 		}
 	}
-	c.room.Logger().Debugf("Client.MsgLoop close: client=%v", c.Id)
+	c.logger.Debugf("Client.MsgLoop closed: %v", c.Id)
 	close(c.done)
 
 	select {
 	case peer := <-c.newPeer:
 		if peer != nil {
-			c.room.Logger().Infof("Unprocessed new peer: client=%v, peer=%p", c.Id, peer)
+			c.logger.Infof("Unprocessed peer: %v %p", c.Id, peer)
 			peer.Close("unprocessed (client closed)")
 			go c.drainMsg(peer.MsgCh())
 		}
@@ -252,7 +251,6 @@ loop:
 
 	c.drainMsg(peerMsgCh)
 	c.room.WaitGroup().Done()
-	c.room.Logger().Debugf("Client.MsgLoop finish: client=%v", c.Id)
 }
 
 func (c *Client) drainMsg(msgCh <-chan binary.Msg) {
@@ -281,13 +279,11 @@ func (c *Client) Removed(cause error) {
 
 // RoomのMsgLoopから呼ばれる
 func (c *Client) Send(e *binary.RegularEvent) error {
-	c.room.Logger().Debugf("client.send: client=%v %v", c.Id, e.Type())
 	return c.evbuf.Write(e)
 }
 
 // RoomのMsgLoopから呼ばれる.
 func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
-	c.room.Logger().Debugf("client.SystemSend: client=%v %v", c.Id, e.Type)
 	p := c.peer
 	if p == nil {
 		return xerrors.Errorf("client.SendSystemEvent: no peer attached")
@@ -300,11 +296,13 @@ func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
 	return nil
 }
 
+// todo: errorを返してその先でログを出す
 func (c *Client) sendNewPeer(p *Peer) error {
 	select {
+	case <-c.done:
+		return xerrors.Errorf("client has been done")
 	case <-c.removed:
-		c.room.Logger().Debugf("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
-		return xerrors.Errorf("client has been removed %s", c.removeCause)
+		return xerrors.Errorf("client has been removed: %s", c.removeCause)
 	case c.newPeer <- p:
 		return nil
 	}
@@ -313,7 +311,7 @@ func (c *Client) sendNewPeer(p *Peer) error {
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
 func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
-	c.room.Logger().Debugf("attach peer: client=%v peer=%p", c.Id, p)
+	c.logger.Debugf("attach peer: %v peer=%p %v", c.Id, p, c)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -323,20 +321,15 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	}
 
 	select {
-	case <-c.removed:
-		c.room.Logger().Debugf("client has been removed: client=%v peer=%p %s", c.Id, p, c.removeCause)
-		return xerrors.Errorf("client has been removed: %s", c.removeCause)
-	default:
-	}
-
-	if c.isDone() {
-		c.room.Logger().Debugf("client has been done: client=%v peer=%p", c.Id, p)
+	case <-c.done:
 		return xerrors.Errorf("client has been done")
+	case <-c.removed:
+		return xerrors.Errorf("client has been removed")
+	default:
 	}
 
 	// msgSeqNumの後のメッセージから送信してもらう(再送含む)
 	if err := p.SendReady(c.msgSeqNum); err != nil {
-		c.room.Logger().Debugf("attach error: client=%v peer=%p %v", c.Id, p, err)
 		return err
 	}
 
@@ -353,54 +346,43 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 // Peer.MsgLoopで切断やエラーを検知したときに呼ばれる.
 // websocketの切断は呼び出し側で行う
 func (c *Client) DetachPeer(p *Peer) {
-	c.room.Logger().Debugf("detach peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.peer != p {
 		return // すでにdetach済み
 	}
+	c.logger.Infof("detach peer: %v peer=%p", c.Id, p)
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
 	c.peer = nil
-	if c.isDone() {
-		c.room.Logger().Debugf("client has been done: client=%v peer=%p", c.Id, p)
+	if err := c.sendNewPeer(nil); err != nil {
+		c.logger.Debugf("detach peer sendNewPeer: %v %+v", c.Id, err)
 		return // すでにMsgLoopから抜けている
 	}
-	_ = c.sendNewPeer(nil)
 	c.waitPeer = make(chan *Peer, 1)
 }
 
 // DetachAndClosePeer : peerを切り離して、peerのwebsocketをcloseする.
 // Client側のエラーによりpeerを切断する場合はこっち
 func (c *Client) DetachAndClosePeer(p *Peer, err error) {
-	c.room.Logger().Debugf("detach and close peer: client=%v, peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.peer != p {
+		c.logger.Debugf("detach+close peer: peer aleady detached: %v", c.Id)
 		return // すでにdetach済み. closeもされているはず.
 	}
-
+	c.logger.Infof("detach+close peer: %v", c.Id)
 	p.CloseWithClientError(err)
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
 	c.peer = nil
-	if c.isDone() {
-		c.room.Logger().Debugf("client has been done: client=%v peer=%p", c.Id, p)
+	if err := c.sendNewPeer(nil); err != nil {
+		c.logger.Debugf("detach and close peer: %v %+v", c.Id, err)
 		return // すでにMsgLoopから抜けている
 	}
-	_ = c.sendNewPeer(nil)
 	c.waitPeer = make(chan *Peer, 1)
-}
-
-func (c *Client) isDone() bool {
-	select {
-	case <-c.done:
-		return true
-	default:
-	}
-	return false
 }
 
 func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
@@ -411,7 +393,6 @@ func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
 
 // EventLoop : EvBufにEventが入ってきたらPeerに送信してもらう
 func (c *Client) EventLoop() {
-	c.room.Logger().Debugf("client.EventLoop start: client=%v", c.Id)
 loop:
 	for {
 		// dataが来るまで待つ
@@ -419,28 +400,23 @@ loop:
 		case <-c.done:
 			break loop
 		case <-c.evbuf.HasData():
-			c.room.Logger().Debugf("client.EventLoop: evbuf has data. client=%v", c.Id)
 		}
 
 		peer, wait := c.getWritePeer()
 		if peer == nil {
 			// peerがattachされるまで待つ
-			c.room.Logger().Debugf("client.EventLoop: wait peer. client=%v", c.Id)
+			c.logger.Debugf("client.EventLoop: waiting peer: %v", c.Id)
 			select {
 			case <-c.done:
 				break loop
 			case peer = <-wait:
-				c.room.Logger().Debugf("client.EventLoop: peer available. client=%v, peer=%p", c.Id, peer)
 			}
 		}
 
 		if err := peer.SendEvents(c.evbuf); err != nil {
 			// 再接続でも復帰不能なので終わる.
-			c.room.Logger().Errorf("clinet.EventLoop: send event error: client=%v peer=%p %v", c.Id, peer, err)
-			c.evErr <- err
+			c.evErr <- xerrors.Errorf("send event: %w", err)
 			break loop
 		}
 	}
-
-	c.room.Logger().Debugf("client.EventLoop finish: client=%v", c.Id)
 }
