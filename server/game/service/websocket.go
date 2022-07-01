@@ -96,7 +96,9 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		log.KeyRoom, roomId,
 		log.KeyApp, appId,
 		log.KeyClient, clientId,
-		log.KeyRemoteAddr, r.RemoteAddr)
+		log.KeyRemoteAddr, r.RemoteAddr,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
 		logger.Errorf("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
@@ -117,7 +119,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Bad Request", 400)
 		return
 	}
-	logger.Infof("websocket: client: %v", clientId)
+	logger.Infof("websocket: room=%v client=%v", roomId, clientId)
 
 	var authData string
 	if ad := r.Header.Get("Authorization"); strings.HasPrefix(ad, "Bearer ") {

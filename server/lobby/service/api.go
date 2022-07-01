@@ -113,6 +113,7 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 func prepareLogger(handler string, hdr header, r *http.Request) log.Logger {
 	return log.GetLoggerWith(
 		log.KeyHandler, handler,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
 		log.KeyApp, hdr.appId,
 		log.KeyClient, hdr.userId,
 		log.KeyRemoteAddr, r.RemoteAddr)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
@@ -50,7 +51,12 @@ func (sv *GameService) serveGRPC(ctx context.Context) <-chan error {
 }
 
 func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.JoinedRoomRes, error) {
-	logger := log.GetLoggerWith(log.KeyHandler, "grpc:Create", log.KeyApp, in.AppId, log.KeyClient, in.MasterInfo.Id)
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "grpc:Create",
+		log.KeyApp, in.AppId,
+		log.KeyClient, in.MasterInfo.Id,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	sv.fillRoomOption(in.RoomOption)
 	logger.Debugf("gRPC Create: %v %v", in.RoomOption, in.MasterInfo)
 
@@ -86,7 +92,13 @@ func (sv *GameService) fillRoomOption(op *pb.RoomOption) {
 }
 
 func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
-	logger := log.GetLoggerWith(log.KeyHandler, "grpc:Join", log.KeyApp, in.AppId, log.KeyClient, in.ClientInfo.Id, log.KeyRoom, in.RoomId)
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "grpc:Join",
+		log.KeyApp, in.AppId,
+		log.KeyClient, in.ClientInfo.Id,
+		log.KeyRoom, in.RoomId,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	logger.Debugf("gRPC Join: %v %v", in.RoomId, in.ClientInfo)
 
 	repo, ok := sv.repos[in.AppId]
@@ -109,7 +121,13 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 }
 
 func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.JoinedRoomRes, error) {
-	logger := log.GetLoggerWith(log.KeyHandler, "grpc:Watch", log.KeyApp, in.AppId, log.KeyClient, in.ClientInfo.Id, log.KeyRoom, in.RoomId)
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "grpc:Watch",
+		log.KeyApp, in.AppId,
+		log.KeyClient, in.ClientInfo.Id,
+		log.KeyRoom, in.RoomId,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	logger.Debugf("gRPC Watch: %v %v", in.RoomId, in.ClientInfo)
 
 	repo, ok := sv.repos[in.AppId]
@@ -132,7 +150,12 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 }
 
 func (sv *GameService) GetRoomInfo(ctx context.Context, in *pb.GetRoomInfoReq) (*pb.GetRoomInfoRes, error) {
-	logger := log.GetLoggerWith(log.KeyHandler, "grpc:GetRoomInfo", log.KeyApp, in.AppId, log.KeyRoom, in.RoomId)
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "grpc:GetRoomInfo",
+		log.KeyApp, in.AppId,
+		log.KeyRoom, in.RoomId,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	logger.Debugf("gRPC GetRoomInfo: %v", in.RoomId)
 	repo, ok := sv.repos[in.AppId]
 	if !ok {
@@ -151,7 +174,13 @@ func (sv *GameService) GetRoomInfo(ctx context.Context, in *pb.GetRoomInfoReq) (
 }
 
 func (sv *GameService) Kick(ctx context.Context, in *pb.KickReq) (*pb.Empty, error) {
-	logger := log.GetLoggerWith(log.KeyHandler, "grcp:Kick", log.KeyApp, in.AppId, log.KeyRoom, in.RoomId, log.KeyClient, in.ClientId)
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "grcp:Kick",
+		log.KeyApp, in.AppId,
+		log.KeyRoom, in.RoomId,
+		log.KeyClient, in.ClientId,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	logger.Debugf("gRPC Kick: %v %v", in.RoomId, in.ClientId)
 	repo, ok := sv.repos[in.AppId]
 	if !ok {

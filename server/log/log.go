@@ -47,15 +47,17 @@ const (
 	KeyHandler = "handler"
 	// Remote adder
 	KeyRemoteAddr = "remoteAddr"
+	// Requested at (unix timestamp, float64)
+	KeyRequestedAt = "requestedAt"
 	// Room ID
 	KeyRoom = "room"
 	// Room count
 	KeyRoomCount = "roomCount"
-	// Room IDs
+	// Room IDs ([]string)
 	KeyRoomIds = "roomIds"
 	// Room number
 	KeyRoomNumber = "roomNum"
-	// SearchGroup
+	// Search group
 	KeySearchGroup = "group"
 )
 
