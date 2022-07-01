@@ -297,7 +297,6 @@ func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
 	return nil
 }
 
-// todo: errorを返してその先でログを出す
 func (c *Client) sendNewPeer(p *Peer) error {
 	select {
 	case <-c.done:
