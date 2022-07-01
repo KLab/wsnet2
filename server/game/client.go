@@ -36,11 +36,12 @@ type Client struct {
 
 	evbuf *EvBuf
 
-	mu        sync.RWMutex
-	msgSeqNum int
-	peer      *Peer
-	waitPeer  chan *Peer
-	newPeer   chan *Peer
+	mu           sync.RWMutex
+	msgSeqNum    int
+	peer         *Peer
+	waitPeer     chan *Peer
+	newPeer      chan *Peer
+	connectCount int
 
 	authKey string
 	hmac    hash.Hash
@@ -135,13 +136,12 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			// todo: 一度もwebsocket接続しなかったClientを計測したい
-			c.logger.Infof("client timeout: %v", c.Id)
+			c.logger.Infof("client timeout: %v connectCount=%v", c.Id, c.connectCount)
 			c.room.Timeout(c)
 			break loop
 
 		case <-c.room.Done():
-			c.logger.Infof("client room done: %v", c.Id)
+			c.logger.Debugf("client room done: %v", c.Id)
 			curPeer.Close("room closed")
 			if !t.Stop() {
 				<-t.C
@@ -171,6 +171,7 @@ loop:
 				curPeer = nil
 				continue
 			}
+			c.connectCount++
 			c.logger.Infof("new peer attached: %v peer=%p", c.Id, peer)
 			peerMsgCh = peer.MsgCh()
 			curPeer = peer
