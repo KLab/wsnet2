@@ -572,6 +572,12 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	msg.Sender.logger.Debugf("update room props: v=%v j=%v w=%v group=%v maxp=%v deadline=%v public=%v private=%v",
 		msg.Visible, msg.Joinable, msg.Watchable, msg.SearchGroup, msg.MaxPlayer, msg.ClientDeadline, msg.PublicProps, msg.PrivateProps)
 
+	outputlog := r.RoomInfo.Visible != msg.Visible ||
+		r.RoomInfo.Joinable != msg.Joinable ||
+		r.RoomInfo.Watchable != msg.Watchable ||
+		r.RoomInfo.SearchGroup != msg.SearchGroup ||
+		r.RoomInfo.MaxPlayers != msg.MaxPlayer
+
 	r.RoomInfo.Visible = msg.Visible
 	r.RoomInfo.Joinable = msg.Joinable
 	r.RoomInfo.Watchable = msg.Watchable
@@ -609,11 +615,14 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 			for _, c := range r.players {
 				c.newDeadline <- deadline
 			}
+			outputlog = true
 		}
 	}
 
-	msg.Sender.logger.Infof("room props: v=%v, j=%v, w=%v, group=%v, maxp=%v, deadline=%v",
-		r.Visible, r.Joinable, r.Watchable, r.SearchGroup, r.MaxPlayers, r.deadline)
+	if outputlog {
+		msg.Sender.logger.Infof("room props: v=%v, j=%v, w=%v, group=%v, maxp=%v, deadline=%v",
+			r.Visible, r.Joinable, r.Watchable, r.SearchGroup, r.MaxPlayers, r.deadline)
+	}
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvRoomProp(msg.Sender.Id, msg.MsgRoomPropPayload))
