@@ -100,8 +100,6 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 	go c.MsgLoop(room.Deadline())
 	go c.EventLoop()
 
-	c.logger.Debug("new client: %v", c)
-
 	return c, nil
 }
 
@@ -311,7 +309,7 @@ func (c *Client) sendNewPeer(p *Peer) error {
 // attachPeer: peerを紐付ける
 //  peerのgoroutineから呼ばれる
 func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
-	c.logger.Debugf("attach peer: %v peer=%p %v", c.Id, p, c)
+	c.logger.Debugf("attach peer: %v peer=%p", c.Id, p)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
