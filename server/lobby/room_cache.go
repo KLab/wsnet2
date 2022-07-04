@@ -56,7 +56,7 @@ func (q *roomCacheQuery) do(ctx context.Context) ([]*pb.RoomInfo, []binary.Dict,
 	for _, r := range rooms {
 		um, err := unmarshalProps(r.PublicProps)
 		if err != nil {
-			log.Errorf("props unmarshal error: %v", err)
+			log.Errorf("props unmarshal error: %+v", err)
 			props = append(props, binary.Dict{})
 			continue
 		}

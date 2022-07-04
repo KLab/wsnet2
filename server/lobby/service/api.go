@@ -126,7 +126,7 @@ func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger
 	enc.UseCompactInts(true)
 	err := enc.Encode(res)
 	if err != nil {
-		logger.Errorf("Failed to marshal response: %v", err)
+		logger.Errorf("Failed to marshal response: %+v", err)
 		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}
