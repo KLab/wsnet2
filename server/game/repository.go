@@ -166,7 +166,7 @@ func (repo *Repository) CreateRoom(ctx context.Context, op *pb.RoomOption, maste
 	defer repo.mu.Unlock()
 
 	if len(repo.rooms) >= repo.conf.MaxRooms {
-		logger.Warn("reached to the max_rooms. delete room: %v", room.Id)
+		logger.Warnf("reached to the max_rooms. delete room: %v", room.Id)
 		// 履歴は残さずに部屋を削除
 		_, err := repo.db.Exec("DELETE FROM room WHERE id=?", room.Id)
 		if err != nil {

@@ -242,7 +242,7 @@ func (r *Room) removePlayer(c *Client, err error) {
 
 	if r.master.ID() == cid {
 		r.master = r.players[r.masterOrder[0]]
-		r.logger.Infof("master switched: %v -> %v", r.master.Id, r.masterOrder[0])
+		r.logger.Infof("master switched: %v -> %v", cid, r.master.ID())
 	}
 
 	r.RoomInfo.Players = uint32(len(r.players))
@@ -439,7 +439,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	client, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		err = WithCode(
-			xerrors.Errorf("NewPlayer (room=%v, client=%v): %w", r.ID(), msg.Info.Id, err),
+			xerrors.Errorf("NewPlayer room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err
 		return err
