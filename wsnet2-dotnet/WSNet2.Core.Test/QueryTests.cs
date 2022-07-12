@@ -349,6 +349,24 @@ namespace WSNet2.Core.Test
                 MessagePackSerializer.Serialize(query.condsList));
         }
 
+        [Test]
+        public void TestToString()
+        {
+            var query = new Query();
+
+            query.Between("k1", 1, 10);
+            query.Contain("k2", "test");
+            query.Or(
+                new Query().Equal("o1", 10),
+                new Query().Equal("o1", 20));
+
+            var expect = "["
+                + "[{k1 >= 1},{k1 <= 10},{k2 ∋ test},{o1 == 10}],"
+                + "[{k1 >= 1},{k1 <= 10},{k2 ∋ test},{o1 == 20}]]";
+
+            Assert.AreEqual(expect, query.ToString());
+        }
+
         private byte[] serialize(int val)
         {
             lock (writer)
