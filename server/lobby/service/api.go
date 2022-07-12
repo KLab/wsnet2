@@ -111,11 +111,18 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 }
 
 func prepareLogger(handler string, hdr header, r *http.Request) log.Logger {
+	raddr := r.RemoteAddr[:strings.LastIndexByte(r.RemoteAddr, ':')]
+	if f := r.Header.Get("x-forwarded-for"); f != "" {
+		if raddr != "127.0.0.1" {
+			f += ", " + raddr
+		}
+		raddr = f
+	}
 	return log.GetLoggerWith(
 		log.KeyHandler, handler,
 		log.KeyApp, hdr.appId,
 		log.KeyClient, hdr.userId,
-		log.KeyRemoteAddr, r.RemoteAddr)
+		log.KeyRemoteAddr, raddr)
 }
 
 func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger) {
