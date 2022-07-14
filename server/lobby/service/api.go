@@ -121,11 +121,15 @@ func prepareLogger(handler string, hdr header, r *http.Request) log.Logger {
 		}
 		raddr = f
 	}
-	return log.GetLoggerWith(
+	l := log.GetLoggerWith(
 		log.KeyHandler, handler,
 		log.KeyApp, hdr.appId,
 		log.KeyClient, hdr.userId,
 		log.KeyRemoteAddr, raddr)
+	if err != nil {
+		l.Errorf("SplitHostPort: %v", err)
+	}
+	return l
 }
 
 func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger) {
