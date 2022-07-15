@@ -89,7 +89,7 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
 	metrics.MessageSent.Add(1)
 	err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
 	if err != nil {
-		p.client.room.Logger().Errorf("Peer SendSystemEvent: write message error: %v", err)
+		p.client.logger.Errorf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
 		metrics.MessageSent.Add(1)
 		p.conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
@@ -112,6 +112,7 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 	evs, err := evbuf.Read(p.evSeqNum)
 	if err != nil {
 		// evSeqNumが古すぎるため. 復帰不能.
+		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
 		metrics.MessageSent.Add(1)
 		p.conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseGoingAway, err.Error()))
@@ -128,7 +129,7 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 		err := p.conn.WriteMessage(websocket.BinaryMessage, buf)
 		if err != nil {
 			// 新しいpeerで復帰できるかもしれない
-			p.client.room.Logger().Errorf("Peer SendEvents: write message error: %v", err)
+			p.client.logger.Errorf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
 			metrics.MessageSent.Add(1)
 			p.conn.WriteMessage(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
@@ -166,10 +167,8 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
-		p.client.room.Logger().Debugf("peer already closed: client=%v peer=%p %v", p.client.Id, p, msg)
 		return
 	}
-	p.client.room.Logger().Debugf("peer close: client=%v peer=%p %v", p.client.Id, p, msg)
 	metrics.MessageSent.Add(1)
 	p.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, msg))
 	p.conn.Close()
@@ -177,7 +176,6 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 }
 
 func (p *Peer) MsgLoop(ctx context.Context) {
-	p.client.room.Logger().Debugf("Peer.MsgLoop start: client=%v peer=%p", p.client.Id, p)
 loop:
 	for {
 		select {
@@ -192,14 +190,13 @@ loop:
 
 		_, data, err := p.conn.ReadMessage()
 		if err != nil {
-			logger := p.client.room.Logger()
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
-				logger.Infof("Peer closed: client=%v peer=%p %v", p.client.Id, p, err)
+				p.client.logger.Infof("peer closed (%v, %p): %+v", p.client.Id, p, err)
 			} else if websocket.IsUnexpectedCloseError(err) {
-				logger.Errorf("Peer close error: client=%v peer=%p %v", p.client.Id, p, err)
+				p.client.logger.Errorf("peer close error (%v, %p): %+v", p.client.Id, p, err)
 			} else {
 				if !errors.Is(err, net.ErrClosed) {
-					logger.Errorf("Peer read error: client=%v peer=%p %T %v", p.client.Id, p, err, err)
+					p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 				}
 			}
@@ -209,16 +206,14 @@ loop:
 
 		msg, err := binary.UnmarshalMsg(p.client.hmac, data)
 		if err != nil {
-			p.client.room.Logger().Errorf("Peer UnmarshalMsg error: client=%v peer=%p %v: %v", p.client.Id, p, err, data)
+			p.client.logger.Errorf("peer UnmarshalMsg (%v, %p): %+v", p.client.Id, p, err)
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())
 			break loop
 		}
-
 		p.msgCh <- msg
 	}
 
 	p.client.DetachPeer(p)
 	close(p.msgCh)
 	close(p.done)
-	p.client.room.Logger().Debugf("Peer.MsgLoop finish: client=%v peer=%p", p.client.Id, p)
 }

@@ -47,15 +47,17 @@ const (
 	KeyHandler = "handler"
 	// Remote adder
 	KeyRemoteAddr = "remoteAddr"
+	// Requested at (unix timestamp, float64)
+	KeyRequestedAt = "requestedAt"
 	// Room ID
 	KeyRoom = "room"
 	// Room count
 	KeyRoomCount = "roomCount"
-	// Room IDs
+	// Room IDs ([]string)
 	KeyRoomIds = "roomIds"
 	// Room number
 	KeyRoomNumber = "roomNum"
-	// SearchGroup
+	// Search group
 	KeySearchGroup = "group"
 )
 
@@ -64,8 +66,8 @@ var (
 )
 
 // Get Logger for custom log level.
-func Get(l Level) *zap.Logger {
-	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l)))
+func Get(l Level) Logger {
+	return rootLogger.WithOptions(zap.IncreaseLevel(toZapLevel(l))).Sugar()
 }
 
 // CurrentLevel returns global log level
@@ -74,7 +76,7 @@ func CurrentLevel() Level {
 }
 
 func GetLoggerWith(args ...any) Logger {
-	return Get(level).Sugar().With(args...)
+	return Get(level).With(args...)
 }
 
 func toZapLevel(l Level) zapcore.Level {
@@ -177,7 +179,7 @@ func InitLogger(logconf *config.LogConf) func() {
 	}
 
 	host, _ := os.Hostname()
-	logger := zap.New(core, zap.AddStacktrace(zap.WarnLevel), zap.WithCaller(true)).With(zap.String("host", host))
+	logger := zap.New(core, zap.WithCaller(true)).With(zap.String("host", host))
 	rootLogger = logger
 	wrappedLogger = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
 

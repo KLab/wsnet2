@@ -123,6 +123,7 @@ func prepareLogger(handler string, hdr header, r *http.Request) log.Logger {
 	}
 	l := log.GetLoggerWith(
 		log.KeyHandler, handler,
+		log.KeyRequestedAt, float64(time.Now().UnixMilli())/1000,
 		log.KeyApp, hdr.appId,
 		log.KeyClient, hdr.userId,
 		log.KeyRemoteAddr, raddr)
@@ -139,7 +140,7 @@ func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger
 	enc.UseCompactInts(true)
 	err := enc.Encode(res)
 	if err != nil {
-		logger.Errorf("Failed to marshal response: %v", err)
+		logger.Errorf("Failed to marshal response: %+v", err)
 		http.Error(w, "Failed to marshal response", http.StatusInternalServerError)
 		return
 	}

@@ -33,7 +33,7 @@ func (sv *GameService) servePprof(ctx context.Context) <-chan error {
 		// 1本の接続を握って SetMaxOpenConns(1) することでDB接続が詰まった状況を作る。
 		conn, err := sv.db.Conn(context.Background())
 		if err != nil {
-			log.Errorf("/debug/stop-the-db: failed to get db conn: %v", err)
+			log.Errorf("/debug/stop-the-db: failed to get db conn: %+v", err)
 
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(fmt.Sprintf("failed to get db conn: %v\n", err)))

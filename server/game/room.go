@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc/codes"
 
@@ -48,7 +47,7 @@ type Room struct {
 
 	playerLogs []roomPlayerLog
 
-	logger *zap.SugaredLogger
+	logger log.Logger
 
 	chRoomInfo   chan struct{}
 	mRoomInfo    sync.Mutex // used by updateRoomInfo
@@ -61,7 +60,7 @@ type roomPlayerLog struct {
 	TimeStamp time.Time `json:"timestamp,omitempty"`
 }
 
-func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, macKey string, deadlineSec uint32, conf *config.GameConf, loglevel log.Level) (*Room, *JoinedInfo, ErrorWithCode) {
+func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, macKey string, deadlineSec uint32, conf *config.GameConf, logger log.Logger) (*Room, *JoinedInfo, ErrorWithCode) {
 	pubProps, iProps, err := common.InitProps(info.PublicProps)
 	if err != nil {
 		return nil, nil, WithCode(xerrors.Errorf("PublicProps unmarshal error: %w", err), codes.InvalidArgument)
@@ -90,13 +89,12 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 		watchers:    make(map[ClientID]*Client),
 		lastMsg:     make(binary.Dict),
 
-		logger: log.Get(loglevel).With(zap.String("room", info.Id)).Sugar(),
+		logger: logger,
 
 		chRoomInfo:   make(chan struct{}, 1),
 		lastRoomInfo: info.Clone(),
 	}
 
-	metrics.Rooms.Add(1)
 	go r.MsgLoop()
 	go r.roomInfoUpdater()
 
@@ -106,21 +104,19 @@ func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInf
 	select {
 	case <-ctx.Done():
 		return nil, nil, WithCode(
-			xerrors.Errorf("NewRoom write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
+			xerrors.Errorf("write msg timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case r.msgCh <- &MsgCreate{masterInfo, macKey, jch, ech}:
 	}
 
-	r.logger.Debugf("NewRoom: info={%v}, pubProp:%v, privProp:%v", r.RoomInfo, r.publicProps, r.privateProps)
-
 	select {
 	case <-ctx.Done():
 		return nil, nil, WithCode(
-			xerrors.Errorf("NewRoom msgCreate timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
+			xerrors.Errorf("msgCreate timeout or context done: room=%v client=%v", r.Id, masterInfo.Id),
 			codes.DeadlineExceeded)
 	case ewc := <-ech:
 		return nil, nil, WithCode(
-			xerrors.Errorf("NewRoom msgCreate: %w", ewc), ewc.Code())
+			xerrors.Errorf("msgCreate: %w", ewc), ewc.Code())
 	case joined := <-jch:
 		return r, joined, nil
 	}
@@ -136,25 +132,23 @@ func (r *Room) ClientConf() *config.ClientConf {
 
 // MsgLoop goroutine dispatch messages.
 func (r *Room) MsgLoop() {
-	r.logger.Debug("Room.MsgLoop() start.")
+	metrics.Rooms.Add(1)
+	defer metrics.Rooms.Add(-1)
 Loop:
 	for {
 		select {
 		case <-r.Done():
-			r.logger.Info("Room closed.")
+			r.logger.Infof("room closed: %v", r.Id)
 			break Loop
 		case msg := <-r.msgCh:
-			r.logger.Debugf("Room msg: %T %v", msg, msg)
 			r.updateLastMsg(msg.SenderID())
 			if err := r.dispatch(msg); err != nil {
-				r.logger.Errorf("Room msg error: %v", err)
+				r.logger.Errorf("dispatch %T: %+v", msg, err)
 			}
 		}
 	}
 	r.repo.RemoveRoom(r)
 	r.drainMsg()
-	metrics.Rooms.Add(-1)
-	r.logger.Debug("Room.MsgLoop() finish")
 }
 
 // drainMsg drain msgCh until all clients closed.
@@ -169,7 +163,7 @@ func (r *Room) drainMsg() {
 	for {
 		select {
 		case msg := <-r.msgCh:
-			r.logger.Debugf("Discard msg: %T %v", msg, msg)
+			r.logger.Debugf("discard msg: %T %v", msg, msg)
 		case <-ch:
 			return
 		}
@@ -219,11 +213,10 @@ func (r *Room) removePlayer(c *Client, err error) {
 	cid := c.ID()
 
 	if _, ok := r.players[cid]; !ok {
-		r.logger.Debugf("Player may be aleady left:  client=%v", cid)
+		c.logger.Infof("player may be aleady left: %v", c.Id)
 		return
 	}
 
-	r.logger.Infof("Player removed: client=%v %v", cid, err)
 	delete(r.players, cid)
 
 	for i, id := range r.masterOrder {
@@ -239,6 +232,7 @@ func (r *Room) removePlayer(c *Client, err error) {
 		TimeStamp: time.Now(),
 	})
 
+	c.logger.Infof("player left: %v: %v", cid, err)
 	c.Removed(err)
 
 	if len(r.players) == 0 {
@@ -247,8 +241,8 @@ func (r *Room) removePlayer(c *Client, err error) {
 	}
 
 	if r.master.ID() == cid {
-		r.logger.Infof("Master switched: master:%v->%v", r.master.Id, r.masterOrder[0])
 		r.master = r.players[r.masterOrder[0]]
+		r.logger.Infof("master switched: %v -> %v", cid, r.master.ID())
 	}
 
 	r.RoomInfo.Players = uint32(len(r.players))
@@ -270,12 +264,12 @@ func (r *Room) roomInfoUpdater() {
 				t1 := time.Now()
 				conn, err := r.repo.db.Connx(context.Background())
 				if err != nil {
-					log.Errorf("roomInfoUpdater(): failed to get db conn: %v", err)
+					r.logger.Errorf("roomInfoUpdater: conn: %+v", err)
 					time.Sleep(time.Second)
 					continue
 				}
 				if d := time.Since(t1); d > time.Second {
-					log.Infof("roomInfoUpdater(): took %v to get a db conn", d)
+					r.logger.Infof("roomInfoUpdater: took %v to get a db conn", d)
 				}
 
 				r.mRoomInfo.Lock()
@@ -286,7 +280,7 @@ func (r *Room) roomInfoUpdater() {
 				}
 				r.mRoomInfo.Unlock()
 
-				r.repo.updateRoomInfo(ri, conn)
+				r.repo.updateRoomInfo(ri, conn, r.logger)
 				conn.Close()
 				break
 			}
@@ -312,12 +306,12 @@ func (r *Room) removeWatcher(c *Client, err error) {
 	cid := c.ID()
 
 	if _, ok := r.watchers[cid]; !ok {
-		r.logger.Debugf("Watcher may be aleady left: client=%v", cid)
+		r.logger.Debugf("Watcher may be aleady left: %v", cid)
 		return
 	}
 
-	r.logger.Infof("Watcher removed: client=%v %v", cid, err)
 	delete(r.watchers, cid)
+	c.logger.Infof("watcher left: %v: %v", cid, err)
 
 	r.RoomInfo.Watchers -= c.nodeCount
 	r.updateRoomInfo()
@@ -359,7 +353,7 @@ func (r *Room) dispatch(msg Msg) error {
 	case *MsgClientError:
 		return r.msgClientError(m)
 	default:
-		return xerrors.Errorf("unknown msg type: %T %v", m, m)
+		return xerrors.Errorf("unknown msg type (%T): %v", m, m)
 	}
 }
 
@@ -393,8 +387,10 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	master, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		msg.Err <- err
-		return xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err)
+		return xerrors.Errorf("NewPlayer room=%v, client=%v: %w", r.Id, msg.Info.Id, err)
 	}
+	master.logger.Infof("new player: %v", master.Id)
+
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
@@ -427,9 +423,6 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 
 	// Timeout前の再入室はclientを差し替え、EvJoinedではなくEvRejoinedを通知
 	oldp, rejoin := r.players[msg.SenderID()]
-	if rejoin {
-		r.logger.Warnf("Player aleady exists (rejoin). room=%v, client=%v", r.ID(), msg.SenderID())
-	}
 	// 観戦しながらの入室は不許可（ただしhub経由で観戦している場合は考慮しない）
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
@@ -446,7 +439,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	client, err := NewPlayer(msg.Info, msg.MACKey, r)
 	if err != nil {
 		err = WithCode(
-			xerrors.Errorf("NewPlayer error. room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
+			xerrors.Errorf("NewPlayer room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
 		msg.Err <- err
 		return err
@@ -462,6 +455,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 			Message:   "Rejoin",
 			TimeStamp: time.Now(),
 		})
+		client.logger.Infof("rejoin player: %v", client.Id)
 	} else {
 		r.masterOrder = append(r.masterOrder, client.ID())
 		r.playerLogs = append(r.playerLogs, roomPlayerLog{
@@ -471,6 +465,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		})
 		r.RoomInfo.Players = uint32(len(r.players))
 		r.updateRoomInfo()
+		client.logger.Infof("new player: %v", client.Id)
 	}
 
 	rinfo := r.RoomInfo.Clone()
@@ -521,6 +516,9 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	if rejoin {
 		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
 		r.RoomInfo.Watchers -= oldc.nodeCount
+		client.logger.Infof("rejoin watcher: %v", client.Id)
+	} else {
+		client.logger.Infof("new watcher: %v", client.Id)
 	}
 	r.RoomInfo.Watchers += client.nodeCount
 	r.updateRoomInfo()
@@ -536,6 +534,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 }
 
 func (r *Room) msgPing(msg *MsgPing) error {
+	msg.Sender.logger.Debugf("ping %v: %v", msg.Sender.Id, msg.Timestamp)
 	ev := binary.NewEvPong(msg.Timestamp, r.RoomInfo.Watchers, r.lastMsg)
 	return msg.Sender.SendSystemEvent(ev)
 }
@@ -549,7 +548,7 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 		return nil
 	}
 	r.RoomInfo.Watchers = (r.RoomInfo.Watchers - c.nodeCount) + msg.Count
-	r.logger.Debugf("Update NodeCount: %v before=%v after=%v (total=%v)", c.ID(), c.nodeCount, msg.Count, r.RoomInfo.Watchers)
+	c.logger.Debugf("nodeCount %v: %v -> %v (total=%v)", c.Id, c.nodeCount, msg.Count, r.RoomInfo.Watchers)
 	c.nodeCount = msg.Count
 	r.updateRoomInfo()
 	return nil
@@ -567,9 +566,17 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
-		return xerrors.Errorf("MsgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+		return xerrors.Errorf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
-	r.logger.Debugf("Room MsgRoomProps: %v", msg.MsgRoomPropPayload)
+
+	msg.Sender.logger.Debugf("update room props: v=%v j=%v w=%v group=%v maxp=%v deadline=%v public=%v private=%v",
+		msg.Visible, msg.Joinable, msg.Watchable, msg.SearchGroup, msg.MaxPlayer, msg.ClientDeadline, msg.PublicProps, msg.PrivateProps)
+
+	outputlog := r.RoomInfo.Visible != msg.Visible ||
+		r.RoomInfo.Joinable != msg.Joinable ||
+		r.RoomInfo.Watchable != msg.Watchable ||
+		r.RoomInfo.SearchGroup != msg.SearchGroup ||
+		r.RoomInfo.MaxPlayers != msg.MaxPlayer
 
 	r.RoomInfo.Visible = msg.Visible
 	r.RoomInfo.Joinable = msg.Joinable
@@ -586,7 +593,6 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 			}
 		}
 		r.RoomInfo.PublicProps = binary.MarshalDict(r.publicProps)
-		r.logger.Debugf("Room update PublicProps: %v", r.publicProps)
 	}
 
 	if len(msg.PrivateProps) > 0 {
@@ -598,7 +604,6 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 			}
 		}
 		r.RoomInfo.PrivateProps = binary.MarshalDict(r.privateProps)
-		r.logger.Debugf("Room update PrivateProps: %v", r.privateProps)
 	}
 
 	r.updateRoomInfo()
@@ -606,12 +611,17 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) error {
 	if msg.ClientDeadline != 0 {
 		deadline := time.Duration(msg.ClientDeadline) * time.Second
 		if deadline != r.deadline {
-			r.logger.Debugf("Room notify new deadline: %v", deadline)
 			r.deadline = deadline
 			for _, c := range r.players {
 				c.newDeadline <- deadline
 			}
+			outputlog = true
 		}
+	}
+
+	if outputlog {
+		msg.Sender.logger.Infof("room props: v=%v, j=%v, w=%v, group=%v, maxp=%v, deadline=%v",
+			r.Visible, r.Joinable, r.Watchable, r.SearchGroup, r.MaxPlayers, r.deadline)
 	}
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
@@ -626,10 +636,11 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 	if !msg.Sender.isPlayer {
 		// 送信元にエラー通知
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
-		return xerrors.Errorf("MsgClientProp: sender %q is not player", msg.Sender.Id)
+		return xerrors.Errorf("sender %q is not player", msg.Sender.Id)
 	}
 
-	r.logger.Debugf("MsgClientProp: client=%v, props=%v", msg.Sender.Id, msg.Props)
+	msg.Sender.logger.Debugf("update client prop: %v", msg.Props)
+
 	if len(msg.Props) > 0 {
 		c := msg.Sender
 		for k, v := range msg.Props {
@@ -640,7 +651,6 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 			}
 		}
 		c.ClientInfo.Props = binary.MarshalDict(c.props)
-		r.logger.Debugf("Client update Props: client=%v %v", c.Id, c.props)
 	}
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
@@ -652,6 +662,8 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 
+	msg.Sender.logger.Debugf("message to targets: %v, %v", msg.Targets, msg.Data)
+
 	ev := binary.NewEvMessage(msg.Sender.Id, msg.Data)
 
 	absent := make([]string, 0, len(r.players))
@@ -659,7 +671,7 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 	for _, t := range msg.Targets {
 		c, ok := r.players[ClientID(t)]
 		if !ok {
-			r.logger.Infof("target %s is absent", t)
+			msg.Sender.logger.Infof("target %s is absent", t)
 			absent = append(absent, t)
 			continue
 		}
@@ -678,6 +690,8 @@ func (r *Room) msgToMaster(msg *MsgToMaster) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
 
+	msg.Sender.logger.Debugf("message to master: %v", msg.Data)
+
 	_ = r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
 	return nil
 }
@@ -685,6 +699,9 @@ func (r *Room) msgToMaster(msg *MsgToMaster) error {
 func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+
+	msg.Sender.logger.Debugf("message to all: %v", msg.Data)
+
 	r.broadcast(binary.NewEvMessage(msg.Sender.Id, msg.Data))
 	return nil
 }
@@ -696,19 +713,19 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
-		return xerrors.Errorf("MsgSwitchMaster: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+		return xerrors.Errorf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
 	target, found := r.players[msg.Target]
 	if !found {
 		// 対象が居ないことを通知
 		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
-		return xerrors.Errorf("MsgSwitchMaster: player not found: room=%v, target=%v", r.Id, msg.Target)
+		return xerrors.Errorf("player not found: %v", msg.Target)
 	}
 
 	r.master = target
 
-	r.logger.Debugf("Master switched: master:%v->%v", msg.Sender.ID(), r.master.Id)
+	msg.Sender.logger.Infof("master switched: %v -> %v", msg.Sender.ID(), r.master.Id)
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 	r.broadcast(binary.NewEvMasterSwitched(msg.Sender.Id, r.master.Id))
@@ -722,7 +739,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 		// 送信元にエラー通知
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		r.muClients.RUnlock()
-		return xerrors.Errorf("MsgKick: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+		return xerrors.Errorf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
 	target, found := r.players[msg.Target]
@@ -730,7 +747,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 		// 対象が居ないことを通知
 		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
 		r.muClients.RUnlock()
-		return xerrors.Errorf("MsgKick: player not found: room=%v, target=%v", r.Id, msg.Target)
+		return xerrors.Errorf("player not found: %v", msg.Target)
 	}
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
@@ -738,7 +755,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 	// removeClientがmuClientsのLockを取るため呼び出し前にRUnlockしておく
 	r.muClients.RUnlock()
 
-	r.removeClient(target, xerrors.Errorf("client kicked: room=%v client=%v", r.ID(), target.Id))
+	r.removeClient(target, xerrors.Errorf("kicked"))
 	return nil
 }
 
@@ -748,11 +765,11 @@ func (r *Room) msgAdminKick(msg *MsgAdminKick) error {
 	r.muClients.RUnlock() // msgKick と違って sendTo() を使わないのですぐにアンロックする
 
 	if !ok {
-		msg.Res <- fmt.Errorf("MsgAdminKick: player not found: room=%v, target=%v", r.Id, msg.Target)
+		msg.Res <- xerrors.Errorf("player not found: target=%v", msg.Target)
 		return nil
 	}
 
-	r.removeClient(target, fmt.Errorf("client kicked by admin: room=%v client=%v", r.ID(), msg.Target))
+	r.removeClient(target, fmt.Errorf("kicked by admin"))
 	msg.Res <- nil
 	return nil
 }
@@ -791,7 +808,7 @@ func (r *Room) WaitGroup() *sync.WaitGroup {
 	return &r.wgClient
 }
 
-func (r *Room) Logger() *zap.SugaredLogger {
+func (r *Room) Logger() log.Logger {
 	return r.logger
 }
 

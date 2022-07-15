@@ -41,11 +41,11 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 	timestamp := time.Unix(int64(unixtime), 0)
 
 	if timestamp.After(time.Now().Add(AllowedTimeGain)) {
-		return xerrors.Errorf("invalid authdata: invalid timestamp")
+		return xerrors.Errorf("future timestamp: %v", timestamp)
 	}
 
 	if timestamp.Before(expired) {
-		return xerrors.Errorf("invalid authdata: expired")
+		return xerrors.Errorf("expired: %v", timestamp)
 	}
 
 	return nil
@@ -56,16 +56,16 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 func ValidAuthDataHash(authData, key, userId string) ([]byte, error) {
 	d, err := base64.StdEncoding.DecodeString(authData)
 	if err != nil {
-		return nil, xerrors.Errorf("invalid authdata: %w", err)
+		return nil, xerrors.Errorf("decode base64: %w", err)
 	}
 	if len(d) != 8+8+32 {
-		return nil, xerrors.Errorf("invalid authdata: length=%v", len(d))
+		return nil, xerrors.Errorf("too short: %v", len(d))
 	}
 
 	data, hmac := d[:16], d[16:]
 
 	if !ValidHMAC(hmac, []byte(key), []byte(userId), data) {
-		return nil, xerrors.Errorf("invalid authdata: hmac mismatch")
+		return nil, xerrors.Errorf("hmac mismatch")
 	}
 
 	return data, nil
@@ -81,7 +81,7 @@ func GenerateAuthData(key, userId string, now time.Time) (string, error) {
 		return "", err
 	}
 	if n != len(nonce) {
-		return "", xerrors.Errorf("invalid nonce length %v", n)
+		return "", xerrors.Errorf("nonce length: %v", n)
 	}
 
 	// timestamp
@@ -91,7 +91,7 @@ func GenerateAuthData(key, userId string, now time.Time) (string, error) {
 	// hmac
 	hmac := CalculateHMAC([]byte(key), []byte(userId), nonce, timestamp)
 	if len(hmac) != 32 {
-		return "", xerrors.Errorf("invalid hmac length %v", len(hmac))
+		return "", xerrors.Errorf("hmac length: %v", len(hmac))
 	}
 	copy(d[16:], hmac)
 
