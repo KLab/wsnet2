@@ -111,11 +111,25 @@ func parseSpecificHeader(r *http.Request) (hdr header) {
 }
 
 func prepareLogger(handler string, hdr header, r *http.Request) log.Logger {
-	return log.GetLoggerWith(
+	raddr, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		raddr = r.RemoteAddr
+	}
+	if f := r.Header.Get("x-forwarded-for"); f != "" {
+		if raddr != "127.0.0.1" && raddr != "::1" {
+			f += ", " + raddr
+		}
+		raddr = f
+	}
+	l := log.GetLoggerWith(
 		log.KeyHandler, handler,
 		log.KeyApp, hdr.appId,
 		log.KeyClient, hdr.userId,
-		log.KeyRemoteAddr, r.RemoteAddr)
+		log.KeyRemoteAddr, raddr)
+	if err != nil {
+		l.Errorf("SplitHostPort: %v", err)
+	}
+	return l
 }
 
 func renderResponse(w http.ResponseWriter, res *LobbyResponse, logger log.Logger) {
