@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace WSNet2
 {
@@ -685,6 +686,33 @@ namespace WSNet2
         {
             and(new Condition(key, Op.NotContain, serialize(val)));
             return this;
+        }
+
+        public override string ToString()
+        {
+            var condsListStr = condsList.Select(
+                conds =>
+                {
+                    var ss = conds.Select(
+                        cond =>
+                        {
+                            var op = cond.op switch
+                            {
+                                Op.Equal => "==",
+                                Op.Not => "!=",
+                                Op.LessThan => "<",
+                                Op.LessEqual => "<=",
+                                Op.GreaterThan => ">",
+                                Op.GreaterEqual => ">=",
+                                Op.Contain => "∋",
+                                Op.NotContain => "∌",
+                            };
+                            var val = WSNet2Serializer.NewReader(cond.val).Read();
+                            return $"{{{cond.key} {op} {val}}}";
+                        });
+                    return $"[{string.Join(",", ss)}]";
+                });
+            return $"[{string.Join(",", condsListStr)}]";
         }
 
         private void and(Condition cond)
