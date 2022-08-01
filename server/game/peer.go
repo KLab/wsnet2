@@ -178,16 +178,6 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 func (p *Peer) MsgLoop(ctx context.Context) {
 loop:
 	for {
-		select {
-		case <-ctx.Done():
-			break loop
-		case <-p.detached:
-			break loop
-		case <-p.client.done:
-			break loop
-		default:
-		}
-
 		_, data, err := p.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
@@ -210,7 +200,16 @@ loop:
 			p.closeWithMessage(websocket.CloseInvalidFramePayloadData, err.Error())
 			break loop
 		}
-		p.msgCh <- msg
+
+		select {
+		case <-ctx.Done():
+			break loop
+		case <-p.detached:
+			break loop
+		case <-p.client.done:
+			break loop
+		case p.msgCh <- msg:
+		}
 	}
 
 	p.client.DetachPeer(p)
