@@ -88,6 +88,7 @@ namespace WSNet2
         public async Task Start()
         {
             DateTime? reconnectLimit = null;
+            int reconnection = 0;
 
             while (true)
             {
@@ -115,6 +116,7 @@ namespace WSNet2
 
                     var ws = await Connect(cts.Token);
                     reconnectLimit = null;
+                    reconnection = 0;
 
                     var tasks = new Task[]
                     {
@@ -170,7 +172,8 @@ namespace WSNet2
 
                 await retryInterval;
 
-                logger?.Info($"reconnect now:{DateTime.Now}, limit:{reconnectLimit}");
+                reconnection++;
+                logger?.Info($"reconnect now:{DateTime.Now}, limit:{reconnectLimit}, count:{reconnection}");
             }
         }
 
