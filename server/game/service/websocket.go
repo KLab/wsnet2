@@ -137,7 +137,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		breq, _ := httputil.DumpRequest(r, false)
-		logger.Errorf("websocket: upgrade: %v %+v", breq, err)
+		logger.Errorf("websocket: upgrade: %+v\nrequest: %v", err, string(breq))
 		return
 	}
 	metrics.Conns.Add(1)

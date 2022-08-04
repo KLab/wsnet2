@@ -87,6 +87,7 @@ namespace WSNet2
         /// </remarks>
         public async Task Start()
         {
+            DateTime? reconnectLimit = null;
             int reconnection = 0;
 
             while (true)
@@ -108,7 +109,13 @@ namespace WSNet2
 
                 try
                 {
+                    if (reconnectLimit == null)
+                    {
+                        reconnectLimit = DateTime.Now.AddSeconds(room.ClientDeadline);
+                    }
+
                     var ws = await Connect(cts.Token);
+                    reconnectLimit = null;
                     reconnection = 0;
 
                     var tasks = new Task[]
@@ -156,16 +163,17 @@ namespace WSNet2
                     return;
                 }
 
-                if (++reconnection > WSNet2Settings.MaxReconnection)
+                if (DateTime.Now > reconnectLimit)
                 {
                     throw new Exception($"MaxReconnection: {lastException.Message}", lastException);
                 }
 
                 room.handleError(lastException);
 
-                logger?.Info("reconnect: {0}", reconnection);
-
                 await retryInterval;
+
+                reconnection++;
+                logger?.Info($"reconnect now:{DateTime.Now}, limit:{reconnectLimit}, count:{reconnection}");
             }
         }
 
