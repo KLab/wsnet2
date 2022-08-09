@@ -40,7 +40,7 @@ type Client struct {
 	msgSeqNum    int
 	peer         *Peer
 	waitPeer     chan *Peer
-	newPeer      chan *Peer
+	renewPeer    chan struct{}
 	connectCount int
 
 	authKey string
@@ -81,8 +81,8 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 
 		evbuf: NewEvBuf(room.ClientConf().EventBufSize),
 
-		waitPeer: make(chan *Peer, 1),
-		newPeer:  make(chan *Peer, 1),
+		waitPeer:  make(chan *Peer, 1),
+		renewPeer: make(chan struct{}, 1),
 
 		authKey: RandomHex(room.ClientConf().AuthKeyLen),
 		hmac:    hmac.New(sha1.New, []byte(macKey)),
@@ -162,18 +162,20 @@ loop:
 			t.Reset(deadline + newDeadline)
 			deadline = newDeadline
 
-		case peer := <-c.newPeer:
+		case <-c.renewPeer:
 			go c.drainMsg(peerMsgCh)
-			if peer == nil {
+			c.mu.Lock()
+			if c.peer == nil {
 				peerMsgCh = nil
 				curPeer = nil
-				continue
+			} else {
+				c.connectCount++
+				c.logger.Infof("new peer attached: %v peer=%p", c.Id, c.peer)
+				peerMsgCh = c.peer.MsgCh()
+				curPeer = c.peer
+				// つなげて切るだけのクライアントをタイムアウトさせるため、t.Resetしない
 			}
-			c.connectCount++
-			c.logger.Infof("new peer attached: %v peer=%p", c.Id, peer)
-			peerMsgCh = peer.MsgCh()
-			curPeer = peer
-			// つなげて切るだけのクライアントをタイムアウトさせるため、t.Resetしない
+			c.mu.Unlock()
 
 		case m, ok := <-peerMsgCh:
 			if !ok {
@@ -233,16 +235,6 @@ loop:
 	c.logger.Debugf("Client.MsgLoop closed: %v", c.Id)
 	close(c.done)
 
-	select {
-	case peer := <-c.newPeer:
-		if peer != nil {
-			c.logger.Infof("Unprocessed peer: %v %p", c.Id, peer)
-			peer.Close("unprocessed (client closed)")
-			go c.drainMsg(peer.MsgCh())
-		}
-	default:
-	}
-
 	go func() {
 		time.Sleep(time.Duration(c.room.ClientConf().WaitAfterClose))
 		c.room.Repo().RemoveClient(c)
@@ -295,14 +287,10 @@ func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
 	return nil
 }
 
-func (c *Client) sendNewPeer(p *Peer) error {
+func (c *Client) sendRenewPeer() {
 	select {
-	case <-c.done:
-		return xerrors.Errorf("client has been done")
-	case <-c.removed:
-		return xerrors.Errorf("client has been removed: %s", c.removeCause)
-	case c.newPeer <- p:
-		return nil
+	case c.renewPeer <- struct{}{}:
+	default:
 	}
 }
 
@@ -337,7 +325,8 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 		c.peer.Close("new peer attached")
 	}
 	c.peer = p
-	return c.sendNewPeer(p)
+	c.sendRenewPeer()
+	return nil
 }
 
 // DetachPeer : peerを切り離す.
@@ -353,12 +342,17 @@ func (c *Client) DetachPeer(p *Peer) {
 	c.logger.Infof("detach peer: %v peer=%p", c.Id, p)
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
-	c.peer = nil
-	if err := c.sendNewPeer(nil); err != nil {
-		c.logger.Debugf("detach peer sendNewPeer: %v %+v", c.Id, err)
-		return // すでにMsgLoopから抜けている
+
+	select {
+	case <-c.done:
+		c.logger.Debugf("detach peer: client already closed: %v", c.Id)
+		return
+	default:
 	}
+
+	c.peer = nil
 	c.waitPeer = make(chan *Peer, 1)
+	c.sendRenewPeer()
 }
 
 // DetachAndClosePeer : peerを切り離して、peerのwebsocketをcloseする.
@@ -375,12 +369,17 @@ func (c *Client) DetachAndClosePeer(p *Peer, err error) {
 	p.CloseWithClientError(err)
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
-	c.peer = nil
-	if err := c.sendNewPeer(nil); err != nil {
-		c.logger.Debugf("detach and close peer: %v %+v", c.Id, err)
-		return // すでにMsgLoopから抜けている
+
+	select {
+	case <-c.done:
+		c.logger.Debugf("detach and close peer: client already closed: %v", c.Id)
+		return
+	default:
 	}
+
+	c.peer = nil
 	c.waitPeer = make(chan *Peer, 1)
+	c.sendRenewPeer()
 }
 
 func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
