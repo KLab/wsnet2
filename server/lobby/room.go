@@ -417,3 +417,42 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 
 	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
 }
+
+func (rs *RoomService) AdminKick(ctx context.Context, appId, targetID string, logger log.Logger) error {
+	if _, found := rs.apps[appId]; !found {
+		return xerrors.Errorf("Unknown appId: %v", appId)
+	}
+
+	go rs.adminKick(appId, targetID, logger)
+	return nil
+}
+
+func (rs *RoomService) adminKick(appID, targetID string, logger log.Logger) {
+	allGameServers, err := rs.gameCache.All()
+	if err != nil {
+		logger.Errorf("adminKick: get all game servers: %+v", err)
+		return
+	}
+
+	for _, game := range allGameServers {
+		grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
+		conn, err := rs.grpcPool.Get(grpcAddr)
+		if err != nil {
+			logger.Errorf("adminKick: gRPC: %+v", err)
+			continue
+		}
+
+		client := pb.NewGameClient(conn)
+		req := &pb.KickReq{
+			AppId:    appID,
+			RoomId:   "",
+			ClientId: targetID,
+		}
+		_, err = client.Kick(context.Background(), req)
+		if err != nil {
+			logger.Errorf("adminKick: app=%q target=%q host=%q err=%+v", appID, targetID, game.Hostname, err)
+			continue
+		}
+	}
+
+}

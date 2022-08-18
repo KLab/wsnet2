@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -90,6 +91,7 @@ func (sv *LobbyService) registerRoutes(r *mux.Router) {
 	r.HandleFunc("/rooms/search/ids", sv.handleSearchByIds).Methods("POST")
 	r.HandleFunc("/rooms/watch/id/{roomId}", sv.handleWatchRoom).Methods("POST")
 	r.HandleFunc("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber).Methods("POST")
+	r.HandleFunc("/_admin/kick", sv.handleAdminKick).Methods("POST")
 }
 
 type header struct {
@@ -545,4 +547,44 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 
 	renderJoinedRoomResponse(w, room, logger)
+}
+
+// 対象ユーザーをKickする。ゲームAPIサーバーからリクエストされる。
+// php, Python等からアクセスしやすくするために、msgpackではなくてJSONを使う。
+func (sv *LobbyService) handleAdminKick(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(sv.conf.ApiTimeout))
+	defer cancel()
+
+	h := parseSpecificHeader(r)
+	logger := prepareLogger("lobby:admin/kick", h, r)
+	if h.appId != h.userId {
+		err := xerrors.Errorf("bad userID: appID=%q userID=%q", h.appId, h.userId)
+		renderErrorResponse(w, "Failed to auth", http.StatusForbidden, err, logger)
+		return
+	}
+
+	_, err := sv.authUser(h)
+	if err != nil {
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err, logger)
+		return
+	}
+
+	type AdminKickRequest struct {
+		TargetID string `json:"target_id"`
+	}
+	var req AdminKickRequest
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		renderErrorResponse(w, "failed to decode JSON request", http.StatusBadRequest, err, logger)
+		return
+	}
+
+	err = sv.roomService.AdminKick(ctx, h.appId, req.TargetID, logger)
+	if err != nil {
+		renderErrorResponse(w, "Internal Server Error", http.StatusInternalServerError, err, logger)
+		return
+	}
+	logger.Infof("Rresponse(OK): kick by admin: %v", req.TargetID)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"msg": "ok"}`))
 }

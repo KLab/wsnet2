@@ -187,13 +187,13 @@ func (sv *GameService) Kick(ctx context.Context, in *pb.KickReq) (*pb.Empty, err
 		logger.Errorf("invalid app_id: %v", in.AppId)
 		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
 	}
-	err := repo.AdminKick(ctx, in.RoomId, in.ClientId)
+	err := repo.AdminKick(ctx, in.RoomId, in.ClientId, logger)
 	if err != nil {
 		logger.Errorf("repo.AdminKick: %+v", err)
 		return nil, err
 	}
 
-	logger.Infof("gRPC Kick OK: room=%v user=%v", in.RoomId, in.ClientId)
+	logger.Infof("gRPC Kick OK: room=%q user=%q", in.RoomId, in.ClientId)
 
 	return &pb.Empty{}, nil
 }

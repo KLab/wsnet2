@@ -455,14 +455,36 @@ func (repo *Repository) GetRoomInfo(ctx context.Context, id string) (*pb.GetRoom
 	return res, nil
 }
 
-func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
-	defer cancel()
+func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string, logger log.Logger) error {
+	if roomID != "" {
+		room, err := repo.GetRoom(roomID)
+		if err != nil {
+			return WithCode(xerrors.Errorf("AdminKick: can not find room %q; %w", roomID, err), codes.NotFound)
+		}
 
-	room, err := repo.GetRoom(roomID)
-	if err != nil {
-		return WithCode(xerrors.Errorf("AdminKick: can not find room %q; %w", roomID, err), codes.NotFound)
+		return repo.adminKickRoom(room, userID)
 	}
+
+	repo.mu.RLock()
+	rooms := make([]*Room, 0, len(repo.rooms))
+	for _, room := range repo.rooms {
+		rooms = append(rooms, room)
+	}
+	repo.mu.RUnlock()
+
+	for roomID, room := range rooms {
+		err := repo.adminKickRoom(room, userID)
+		if err != nil {
+			logger.Errorf("Repository.AdminKick: user=%q room=%q err=%+v", userID, roomID, err)
+		}
+		continue
+	}
+	return nil
+}
+
+func (repo *Repository) adminKickRoom(room *Room, userID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
 
 	ch := make(chan error, 1)
 	msg := &MsgAdminKick{
@@ -472,7 +494,7 @@ func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string) er
 	select {
 	case <-ctx.Done():
 		return WithCode(
-			xerrors.Errorf("AdminKick write msg timeout or context done: room=%v", room.Id),
+			xerrors.Errorf("AdminKick write msg timeout or context done: room=%q", room.Id),
 			codes.DeadlineExceeded)
 	case room.msgCh <- msg:
 	}
@@ -480,9 +502,9 @@ func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string) er
 	select {
 	case <-ctx.Done():
 		return WithCode(
-			xerrors.Errorf("GetRoomInfo response timeout or context done: room=%v", room.Id),
+			xerrors.Errorf("GetRoomInfo response timeout or context done: room=%q", room.Id),
 			codes.DeadlineExceeded)
-	case err = <-ch:
+	case err := <-ch:
 		return err
 	}
 }

@@ -42,7 +42,7 @@ func NewGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *GameC
 	}
 }
 
-func (c *GameCache) update() error {
+func (c *GameCache) updateInner() error {
 	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
 
 	var servers []GameServer
@@ -63,15 +63,20 @@ func (c *GameCache) update() error {
 	return nil
 }
 
+func (c *GameCache) update() error {
+	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
+		return c.updateInner()
+	}
+	return nil
+}
+
 func (c *GameCache) Get(id uint32) (*GameServer, error) {
 	c.Lock()
 	defer c.Unlock()
-	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
-		err := c.update()
-		if err != nil {
-			return nil, err
-		}
+	if err := c.update(); err != nil {
+		return nil, err
 	}
+
 	if len(c.servers) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
@@ -85,15 +90,27 @@ func (c *GameCache) Get(id uint32) (*GameServer, error) {
 func (c *GameCache) Rand() (*GameServer, error) {
 	c.Lock()
 	defer c.Unlock()
-	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
-		err := c.update()
-		if err != nil {
-			return nil, err
-		}
+	if err := c.update(); err != nil {
+		return nil, err
 	}
+
 	if len(c.order) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
 	id := c.order[rand.Intn(len(c.order))]
 	return c.servers[id], nil
+}
+
+func (c *GameCache) All() ([]*GameServer, error) {
+	c.Lock()
+	defer c.Unlock()
+	if err := c.update(); err != nil {
+		return nil, err
+	}
+
+	res := make([]*GameServer, 0, len(c.servers))
+	for _, gs := range c.servers {
+		res = append(res, gs)
+	}
+	return res, nil
 }
