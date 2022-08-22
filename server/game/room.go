@@ -2,7 +2,6 @@ package game
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -195,18 +194,18 @@ func (r *Room) updateLastMsg(cid ClientID) {
 
 // Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる
 func (r *Room) Timeout(c *Client) {
-	r.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
+	r.removeClient(c, "client timeout")
 }
 
-func (r *Room) removeClient(c *Client, err error) {
+func (r *Room) removeClient(c *Client, cause string) {
 	if c.isPlayer {
-		r.removePlayer(c, err)
+		r.removePlayer(c, cause)
 	} else {
-		r.removeWatcher(c, err)
+		r.removeWatcher(c, cause)
 	}
 }
 
-func (r *Room) removePlayer(c *Client, err error) {
+func (r *Room) removePlayer(c *Client, cause string) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
@@ -232,8 +231,8 @@ func (r *Room) removePlayer(c *Client, err error) {
 		TimeStamp: time.Now(),
 	})
 
-	c.logger.Infof("player left: %v: %v", cid, err)
-	c.Removed(err)
+	c.logger.Infof("player left: %v: %v", cid, cause)
+	c.Removed(cause)
 
 	if len(r.players) == 0 {
 		close(r.done)
@@ -248,7 +247,7 @@ func (r *Room) removePlayer(c *Client, err error) {
 	r.RoomInfo.Players = uint32(len(r.players))
 	r.updateRoomInfo()
 
-	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
+	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id, cause))
 
 	r.removeLastMsg(cid)
 }
@@ -299,7 +298,7 @@ func (r *Room) updateRoomInfo() {
 	}
 }
 
-func (r *Room) removeWatcher(c *Client, err error) {
+func (r *Room) removeWatcher(c *Client, cause string) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
 
@@ -311,11 +310,11 @@ func (r *Room) removeWatcher(c *Client, err error) {
 	}
 
 	delete(r.watchers, cid)
-	c.logger.Infof("watcher left: %v: %v", cid, err)
+	c.logger.Infof("watcher left: %v: %v", cid, cause)
 
 	r.RoomInfo.Watchers -= c.nodeCount
 	r.updateRoomInfo()
-	c.Removed(err)
+	c.Removed(cause)
 }
 
 func (r *Room) dispatch(msg Msg) error {
@@ -364,7 +363,7 @@ func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
 		// removeClient locks muClients so that must be called another goroutine.
-		go r.removeClient(c, err)
+		go r.removeClient(c, err.Error())
 	}
 	return err
 }
@@ -446,7 +445,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 	r.players[client.ID()] = client
 	if rejoin {
-		oldp.Removed(xerrors.Errorf("client rejoined as a new client"))
+		oldp.Removed("client rejoined as a new client")
 		if r.master == oldp {
 			r.master = client
 		}
@@ -514,7 +513,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	oldc, rejoin := r.watchers[client.ID()]
 	r.watchers[client.ID()] = client
 	if rejoin {
-		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		oldc.Removed("client rejoined as a new client")
 		r.RoomInfo.Watchers -= oldc.nodeCount
 		client.logger.Infof("rejoin watcher: %v", client.Id)
 	} else {
@@ -555,7 +554,7 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 }
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
-	r.removeClient(msg.Sender, nil)
+	r.removeClient(msg.Sender, msg.Message)
 	return nil
 }
 
@@ -755,7 +754,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 	// removeClientがmuClientsのLockを取るため呼び出し前にRUnlockしておく
 	r.muClients.RUnlock()
 
-	r.removeClient(target, xerrors.Errorf("kicked"))
+	r.removeClient(target, "kicked")
 	return nil
 }
 
@@ -769,7 +768,7 @@ func (r *Room) msgAdminKick(msg *MsgAdminKick) error {
 		return nil
 	}
 
-	r.removeClient(target, fmt.Errorf("kicked by admin"))
+	r.removeClient(target, "kicked by admin")
 	msg.Res <- nil
 	return nil
 }
@@ -794,7 +793,7 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 }
 
 func (r *Room) msgClientError(msg *MsgClientError) error {
-	r.removeClient(msg.Sender, msg.Err)
+	r.removeClient(msg.Sender, msg.ErrMsg)
 	return nil
 }
 

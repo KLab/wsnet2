@@ -3,7 +3,6 @@ package game
 import (
 	"crypto/hmac"
 	"crypto/sha1"
-	"fmt"
 	"hash"
 	"sync"
 	"time"
@@ -193,7 +192,7 @@ loop:
 				c.room.SendMessage(
 					&MsgClientError{
 						Sender: c,
-						Err:    err,
+						ErrMsg: err.Error(),
 					})
 				break loop
 			}
@@ -227,7 +226,7 @@ loop:
 			c.room.SendMessage(
 				&MsgClientError{
 					Sender: c,
-					Err:    err,
+					ErrMsg: err.Error(),
 				})
 			break loop
 		}
@@ -253,12 +252,9 @@ func (c *Client) drainMsg(msgCh <-chan binary.Msg) {
 }
 
 // RoomのMsgLoopから呼ばれる
-func (c *Client) Removed(cause error) {
+func (c *Client) Removed(cause string) {
 	close(c.removed)
-	c.removeCause = "client leave"
-	if cause != nil {
-		c.removeCause = fmt.Sprintf("removed from room: %v", cause)
-	}
+	c.removeCause = cause
 
 	c.mu.RLock()
 	p := c.peer

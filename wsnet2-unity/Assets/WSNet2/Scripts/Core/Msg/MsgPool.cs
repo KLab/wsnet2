@@ -102,11 +102,12 @@ namespace WSNet2
         /// <summary>
         ///   Leaveメッセージを投下
         /// </summary>
-        public int PostLeave()
+        public int PostLeave(string message)
         {
             lock (this)
             {
                 var writer = writeMsgType(MsgType.Leave);
+                writer.Write(message);
                 writer.AppendHMAC(hmac);
                 return sequenceNum;
             }

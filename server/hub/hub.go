@@ -154,7 +154,7 @@ func (h *Hub) Done() <-chan struct{} {
 }
 
 func (h *Hub) Timeout(c *game.Client) {
-	h.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
+	h.removeClient(c, "client timeout")
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
@@ -175,11 +175,11 @@ func (h *Hub) updateLastMsg(cid ClientID) {
 	}
 }
 
-func (h *Hub) removeClient(c *game.Client, err error) {
-	h.removeWatcher(c, err)
+func (h *Hub) removeClient(c *game.Client, cause string) {
+	h.removeWatcher(c, cause)
 }
 
-func (h *Hub) removeWatcher(c *game.Client, err error) {
+func (h *Hub) removeWatcher(c *game.Client, cause string) {
 	h.muClients.Lock()
 	defer h.muClients.Unlock()
 
@@ -190,12 +190,12 @@ func (h *Hub) removeWatcher(c *game.Client, err error) {
 		return
 	}
 
-	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
+	h.logger.Infof("Watcher removed: client=%v %v", cid, cause)
 	delete(h.watchers, cid)
 
 	h.RoomInfo.Watchers -= c.NodeCount()
 
-	c.Removed(err)
+	c.Removed(cause)
 }
 
 func (h *Hub) dialGame(url, authKey string) error {
@@ -529,7 +529,7 @@ func (h *Hub) sendTo(c *game.Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
 		// removeClient locks muClients so that must be called another goroutine.
-		go h.removeClient(c, err)
+		go h.removeClient(c, err.Error())
 	}
 	return err
 }
@@ -570,7 +570,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	oldc, rejoin := h.watchers[client.ID()]
 	h.watchers[client.ID()] = client
 	if rejoin {
-		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		oldc.Removed("client rejoined as a new client")
 		h.RoomInfo.Watchers -= oldc.NodeCount()
 	}
 	h.RoomInfo.Watchers += client.NodeCount()
@@ -592,7 +592,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 }
 
 func (h *Hub) msgLeave(msg *game.MsgLeave) error {
-	h.removeClient(msg.Sender, nil)
+	h.removeClient(msg.Sender, msg.Message)
 	return nil
 }
 
@@ -604,7 +604,7 @@ func (h *Hub) msgPing(msg *game.MsgPing) error {
 }
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
-	h.removeClient(msg.Sender, msg.Err)
+	h.removeClient(msg.Sender, msg.ErrMsg)
 	return nil
 }
 

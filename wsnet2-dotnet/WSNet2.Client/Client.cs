@@ -217,7 +217,7 @@ namespace WSNet2.DotnetClient
                 room.OnClosed += (m) => Console.WriteLine($"OnClosed: {m}");
                 room.OnOtherPlayerJoined += (p) => Console.WriteLine($"OnOtherPlayerJoined: {p.Id}");
                 room.OnOtherPlayerRejoined += (p) => Console.WriteLine($"OnOtherPlayerRejoined: {p.Id}");
-                room.OnOtherPlayerLeft += (p) => Console.WriteLine($"OnOtherplayerleft: {p.Id}");
+                room.OnOtherPlayerLeft += (p, m) => Console.WriteLine($"OnOtherplayerleft: {p.Id}: {m}");
                 room.OnMasterPlayerSwitched += (p, n) => Console.WriteLine($"OnMasterPlayerSwitched: {p.Id} -> {n.Id}");
                 room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
                 {
@@ -327,9 +327,9 @@ namespace WSNet2.DotnetClient
 
                     cts.Token.ThrowIfCancellationRequested();
 
-                    if (str == "leave")
+                    if (str.StartsWith("leave "))
                     {
-                        room.Leave();
+                        room.Leave(str);
                         continue;
                     }
 

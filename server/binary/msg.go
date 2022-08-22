@@ -52,7 +52,8 @@ const (
 	// regular msg
 
 	// MsgTypeLeave : クライアントの自発的な退室
-	// payload: (empty)
+	// payload:
+	// - string: message
 	MsgTypeLeave MsgType = regularMsgType + iota
 
 	// MsgTypeRoomProp : 部屋情報の変更
