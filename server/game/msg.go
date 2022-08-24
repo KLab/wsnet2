@@ -26,6 +26,7 @@ var _ Msg = &MsgBroadcast{}
 var _ Msg = &MsgSwitchMaster{}
 var _ Msg = &MsgKick{}
 var _ Msg = &MsgClientError{}
+var _ Msg = &MsgClientTimeout{}
 
 const adminClientID = ClientID("")
 
@@ -367,6 +368,17 @@ type MsgClientError struct {
 func (*MsgClientError) msg() {}
 
 func (m *MsgClientError) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
+// MsgClientTimeout : タイムアウトによるClientの退室
+type MsgClientTimeout struct {
+	Sender *Client
+}
+
+func (*MsgClientTimeout) msg() {}
+
+func (m *MsgClientTimeout) SenderID() ClientID {
 	return m.Sender.ID()
 }
 

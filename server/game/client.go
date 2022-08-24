@@ -134,7 +134,7 @@ loop:
 		select {
 		case <-t.C:
 			c.logger.Infof("client timeout: %v connectCount=%v", c.Id, c.connectCount)
-			c.room.Timeout(c)
+			c.room.SendMessage(&MsgClientTimeout{Sender: c})
 			break loop
 
 		case <-c.room.Done():
@@ -271,7 +271,9 @@ func (c *Client) Send(e *binary.RegularEvent) error {
 
 // RoomのMsgLoopから呼ばれる.
 func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
+	c.mu.RLock()
 	p := c.peer
+	c.mu.RUnlock()
 	if p == nil {
 		return xerrors.Errorf("client.SendSystemEvent: no peer attached")
 	}

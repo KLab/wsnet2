@@ -192,11 +192,6 @@ func (r *Room) updateLastMsg(cid ClientID) {
 	}
 }
 
-// Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる
-func (r *Room) Timeout(c *Client) {
-	r.removeClient(c, "client timeout")
-}
-
 func (r *Room) removeClient(c *Client, cause string) {
 	if c.isPlayer {
 		r.removePlayer(c, cause)
@@ -351,6 +346,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgGetRoomInfo(m)
 	case *MsgClientError:
 		return r.msgClientError(m)
+	case *MsgClientTimeout:
+		return r.msgClientTimeout(m)
 	default:
 		return xerrors.Errorf("unknown msg type (%T): %v", m, m)
 	}
@@ -794,6 +791,11 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 
 func (r *Room) msgClientError(msg *MsgClientError) error {
 	r.removeClient(msg.Sender, msg.ErrMsg)
+	return nil
+}
+
+func (r *Room) msgClientTimeout(msg *MsgClientTimeout) error {
+	r.removeClient(msg.Sender, "timeout")
 	return nil
 }
 

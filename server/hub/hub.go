@@ -153,10 +153,6 @@ func (h *Hub) Done() <-chan struct{} {
 	return h.done
 }
 
-func (h *Hub) Timeout(c *game.Client) {
-	h.removeClient(c, "client timeout")
-}
-
 func (h *Hub) SendMessage(msg game.Msg) {
 	h.msgCh <- msg
 }
@@ -508,6 +504,8 @@ func (h *Hub) dispatch(msg game.Msg) error {
 		return h.msgPing(m)
 	case *game.MsgClientError:
 		return h.msgClientError(m)
+	case *game.MsgClientTimeout:
+		return h.msgClientTimeout(m)
 
 	// clientから来たメッセージをgameに伝える.
 	case *game.MsgTargets:
@@ -605,6 +603,11 @@ func (h *Hub) msgPing(msg *game.MsgPing) error {
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
 	h.removeClient(msg.Sender, msg.ErrMsg)
+	return nil
+}
+
+func (h *Hub) msgClientTimeout(msg *game.MsgClientTimeout) error {
+	h.removeClient(msg.Sender, "timeout")
 	return nil
 }
 
