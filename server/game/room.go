@@ -192,6 +192,8 @@ func (r *Room) updateLastMsg(cid ClientID) {
 	}
 }
 
+// removeClient :  Player/Watcherを退室させる.
+// muClients のロックを取得してから呼び出す.
 func (r *Room) removeClient(c *Client, cause string) {
 	if c.isPlayer {
 		r.removePlayer(c, cause)
@@ -201,13 +203,10 @@ func (r *Room) removeClient(c *Client, cause string) {
 }
 
 func (r *Room) removePlayer(c *Client, cause string) {
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
-
 	cid := c.ID()
 
-	if _, ok := r.players[cid]; !ok {
-		c.logger.Infof("player may be aleady left: %v", c.Id)
+	if r.players[cid] != c {
+		c.logger.Infof("player may be aleady removed: %v, %p", cid, c)
 		return
 	}
 
@@ -294,13 +293,10 @@ func (r *Room) updateRoomInfo() {
 }
 
 func (r *Room) removeWatcher(c *Client, cause string) {
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
-
 	cid := c.ID()
 
-	if _, ok := r.watchers[cid]; !ok {
-		r.logger.Debugf("Watcher may be aleady left: %v", cid)
+	if r.watchers[cid] != c {
+		r.logger.Debugf("Watcher may be aleady left: %v, p", cid, c)
 		return
 	}
 
@@ -359,8 +355,12 @@ func (r *Room) dispatch(msg Msg) error {
 func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
-		// removeClient locks muClients so that must be called another goroutine.
-		go r.removeClient(c, err.Error())
+		// players/watchersのループ内で呼ばれているため、removeClientは別goroutineで呼ぶ
+		go func() {
+			r.muClients.Lock()
+			r.removeClient(c, err.Error())
+			r.muClients.Unlock()
+		}()
 	}
 	return err
 }
@@ -530,6 +530,17 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 }
 
 func (r *Room) msgPing(msg *MsgPing) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 	msg.Sender.logger.Debugf("ping %v: %v", msg.Sender.Id, msg.Timestamp)
 	ev := binary.NewEvPong(msg.Timestamp, r.RoomInfo.Watchers, r.lastMsg)
 	return msg.Sender.SendSystemEvent(ev)
@@ -540,6 +551,9 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 	defer r.muClients.Unlock()
 
 	c := msg.Sender
+	if r.watchers[c.ID()] != c {
+		return nil
+	}
 	if c.nodeCount == msg.Count {
 		return nil
 	}
@@ -551,6 +565,8 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 }
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
 	r.removeClient(msg.Sender, msg.Message)
 	return nil
 }
@@ -634,6 +650,9 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("sender %q is not player", msg.Sender.Id)
 	}
+	if r.players[msg.Sender.ID()] != msg.Sender {
+		return nil
+	}
 
 	msg.Sender.logger.Debugf("update client prop: %v", msg.Props)
 
@@ -657,6 +676,15 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 func (r *Room) msgTargets(msg *MsgTargets) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 
 	msg.Sender.logger.Debugf("message to targets: %v, %v", msg.Targets, msg.Data)
 
@@ -685,6 +713,15 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 func (r *Room) msgToMaster(msg *MsgToMaster) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 
 	msg.Sender.logger.Debugf("message to master: %v", msg.Data)
 
@@ -695,6 +732,15 @@ func (r *Room) msgToMaster(msg *MsgToMaster) error {
 func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 
 	msg.Sender.logger.Debugf("message to all: %v", msg.Data)
 
@@ -729,12 +775,12 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 }
 
 func (r *Room) msgKick(msg *MsgKick) error {
-	r.muClients.RLock()
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
-		r.muClients.RUnlock()
 		return xerrors.Errorf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
@@ -742,24 +788,19 @@ func (r *Room) msgKick(msg *MsgKick) error {
 	if !found {
 		// 対象が居ないことを通知
 		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
-		r.muClients.RUnlock()
 		return xerrors.Errorf("player not found: %v", msg.Target)
 	}
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
-
-	// removeClientがmuClientsのLockを取るため呼び出し前にRUnlockしておく
-	r.muClients.RUnlock()
 
 	r.removeClient(target, "kicked")
 	return nil
 }
 
 func (r *Room) msgAdminKick(msg *MsgAdminKick) error {
-	r.muClients.RLock()
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 	target, ok := r.players[msg.Target]
-	r.muClients.RUnlock() // msgKick と違って sendTo() を使わないのですぐにアンロックする
-
 	if !ok {
 		msg.Res <- xerrors.Errorf("player not found: target=%v", msg.Target)
 		return nil
@@ -790,11 +831,15 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 }
 
 func (r *Room) msgClientError(msg *MsgClientError) error {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 	r.removeClient(msg.Sender, msg.ErrMsg)
 	return nil
 }
 
 func (r *Room) msgClientTimeout(msg *MsgClientTimeout) error {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 	r.removeClient(msg.Sender, "timeout")
 	return nil
 }

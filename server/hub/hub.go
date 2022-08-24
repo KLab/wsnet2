@@ -176,13 +176,10 @@ func (h *Hub) removeClient(c *game.Client, cause string) {
 }
 
 func (h *Hub) removeWatcher(c *game.Client, cause string) {
-	h.muClients.Lock()
-	defer h.muClients.Unlock()
-
 	cid := c.ID()
 
-	if _, ok := h.watchers[cid]; !ok {
-		h.logger.Debugf("Watcher may be aleady left: client=%v", cid)
+	if h.watchers[cid] != c {
+		h.logger.Debugf("Watcher may be aleady removed: %v, %p", cid, c)
 		return
 	}
 
@@ -590,23 +587,32 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 }
 
 func (h *Hub) msgLeave(msg *game.MsgLeave) error {
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
 	h.removeClient(msg.Sender, msg.Message)
 	return nil
 }
 
 func (h *Hub) msgPing(msg *game.MsgPing) error {
 	h.muClients.RLock()
+	defer h.muClients.RUnlock()
+	if h.watchers[msg.SenderID()] != msg.Sender {
+		return nil
+	}
 	ev := binary.NewEvPong(msg.Timestamp, h.RoomInfo.Watchers, h.lastMsg)
-	h.muClients.RUnlock()
 	return msg.Sender.SendSystemEvent(ev)
 }
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
 	h.removeClient(msg.Sender, msg.ErrMsg)
 	return nil
 }
 
 func (h *Hub) msgClientTimeout(msg *game.MsgClientTimeout) error {
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
 	h.removeClient(msg.Sender, "timeout")
 	return nil
 }
