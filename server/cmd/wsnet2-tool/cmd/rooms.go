@@ -146,8 +146,10 @@ func parsePropsSimple(data []byte) (string, error) {
 			out = append(out, []byte(fmt.Sprintf("%v, ", t))...)
 		}
 	}
-	out[len(out)-2] = '}'
-	out = out[:len(out)-1]
+	if len(out) > 2 {
+		out = out[:len(out)-2]
+	}
+	out = append(out, '}')
 
 	return string(out), nil
 }
