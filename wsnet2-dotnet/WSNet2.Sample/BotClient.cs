@@ -8,7 +8,7 @@ using Sample.Logic;
 
 namespace WSNet2.Sample
 {
-    class BotClient
+    class BotClient : IClient
     {
         string userId;
         WSNet2Client client;
@@ -187,6 +187,16 @@ namespace WSNet2.Sample
             return room;
         }
 
+        public void OnSyncServerTick(long tick)
+        {
+            timer.UpdateServerTick(tick);
+        }
+
+        public void OnSyncGameState(GameState state)
+        {
+            this.state = state;
+        }
+
         async Task ServeOne()
         {
             var room = await JoinOrCreateRoom();
@@ -198,27 +208,7 @@ namespace WSNet2.Sample
                 closedError = e;
             };
 
-            var RPCSyncServerTick = new Action<string, long>((sender, tick) =>
-            {
-                if (room.Master.Id == sender)
-                {
-                    timer.UpdateServerTick(tick);
-                }
-            });
-            var RPCSyncGameState = new Action<string, GameState>((sender, state_) =>
-            {
-                if (room.Master.Id == sender)
-                {
-                    // 同一スレッドから呼ばれるのでロック取らなくて良い
-                    state = state_;
-                }
-            });
-            var RPCPlayerEvent = new Action<string, PlayerEvent>((sender, ev) => { });
-
-            // この順番は Unity実装と合わせる必要あり.
-            room.RegisterRPC<GameState>(RPCSyncGameState);
-            room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
-            room.RegisterRPC(RPCSyncServerTick);
+            var rpc = new RPCBridge(room, this);
             room.Restart();
 
             long syncStart = timer.NowTick;
@@ -308,7 +298,7 @@ namespace WSNet2.Sample
                 foreach (var ev in events)
                 {
                     logger.Info("send {0} to {1}", ev.Code, room.Master.Id);
-                    room.RPC(RPCPlayerEvent, ev, new string[] { room.Master.Id });
+                    rpc.PlayerEvent(ev);
                 }
                 events.Clear();
 
