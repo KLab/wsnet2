@@ -119,18 +119,14 @@ namespace WSNet2.Sample
                 var userId = $"master_{pid}_{i}";
                 var logger = new AppLogger(loggerFactory.CreateLogger(userId));
                 var master = new MasterClient(logger);
-                var task = Task.Run(async () => await master.Serve(server, appId, pKey, searchGroup, userId));
-                task.ConfigureAwait(false);
-                tasks.Add(task);
+                tasks.Add(Task.Run(async () => await master.Serve(server, appId, pKey, searchGroup, userId)));
             }
             for (var i = 0; i < botCount; i++)
             {
                 var userId = $"bot_{pid}_{i}";
                 var logger = new AppLogger(loggerFactory.CreateLogger(userId));
                 var bot = new BotClient(logger);
-                var task = Task.Run(async () => await bot.Serve(server, appId, pKey, searchGroup, userId));
-                task.ConfigureAwait(false);
-                tasks.Add(task);
+                tasks.Add(Task.Run(async () => await bot.Serve(server, appId, pKey, searchGroup, userId)));
             }
 
             await Task.WhenAll(tasks);
