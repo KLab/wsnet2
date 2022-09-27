@@ -11,10 +11,9 @@ namespace WSNet2.Sample
     class BotClient : IClient
     {
         string userId;
+        AuthDataGenerator authgen;
         WSNet2Client client;
         Dictionary<string, object> props;
-
-        int searchGroup;
 
         Random rand;
         GameTimer timer;
@@ -27,6 +26,7 @@ namespace WSNet2.Sample
         {
             logger.Payload.ClientType = "Bot";
             this.logger = logger;
+            this.authgen = new AuthDataGenerator();
         }
 
         /// <summary>
@@ -35,22 +35,20 @@ namespace WSNet2.Sample
         /// <param name="server"></param>
         /// <param name="appId"></param>
         /// <param name="pKey"></param>
-        /// <param name="serachGroup"></param>
         /// <param name="userId"></param>
         /// <returns></returns>
-        public async Task Serve(string server, string appId, string pKey, int serachGroup, string userId)
+        public async Task Serve(string server, string appId, string pKey, string userId)
         {
             logger.Payload.Server = server;
 
             while (true)
             {
-                var authData = WSNet2Helper.GenAuthData(pKey, userId);
+                var authData = authgen.Generate(pKey, userId);
                 client = new WSNet2Client(server, appId, userId, authData, logger);
                 props = new Dictionary<string, object>(){
                     {"name", userId},
                 };
                 this.userId = userId;
-                this.searchGroup = serachGroup;
                 rand = new Random();
                 sim = new GameSimulator(true);
                 timer = new GameTimer();
@@ -90,7 +88,7 @@ namespace WSNet2.Sample
             };
 
             client.RandomJoin(
-                (uint)searchGroup,
+                WSNet2Helper.SearchGroup,
                 query,
                 props,
                 onJoined,

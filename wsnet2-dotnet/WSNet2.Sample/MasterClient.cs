@@ -17,9 +17,6 @@ namespace WSNet2.Sample
         /// <summary>タイムアウト (秒)</summary>
         const uint Deadline = 3;
 
-        // <summary>Pongゲームの検索グループ</summary>
-        const uint SearchGroup = 1000;
-
         /// <summary>1フレームの時間</summary>
         const int frameMilliSec = 1000/60;
 
@@ -117,9 +114,10 @@ namespace WSNet2.Sample
             // 入室時のQueryによるフィルタリングにも使われる
             var pubProps = new Dictionary<string, object>()
             {
-                {"game", "pong"},
-                {"state", GameStateCode.WaitingPlayer.ToString()},
-                {"updated", new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()}, // botの入室判定に利用する時刻情報
+                {WSNet2Helper.PubKey.Game, WSNet2Helper.GameName},
+                {WSNet2Helper.PubKey.State, GameStateCode.WaitingPlayer.ToString()},
+                {WSNet2Helper.PubKey.PlayerNum, (byte)0},
+                {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
             };
 
             // Clientのプロパティ
@@ -132,7 +130,7 @@ namespace WSNet2.Sample
             client.UpdateAuthData(authgen.Generate(pKey, userId));
 
             // 部屋を検索可能、入室可能、観戦可能として作成する
-            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, null)
+            var roomOpt = new RoomOption(MaxPlayers, WSNet2Helper.SearchGroup, pubProps, null)
                 .Visible(true).Joinable(true).Watchable(true);
             client.Create(
                 roomOpt,
@@ -171,7 +169,8 @@ namespace WSNet2.Sample
                 room.OnOtherPlayerLeft += OnWaitingPlayerLeft; // 二人目を待つ間に退室したときの処理
                 var prop = new Dictionary<string, object>
                 {
-                    {"updated", new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                    {WSNet2Helper.PubKey.PlayerNum, (byte)1},
+                    {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
                 };
                 room.ChangeRoomProperty(publicProps: prop);
             }
@@ -184,8 +183,9 @@ namespace WSNet2.Sample
                 // 状態をInGameにし、入室も受け付けない
                 var prop = new Dictionary<string, object>
                 {
-                    {"state", GameStateCode.InGame.ToString()},
-                    {"updated", new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                    {WSNet2Helper.PubKey.State, GameStateCode.InGame.ToString()},
+                    {WSNet2Helper.PubKey.PlayerNum, (byte)2},
+                    {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
                 };
                 room.ChangeRoomProperty(joinable: false, publicProps: prop);
 
@@ -214,7 +214,8 @@ namespace WSNet2.Sample
 
             var prop = new Dictionary<string, object>
             {
-                {"updated", new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                {WSNet2Helper.PubKey.PlayerNum, (byte)0},
+                {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
             };
             room.ChangeRoomProperty(publicProps: prop);
         }
@@ -342,7 +343,7 @@ namespace WSNet2.Sample
             if ((string)room.PublicProps["state"] != state.Code.ToString())
             {
                 room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
-                        { "state", state.Code.ToString()}
+                        {WSNet2Helper.PubKey.State, state.Code.ToString()}
                     });
             }
 

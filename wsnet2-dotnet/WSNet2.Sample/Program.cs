@@ -127,7 +127,7 @@ namespace WSNet2.Sample
                 var userId = $"bot_{pid}_{i}";
                 var logger = new AppLogger(loggerFactory.CreateLogger(userId));
                 var bot = new BotClient(logger);
-                tasks.Add(Task.Run(async () => await bot.Serve(server, appId, pKey, searchGroup, userId)));
+                tasks.Add(Task.Run(async () => await bot.Serve(server, appId, pKey, userId)));
             }
 
             await Task.WhenAll(tasks);
