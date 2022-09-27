@@ -43,7 +43,7 @@ namespace WSNet2.Sample
             using var loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder.ClearProviders();
-                builder.SetMinimumLevel(LogLevel.Debug);
+                builder.SetMinimumLevel(LogLevel.Information);
 
                 builder.AddZLoggerConsole(options =>
                 {
@@ -118,11 +118,12 @@ namespace WSNet2.Sample
             {
                 var userId = $"master_{pid}_{i}";
                 var logger = new AppLogger(loggerFactory.CreateLogger(userId));
-                var master = new MasterClient(logger);
-                tasks.Add(Task.Run(async () => await master.Serve(server, appId, pKey, searchGroup, userId)));
+                var master = new MasterClient(server, appId, userId, pKey, logger);
+                tasks.Add(master.Serve());
             }
             for (var i = 0; i < botCount; i++)
             {
+                await Task.Delay(3000);
                 var userId = $"bot_{pid}_{i}";
                 var logger = new AppLogger(loggerFactory.CreateLogger(userId));
                 var bot = new BotClient(logger);

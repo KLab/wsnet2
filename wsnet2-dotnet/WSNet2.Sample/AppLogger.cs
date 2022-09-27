@@ -12,6 +12,7 @@ namespace WSNet2.Sample
     class Payload : WSNet2LogPayload
     {
         public string ClientType;
+        public string ClientId;
         public string Server;
     }
 
