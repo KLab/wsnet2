@@ -948,6 +948,7 @@ namespace WSNet2
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
                 players[player.Id] = player;
+                info.players = (uint)players.Count;
                 if (OnOtherPlayerJoined != null)
                 {
                     OnOtherPlayerJoined(player);
