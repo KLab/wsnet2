@@ -9,7 +9,7 @@ using Sample.Logic;
 
 namespace WSNet2.Sample
 {
-    class MasterClient
+    class MasterClient : IMasterClient
     {
         string userId;
         WSNet2Client client;
@@ -132,13 +132,7 @@ namespace WSNet2.Sample
             var room = await JoinRandomRoom();
             logger.Info("Room Joined");
 
-            var cts = new CancellationTokenSource();
-            var RPCSyncServerTick = new Action<string, long>((sender, tick) => { });
-
-            // この順番は Unity実装と合わせる必要あり.
-            room.RegisterRPC<GameState>(RPCSyncGameState);
-            room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
-            room.RegisterRPC(RPCSyncServerTick);
+            var rpc = new RPCBridge(room, this);
             room.Restart();
 
             long syncStart = timer.NowTick;
@@ -149,7 +143,6 @@ namespace WSNet2.Sample
 
             while (true)
             {
-                cts.Token.ThrowIfCancellationRequested();
                 client.ProcessCallback();
 
                 // ルーム Create したクライアントが Master を譲ってくれるはず
@@ -266,8 +259,8 @@ namespace WSNet2.Sample
                 // 0.1秒ごとにゲーム状態の同期メッセージを送信する
                 if (forceSync || 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
                 {
-                    room.RPC(RPCSyncServerTick, timer.NowTick);
-                    room.RPC(RPCSyncGameState, state);
+                    rpc.SyncServerTick(timer.NowTick);
+                    rpc.SyncGameState(state);
                     lastSync = now;
                 }
 
@@ -328,15 +321,10 @@ namespace WSNet2.Sample
             logger.Info("Left from room");
         }
 
-        void RPCPlayerEvent(string sender, PlayerEvent msg)
+        public void OnPlayerEvent(string sender, PlayerEvent ev)
         {
-            msg.PlayerId = sender;
-            newEvents.Add(msg);
-        }
-
-        void RPCSyncGameState(string sender, GameState msg)
-        {
-            // 未使用
+            ev.PlayerId = sender;
+            newEvents.Add(ev);
         }
     }
 }
