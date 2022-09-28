@@ -104,11 +104,11 @@ func roomFlags(r *pb.RoomInfo) string {
 }
 
 func parsePropsSimple(data []byte) (string, error) {
-	u, _, err := binary.UnmarshalAs(data, binary.TypeDict)
+	u, _, err := binary.UnmarshalAs(data, binary.TypeDict, binary.TypeNull)
 	if err != nil {
 		return "", err
 	}
-	dic := u.(binary.Dict)
+	dic, _ := u.(binary.Dict)
 	out := []byte{'{'}
 	for k, d := range dic {
 		if len(d) == 0 {
