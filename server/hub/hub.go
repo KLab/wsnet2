@@ -153,10 +153,6 @@ func (h *Hub) Done() <-chan struct{} {
 	return h.done
 }
 
-func (h *Hub) Timeout(c *game.Client) {
-	h.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
-}
-
 func (h *Hub) SendMessage(msg game.Msg) {
 	h.msgCh <- msg
 }
@@ -175,27 +171,24 @@ func (h *Hub) updateLastMsg(cid ClientID) {
 	}
 }
 
-func (h *Hub) removeClient(c *game.Client, err error) {
-	h.removeWatcher(c, err)
+func (h *Hub) removeClient(c *game.Client, cause string) {
+	h.removeWatcher(c, cause)
 }
 
-func (h *Hub) removeWatcher(c *game.Client, err error) {
-	h.muClients.Lock()
-	defer h.muClients.Unlock()
-
+func (h *Hub) removeWatcher(c *game.Client, cause string) {
 	cid := c.ID()
 
-	if _, ok := h.watchers[cid]; !ok {
-		h.logger.Debugf("Watcher may be aleady left: client=%v", cid)
+	if h.watchers[cid] != c {
+		h.logger.Debugf("Watcher may be aleady removed: %v, %p", cid, c)
 		return
 	}
 
-	h.logger.Infof("Watcher removed: client=%v %v", cid, err)
+	h.logger.Infof("Watcher removed: client=%v %v", cid, cause)
 	delete(h.watchers, cid)
 
 	h.RoomInfo.Watchers -= c.NodeCount()
 
-	c.Removed(err)
+	c.Removed(cause)
 }
 
 func (h *Hub) dialGame(url, authKey string) error {
@@ -508,6 +501,8 @@ func (h *Hub) dispatch(msg game.Msg) error {
 		return h.msgPing(m)
 	case *game.MsgClientError:
 		return h.msgClientError(m)
+	case *game.MsgClientTimeout:
+		return h.msgClientTimeout(m)
 
 	// clientから来たメッセージをgameに伝える.
 	case *game.MsgTargets:
@@ -529,7 +524,7 @@ func (h *Hub) sendTo(c *game.Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
 		// removeClient locks muClients so that must be called another goroutine.
-		go h.removeClient(c, err)
+		go h.removeClient(c, err.Error())
 	}
 	return err
 }
@@ -570,7 +565,7 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 	oldc, rejoin := h.watchers[client.ID()]
 	h.watchers[client.ID()] = client
 	if rejoin {
-		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		oldc.Removed("client rejoined as a new client")
 		h.RoomInfo.Watchers -= oldc.NodeCount()
 	}
 	h.RoomInfo.Watchers += client.NodeCount()
@@ -592,19 +587,33 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 }
 
 func (h *Hub) msgLeave(msg *game.MsgLeave) error {
-	h.removeClient(msg.Sender, nil)
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+	h.removeClient(msg.Sender, msg.Message)
 	return nil
 }
 
 func (h *Hub) msgPing(msg *game.MsgPing) error {
 	h.muClients.RLock()
+	defer h.muClients.RUnlock()
+	if h.watchers[msg.SenderID()] != msg.Sender {
+		return nil
+	}
 	ev := binary.NewEvPong(msg.Timestamp, h.RoomInfo.Watchers, h.lastMsg)
-	h.muClients.RUnlock()
 	return msg.Sender.SendSystemEvent(ev)
 }
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
-	h.removeClient(msg.Sender, msg.Err)
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+	h.removeClient(msg.Sender, msg.ErrMsg)
+	return nil
+}
+
+func (h *Hub) msgClientTimeout(msg *game.MsgClientTimeout) error {
+	h.muClients.Lock()
+	defer h.muClients.Unlock()
+	h.removeClient(msg.Sender, "timeout")
 	return nil
 }
 

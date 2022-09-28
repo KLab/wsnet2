@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using System.Text;
 
 namespace WSNet2
 {
@@ -67,8 +68,8 @@ namespace WSNet2
         /// <summary>
         ///   他のプレイヤーの退室通知
         /// </summary>
-        /// OnOtherPlayerLeft(player)
-        public Action<Player> OnOtherPlayerLeft;
+        /// OnOtherPlayerLeft(player, message)
+        public Action<Player, string> OnOtherPlayerLeft;
 
         /// <summary>
         ///  マスタープレイヤーの変更通知
@@ -535,13 +536,20 @@ namespace WSNet2
         /// <summary>
         ///   退室メッセージを送信
         /// </summary>
+        /// <param name="message">切断理由など（UTF-8で123byteまで）</param>
         /// <remarks>
         ///   送信だけでは退室は完了しない。
         ///   OnClosedイベントを受け取って退室が完了する。
+        ///   messageはOnClosedやOnOtherPlayerLeftの引数となる。
         /// </remarks>
-        public int Leave()
+        public int Leave(string message = "")
         {
-            return con.msgPool.PostLeave();
+            if (Encoding.UTF8.GetByteCount(message) > 123)
+            {
+                throw new Exception("message too long");
+            }
+
+            return con.msgPool.PostLeave(message);
         }
 
         /// <summary>
@@ -991,7 +999,7 @@ namespace WSNet2
         /// </summary>
         private void OnEvLeft(EvLeft ev)
         {
-            logger?.Info("left: {0}", ev.ClientID);
+            logger?.Info("left: {0}: {1}", ev.ClientID, ev.Message);
 
             callbackPool.Add(() =>
             {
@@ -1009,7 +1017,7 @@ namespace WSNet2
                 players.Remove(player.Id);
                 if (OnOtherPlayerLeft != null)
                 {
-                    OnOtherPlayerLeft(player);
+                    OnOtherPlayerLeft(player, ev.Message);
                 }
             });
         }

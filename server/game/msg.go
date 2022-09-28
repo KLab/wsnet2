@@ -26,6 +26,7 @@ var _ Msg = &MsgBroadcast{}
 var _ Msg = &MsgSwitchMaster{}
 var _ Msg = &MsgKick{}
 var _ Msg = &MsgClientError{}
+var _ Msg = &MsgClientTimeout{}
 
 const adminClientID = ClientID("")
 
@@ -157,7 +158,8 @@ func (m *MsgAdminKick) SenderID() ClientID {
 // クライアントの自発的な退室リクエスト
 type MsgLeave struct {
 	binary.RegularMsg
-	Sender *Client
+	Sender  *Client
+	Message string
 }
 
 func (*MsgLeave) msg() {}
@@ -167,9 +169,21 @@ func (m *MsgLeave) SenderID() ClientID {
 }
 
 func msgLeave(sender *Client, msg binary.RegularMsg) (Msg, error) {
+	m := "client leave"
+	// TODO: クライアント更新後に反映
+	/*
+		s, _, err := binary.UnmarshalAs(msg.Payload(), binary.TypeStr8)
+		if err != nil {
+			return nil, err
+		}
+		if ss, _ := s.(string); len(ss) > 0 {
+			m = ss
+		}
+	*/
 	return &MsgLeave{
 		RegularMsg: msg,
 		Sender:     sender,
+		Message:    m,
 	}, nil
 }
 
@@ -348,12 +362,23 @@ func msgKick(sender *Client, msg binary.RegularMsg) (Msg, error) {
 // MsgClientError : Client内部エラー（内部で発生）
 type MsgClientError struct {
 	Sender *Client
-	Err    error
+	ErrMsg string
 }
 
 func (*MsgClientError) msg() {}
 
 func (m *MsgClientError) SenderID() ClientID {
+	return m.Sender.ID()
+}
+
+// MsgClientTimeout : タイムアウトによるClientの退室
+type MsgClientTimeout struct {
+	Sender *Client
+}
+
+func (*MsgClientTimeout) msg() {}
+
+func (m *MsgClientTimeout) SenderID() ClientID {
 	return m.Sender.ID()
 }
 

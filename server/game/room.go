@@ -2,7 +2,6 @@ package game
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -193,27 +192,21 @@ func (r *Room) updateLastMsg(cid ClientID) {
 	}
 }
 
-// Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる
-func (r *Room) Timeout(c *Client) {
-	r.removeClient(c, xerrors.Errorf("client timeout: %v", c.Id))
-}
-
-func (r *Room) removeClient(c *Client, err error) {
+// removeClient :  Player/Watcherを退室させる.
+// muClients のロックを取得してから呼び出す.
+func (r *Room) removeClient(c *Client, cause string) {
 	if c.isPlayer {
-		r.removePlayer(c, err)
+		r.removePlayer(c, cause)
 	} else {
-		r.removeWatcher(c, err)
+		r.removeWatcher(c, cause)
 	}
 }
 
-func (r *Room) removePlayer(c *Client, err error) {
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
-
+func (r *Room) removePlayer(c *Client, cause string) {
 	cid := c.ID()
 
-	if _, ok := r.players[cid]; !ok {
-		c.logger.Infof("player may be aleady left: %v", c.Id)
+	if r.players[cid] != c {
+		c.logger.Infof("player may be aleady removed: %v, %p", cid, c)
 		return
 	}
 
@@ -232,8 +225,8 @@ func (r *Room) removePlayer(c *Client, err error) {
 		TimeStamp: time.Now(),
 	})
 
-	c.logger.Infof("player left: %v: %v", cid, err)
-	c.Removed(err)
+	c.logger.Infof("player left: %v: %v", cid, cause)
+	c.Removed(cause)
 
 	if len(r.players) == 0 {
 		close(r.done)
@@ -248,7 +241,7 @@ func (r *Room) removePlayer(c *Client, err error) {
 	r.RoomInfo.Players = uint32(len(r.players))
 	r.updateRoomInfo()
 
-	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id))
+	r.broadcast(binary.NewEvLeft(string(cid), r.master.Id, cause))
 
 	r.removeLastMsg(cid)
 }
@@ -299,23 +292,20 @@ func (r *Room) updateRoomInfo() {
 	}
 }
 
-func (r *Room) removeWatcher(c *Client, err error) {
-	r.muClients.Lock()
-	defer r.muClients.Unlock()
-
+func (r *Room) removeWatcher(c *Client, cause string) {
 	cid := c.ID()
 
-	if _, ok := r.watchers[cid]; !ok {
-		r.logger.Debugf("Watcher may be aleady left: %v", cid)
+	if r.watchers[cid] != c {
+		r.logger.Debugf("Watcher may be aleady left: %v, p", cid, c)
 		return
 	}
 
 	delete(r.watchers, cid)
-	c.logger.Infof("watcher left: %v: %v", cid, err)
+	c.logger.Infof("watcher left: %v: %v", cid, cause)
 
 	r.RoomInfo.Watchers -= c.nodeCount
 	r.updateRoomInfo()
-	c.Removed(err)
+	c.Removed(cause)
 }
 
 func (r *Room) dispatch(msg Msg) error {
@@ -352,6 +342,8 @@ func (r *Room) dispatch(msg Msg) error {
 		return r.msgGetRoomInfo(m)
 	case *MsgClientError:
 		return r.msgClientError(m)
+	case *MsgClientTimeout:
+		return r.msgClientTimeout(m)
 	default:
 		return xerrors.Errorf("unknown msg type (%T): %v", m, m)
 	}
@@ -363,8 +355,12 @@ func (r *Room) dispatch(msg Msg) error {
 func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
 	err := c.Send(ev)
 	if err != nil {
-		// removeClient locks muClients so that must be called another goroutine.
-		go r.removeClient(c, err)
+		// players/watchersのループ内で呼ばれているため、removeClientは別goroutineで呼ぶ
+		go func() {
+			r.muClients.Lock()
+			r.removeClient(c, err.Error())
+			r.muClients.Unlock()
+		}()
 	}
 	return err
 }
@@ -446,7 +442,7 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 	}
 	r.players[client.ID()] = client
 	if rejoin {
-		oldp.Removed(xerrors.Errorf("client rejoined as a new client"))
+		oldp.Removed("client rejoined as a new client")
 		if r.master == oldp {
 			r.master = client
 		}
@@ -514,7 +510,7 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 	oldc, rejoin := r.watchers[client.ID()]
 	r.watchers[client.ID()] = client
 	if rejoin {
-		oldc.Removed(xerrors.Errorf("client rejoined as a new client"))
+		oldc.Removed("client rejoined as a new client")
 		r.RoomInfo.Watchers -= oldc.nodeCount
 		client.logger.Infof("rejoin watcher: %v", client.Id)
 	} else {
@@ -534,6 +530,17 @@ func (r *Room) msgWatch(msg *MsgWatch) error {
 }
 
 func (r *Room) msgPing(msg *MsgPing) error {
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 	msg.Sender.logger.Debugf("ping %v: %v", msg.Sender.Id, msg.Timestamp)
 	ev := binary.NewEvPong(msg.Timestamp, r.RoomInfo.Watchers, r.lastMsg)
 	return msg.Sender.SendSystemEvent(ev)
@@ -544,6 +551,9 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 	defer r.muClients.Unlock()
 
 	c := msg.Sender
+	if r.watchers[c.ID()] != c {
+		return nil
+	}
 	if c.nodeCount == msg.Count {
 		return nil
 	}
@@ -555,7 +565,9 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) error {
 }
 
 func (r *Room) msgLeave(msg *MsgLeave) error {
-	r.removeClient(msg.Sender, nil)
+	r.muClients.RLock()
+	defer r.muClients.RUnlock()
+	r.removeClient(msg.Sender, msg.Message)
 	return nil
 }
 
@@ -638,6 +650,9 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return xerrors.Errorf("sender %q is not player", msg.Sender.Id)
 	}
+	if r.players[msg.Sender.ID()] != msg.Sender {
+		return nil
+	}
 
 	msg.Sender.logger.Debugf("update client prop: %v", msg.Props)
 
@@ -661,6 +676,15 @@ func (r *Room) msgClientProp(msg *MsgClientProp) error {
 func (r *Room) msgTargets(msg *MsgTargets) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 
 	msg.Sender.logger.Debugf("message to targets: %v, %v", msg.Targets, msg.Data)
 
@@ -689,6 +713,15 @@ func (r *Room) msgTargets(msg *MsgTargets) error {
 func (r *Room) msgToMaster(msg *MsgToMaster) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 
 	msg.Sender.logger.Debugf("message to master: %v", msg.Data)
 
@@ -699,6 +732,15 @@ func (r *Room) msgToMaster(msg *MsgToMaster) error {
 func (r *Room) msgBroadcast(msg *MsgBroadcast) error {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
+	if msg.Sender.isPlayer {
+		if r.players[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	} else {
+		if r.watchers[msg.SenderID()] != msg.Sender {
+			return nil
+		}
+	}
 
 	msg.Sender.logger.Debugf("message to all: %v", msg.Data)
 
@@ -733,12 +775,12 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) error {
 }
 
 func (r *Room) msgKick(msg *MsgKick) error {
-	r.muClients.RLock()
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 
 	if msg.Sender != r.master {
 		// 送信元にエラー通知
 		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
-		r.muClients.RUnlock()
 		return xerrors.Errorf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
 	}
 
@@ -746,30 +788,25 @@ func (r *Room) msgKick(msg *MsgKick) error {
 	if !found {
 		// 対象が居ないことを通知
 		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
-		r.muClients.RUnlock()
 		return xerrors.Errorf("player not found: %v", msg.Target)
 	}
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 
-	// removeClientがmuClientsのLockを取るため呼び出し前にRUnlockしておく
-	r.muClients.RUnlock()
-
-	r.removeClient(target, xerrors.Errorf("kicked"))
+	r.removeClient(target, "kicked")
 	return nil
 }
 
 func (r *Room) msgAdminKick(msg *MsgAdminKick) error {
-	r.muClients.RLock()
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
 	target, ok := r.players[msg.Target]
-	r.muClients.RUnlock() // msgKick と違って sendTo() を使わないのですぐにアンロックする
-
 	if !ok {
 		msg.Res <- xerrors.Errorf("player not found: target=%v", msg.Target)
 		return nil
 	}
 
-	r.removeClient(target, fmt.Errorf("kicked by admin"))
+	r.removeClient(target, "kicked by admin")
 	msg.Res <- nil
 	return nil
 }
@@ -794,7 +831,16 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 }
 
 func (r *Room) msgClientError(msg *MsgClientError) error {
-	r.removeClient(msg.Sender, msg.Err)
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+	r.removeClient(msg.Sender, msg.ErrMsg)
+	return nil
+}
+
+func (r *Room) msgClientTimeout(msg *MsgClientTimeout) error {
+	r.muClients.Lock()
+	defer r.muClients.Unlock()
+	r.removeClient(msg.Sender, "timeout")
 	return nil
 }
 

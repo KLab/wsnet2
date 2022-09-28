@@ -288,9 +288,10 @@ func UnmarshalEvRejoinedPayload(payload []byte) (*pb.ClientInfo, error) {
 	return &um, nil
 }
 
-func NewEvLeft(cliId, masterId string) *RegularEvent {
+func NewEvLeft(cliId, masterId, cause string) *RegularEvent {
 	payload := MarshalStr8(cliId)
 	payload = append(payload, MarshalStr8(masterId)...)
+	payload = append(payload, MarshalStr8(cause)...)
 
 	return &RegularEvent{EvTypeLeft, payload}
 }
@@ -298,6 +299,7 @@ func NewEvLeft(cliId, masterId string) *RegularEvent {
 type EvLeftPayload struct {
 	ClientId string
 	MasterId string
+	Cause    string
 }
 
 func UnmarshalEvLeftPayload(payload []byte) (*EvLeftPayload, error) {
@@ -312,11 +314,18 @@ func UnmarshalEvLeftPayload(payload []byte) (*EvLeftPayload, error) {
 	payload = payload[l:]
 
 	// master id
-	d, _, e = UnmarshalAs(payload, TypeStr8)
+	d, l, e = UnmarshalAs(payload, TypeStr8)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvLeft payload (master id): %w", e)
 	}
 	um.MasterId = d.(string)
+	payload = payload[l:]
+
+	c, _, e := UnmarshalAs(payload, TypeStr8)
+	if e != nil {
+		return nil, xerrors.Errorf("Invalid EvLeft payload (cause): %w", e)
+	}
+	um.Cause, _ = c.(string) // cause is "" when c is nil.
 
 	return &um, nil
 }

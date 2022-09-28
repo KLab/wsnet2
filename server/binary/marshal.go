@@ -353,7 +353,7 @@ func unmarshalStr8(src []byte) (string, int, error) {
 	return string(src[2 : 2+l]), 2 + l, nil
 }
 
-// MarshalStr16 marshals long string (len > 255..65545)
+// MarshalStr16 marshals long string (255 < len <= 65535)
 func MarshalStr16(str string) []byte {
 	len := len(str)
 	if len >= math.MaxUint16 {

@@ -24,9 +24,6 @@ type IRoom interface {
 	// Done returns a channel which cloased when room is done.
 	Done() <-chan struct{}
 
-	// Timeout : client側でtimeout検知したとき. Client.MsgLoopから呼ばれる
-	Timeout(c *Client)
-
 	SendMessage(msg Msg)
 }
 

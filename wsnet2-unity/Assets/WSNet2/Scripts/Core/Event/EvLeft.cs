@@ -8,6 +8,7 @@
         /// <summary>退室したPlayer</summary>
         public string ClientID { get; private set; }
         public string MasterID { get; private set; }
+        public string Message { get; private set; }
 
         /// <summary>
         ///   コンストラクタ
@@ -16,6 +17,7 @@
         {
             ClientID = reader.ReadString();
             MasterID = reader.ReadString();
+            Message = reader.ReadString();
         }
     }
 }
