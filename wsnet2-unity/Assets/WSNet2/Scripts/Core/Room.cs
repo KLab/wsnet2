@@ -1008,6 +1008,7 @@ namespace WSNet2
                 }
 
                 players.Remove(player.Id);
+                info.players = (uint)players.Count;
                 if (OnOtherPlayerLeft != null)
                 {
                     OnOtherPlayerLeft(player);
