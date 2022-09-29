@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,7 +20,6 @@ import (
 
 var (
 	WSNet2Version string = "LOCAL"
-	WSNet2Commit  string = "LOCAL"
 )
 
 func main() {
@@ -34,7 +35,13 @@ func main() {
 	log.SetLevel(log.Level(conf.Game.DefaultLoglevel))
 	log.Infof("WSNet2-Game")
 	log.Infof("WSNet2Version: %v", WSNet2Version)
-	log.Infof("WSNet2Commit: %v", WSNet2Commit)
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range bi.Settings {
+			if strings.HasPrefix(s.Key, "vcs.") {
+				log.Infof("%v: %v", s.Key, s.Value)
+			}
+		}
+	}
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 	maxConns := conf.Game.DbMaxConns
