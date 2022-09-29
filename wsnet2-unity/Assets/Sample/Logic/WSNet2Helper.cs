@@ -1,4 +1,5 @@
-﻿using WSNet2;
+﻿using System;
+using WSNet2;
 
 namespace Sample.Logic
 {
@@ -42,6 +43,14 @@ namespace Sample.Logic
                 WSNet2Serializer.Register<Sample.Logic.Ball>(12);
                 WSNet2Serializer.Register<Sample.Logic.PlayerEvent>(20);
             }
+        }
+    }
+    public static class RoomExtension
+    {
+        public static GameStateCode GameState(this Room room)
+        {
+            var s = (string)room.PublicProps[WSNet2Helper.PubKey.State];
+            return (GameStateCode)Enum.Parse(typeof(GameStateCode), s);
         }
     }
 }

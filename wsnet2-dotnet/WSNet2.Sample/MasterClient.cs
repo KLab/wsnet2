@@ -15,7 +15,7 @@ namespace WSNet2.Sample
         const uint MaxPlayers = 3;
 
         /// <summary>タイムアウト (秒)</summary>
-        const uint Deadline = 3;
+        const uint Deadline = 10;
 
         /// <summary>1フレームの時間</summary>
         const int frameMilliSec = 1000/60;
@@ -24,7 +24,6 @@ namespace WSNet2.Sample
         string pKey;
         AuthDataGenerator authgen;
         WSNet2Client client;
-        Action updateFunc;
 
         Room room;
         RPCBridge rpc;
@@ -35,7 +34,6 @@ namespace WSNet2.Sample
         List<PlayerEvent> newEvents;
         AppLogger logger;
         long lastSync;
-        long gameEndTick;
 
         /// <summary>
         ///   コンストラクタ
@@ -50,6 +48,12 @@ namespace WSNet2.Sample
             this.userId = userId;
             this.pKey = pKey;
             this.client = new WSNet2Client(server, appId, userId, authgen.Generate(pKey, userId), logger);
+
+            sim = new GameSimulator(true);
+            timer = new GameTimer();
+            states = new List<GameState>();
+            events = new List<PlayerEvent>();
+            newEvents = new List<PlayerEvent>();
         }
 
         /// <summary>
@@ -62,12 +66,15 @@ namespace WSNet2.Sample
                 var cts = new CancellationTokenSource();
                 try
                 {
-                    // ループ毎に新しくゲームを作る
-                    sim = new GameSimulator(true);
-                    timer = new GameTimer();
-                    states = new List<GameState>();
-                    events = new List<PlayerEvent>();
-                    newEvents = new List<PlayerEvent>();
+                    events.Clear();
+                    newEvents.Clear();
+
+                    var state = new GameState();
+                    state.Tick = timer.NowTick;
+                    state.MasterId = userId;
+                    sim.Init(state);
+                    states.Add(state);
+                    lastSync = timer.NowTick;
 
                     CreateRoom(cts);
                     await Updater(cts.Token);
@@ -81,7 +88,6 @@ namespace WSNet2.Sample
                     logger.Error(e, $"Serve: {0}", e);
                 }
 
-                updateFunc = null;
                 await Task.Delay(1000);
             }
         }
@@ -90,8 +96,8 @@ namespace WSNet2.Sample
         ///   ゲームループを駆動する
         /// </summary>
         /// <remarks>
-        ///   frameMillSec毎に、clientのProcessCallbackとGameのupdateFuncを呼び出す。
-        ///   clientのProcessCallbackを呼び出さないと、client.Createの引数のCallbackが呼ばれないことに注意。
+        ///   frameMillSec毎に、client.ProcessCallbackとGameUpdateを呼び出す。
+        ///   client.ProcessCallbackを呼び出さないと、client.Createの引数のCallbackが呼ばれないことに注意。
         /// </remarks>
         async Task Updater(CancellationToken ct)
         {
@@ -100,7 +106,7 @@ namespace WSNet2.Sample
                 ct.ThrowIfCancellationRequested();
                 var timeslice = Task.Delay(frameMilliSec);
                 client.ProcessCallback();
-                updateFunc?.Invoke();
+                GameUpdate();
                 await timeslice;
             }
         }
@@ -166,6 +172,7 @@ namespace WSNet2.Sample
         {
             if (room.PlayerCount == 2) // Master + Player
             {
+/*
                 room.OnOtherPlayerLeft += OnWaitingPlayerLeft; // 二人目を待つ間に退室したときの処理
                 var prop = new Dictionary<string, object>
                 {
@@ -173,37 +180,43 @@ namespace WSNet2.Sample
                     {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
                 };
                 room.ChangeRoomProperty(publicProps: prop);
+                */
+                newEvents.Add(new PlayerEvent()
+                    {
+                        Code = PlayerEventCode.Join1,
+                        PlayerId = player.Id,
+                        Tick = timer.NowTick,
+                    });
             }
             else if (room.PlayerCount == 3) // Master + Player + Player
             {
                 // 参加者が揃ったのでゲームを開始する
-                room.OnOtherPlayerLeft -= OnWaitingPlayerLeft;
+                //room.OnOtherPlayerLeft -= OnWaitingPlayerLeft;
                 room.OnOtherPlayerJoined -= OnPlayerJoined;
 
                 // 状態をInGameにし、入室も受け付けない
                 var prop = new Dictionary<string, object>
                 {
+/*
                     {WSNet2Helper.PubKey.State, GameStateCode.InGame.ToString()},
                     {WSNet2Helper.PubKey.PlayerNum, (byte)2},
                     {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+*/
                 };
                 room.ChangeRoomProperty(joinable: false, publicProps: prop);
 
-                // ゲームロジック起動
-                var state = new GameState();
-                state.Tick = timer.NowTick;
-                sim.Init(state);
-                states.Add(state);
-                updateFunc += GameUpdate;
-
-                var syncStart = timer.NowTick;
-                lastSync = syncStart;
-                gameEndTick = 0;
+                newEvents.Add(new PlayerEvent()
+                    {
+                        Code = PlayerEventCode.Join2,
+                        PlayerId = player.Id,
+                        Tick = timer.NowTick,
+                    });
 
                 logger.Info("Game Start");
             }
         }
 
+/*
         /// <summary>
         ///   二人目を待っている間に退室したときの処理
         /// </summary>
@@ -219,7 +232,7 @@ namespace WSNet2.Sample
             };
             room.ChangeRoomProperty(publicProps: prop);
         }
-
+        */
 
         /// <summary>
         ///   IMasterClientの実装：Playerからの入力のRPCが届く
@@ -236,8 +249,6 @@ namespace WSNet2.Sample
         /// <summary>
         ///   Gameロジックの駆動
         /// </summary>
-        /// updateFuncに設定されることで呼び出される
-        /// </remarks>
         void GameUpdate()
         {
             // 前回のループから今回までの間にやってきた PlayerEvent が newEvents に格納されている.
@@ -277,12 +288,6 @@ namespace WSNet2.Sample
 
             var state = states[states.Count - 1].Copy();
 
-            if (state.Code == GameStateCode.WaitingGameMaster)
-            {
-                state.Code = GameStateCode.WaitingPlayer;
-                state.MasterId = userId;
-            }
-
             var now = timer.NowTick;
             var targetEvents = events.Where(ev => oldestTick <= ev.Tick && ev.Tick <= now);
             var tooFutureEvents = events.Where(ev => now < ev.Tick);
@@ -307,11 +312,6 @@ namespace WSNet2.Sample
             {
                 // ステートの更新が発生したので、以前の状態には戻さない
                 states.Clear();
-
-                if (state.Code == GameStateCode.End)
-                {
-                    gameEndTick = now;
-                }
             }
 
             states.Add(state);
@@ -334,34 +334,22 @@ namespace WSNet2.Sample
             // 0.1秒ごとにゲーム状態の同期メッセージを送信する
             if (forceSync || 100.0 <= new TimeSpan(now - lastSync).TotalMilliseconds)
             {
-                rpc.SyncServerTick(timer.NowTick);
-                rpc.SyncGameState(state);
+                rpc?.SyncServerTick(timer.NowTick);
+                rpc?.SyncGameState(state);
                 lastSync = now;
             }
 
             // ステートが更新されていたら public props に反映
-            if ((string)room.PublicProps["state"] != state.Code.ToString())
+            if (room != null && prevStateCode != state.Code)
             {
+                if (state.Code == GameStateCode.End)
+                {
+                    // 終了ステートに変更したら部屋から抜ける
+                    room.OnRoomPropertyChanged += (_,_,_,_,_,_,_,_) => room.Leave();
+                }
                 room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
                         {WSNet2Helper.PubKey.State, state.Code.ToString()}
                     });
-            }
-
-            // ゲーム終了から一定時間経ったらプレイヤーをKickして自身も退室
-            if (gameEndTick != 0)
-            {
-                if (5000 <= new TimeSpan(now - gameEndTick).TotalMilliseconds)
-                {
-                    foreach (var p in room.Players.Values)
-                    {
-                        if (p != room.Me)
-                        {
-                            room.Kick(p);
-                        }
-                    }
-                    room.Leave();
-                    updateFunc -= GameUpdate;
-                }
             }
         }
     }
