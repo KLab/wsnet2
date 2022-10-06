@@ -92,7 +92,7 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
 		p.client.logger.Errorf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
 		metrics.MessageSent.Add(1)
 		p.conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
+			formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 		p.conn.Close()
 		p.closed = true
 	}
@@ -115,7 +115,7 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
 		metrics.MessageSent.Add(1)
 		p.conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseGoingAway, err.Error()))
+			formatCloseMessage(websocket.CloseGoingAway, err.Error()))
 		p.conn.Close()
 		p.closed = true
 		return err
@@ -132,7 +132,7 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 			p.client.logger.Errorf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
 			metrics.MessageSent.Add(1)
 			p.conn.WriteMessage(websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
+				formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 			p.conn.Close()
 			p.closed = true
 			return nil
@@ -170,7 +170,7 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 		return
 	}
 	metrics.MessageSent.Add(1)
-	p.conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(code, msg))
+	p.conn.WriteMessage(websocket.CloseMessage, formatCloseMessage(code, msg))
 	p.conn.Close()
 	p.closed = true
 }
@@ -215,4 +215,11 @@ loop:
 	p.client.DetachPeer(p)
 	close(p.msgCh)
 	close(p.done)
+}
+
+func formatCloseMessage(closeCode int, text string) []byte {
+	if len(text) > 123 {
+		text = text[:123]
+	}
+	return websocket.FormatCloseMessage(closeCode, text)
 }

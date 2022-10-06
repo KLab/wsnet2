@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Sample.Logic;
@@ -9,12 +11,23 @@ namespace WSNet2.Sample
 {
     public class Program
     {
-
-        static void Main(string[] args)
+        static void PrintHelp()
         {
+            Console.WriteLine(
+                "usage: WSNet2.Sample [option]\n" +
+                "options:\n" +
+                "  -s, --server        wsnet2 lobby address (default: http://localhost:8080)\n" +
+                "  -m, --master [num]  number of game master\n" +
+                "  -b, --bot    [num]  number of bot.\n" +
+                "  -?, -h, --help      show this message\n");
+        }
+
+        static async Task Main(string[] args)
+        {
+            // finallyを必ず実行するための例外ハンドリング
             try
             {
-                main(args);
+                await main(args);
             }
             catch
             {
@@ -22,7 +35,7 @@ namespace WSNet2.Sample
             }
         }
 
-        static void main(string[] args)
+        static async Task main(string[] args)
         {
             // ThreadPool を詰まりにくくするおまじない
             ThreadPool.SetMinThreads(200, 200);
@@ -46,8 +59,8 @@ namespace WSNet2.Sample
 
             WSNet2Helper.RegisterTypes();
 
-            string runAs = "master";
-            var numberOfClient = 1;
+            var masterCount = 0;
+            var botCount = 0;
             var rand = new Random();
             var server = "http://localhost:8080";
             var appId = "testapp";
@@ -61,42 +74,62 @@ namespace WSNet2.Sample
                     server = args[i + 1];
                 }
 
-                if ((args[i] == "-n" || args[i] == "--num") && i + 1 < args.Length)
-                {
-                    numberOfClient = int.Parse(args[i + 1]);
-                }
-
                 if (args[i] == "-m" || args[i] == "--master")
                 {
-                    runAs = "master";
+                    if (i + 1 < args.Length && args[i+1][0] != '-')
+                    {
+                        masterCount += int.Parse(args[++i]);
+                    }
+                    else
+                    {
+                        masterCount++;
+                    }
                 }
 
                 if (args[i] == "-b" || args[i] == "--bot")
                 {
-                    runAs = "bot";
+                    if (i + 1 < args.Length && args[i+1][0] != '-')
+                    {
+                        botCount += int.Parse(args[++i]);
+                    }
+                    else
+                    {
+                        botCount++;
+                    }
+                }
+
+                if (args[i] == "-h" || args[i] == "-?" || args[i] == "--help")
+                {
+                    PrintHelp();
+                    return;
                 }
             }
 
-            var tasks = new Task[numberOfClient];
-            for (int i = 0; i < numberOfClient; i++)
+            if (masterCount + botCount == 0)
             {
-                if (runAs == "master")
-                {
-                    var userId = "gamemaster" + rand.Next(1000, 9999).ToString();
-                    var logger = new AppLogger(loggerFactory.CreateLogger(userId));
-                    tasks[i] = Task.Run(async () =>
-                        await new MasterClient(logger).Serve(server, appId, pKey, searchGroup, userId));
-                }
-                else if (runAs == "bot")
-                {
-                    var userId = "bot" + rand.Next(1000, 9999).ToString();
-                    var logger = new AppLogger(loggerFactory.CreateLogger(userId));
-                    var bot = new BotClient(logger);
-                    tasks[i] = bot.Serve(server, appId, pKey, searchGroup, userId);
-                }
+                PrintHelp();
+                return;
             }
 
-            Task.WaitAll(tasks);
+            var pid = Process.GetCurrentProcess().Id;
+            var tasks = new List<Task>();
+
+            for (var i = 0; i < masterCount; i++)
+            {
+                var userId = $"master_{pid}_{i}";
+                var logger = new AppLogger(loggerFactory.CreateLogger(userId));
+                var master = new MasterClient(logger);
+                tasks.Add(Task.Run(async () => await master.Serve(server, appId, pKey, searchGroup, userId)));
+            }
+            for (var i = 0; i < botCount; i++)
+            {
+                var userId = $"bot_{pid}_{i}";
+                var logger = new AppLogger(loggerFactory.CreateLogger(userId));
+                var bot = new BotClient(logger);
+                tasks.Add(Task.Run(async () => await bot.Serve(server, appId, pKey, searchGroup, userId)));
+            }
+
+            await Task.WhenAll(tasks);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace Sample
     /// <summary>
     /// ゲームシーンのコントローラ
     /// </summary>
-    public class GameScene : MonoBehaviour
+    public class GameScene : MonoBehaviour, IClient
     {
         /// <summary>
         /// 画面背景の文字
@@ -66,6 +66,8 @@ namespace Sample
         bool isWatcher;
         float nextSyncTime;
 
+        RPCBridge rpc;
+
         string cpuPlayerId
         {
             get
@@ -95,18 +97,19 @@ namespace Sample
             Debug.LogFormat("Room {0}", s);
         }
 
-        void RPCPlayerEvent(string sender, PlayerEvent msg)
+        public void OnSyncGameState(GameState msg)
         {
-            // only master client handle this.
+            state = msg;
+            events = events.Where(ev => state.Tick <= ev.Tick).ToList();
         }
 
-        void RPCSyncGameState(string sender, GameState msg)
+        public void OnSyncServerTick(long tick)
         {
-            // TODO: How to check if the sender is valid master client?
-            if (msg.MasterId == sender)
+            timer.UpdateServerTick(tick);
+            var ms = new TimeSpan(timer.NowTick - tick).TotalMilliseconds;
+            if (64 <= ms)
             {
-                state = msg;
-                events = events.Where(ev => state.Tick <= ev.Tick).ToList();
+                Debug.LogWarningFormat("Packet jam {0}ms", ms);
             }
         }
 
@@ -202,25 +205,7 @@ namespace Sample
                     }
                 };
 
-
-                var RPCSyncServerTick = new Action<string, long>((sender, tick) =>
-                {
-                    if (sender == G.GameRoom?.Master.Id)
-                    {
-                        timer.UpdateServerTick(tick);
-                        var ms = new TimeSpan(timer.NowTick - tick).TotalMilliseconds;
-                        if (64 <= ms)
-                        {
-                            Debug.LogWarningFormat("Packet jam {0}ms", ms);
-                        }
-                    }
-                });
-
-                /// 使用するRPCを登録する
-                /// MasterClientと同じ順番で同じRPCを登録する必要がある
-                room.RegisterRPC<GameState>(RPCSyncGameState);
-                room.RegisterRPC<PlayerEvent>(RPCPlayerEvent);
-                room.RegisterRPC(RPCSyncServerTick);
+                rpc = new RPCBridge(room, this);
                 room.Restart();
             }
 
@@ -386,7 +371,7 @@ namespace Sample
 
                 foreach (var ev in events)
                 {
-                    G.GameRoom.RPC(RPCPlayerEvent, ev);
+                    rpc.PlayerEvent(ev);
                 }
                 simulator.UpdateGame(timer.NowTick, state, events.Where(ev => state.Tick <= ev.Tick));
             }

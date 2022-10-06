@@ -706,6 +706,7 @@ namespace WSNet2
                                 Op.GreaterEqual => ">=",
                                 Op.Contain => "∋",
                                 Op.NotContain => "∌",
+                                _ => $"Op({(byte)cond.op})",
                             };
                             var val = WSNet2Serializer.NewReader(cond.val).Read();
                             return $"{{{cond.key} {op} {val}}}";
