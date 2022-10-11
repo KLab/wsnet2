@@ -19,7 +19,7 @@ string.go := $(foreach s,$(stringer),\
                  $(dir $(word 1,$(subst >, ,$(s))))$(shell echo $(word 2,$(subst >, ,$(s))) | tr A-Z a-z))
 
 COMMIT := $(shell git rev-parse --short HEAD)
-GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1 -X main.WSNet2Commit=$(COMMIT)"
+GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1"
 
 export GOBIN := $(abspath bin)
 export PATH := $(GOBIN):$(PATH)

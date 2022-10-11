@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"runtime/debug"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -19,7 +21,6 @@ var (
 
 var (
 	WSNet2Version string = "LOCAL"
-	WSNet2Commit  string = "LOCAL"
 
 	logger *zap.SugaredLogger
 )
@@ -60,7 +61,13 @@ func main() {
 
 	fmt.Println("WSNet2-Bot")
 	fmt.Println("WSNet2Version:", WSNet2Version)
-	fmt.Println("WSNet2Commit:", WSNet2Commit)
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range bi.Settings {
+			if strings.HasPrefix(s.Key, "vcs.") {
+				fmt.Printf("%v: %v\n", s.Key, s.Value)
+			}
+		}
+	}
 
 	subcmd := "normal"
 	args := flag.Args()
