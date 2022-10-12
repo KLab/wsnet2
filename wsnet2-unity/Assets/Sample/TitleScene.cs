@@ -157,7 +157,7 @@ namespace Sample
         /// </summary>
         void prepareWSNet2Client()
         {
-            var authData = Logic.WSNet2Helper.GenAuthData(appKeyInput.text, userIdInput.text);
+            var authData = new AuthDataGenerator().Generate(appKeyInput.text, userIdInput.text);
             Debug.Log($"lobby {lobbyInput.text}");
             Debug.Log($"appId {appIdInput.text}");
             Debug.Log($"appKey {appKeyInput.text}");

@@ -49,8 +49,10 @@ namespace Sample.Logic
     {
         public static GameStateCode GameState(this Room room)
         {
-            var s = (string)room.PublicProps[WSNet2Helper.PubKey.State];
-            return (GameStateCode)Enum.Parse(typeof(GameStateCode), s);
+            if (room != null && room.PublicProps.TryGetValue(WSNet2Helper.PubKey.State, out var s)) {
+                return (GameStateCode)Enum.Parse(typeof(GameStateCode), (string)s);
+            }
+            return GameStateCode.None;
         }
     }
 }

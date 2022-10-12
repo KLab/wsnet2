@@ -15,7 +15,6 @@ namespace Sample.Logic
     /// </summary>
     public class GameTimer
     {
-
         /// <summary>
         /// 最後に受信したサーバ時間
         /// </summary>
@@ -446,7 +445,6 @@ namespace Sample.Logic
         /// </summary>
         /// <value></value>
         public bool IsMaster { get; private set; }
-
         public int BoardWidth { get; private set; }
         public int BoardHeight { get; private set; }
         public Vector2 Center { get; private set; }
@@ -525,7 +523,6 @@ namespace Sample.Logic
             }
         }
 
-
         void StartNextGame(GameState state)
         {
             if (string.IsNullOrEmpty(state.Player1)) throw new Exception("Player1 is not joind");
@@ -544,17 +541,22 @@ namespace Sample.Logic
 
         bool UpdateGameInternal(long tick, GameState state, PlayerEvent ev)
         {
-            long prevTick = state.Tick;
-            state.Tick = tick;
-            float dt = (float)new TimeSpan(tick - prevTick).TotalSeconds;
+            float dt = (float)new TimeSpan(tick - state.Tick).TotalSeconds;
             bool forceSync = false;
 
             if (state.Code == GameStateCode.WaitingGameMaster)
             {
                 // マスタクライアントの参加を待っている
-                // 何もしない
+                if (IsMaster)
+                {
+                    // 自分がマスターの場合は次のステートへ
+                    state.Code = GameStateCode.WaitingPlayer;
+                    return true;
+                }
+
                 return false;
             }
+
             if (state.Code == GameStateCode.WaitingPlayer)
             {
                 // プレイヤーの参加を待っている
@@ -585,7 +587,6 @@ namespace Sample.Logic
             }
             else if (state.Code == GameStateCode.ReadyToStart)
             {
-
                 if (ev?.Code == PlayerEventCode.Ready)
                 {
                     // 1P, 2Pが Ready 入力を送ってくるのを待っている
@@ -642,6 +643,12 @@ namespace Sample.Logic
             if (state.Code != GameStateCode.InGame)
             {
                 return false;
+            }
+
+            if (dt <= 0)
+            {
+                // 時刻更新はないので省略
+                return forceSync;
             }
 
             // 1Pのバーの移動
@@ -757,15 +764,14 @@ namespace Sample.Logic
                 }
             }
 
+            // 時刻更新
+            state.Tick = tick;
+
             return forceSync;
         }
 
         /// <summary>
-        /// </summary>
-
-        /// <summary>
         /// ゲームをシミュレーションする
-        /// events は Tick で昇順ソートされており, eventsの中で最小の Tick は state の最終更新よりも後である必要がある
         /// </summary>
         /// <param name="nowTick">最新のサーバ時刻</param>
         /// <param name="state">ゲームステート</param>
@@ -776,13 +782,15 @@ namespace Sample.Logic
             bool forceSync = false;
             foreach (var ev in events)
             {
+                // ここでは時刻を進めずに入力を処理する
                 var prevState = state.Code;
-                forceSync |= UpdateGameInternal(ev.Tick, state, ev);
+                forceSync |= UpdateGameInternal(state.Tick, state, ev);
                 if (prevState != state.Code)
                 {
                     return forceSync;
                 }
             }
+            // ゲームの時間を進める
             forceSync |= UpdateGameInternal(nowTick, state, null);
             return forceSync;
         }

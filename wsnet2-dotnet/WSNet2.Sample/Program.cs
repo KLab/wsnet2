@@ -65,7 +65,6 @@ namespace WSNet2.Sample
             var server = "http://localhost:8080";
             var appId = "testapp";
             var pKey = "testapppkey";
-            var searchGroup = 1000;
 
             for (int i = 0; i < args.Length; i++)
             {

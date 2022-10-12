@@ -45,9 +45,6 @@ namespace WSNet2.Sample
             {
                 var authData = authgen.Generate(pKey, userId);
                 client = new WSNet2Client(server, appId, userId, authData, logger);
-                props = new Dictionary<string, object>(){
-                    {"name", userId},
-                };
                 this.userId = userId;
                 rand = new Random();
                 sim = new GameSimulator(true);
@@ -60,6 +57,7 @@ namespace WSNet2.Sample
                 {
                     await ServeOne();
                 }
+                catch (RoomNotFoundException) {}
                 catch (Exception e)
                 {
                     logger.Error(e, "({0}) ServerError: {1}", userId, e);
@@ -112,79 +110,6 @@ namespace WSNet2.Sample
             return room;
         }
 
-        async Task<Room> CreateRoom()
-        {
-            logger.Debug("({0}) Trying to create room", userId);
-
-            var cts = new CancellationTokenSource();
-            uint MaxPlayers = 3;
-            uint Deadline = 3;
-            var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            Action<Room> onJoined = (Room room) =>
-            {
-                room.Pause();
-                roomJoined.TrySetResult(room);
-            };
-            Action<Exception> onFailed = (Exception e) =>
-            {
-                roomJoined.TrySetException(e);
-            };
-
-            var pubProps = new Dictionary<string, object>(){
-                {"game", "pong"},
-                {"masterclient", "waiting"},
-                {"state", GameStateCode.WaitingGameMaster.ToString()},
-            };
-            var privProps = new Dictionary<string, object>(){
-                {"aaa", "private"},
-                {"ccc", false},
-            };
-            var cliProps = new Dictionary<string, object>(){
-                {"userId", userId},
-            };
-            var roomOpt = new RoomOption(MaxPlayers, (uint)searchGroup, pubProps, privProps);
-            roomOpt.WithClientDeadline(Deadline);
-
-            client.Create(roomOpt, cliProps, onJoined, onFailed, logger);
-
-            // FIXME: 起動しとかないとコールバック呼ばれないが汚い
-            _ = Task.Run(async () =>
-            {
-                while (!roomJoined.Task.IsCompleted)
-                {
-                    cts.Token.ThrowIfCancellationRequested();
-                    client.ProcessCallback();
-                    await Task.Delay(100);
-                }
-            });
-
-            var room = await roomJoined.Task;
-            cts.Token.ThrowIfCancellationRequested();
-
-            logger.Info("({0}) Room created {1}", userId, room.Id);
-            return room;
-        }
-
-        async Task<Room> JoinOrCreateRoom()
-        {
-            Room room = null;
-            try
-            {
-                room = await JoinRandomRoom();
-            }
-            catch (Exception e)
-            {
-                logger.Error(e, "({0}) Failed to join room {1}", userId, e);
-            }
-
-            if (room == null)
-            {
-                room = await CreateRoom();
-            }
-            return room;
-        }
-
         public void OnSyncServerTick(long tick)
         {
             timer.UpdateServerTick(tick);
@@ -197,7 +122,7 @@ namespace WSNet2.Sample
 
         async Task ServeOne()
         {
-            var room = await JoinOrCreateRoom();
+            var room = await JoinRandomRoom();
             var cts = new CancellationTokenSource();
 
             Exception closedError = null;
@@ -233,7 +158,7 @@ namespace WSNet2.Sample
                     {
                         foreach (var p in room.Players.Values)
                         {
-                            if (p.Id.StartsWith("gamemaster"))
+                            if (p.Id.StartsWith("master_"))
                             {
                                 logger.Info("Switch master to {0}", p.Id);
                                 room.ChangeRoomProperty(
@@ -256,12 +181,8 @@ namespace WSNet2.Sample
                 }
                 else if (state.Code == GameStateCode.WaitingPlayer)
                 {
-                    events.Add(new PlayerEvent
-                    {
-                        Code = PlayerEventCode.Join,
-                        PlayerId = userId,
-                        Tick = timer.NowTick,
-                    });
+                    // 他の参加者を待っている
+                    // 参加者が集まるとマスターが ReadyToStart に状態を変更する
                 }
                 else if (state.Code == GameStateCode.ReadyToStart)
                 {

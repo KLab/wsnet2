@@ -171,9 +171,9 @@ namespace Sample
                      RoomLog("OnOtherPlayerJoined:" + p.Id);
                  };
 
-                room.OnOtherPlayerLeft += (p) =>
+                room.OnOtherPlayerLeft += (p, msg) =>
                 {
-                    RoomLog("OnOtherPlayerLeft:" + p.Id);
+                    RoomLog("OnOtherPlayerLeft:" + p.Id + " msg:" + msg);
                 };
 
                 room.OnMasterPlayerSwitched += (prev, cur) =>
