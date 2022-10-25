@@ -64,7 +64,7 @@ namespace Sample
 
         bool isOnlineMode;
         bool isWatcher;
-        float nextSyncTime;
+        float sinceEnd;
 
         RPCBridge rpc;
 
@@ -253,35 +253,16 @@ namespace Sample
                     playerText1.text += $"\n DRAW";
                     playerText2.text += $"\n DRAW";
                 }
-            }
 
-            if (state.Code == GameStateCode.WaitingGameMaster)
-            {
-                if (Time.frameCount % 10 == 0)
+                sinceEnd += Time.deltaTime;
+                if (3.0 < sinceEnd)
                 {
-                    var room = G.GameRoom;
-                    // 本当はルームマスタがルームを作成するシーケンスを想定しているが, サンプルは簡単のため,
-                    // マスタークライアントがJoinしてきたら, ルームマスタを委譲する
-                    if (room.Me == room.Master)
-                    {
-                        foreach (var p in room.Players.Values)
-                        {
-                            if (p.Id.StartsWith("gamemaster"))
-                            {
-                                RoomLog("Switch master to" + p.Id);
-                                room.ChangeRoomProperty(
-                                    null, null, null,
-                                    null, null, null,
-                                    new Dictionary<string, object> { { "gamemaster", p.Id }, { "masterclient", "joined" } },
-                                    new Dictionary<string, object> { });
-                                room.SwitchMaster(p);
-                                break;
-                            }
-                        }
-                    }
+                    G.GameRoom = null;
+                    SceneManager.LoadScene("Title");
                 }
             }
-            else if (state.Code == GameStateCode.WaitingPlayer)
+
+            if (state.Code == GameStateCode.WaitingPlayer)
             {
                 if (!isWatcher && Time.frameCount % 10 == 0)
                 {
@@ -293,7 +274,8 @@ namespace Sample
                     });
                 }
             }
-            else if (state.Code == GameStateCode.ReadyToStart)
+
+            if (state.Code == GameStateCode.ReadyToStart)
             {
                 if (Time.frameCount % 10 == 0)
                 {
@@ -332,7 +314,8 @@ namespace Sample
                     }
                 }
             }
-            else if (state.Code == GameStateCode.InGame)
+
+            if (state.Code == GameStateCode.InGame)
             {
                 if (!isWatcher)
                 {
@@ -354,7 +337,8 @@ namespace Sample
                     prevMoveInput = value;
                 }
             }
-            else if (state.Code == GameStateCode.End)
+
+            if (state.Code == GameStateCode.End)
             {
                 return;
             }
@@ -400,6 +384,8 @@ namespace Sample
 
             if (state.Code == GameStateCode.InGame)
             {
+                bar1.gameObject.SetActive(true);
+                bar2.gameObject.SetActive(true);
                 bar1.UpdatePosition(state.Bar1);
                 bar2.UpdatePosition(state.Bar2);
 
@@ -419,6 +405,7 @@ namespace Sample
                     balls[i].UpdatePosition(state.Balls[i]);
                 }
             }
+
             events.Clear();
         }
     }

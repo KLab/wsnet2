@@ -49,6 +49,15 @@ namespace Sample
         public static uint Deadline = 3;
 
         /// <summary>
+        /// CPU戦ボタンコールバック
+        /// </summary>
+        public void OnClickVsCpu()
+        {
+            Debug.Log("OnClickVsCpu");
+            SceneManager.LoadScene("Game");
+        }
+
+        /// <summary>
         /// 部屋作成ボタンコールバック
         /// </summary>
         public void OnClickCreate()
@@ -57,7 +66,7 @@ namespace Sample
             var pubProps = new Dictionary<string, object>(){
                 {"game", "pong"},
                 {"masterclient", "waiting"},
-                {"state", Logic.GameStateCode.WaitingGameMaster.ToString()},
+                {"state", Logic.GameStateCode.WaitingPlayer.ToString()},
             };
             var privProps = new Dictionary<string, object>(){
                 {"aaa", "private"},

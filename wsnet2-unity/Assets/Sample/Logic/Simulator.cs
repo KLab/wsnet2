@@ -193,11 +193,6 @@ namespace Sample.Logic
         None,
 
         /// <summary>
-        /// マスタークライアントが参加するのを待っている
-        /// </summary>
-        WaitingGameMaster,
-
-        /// <summary>
         /// プレイヤーが参加するのを待っている
         /// </summary>
         WaitingPlayer,
@@ -472,7 +467,7 @@ namespace Sample.Logic
             MinY = -BoardHeight / 2;
             MaxY = BoardHeight / 2;
 
-            state.Code = GameStateCode.WaitingGameMaster;
+            state.Code = GameStateCode.WaitingPlayer;
             state.GameCount = 0;
             state.Player1 = "";
             state.Player2 = "";
@@ -543,19 +538,6 @@ namespace Sample.Logic
         {
             float dt = (float)new TimeSpan(tick - state.Tick).TotalSeconds;
             bool forceSync = false;
-
-            if (state.Code == GameStateCode.WaitingGameMaster)
-            {
-                // マスタクライアントの参加を待っている
-                if (IsMaster)
-                {
-                    // 自分がマスターの場合は次のステートへ
-                    state.Code = GameStateCode.WaitingPlayer;
-                    return true;
-                }
-
-                return false;
-            }
 
             if (state.Code == GameStateCode.WaitingPlayer)
             {
