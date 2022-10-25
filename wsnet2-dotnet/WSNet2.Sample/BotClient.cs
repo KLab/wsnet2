@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-
-using WSNet2;
 using Sample.Logic;
 
 namespace WSNet2.Sample
@@ -150,41 +148,7 @@ namespace WSNet2.Sample
                     break;
                 }
 
-                if (state.Code == GameStateCode.WaitingGameMaster)
-                {
-                    // 本当はルームマスタがルームを作成するシーケンスを想定しているが, サンプルは簡単のため,
-                    // マスタークライアントがJoinしてきたら, ルームマスタを委譲する
-                    if (room.Me == room.Master)
-                    {
-                        foreach (var p in room.Players.Values)
-                        {
-                            if (p.Id.StartsWith("master_"))
-                            {
-                                logger.Info("Switch master to {0}", p.Id);
-                                room.ChangeRoomProperty(
-                                    null, null, null,
-                                    null, null, null,
-                                    new Dictionary<string, object> { { "gamemaster", p.Id }, { "masterclient", "joined" } },
-                                    new Dictionary<string, object> { });
-                                room.SwitchMaster(p);
-                                break;
-                            }
-                        }
-
-                        if (10000 <= new TimeSpan(timer.NowTick - syncStart).TotalMilliseconds)
-                        {
-                            logger.Debug("Waiting MasterClient timeout.");
-                            room.Leave();
-                            break;
-                        }
-                    }
-                }
-                else if (state.Code == GameStateCode.WaitingPlayer)
-                {
-                    // 他の参加者を待っている
-                    // 参加者が集まるとマスターが ReadyToStart に状態を変更する
-                }
-                else if (state.Code == GameStateCode.ReadyToStart)
+                if (state.Code == GameStateCode.ReadyToStart)
                 {
                     events.Add(new PlayerEvent
                     {
@@ -219,8 +183,8 @@ namespace WSNet2.Sample
                     logger.Info("send {0} to {1}", ev.Code, room.Master.Id);
                     rpc.PlayerEvent(ev);
                 }
-                events.Clear();
 
+                events.Clear();
                 await Task.Delay(100);
             }
 
