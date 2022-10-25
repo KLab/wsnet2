@@ -168,6 +168,14 @@ namespace Sample
                 room.OnJoined += (me) =>
                 {
                     RoomLog($"OnJoined: {me.Id}");
+
+                    if (room.Master == room.Me)
+                    {
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                             { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                             { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                         });
+                    }
                 };
 
                 room.OnClosed += (p) =>
@@ -178,13 +186,29 @@ namespace Sample
                 };
 
                 room.OnOtherPlayerJoined += (p) =>
-                 {
-                     RoomLog("OnOtherPlayerJoined:" + p.Id);
-                 };
+                {
+                    RoomLog("OnOtherPlayerJoined:" + p.Id);
+
+                    if (room.Master == room.Me)
+                    {
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                             { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                             { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                         });
+                    }
+                };
 
                 room.OnOtherPlayerLeft += (p, msg) =>
                 {
                     RoomLog("OnOtherPlayerLeft:" + p.Id + " msg:" + msg);
+
+                    if (room.Master == room.Me)
+                    {
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                             { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                             { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                         });
+                    }
                 };
 
                 room.OnMasterPlayerSwitched += (prev, cur) =>
@@ -233,6 +257,7 @@ namespace Sample
         {
             playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}\n";
             playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}\n";
+
             if (state.Code == GameStateCode.End)
             {
                 if (state.Score2 < state.Score1)
@@ -336,12 +361,23 @@ namespace Sample
                 if (simulator.IsMaster)
                 {
                     // 自分がマスタクライアントの場合相手にstateを同期する
+                    var prevState = state.Code;
                     var forceSync = simulator.UpdateGame(timer.NowTick, state, events);
                     if (forceSync || 100 <= new TimeSpan(timer.NowTick - lastSyncTick).TotalMilliseconds)
                     {
                         rpc.SyncServerTick(timer.NowTick);
                         rpc.SyncGameState(state);
                         lastSyncTick = timer.NowTick;
+                    }
+
+                    if (prevState != state.Code)
+                    {
+                        var room = G.GameRoom;
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                            { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                            { WSNet2Helper.PubKey.State, state.Code.ToString()},
+                            { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                        });
                     }
                 }
                 else

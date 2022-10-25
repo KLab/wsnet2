@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using Sample.Logic;
 using WSNet2;
 
 namespace Sample
@@ -62,8 +64,10 @@ namespace Sample
         {
             Debug.Log("OnClickCreate");
             var pubProps = new Dictionary<string, object>(){
-                {"game", "pong"},
-                {"state", Logic.GameStateCode.WaitingPlayer.ToString()},
+                {WSNet2Helper.PubKey.Game, WSNet2Helper.GameName},
+                {WSNet2Helper.PubKey.State, GameStateCode.WaitingPlayer.ToString()},
+                {WSNet2Helper.PubKey.PlayerNum, (byte)1},
+                {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
             };
             var cliProps = new Dictionary<string, object>(){
                 {"userId", userIdInput.text},
