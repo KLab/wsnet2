@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
@@ -39,9 +38,8 @@ namespace Sample
 
         /// <summary>
         /// Pongゲームの最大プレイヤー数
-        /// 2PlayerとMasterClientの3人
         /// </summary>
-        public static uint MaxPlayers = 3;
+        public static uint MaxPlayers = 2;
 
         /// <summary>
         /// タイムアウト(秒)
@@ -65,17 +63,12 @@ namespace Sample
             Debug.Log("OnClickCreate");
             var pubProps = new Dictionary<string, object>(){
                 {"game", "pong"},
-                {"masterclient", "waiting"},
                 {"state", Logic.GameStateCode.WaitingPlayer.ToString()},
-            };
-            var privProps = new Dictionary<string, object>(){
-                {"aaa", "private"},
-                {"ccc", false},
             };
             var cliProps = new Dictionary<string, object>(){
                 {"userId", userIdInput.text},
             };
-            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, privProps);
+            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, null);
             roomOpt.WithClientDeadline(Deadline);
 
             prepareWSNet2Client();

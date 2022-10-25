@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-using WSNet2;
 using Sample.Logic;
 
 namespace Sample
@@ -13,7 +12,7 @@ namespace Sample
     /// <summary>
     /// ゲームシーンのコントローラ
     /// </summary>
-    public class GameScene : MonoBehaviour, IClient
+    public class GameScene : MonoBehaviour, IClient, IMasterClient
     {
         /// <summary>
         /// 画面背景の文字
@@ -54,9 +53,6 @@ namespace Sample
         BarView bar2;
         List<BallView> balls;
 
-        BarView playerBar;
-        BarView opponentBar;
-
         GameSimulator simulator;
         GameState state;
         GameTimer timer;
@@ -64,6 +60,7 @@ namespace Sample
 
         bool isOnlineMode;
         bool isWatcher;
+        long lastSyncTick;
         float sinceEnd;
 
         RPCBridge rpc;
@@ -93,7 +90,11 @@ namespace Sample
 
         void RoomLog(string s)
         {
-            roomText.text += s + "\n";
+            if (!roomText.IsDestroyed())
+            {
+                roomText.text += s + "\n";
+            }
+
             Debug.LogFormat("Room {0}", s);
         }
 
@@ -113,8 +114,18 @@ namespace Sample
             }
         }
 
+        public void OnPlayerEvent(string sender, PlayerEvent ev)
+        {
+            if (simulator.IsMaster)
+            {
+                events.Add(ev);
+            }
+        }
+
         void Awake()
         {
+            Application.targetFrameRate = 60;
+
             bar1 = Instantiate(barAsset);
             bar2 = Instantiate(barAsset);
             balls = new List<BallView>();
@@ -126,7 +137,7 @@ namespace Sample
 
             isOnlineMode = G.GameRoom != null;
             isWatcher = isOnlineMode && G.GameRoom.Me == null;
-            simulator = new GameSimulator(!isOnlineMode);
+            simulator = new GameSimulator(!isOnlineMode || G.GameRoom.Master == G.GameRoom.Me);
             state = new GameState();
             timer = new GameTimer();
             events = new List<PlayerEvent>();
@@ -205,30 +216,16 @@ namespace Sample
                     }
                 };
 
-                rpc = new RPCBridge(room, this);
+                if (simulator.IsMaster)
+                {
+                    rpc = new RPCBridge(room, (IMasterClient)this);
+                }
+                else
+                {
+                    rpc = new RPCBridge(room, (IClient)this);
+                }
+
                 room.Restart();
-            }
-
-            if (!isWatcher)
-            {
-                events.Add(new PlayerEvent
-                {
-                    Code = PlayerEventCode.Join,
-                    PlayerId = myPlayerId,
-                    Tick = timer.NowTick,
-                });
-            }
-
-            if (!isOnlineMode)
-            {
-                // オフラインモードのときは WaitingPlayer から始める
-                state.Code = GameStateCode.WaitingPlayer;
-                events.Add(new PlayerEvent
-                {
-                    Code = PlayerEventCode.Join,
-                    PlayerId = cpuPlayerId,
-                    Tick = timer.NowTick,
-                });
             }
         }
 
@@ -264,7 +261,7 @@ namespace Sample
 
             if (state.Code == GameStateCode.WaitingPlayer)
             {
-                if (!isWatcher && Time.frameCount % 10 == 0)
+                if (!isWatcher && Time.frameCount % Application.targetFrameRate == 0)
                 {
                     events.Add(new PlayerEvent
                     {
@@ -277,21 +274,10 @@ namespace Sample
 
             if (state.Code == GameStateCode.ReadyToStart)
             {
-                if (Time.frameCount % 10 == 0)
+                if (Time.frameCount % Time.frameCount % Application.targetFrameRate == 0)
                 {
                     bar1.gameObject.SetActive(true);
                     bar2.gameObject.SetActive(true);
-
-                    if (state.Player1 == myPlayerId)
-                    {
-                        playerBar = bar1;
-                        opponentBar = bar2;
-                    }
-                    if (state.Player2 == myPlayerId)
-                    {
-                        playerBar = bar2;
-                        opponentBar = bar1;
-                    }
 
                     if (!isWatcher)
                     {
@@ -333,18 +319,12 @@ namespace Sample
                             MoveInput = move,
                             Tick = timer.NowTick,
                         });
+
+                        prevMoveInput = value;
                     }
-                    prevMoveInput = value;
                 }
             }
 
-            if (state.Code == GameStateCode.End)
-            {
-                return;
-            }
-
-            // オンラインモードならイベントをRPCで送信
-            // オフラインモードならローカルのシミュレータに入力
             if (isOnlineMode)
             {
                 if (G.GameRoom == null)
@@ -353,14 +333,32 @@ namespace Sample
                     return;
                 }
 
-                foreach (var ev in events)
+                if (simulator.IsMaster)
                 {
-                    rpc.PlayerEvent(ev);
+                    // 自分がマスタクライアントの場合相手にstateを同期する
+                    var forceSync = simulator.UpdateGame(timer.NowTick, state, events);
+                    if (forceSync || 100 <= new TimeSpan(timer.NowTick - lastSyncTick).TotalMilliseconds)
+                    {
+                        rpc.SyncServerTick(timer.NowTick);
+                        rpc.SyncGameState(state);
+                        lastSyncTick = timer.NowTick;
+                    }
                 }
-                simulator.UpdateGame(timer.NowTick, state, events.Where(ev => state.Tick <= ev.Tick));
+                else
+                {
+                    // イベントをRPCで送信する
+                    foreach (var ev in events)
+                    {
+                        rpc.PlayerEvent(ev);
+                    }
+
+                    // ローカルシミュレータを投機的に更新する
+                    simulator.UpdateGame(timer.NowTick, state, events);
+                }
             }
             else
             {
+                // ローカルシミュレータを更新する
                 Bar cpuBar = null;
                 if (state.Player1 == cpuPlayerId) cpuBar = state.Bar1;
                 if (state.Player2 == cpuPlayerId) cpuBar = state.Bar2;
@@ -379,6 +377,7 @@ namespace Sample
                         Tick = timer.NowTick,
                     });
                 }
+
                 simulator.UpdateGame(timer.NowTick, state, events);
             }
 
