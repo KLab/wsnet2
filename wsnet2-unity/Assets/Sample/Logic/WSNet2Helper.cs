@@ -45,4 +45,16 @@ namespace Sample.Logic
             }
         }
     }
+
+    public static class RoomExtension
+    {
+        public static GameStateCode GameState(this Room room)
+        {
+            if (room != null && room.PublicProps.TryGetValue(WSNet2Helper.PubKey.State, out var s))
+            {
+                return (GameStateCode)Enum.Parse(typeof(GameStateCode), (string)s);
+            }
+            return GameStateCode.None;
+        }
+    }
 }

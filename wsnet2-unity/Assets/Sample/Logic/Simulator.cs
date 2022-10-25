@@ -529,6 +529,7 @@ namespace Sample.Logic
                 state.Score1 = 0;
                 state.Score2 = 0;
             }
+
             state.GameCount++;
 
             ResetPositions(state);
@@ -765,12 +766,7 @@ namespace Sample.Logic
             foreach (var ev in events)
             {
                 // ここでは時刻を進めずに入力を処理する
-                var prevState = state.Code;
                 forceSync |= UpdateGameInternal(state.Tick, state, ev);
-                if (prevState != state.Code)
-                {
-                    return forceSync;
-                }
             }
             // ゲームの時間を進める
             forceSync |= UpdateGameInternal(nowTick, state, null);
