@@ -15,7 +15,7 @@ namespace WSNet2.Sample
 
         Random rand;
         GameTimer timer;
-        GameSimulator sim;
+        GameSimulator simulator;
         GameState state;
         List<PlayerEvent> events;
         AppLogger logger;
@@ -45,11 +45,11 @@ namespace WSNet2.Sample
                 client = new WSNet2Client(server, appId, userId, authData, logger);
                 this.userId = userId;
                 rand = new Random();
-                sim = new GameSimulator(true);
+                simulator = new GameSimulator(false);
                 timer = new GameTimer();
                 state = new GameState();
                 events = new List<PlayerEvent>();
-                sim.Init(state);
+                simulator.Init(state);
 
                 try
                 {
@@ -68,44 +68,37 @@ namespace WSNet2.Sample
         {
             logger.Debug("({0}) Trying to join random room", userId);
             var query = new Query();
-            query.Equal("game", "pong");
-            query.Equal("state", GameStateCode.WaitingPlayer.ToString());
+            query.Equal(WSNet2Helper.PubKey.Game, WSNet2Helper.GameName);
+            query.Equal(WSNet2Helper.PubKey.State, GameStateCode.WaitingPlayer.ToString());
 
-            var cts = new CancellationTokenSource();
-            var roomJoined = new TaskCompletionSource<Room>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Action<Room> onJoined = (Room room) =>
-            {
-                room.Pause();
-                roomJoined.TrySetResult(room);
-            };
-            Action<Exception> onFailed = (Exception e) =>
-            {
-                roomJoined.TrySetException(e);
-            };
+            Room joinedRoom = null;
+            Exception joinException = null;
 
             client.RandomJoin(
                 WSNet2Helper.SearchGroup,
                 query,
                 props,
-                onJoined,
-                onFailed,
+                (room) => {
+                    room.Pause();
+                    joinedRoom = room;
+                },
+                (e) => {
+                    joinException = e;
+                },
                 logger);
 
-            // FIXME: 起動しとかないとコールバック呼ばれないが汚い
-            _ = Task.Run(async () =>
+            while (joinedRoom == null && joinException == null)
             {
-                while (!roomJoined.Task.IsCompleted)
-                {
-                    cts.Token.ThrowIfCancellationRequested();
-                    client.ProcessCallback();
-                    await Task.Delay(100);
-                }
-            });
-            var room = await roomJoined.Task;
-            cts.Token.ThrowIfCancellationRequested();
+                client.ProcessCallback();
+                await Task.Delay(100);
+            }
 
-            logger.Info("({0}) Room joined {1}", userId, room.Id);
-            return room;
+            if (joinException != null) {
+                throw joinException;
+            }
+
+            logger.Info("({0}) Room joined {1}", userId, joinedRoom.Id);
+            return joinedRoom;
         }
 
         public void OnSyncServerTick(long tick)
