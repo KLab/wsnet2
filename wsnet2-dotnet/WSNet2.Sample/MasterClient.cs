@@ -66,9 +66,7 @@ namespace WSNet2.Sample
                     CreateRoom(cts);
                     await Updater(cts.Token);
                 }
-                catch (OperationCanceledException)
-                {
-                }
+                catch (OperationCanceledException) {}
                 catch (Exception e)
                 {
                     cts.Cancel();

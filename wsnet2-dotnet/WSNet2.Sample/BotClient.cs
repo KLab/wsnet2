@@ -11,13 +11,9 @@ namespace WSNet2.Sample
         string userId;
         AuthDataGenerator authgen;
         WSNet2Client client;
-        Dictionary<string, object> props;
-
         Random rand;
         GameTimer timer;
-        GameSimulator simulator;
         GameState state;
-        List<PlayerEvent> events;
         AppLogger logger;
 
         public BotClient(AppLogger logger)
@@ -45,11 +41,8 @@ namespace WSNet2.Sample
                 client = new WSNet2Client(server, appId, userId, authData, logger);
                 this.userId = userId;
                 rand = new Random();
-                simulator = new GameSimulator(false);
                 timer = new GameTimer();
                 state = new GameState();
-                events = new List<PlayerEvent>();
-                simulator.Init(state);
 
                 try
                 {
@@ -58,8 +51,9 @@ namespace WSNet2.Sample
                 catch (RoomNotFoundException) {}
                 catch (Exception e)
                 {
-                    logger.Error(e, "({0}) ServerError: {1}", userId, e);
+                    logger.Error(e, "({0}) ServerError {1}", userId, e);
                 }
+
                 await Task.Delay(1000);
             }
         }
@@ -77,14 +71,12 @@ namespace WSNet2.Sample
             client.RandomJoin(
                 WSNet2Helper.SearchGroup,
                 query,
-                props,
+                null,
                 (room) => {
                     room.Pause();
                     joinedRoom = room;
                 },
-                (e) => {
-                    joinException = e;
-                },
+                (e) => joinException = e,
                 logger);
 
             while (joinedRoom == null && joinException == null)
@@ -114,74 +106,52 @@ namespace WSNet2.Sample
         async Task ServeOne()
         {
             var room = await JoinRandomRoom();
-            var cts = new CancellationTokenSource();
-
-            Exception closedError = null;
-            room.OnErrorClosed += (e) =>
-            {
-                closedError = e;
-            };
-
             var rpc = new RPCBridge(room, this);
+            Exception closedError = null;
+            room.OnErrorClosed += (e) => closedError = e;
             room.Restart();
-
-            long syncStart = timer.NowTick;
-            long lastInputSent = syncStart;
 
             while (true)
             {
-                cts.Token.ThrowIfCancellationRequested();
                 client.ProcessCallback();
-
-                logger.Debug("Room: {0} State: {1} Players [{2}]", room.Id, state.Code.ToString(), string.Join(", ", room.Players.Keys));
 
                 if (closedError != null)
                 {
-                    logger.Error(null, "Closed Error {0}", closedError);
+                    logger.Error(closedError, $"({userId}) Room closed with error");
                     break;
                 }
 
                 if (state.Code == GameStateCode.ReadyToStart)
                 {
-                    events.Add(new PlayerEvent
+                    rpc.PlayerEvent(new PlayerEvent
                     {
                         Code = PlayerEventCode.Ready,
                         PlayerId = userId,
                         Tick = timer.NowTick,
                     });
                 }
-                else if (state.Code == GameStateCode.InGame)
+
+                if (state.Code == GameStateCode.InGame)
                 {
-                    var now = timer.NowTick;
-                    if (100 <= new TimeSpan(now - lastInputSent).TotalMilliseconds)
+                    rpc.PlayerEvent(new PlayerEvent
                     {
-                        events.Add(new PlayerEvent
-                        {
-                            Code = PlayerEventCode.Move,
-                            MoveInput = (MoveInputCode)rand.Next(0, 3),
-                            PlayerId = userId,
-                            Tick = now,
-                        });
-                        lastInputSent = now;
-                    }
+                        Code = PlayerEventCode.Move,
+                        MoveInput = (MoveInputCode)rand.Next(0, 3),
+                        PlayerId = userId,
+                        Tick = timer.NowTick,
+                    });
                 }
-                else if (state.Code == GameStateCode.End)
+
+                if (state.Code == GameStateCode.End)
                 {
                     room.Leave();
                     break;
                 }
 
-                foreach (var ev in events)
-                {
-                    logger.Info("send {0} to {1}", ev.Code, room.Master.Id);
-                    rpc.PlayerEvent(ev);
-                }
-
-                events.Clear();
                 await Task.Delay(100);
             }
 
-            logger.Info("{0} left room {1}", userId, room.Id);
+            logger.Info("({0}) Left from room {1}", userId, room.Id);
         }
     }
 }
