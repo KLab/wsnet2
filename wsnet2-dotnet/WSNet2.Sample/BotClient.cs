@@ -153,7 +153,7 @@ namespace WSNet2.Sample
                 else if (state.Code == GameStateCode.InGame)
                 {
                     var now = timer.NowTick;
-                    if (1000 <= new TimeSpan(now - lastInputSent).TotalMilliseconds)
+                    if (100 <= new TimeSpan(now - lastInputSent).TotalMilliseconds)
                     {
                         events.Add(new PlayerEvent
                         {
