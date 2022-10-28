@@ -459,7 +459,7 @@ func (b *bot) EventLoop() {
 }
 
 func (b *bot) LeaveAndClose() {
-	b.SendMessage(binary.MsgTypeLeave, []byte{})
+	b.SendMessage(binary.MsgTypeLeave, binary.MarshalStr8("leave"))
 	time.Sleep(time.Millisecond * time.Duration(100)) // MsgLeaveが処理される前にPeerが切断されるとGameにエラーログが出力されるので少し待つ
 	b.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(1000, ""))
 	b.Close()
