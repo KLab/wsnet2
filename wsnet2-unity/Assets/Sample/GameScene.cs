@@ -286,20 +286,33 @@ namespace Sample
 
             if (state.Code == GameStateCode.WaitingPlayer)
             {
-                if (!isWatcher && Time.frameCount % Application.targetFrameRate == 0)
+                if (Time.frameCount % Application.targetFrameRate == 0)
                 {
-                    events.Add(new PlayerEvent
+                    if (!isWatcher)
                     {
-                        Code = PlayerEventCode.Join,
-                        PlayerId = myPlayerId,
-                        Tick = timer.NowTick,
-                    });
+                        events.Add(new PlayerEvent
+                        {
+                            Code = PlayerEventCode.Join,
+                            PlayerId = myPlayerId,
+                            Tick = timer.NowTick,
+                        });
+                    }
+
+                    if (!isOnlineMode)
+                    {
+                        events.Add(new PlayerEvent
+                        {
+                            Code = PlayerEventCode.Join,
+                            PlayerId = cpuPlayerId,
+                            Tick = timer.NowTick,
+                        });
+                    }
                 }
             }
 
             if (state.Code == GameStateCode.ReadyToStart)
             {
-                if (Time.frameCount % Time.frameCount % Application.targetFrameRate == 0)
+                if (Time.frameCount % Application.targetFrameRate == 0)
                 {
                     bar1.gameObject.SetActive(true);
                     bar2.gameObject.SetActive(true);

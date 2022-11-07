@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Sample.Logic;
@@ -92,6 +91,11 @@ namespace WSNet2.Sample
                         logger.Error(e, $"OnErrorClosed: {e.Message}");
                         cts.Cancel();
                     };
+                    room.OnOtherPlayerLeft += (p, msg) =>
+                    {
+                        logger.Info($"PlayerLeft: {p.Id} Msg: {msg}");
+                        cts.Cancel();
+                    };
                     rpc = new RPCBridge(room, this);
                     this.room = room;
                 },
@@ -116,6 +120,16 @@ namespace WSNet2.Sample
             if (room == null)
             {
                 return;
+            }
+
+            if (state.Code == GameStateCode.WaitingPlayer)
+            {
+                rpc.PlayerEvent(new PlayerEvent
+                {
+                    Code = PlayerEventCode.Join,
+                    PlayerId = userId,
+                    Tick = timer.NowTick,
+                });
             }
 
             if (state.Code == GameStateCode.ReadyToStart)
