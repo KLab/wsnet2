@@ -151,7 +151,7 @@ namespace WSNet2.Sample
         /// </summary>
         void OnPlayerJoined(Player player)
         {
-            if (GameStateCode.ReadyToStart <= state.Code || 4 <= room.PlayerCount)
+            if (GameStateCode.ReadyToStart <= state.Code)
             {
                 // 予定外の人が入室してきた
                 room.Kick(player);
