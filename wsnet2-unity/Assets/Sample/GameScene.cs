@@ -62,6 +62,7 @@ namespace Sample
         bool isWatcher;
         long lastSyncTick;
         float sinceEnd;
+        bool closed;
 
         RPCBridge rpc;
 
@@ -160,10 +161,12 @@ namespace Sample
                 };
 
                 room.OnErrorClosed += (e) =>
-                 {
-                     Debug.LogError(e.ToString());
-                     RoomLog($"OnErrorClosed: {e}");
-                 };
+                {
+                    Debug.LogError(e.ToString());
+                    RoomLog($"OnErrorClosed: {e}");
+                    G.GameRoom = null;
+                    closed = true;
+                };
 
                 room.OnJoined += (me) =>
                 {
@@ -182,7 +185,7 @@ namespace Sample
                 {
                     RoomLog($"OnClosed: {p}");
                     G.GameRoom = null;
-                    SceneManager.LoadScene("Title");
+                    closed = true;
                 };
 
                 room.OnOtherPlayerJoined += (p) =>
@@ -255,6 +258,17 @@ namespace Sample
 
         void Update()
         {
+            if (closed)
+            {
+                sinceEnd += Time.deltaTime;
+                if (3.0 < sinceEnd)
+                {
+                    SceneManager.LoadScene("Title");
+                }
+
+                return;
+            }
+
             playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}\n";
             playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}\n";
 
@@ -276,11 +290,13 @@ namespace Sample
                     playerText2.text += $"\n DRAW";
                 }
 
-                sinceEnd += Time.deltaTime;
-                if (3.0 < sinceEnd)
+                if (G.GameRoom != null)
                 {
-                    G.GameRoom = null;
-                    SceneManager.LoadScene("Title");
+                    G.GameRoom.Leave();
+                }
+                else
+                {
+                    closed = true;
                 }
             }
 
