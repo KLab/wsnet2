@@ -134,6 +134,12 @@ namespace Sample
             prepareWSNet2Client();
             G.Client.Search(SearchGroup, query, 1, false, true,
             (rooms) => {
+                if (rooms.Length == 0)
+                {
+                    Debug.Log("search failed: no room found");
+                    return;
+                }
+
                 G.Client.Watch(rooms[0].Id, null,
                 (room) => {
                     room.Pause();
