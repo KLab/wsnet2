@@ -1,3 +1,5 @@
+# シリアライザの使い方
+
 ## 目次
 - [概要](#概要)
 - [IWSNet2Serializableの実装](#IWSNet2Serializableの実装)
@@ -8,7 +10,7 @@
 ## 概要
 
 WSNet2のシリアライザは、C#のほとんどのプリミティブ型とIWSNet2Serializableを実装したクラス、
-それらを要素として持つリストや辞書をシリアライズできます。（[シリアライズ可能な型](シリアライズ可能な型)）
+それらを要素として持つリストや辞書をシリアライズできます。（[シリアライズ可能な型](serializable.md)）
 
 独自クラスに`IWSNet2Serializable`を実装するときには、
 シリアライザの3つのクラス、`WSNet2Serializer`、`SerialReader`、`SerialWriter`を利用します。

@@ -51,8 +51,8 @@ auth_data = Base64(nonce + timestamp + hmac)
 
 WSNet2（Lobby）へのアクセスは、[`WSNet2.WSNet2Client`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
 
-Unityの場合、[`WSNet2Service.Instance.GetClient()`](../wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs#L45-L55)の引数として認証データを渡します。
-.Netの場合、[`WSNet2Client`のコンストラクタ](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L22-L29)に認証データを渡します。
+Unityの場合、[`WSNet2Service.Instance.GetClient()`](../wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs#L42-L53)の引数として認証データを渡します。
+.Netの場合、[`WSNet2Client`のコンストラクタ](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L26-L34)に認証データを渡します。
 
 ### 認証データの更新
 
