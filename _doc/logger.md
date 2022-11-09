@@ -1,3 +1,5 @@
+# WSNet2のLogger
+
 - [概要](#概要)
 - [IWSNet2Loggerの実装](#IWSnet2Loggerの実装)
   - [Payloadプロパティ](#Payloadプロパティ)
@@ -110,8 +112,8 @@ Loggerの登録はWSNet2Clientのコンストラクタ、CreateやJoinメソッ�
 コンストラクタで登録したLoggerは入室前のリクエストや部屋検索についてのログ出力に使われます。
 一方、CreateやJoin等のメソッドの引数で登録したものは、その部屋についてのログ出力に使われます。
 
-Unityで[`WSNet2Service`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs)を利用する場合、`GetClient`メソッドの引数で指定したものがWSNet2Clientコンストラクタの引数になります。
-ここで指定を省略した場合、`UnityEngine.Debug`を利用する[`DefaultUnityLogger`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/DefaultUnityLogger.cs)が使われます。
+Unityで[`WSNet2Service`](../wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs)を利用する場合、`GetClient`メソッドの引数で指定したものがWSNet2Clientコンストラクタの引数になります。
+ここで指定を省略した場合、`UnityEngine.Debug`を利用する[`DefaultUnityLogger`](../wsnet2-unity/Assets/WSNet2/Scripts/DefaultUnityLogger.cs)が使われます。
 
 `Create`、`Join`、`RandomJoin`、`Watch`で登録したLoggerは、それで入室した部屋についてのログ出力に使われます。
 この時`Payload`の部屋情報などは上書きされるため、Loggerを使い回すのは避けてください。
