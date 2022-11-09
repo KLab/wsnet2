@@ -31,7 +31,7 @@
 
 ## 概要
 
-ここでは、[`Room`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)オブジェクトの使い方を説明します。
+ここでは、[`Room`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/Room.cs)オブジェクトの使い方を説明します。
 
 プレイヤーまたは観戦者がWSNet2の部屋へ入室したとき、`onSuccess`コールバックで`Room`オブジェクトが渡されます。
 WSNet2での通信を受け取るには、この`Room`にイベントレシーバやRPCを登録します。

@@ -17,7 +17,7 @@
 WSNet2を利用するのに必要なC#コードは[`wsnet2-unity/Assets/WSNet2`](../wsnet2-unity/Assets/WSNet2)以下に置かれています。
 Unityの場合はこのディレクトリを`Assets`以下にコピーしてください。
 
-.Netアプリケーションで利用する場合は、[`wsnet2-unity/Assets/WSNet2/Scripts/Core`](../wsnet2-unity/Assets/WSNet2/Scripts/Core)以下のファイルをプロジェクトに含めてください
+.Netアプリケーションで利用する場合は、[`wsnet2-unity/Assets/WSNet2/Scripts/Core`](../wsnet2-unity/Assets/WSNet2/Scripts/Core)以下のファイルをプロジェクト（*.csproj）に含めてください。
 
 ## `WSNet2Client`の利用
 
