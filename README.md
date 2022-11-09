@@ -91,3 +91,26 @@ $ dotnet run -m -d 2
 UnityクライアントのTitleシーンで「ランダム観戦」を押して観戦します。
 
 
+## Documentations
+
+### 使い方
+
+* [クライアントの使い方](_doc/client_usage.md)
+* [ローカルで試す方法](_doc/docker.md)
+* [サーバの設定](_doc/server_config.md)
+
+### 機能詳細
+
+* [WSNet2のユーザ認証](_doc/user_auth.md)
+* [シリアライズ可能な型](_doc/serializable.md)
+* [シリアライザの使い方](_doc/serializer.md)
+* [WSNet2のLogger](_doc/logger.md)
+
+### クラスリファレンス
+
+* [WSNet2Client](_doc/wsnet2client.md)
+* [RoomOption](_doc/roomoption.md)
+* [Room](_doc/room.md)
+* [Query](_doc/query.md)
+* [WSNet2Settings](_doc/wsnet2settings.md)
+
