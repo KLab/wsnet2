@@ -24,6 +24,8 @@ Lobbyサーバーは外部のプレーヤーやサーバーから、Roomの作�
 
 内部の通信（Lobby→Game、Lobby→Hub)はgRPCを使います。
 
+作成・参加した部屋の情報をLobbyから受取ったClientは、WebSocketでGameサーバーへ接続します。
+
 例: 部屋の作成
 
 ```mermaid
@@ -33,10 +35,50 @@ sequenceDiagram
     participant Game
     participant DB
 
-    Client->>+Lobby: POST /room
-    Lobby->>DB: Gameサーバー一覧取得
-    Lobby->>+Game: CreateRoom (gRPC)
+    Client->>+Lobby: CreateRoom (HTTP)
+    Lobby->>Game: Create (gRPC)
+    activate Game
     Game->>DB: 部屋登録
-    Game-->>-Lobby: CreateRoomRes
-    Lobby-->>-Client: OK (Room info)
+    Game-->>Lobby: JoinedRoomRes
+    Lobby-->>-Client: OK
+    activate Client
+
+    Client->>Game: Connect (WebSocket)
+    Client->>Game: Leave
+    Game-->>Client: Closed
+    deactivate Client
+    Game-->>DB: 部屋削除
+    deactivate Game
 ````
+
+## Hubサーバーを経由した観戦
+
+Hubは観戦クライアントにとってのGameサーバであると同時に、Gameサーバにとってのクライアントとして振る舞います。
+
+```mermaid
+sequenceDiagram
+    actor Watcher
+    participant Lobby
+    participant Hub
+    participant Game
+
+    activate Game
+
+    Watcher->>+Lobby: WatchRoom (HTTP)
+    Lobby->>Hub: Watch (gRPC)
+    Hub->>Game: Watch (gRPC)
+	Game-->>Hub: JoinedRoomRes
+    activate Hub
+	Hub-->>Lobby: JoinedRoomRes
+    Hub->>Game: Connect (WebSocket)
+    Lobby-->>-Watcher: OK
+    activate Watcher
+
+    Watcher->>Hub: Connect (WebSocket)
+
+    Game-->>Hub: Closed
+    deactivate Game
+    Hub-->>Watcher: Closed
+    deactivate Hub
+    deactivate Watcher
+```
