@@ -1,3 +1,5 @@
+# WSNet2Settings クラス
+
 - [概要](#概要)
 - [設定項目](#設定項目)
   - [EvPoolSize](#EvPoolSize)
@@ -12,7 +14,7 @@
 
 ## 概要
 
-WSNet2をプロジェクトに合わせて調整するための設定を[`WSNet2.WSNet2Settings`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Settings.cs)クラスを通して行えます。
+WSNet2をプロジェクトに合わせて調整するための設定を[`WSNet2.WSNet2Settings`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Settings.cs)クラスを通して行えます。
 
 ## 設定項目
 
@@ -80,7 +82,7 @@ websocket接続のタイムアウト時間です。
 - 最大Ping間隔
 - 初期値: 10000 ミリ秒 (=10秒)
 
-Ping間隔は部屋に設定された[`ClientDeadline`](Roomの使い方#clientdeadline)に応じて自動計算されますが、
+Ping間隔は部屋に設定された[`ClientDeadline`](room.md#clientdeadline)に応じて自動計算されますが、
 この時間より長くなることはありません。
 
 WSNet2では、Pingメッセージに対応するPongイベントによって観戦者数や各Playerの最終Msg受信時刻を同期するため、

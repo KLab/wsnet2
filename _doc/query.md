@@ -1,3 +1,5 @@
+# Query クラス
+
 ## 目次
 - [概要](#概要)
 - [Null判定](#Null判定)
@@ -24,7 +26,7 @@
 ## 概要
 
 入室時や部屋検索のときに、部屋の公開プロパティ(`Room.PublicProps`)を使ってフィルタリングすることができます。
-このフィルタリング条件は[`Query`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/Query.cs)オブジェクトで指定します。
+このフィルタリング条件は[`Query`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/Query.cs)オブジェクトで指定します。
 `Query`の条件にマッチする部屋のみ、検索や入室の対象になります。
 
 `Query`クラスの各メソッドは`Query`オブジェクト自身を返すので、メソッドチェインの形で記述できます。
@@ -88,7 +90,7 @@ Query NotContain(string key, T val);
 `sbyte`, `byte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`,
 `float`, `double` のいずれかです。
 
-公開プロパティの`key`の値が[配列またはリスト型](シリアライズ可能な型#配列リスト)で、その要素として`T`型で`val`と等しいものが含まれるとき`Contain()`はマッチします。
+公開プロパティの`key`の値が[配列またはリスト型](serializable.md#配列リスト)で、その要素として`T`型で`val`と等しいものが含まれるとき`Contain()`はマッチします。
 そのような要素が含まれないときに`NotContain()`はマッチします。
 
 `key`が存在しないときや配列またはリスト型では無かったときは、いずれもマッチしません。

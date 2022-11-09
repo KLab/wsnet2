@@ -106,7 +106,7 @@ UnityクライアントのTitleシーンで「ランダム観戦」を押して�
 * [シリアライザの使い方](_doc/serializer.md)
 * [WSNet2のLogger](_doc/logger.md)
 
-### クラスリファレンス
+### クラス詳細
 
 * [WSNet2Client](_doc/wsnet2client.md)
 * [RoomOption](_doc/roomoption.md)

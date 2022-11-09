@@ -13,7 +13,7 @@
 * [シリアライザの使い方](serializer.md)
 * [WSNet2のLogger](logger.md)
 
-## クラスリファレンス
+## クラス詳細
 
 * [WSNet2Client](wsnet2client.md)
 * [RoomOption](roomoption.md)

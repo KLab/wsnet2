@@ -1,3 +1,5 @@
+# Room クラス
+
 ## 目次
 
 - [概要](#概要)
@@ -29,7 +31,7 @@
 
 ## 概要
 
-ここでは、[`Room`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)オブジェクトの使い方を説明します。
+ここでは、[`Room`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)オブジェクトの使い方を説明します。
 
 プレイヤーまたは観戦者がWSNet2の部屋へ入室したとき、`onSuccess`コールバックで`Room`オブジェクトが渡されます。
 WSNet2での通信を受け取るには、この`Room`にイベントレシーバやRPCを登録します。
@@ -78,11 +80,11 @@ Roomの`Id`は全ての部屋に割り当てられる、ある程度長い一意
 ### 公開プロパティと非公開プロパティ
 
 `PublicProps`と`PrivateProps`はどちらも辞書（`Dictionary<string, object>`）型で、
-キーは任意のUTF-8文字列、値は[シリアライズ可能な型](シリアライズ可能な型)です。
+キーは任意のUTF-8文字列、値は[シリアライズ可能な型](serializable.md)です。
 どちらも部屋にいる全てのクライアント（プレイヤーと観戦者）に共有されます。
 
 加えて、`PublicProps`は部屋の検索結果にも含まれるので入室していないクライアントからも参照できるほか、
-[`Query`](Queryの使い方)によるフィルタリングにも使われます。
+[`Query`](query.md)によるフィルタリングにも使われます。
 
 ### クライアントの情報
 
@@ -220,7 +222,7 @@ void TargetMethod(string senderId, T param);
 
 RPC対象メソッドの第一引数は呼び出したプレイヤーのIDです。
 さらに第二引数をとることもでき、RPC呼び出し時にパラメータを渡すことができます。
-第二引数の型`T`は[シリアライズ可能な型](シリアライズ可能な型)でなければなりません。
+第二引数の型`T`は[シリアライズ可能な型](serializable.md)でなければなりません。
 
 ### RPCの登録
 

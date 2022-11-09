@@ -1,3 +1,5 @@
+# WSNet2Client クラス
+
 ## 目次
 
 - [概要](#概要)
@@ -15,10 +17,10 @@
   - [Search](#search)
 
 ## 概要
-WSNet2へのアクセスは、[`WSNet2.WSNet2Client`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
+WSNet2へのアクセスは、[`WSNet2.WSNet2Client`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
 このクラスを使ってRoomの作成、入室、観戦、検索を行います。
 
-各メソッドで指定する`logger`、`roomLogger`については[`WSNet2のLogger`](WSNet2のLogger)を参照してください。
+各メソッドで指定する`logger`、`roomLogger`については[`WSNet2のLogger`](logger.md)を参照してください。
 
 ## コンストラクタ
 
@@ -29,7 +31,7 @@ WSNet2Client(string baseUri, string appId, string userId, string authData, IWSNe
 - `baseUri`: WSNet2のLobbyのURLのベース
 - `appId`: Wsnetに登録してあるApplication ID
 - `userId`: プレイヤーIDとなるID
-- `authData`: 認証情報（アプリAPIサーバから入手）
+- `authData`: 認証情報（ゲームAPIサーバから入手）
 - `logger`: クライアント用のLogger。部屋には引き継がれない。
 
 ## 部屋作成
@@ -45,7 +47,7 @@ void Create(
 
 Roomを作成して入室します。
 
-- `roomOption`: Roomのプロパティなど。[RoomOption](RoomOption)を参照。
+- `roomOption`: Roomのプロパティなど。[RoomOption](roomoption.md)を参照。
 - `clientProps`: プレイヤー（自分自身）のカスタムプロパティ
 - `onSuccess`: 成功時コールバック。引数は作成したRoom
 - `onFailed`: 失敗時コールバック。引数は例外オブジェクト。
