@@ -1,3 +1,5 @@
+# C#クライアントの使い方
+
 ## 目次
 - [C#プロジェクトへのインポート](#cプロジェクトへのインポート)
 - [wsnet2clientの利用](#wsnet2clientの利用)
@@ -12,20 +14,20 @@
 
 ## C#プロジェクトへのインポート
 
-WSNet2を利用する必要なC#コードは[`wsnet2-unity/Assets/WSNet2`](/WSNet/wsnet2/tree/master/wsnet2-unity/Assets/WSNet2)以下に置かれています。
+WSNet2を利用するのに必要なC#コードは[`wsnet2-unity/Assets/WSNet2`](../wsnet2-unity/Assets/WSNet2)以下に置かれています。
 Unityの場合はこのディレクトリを`Assets`以下にコピーしてください。
 
-.Netアプリケーションで利用する場合は、[`wsnet2-unity/Assets/WSNet2/Scripts/Core`](/WSNet/wsnet2/tree/master/wsnet2-unity/Assets/WSNet2/Scripts/Core)以下のファイルをプロジェクトに含めてください
+.Netアプリケーションで利用する場合は、[`wsnet2-unity/Assets/WSNet2/Scripts/Core`](../wsnet2-unity/Assets/WSNet2/Scripts/Core)以下のファイルをプロジェクトに含めてください
 
 ## `WSNet2Client`の利用
 
-WSNet2の利用は[`WSNet2Client`クラス](WSNet2Client)を利用したロビーへのリクエスト（部屋作成・検索・入室）から始めます。
+WSNet2の利用は[`WSNet2Client`クラス](wset2client.md)を利用したロビーへのリクエスト（部屋作成・検索・入室）から始めます。
 これは、Unityでは`WSNet2Service.Instance.GetClient()`で取得できるほか、.Netアプリケーションでは直接`new WSNet2Client(...)`します。
 
 WSNet2Clientの利用には認証情報が必要になります。
-詳しくは[WSNet2のユーザ認証](WSNet2のユーザ認証)を参照して下さい。
+詳しくは[WSNet2のユーザ認証](user_auth.md)を参照して下さい。
 
-`WSNet2Client`を利用して入室したあとは、`onSuccess`コールバックに渡される[`Room`](Roomの使い方)オブジェクトを通して通信します。
+`WSNet2Client`を利用して入室したあとは、`onSuccess`コールバックに渡される[`Room`](room.md)オブジェクトを通して通信します。
 
 ### スレッドプール最小値の設定
 
@@ -50,7 +52,7 @@ ThreadPool.SetMinThreads(200, 200);
 
 `WSNet2Client.Create()`メソッドで部屋を作成し入室します。
 
-作成する部屋の属性は[`RoomOption`](RoomOption)で指定します。
+作成する部屋の属性は[`RoomOption`](roomoption.md)で指定します。
 `RoomOption`には制限人数やフラグ、プロパティを設定します。
 自分自身のプロパティは`clientProps`引数で指定します。
 
@@ -70,7 +72,7 @@ Unityでシーン遷移してからレシーバを設定したい場合などの
 `room.Pause()`でイベント処理を一時停止できます。
 レシーバを設定した後で`room.Restart()`して再開します。
 一時停止中も`onSuccess`と同様、受信したイベントはプールに溜められます。
-プールのサイズは[WSNet2Settings.EvPoolSize](WSNet2Settings#EvPoolSize)で設定できます。
+プールのサイズは[WSNet2Settings.EvPoolSize](wsnet2settings.md#EvPoolSize)で設定できます。
 
 ### 例
 
@@ -126,7 +128,7 @@ client.Create(
 
 `WSNet2Client.Search()`メソッドで、現在存在する部屋を検索できます。
 負荷軽減のため`searchGroup`単位で検索します。
-また、[`Query`](Queryの使い方)により部屋の公開プロパティによるフィルタリングができます。
+また、[`Query`](query.md)により部屋の公開プロパティによるフィルタリングができます。
 
 ### 例
 

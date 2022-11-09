@@ -2,7 +2,7 @@
 
 ## 使い方
 
-* [クライアントの使い方](client_usage.md)
+* [C#クライアントの使い方](csharp_client.md)
 * [ローカルで試す方法](docker.md)
 * [サーバの設定](server_config.md)
 
