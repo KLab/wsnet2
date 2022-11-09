@@ -1,14 +1,14 @@
-# 概要
+# WSNet2のユーザ認証
 
-クライアントは、認証データを案件APIサーバから取得し、その認証データを与えたWSNet2Clientを用いて、WSNet2へアクセスします。
+## 概要
+
+クライアントは、認証データをゲームAPIサーバから取得し、その認証データを与えたWSNet2Clientを用いて、WSNet2へアクセスします。
 WSNet2は認証データを検証することで、ユーザIDが正規のものかを確認します。
 
-認証データには数分程度の有効期限を設けておきます。
-期限を過ぎたときには、案件APIサーバから再度取得します。
+認証データには数分程度の[有効期限](server_setting.md#)を設けておきます。
+期限を過ぎたときには、ゲームAPIサーバから再度取得します。
 
-# 手順
-
-## 案件APIサーバ
+## ゲームAPIサーバの手順
 
 ### 鍵の事前交換
 
@@ -18,7 +18,7 @@ WSNet2と次の情報を事前に共有しておきます。
 * AppID: アプリ識別子
 * AppKey: 鍵情報
 
-WSNet2は複数案件の相乗りが出来るように、AppIDで案件を特定します。
+WSNet2は複数プロジェクトの相乗りが出来るように、AppIDでプロジェクトを特定します。
 また、AppKeyはクライアントへは絶対に公開しないでください。
 
 ### 認証データ取得API
@@ -40,23 +40,23 @@ auth_data = Base64(nonce + timestamp + hmac)
 認証データ(auth_data)は48Byte(nonce:8byte; timestamp:8byte; hmac:32byte)のデータをBase64エンコードした文字列です。
 この文字列をクライアントに返します。
 
-## クライアント
+## クライアントの手順
 
 ### 認証データの取得
 
-案件APIサーバから、認証データ(Base64エンコードした文字列)を受け取ります。
-有効期限をクライアント側でも管理し、有効な間は使いまわしてもよいです。
+ゲームAPIサーバから、認証データ(Base64エンコードした文字列)を受け取ります。
+有効期限をクライアント側でも管理し、有効な間は使いまわすこともできます。
 
 ### WSNet2Clientへの設定
 
-WSNet2（Lobby）へのアクセスは、[`WSNet2.WSNet2Client`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
+WSNet2（Lobby）へのアクセスは、[`WSNet2.WSNet2Client`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
 
-Unityの場合、[`WSNet2Service.Instance.GetClient()`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs#L45-L55)の引数として認証データを渡します。
-.Netの場合、[`WSNet2Client`のコンストラクタ](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L22-L29)に認証データを渡します。
+Unityの場合、[`WSNet2Service.Instance.GetClient()`](../wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs#L45-L55)の引数として認証データを渡します。
+.Netの場合、[`WSNet2Client`のコンストラクタ](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L22-L29)に認証データを渡します。
 
 ### 認証データの更新
 
-案件APIサーバから新しい認証データを受取ったら、[`WSNet2Client.UpdateAuthData()`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L45-L48)で上書きできます。
+ゲームAPIサーバから新しい認証データを受取ったら、[`WSNet2Client.UpdateAuthData()`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L53-L60)で上書きできます。
 
 Unityの場合は`WSNet2Service.Instance.GetClient()`で取得し直してもかまいません。
 `appId`と`clientId`が同じクライアントが既にある場合、そのインスタンスの認証データを上書きして返します。
@@ -65,11 +65,11 @@ Unityの場合は`WSNet2Service.Instance.GetClient()`で取得し直してもか
 
 ## Roomアクセス時の認証
 
-Roomへのwebsocket接続時にも同様の認証が行われますが、これは案件APIサーバから取得した認証データではなく、Room単位で有効なキーを利用します。
+Roomへのwebsocket接続時にも同様の認証が行われますが、これはゲームAPIサーバから取得した認証データではなく、Room単位で有効なキーを利用します。
 なので、入室や観戦が受理されて以降は、認証データの有効期限を気にしなくてもよいです。
 Room用のキーの管理はWSNet2のC#実装側で行っているので、クライアント側で特に触れる必要はありません。
 
 ## APIサーバなしでの利用（開発用）
 
 事前交換したAppKeyがあれば、認証情報をクライアント側でも生成できます。
-これには、[`WSNet2.AuthDataGenerator`](/WSNet/wsnet2/blob/master/wsnet2-unity/Assets/WSNet2/Scripts/Core/AuthDataGenerator.cs)クラスを利用します。
+これには、[`WSNet2.AuthDataGenerator`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/AuthDataGenerator.cs)クラスを利用します。
