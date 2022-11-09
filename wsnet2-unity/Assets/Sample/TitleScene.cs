@@ -1,8 +1,9 @@
-﻿using System.Collections;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using Sample.Logic;
 using WSNet2;
 
 namespace Sample
@@ -39,14 +40,22 @@ namespace Sample
 
         /// <summary>
         /// Pongゲームの最大プレイヤー数
-        /// 2PlayerとMasterClientの3人
         /// </summary>
-        public static uint MaxPlayers = 3;
+        public static uint MaxPlayers = 2;
 
         /// <summary>
         /// タイムアウト(秒)
         /// </summary>
         public static uint Deadline = 3;
+
+        /// <summary>
+        /// CPU戦ボタンコールバック
+        /// </summary>
+        public void OnClickVsCpu()
+        {
+            Debug.Log("OnClickVsCpu");
+            SceneManager.LoadScene("Game");
+        }
 
         /// <summary>
         /// 部屋作成ボタンコールバック
@@ -55,18 +64,15 @@ namespace Sample
         {
             Debug.Log("OnClickCreate");
             var pubProps = new Dictionary<string, object>(){
-                {"game", "pong"},
-                {"masterclient", "waiting"},
-                {"state", Logic.GameStateCode.WaitingGameMaster.ToString()},
-            };
-            var privProps = new Dictionary<string, object>(){
-                {"aaa", "private"},
-                {"ccc", false},
+                {WSNet2Helper.PubKey.Game, WSNet2Helper.GameName},
+                {WSNet2Helper.PubKey.State, GameStateCode.WaitingPlayer.ToString()},
+                {WSNet2Helper.PubKey.PlayerNum, (byte)1},
+                {WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
             };
             var cliProps = new Dictionary<string, object>(){
                 {"userId", userIdInput.text},
             };
-            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, privProps);
+            var roomOpt = new RoomOption(MaxPlayers, SearchGroup, pubProps, null);
             roomOpt.WithClientDeadline(Deadline);
 
             prepareWSNet2Client();
@@ -128,6 +134,12 @@ namespace Sample
             prepareWSNet2Client();
             G.Client.Search(SearchGroup, query, 1, false, true,
             (rooms) => {
+                if (rooms.Length == 0)
+                {
+                    Debug.Log("search failed: no room found");
+                    return;
+                }
+
                 G.Client.Watch(rooms[0].Id, null,
                 (room) => {
                     room.Pause();
@@ -157,7 +169,7 @@ namespace Sample
         /// </summary>
         void prepareWSNet2Client()
         {
-            var authData = Logic.WSNet2Helper.GenAuthData(appKeyInput.text, userIdInput.text);
+            var authData = new AuthDataGenerator().Generate(appKeyInput.text, userIdInput.text);
             Debug.Log($"lobby {lobbyInput.text}");
             Debug.Log($"appId {appIdInput.text}");
             Debug.Log($"appKey {appKeyInput.text}");

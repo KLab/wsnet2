@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-using WSNet2;
 using Sample.Logic;
 
 namespace Sample
@@ -13,7 +12,7 @@ namespace Sample
     /// <summary>
     /// ゲームシーンのコントローラ
     /// </summary>
-    public class GameScene : MonoBehaviour, IClient
+    public class GameScene : MonoBehaviour, IClient, IMasterClient
     {
         /// <summary>
         /// 画面背景の文字
@@ -54,9 +53,6 @@ namespace Sample
         BarView bar2;
         List<BallView> balls;
 
-        BarView playerBar;
-        BarView opponentBar;
-
         GameSimulator simulator;
         GameState state;
         GameTimer timer;
@@ -64,7 +60,9 @@ namespace Sample
 
         bool isOnlineMode;
         bool isWatcher;
-        float nextSyncTime;
+        long lastSyncTick;
+        float sinceEnd;
+        bool closed;
 
         RPCBridge rpc;
 
@@ -93,7 +91,11 @@ namespace Sample
 
         void RoomLog(string s)
         {
-            roomText.text += s + "\n";
+            if (!roomText.IsDestroyed())
+            {
+                roomText.text += s + "\n";
+            }
+
             Debug.LogFormat("Room {0}", s);
         }
 
@@ -113,8 +115,18 @@ namespace Sample
             }
         }
 
+        public void OnPlayerEvent(string sender, PlayerEvent ev)
+        {
+            if (simulator.IsMaster)
+            {
+                events.Add(ev);
+            }
+        }
+
         void Awake()
         {
+            Application.targetFrameRate = 60;
+
             bar1 = Instantiate(barAsset);
             bar2 = Instantiate(barAsset);
             balls = new List<BallView>();
@@ -126,7 +138,7 @@ namespace Sample
 
             isOnlineMode = G.GameRoom != null;
             isWatcher = isOnlineMode && G.GameRoom.Me == null;
-            simulator = new GameSimulator(!isOnlineMode);
+            simulator = new GameSimulator(!isOnlineMode || G.GameRoom.Master == G.GameRoom.Me);
             state = new GameState();
             timer = new GameTimer();
             events = new List<PlayerEvent>();
@@ -149,31 +161,57 @@ namespace Sample
                 };
 
                 room.OnErrorClosed += (e) =>
-                 {
-                     Debug.LogError(e.ToString());
-                     RoomLog($"OnErrorClosed: {e}");
-                 };
+                {
+                    Debug.LogError(e.ToString());
+                    RoomLog($"OnErrorClosed: {e}");
+                    G.GameRoom = null;
+                    closed = true;
+                };
 
                 room.OnJoined += (me) =>
                 {
                     RoomLog($"OnJoined: {me.Id}");
+
+                    if (room.Master == room.Me)
+                    {
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                             { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                             { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                         });
+                    }
                 };
 
                 room.OnClosed += (p) =>
                 {
                     RoomLog($"OnClosed: {p}");
                     G.GameRoom = null;
-                    SceneManager.LoadScene("Title");
+                    closed = true;
                 };
 
                 room.OnOtherPlayerJoined += (p) =>
-                 {
-                     RoomLog("OnOtherPlayerJoined:" + p.Id);
-                 };
-
-                room.OnOtherPlayerLeft += (p) =>
                 {
-                    RoomLog("OnOtherPlayerLeft:" + p.Id);
+                    RoomLog("OnOtherPlayerJoined:" + p.Id);
+
+                    if (room.Master == room.Me)
+                    {
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                             { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                             { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                         });
+                    }
+                };
+
+                room.OnOtherPlayerLeft += (p, msg) =>
+                {
+                    RoomLog("OnOtherPlayerLeft:" + p.Id + " msg:" + msg);
+
+                    if (room.Master == room.Me)
+                    {
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                             { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                             { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                         });
+                    }
                 };
 
                 room.OnMasterPlayerSwitched += (prev, cur) =>
@@ -205,37 +243,35 @@ namespace Sample
                     }
                 };
 
-                rpc = new RPCBridge(room, this);
+                if (simulator.IsMaster)
+                {
+                    rpc = new RPCBridge(room, (IMasterClient)this);
+                }
+                else
+                {
+                    rpc = new RPCBridge(room, (IClient)this);
+                }
+
                 room.Restart();
-            }
-
-            if (!isWatcher)
-            {
-                events.Add(new PlayerEvent
-                {
-                    Code = PlayerEventCode.Join,
-                    PlayerId = myPlayerId,
-                    Tick = timer.NowTick,
-                });
-            }
-
-            if (!isOnlineMode)
-            {
-                // オフラインモードのときは WaitingPlayer から始める
-                state.Code = GameStateCode.WaitingPlayer;
-                events.Add(new PlayerEvent
-                {
-                    Code = PlayerEventCode.Join,
-                    PlayerId = cpuPlayerId,
-                    Tick = timer.NowTick,
-                });
             }
         }
 
         void Update()
         {
+            if (closed)
+            {
+                sinceEnd += Time.deltaTime;
+                if (3.0 < sinceEnd)
+                {
+                    SceneManager.LoadScene("Title");
+                }
+
+                return;
+            }
+
             playerText1.text = $"Name: {state.Player1}\n Score: {state.Score1}\n";
             playerText2.text = $"Name: {state.Player2}\n Score: {state.Score2}\n";
+
             if (state.Code == GameStateCode.End)
             {
                 if (state.Score2 < state.Score1)
@@ -253,63 +289,49 @@ namespace Sample
                     playerText1.text += $"\n DRAW";
                     playerText2.text += $"\n DRAW";
                 }
+
+                if (G.GameRoom != null)
+                {
+                    G.GameRoom.Leave();
+                }
+                else
+                {
+                    closed = true;
+                }
             }
 
-            if (state.Code == GameStateCode.WaitingGameMaster)
+            if (state.Code == GameStateCode.WaitingPlayer)
             {
-                if (Time.frameCount % 10 == 0)
+                if (Time.frameCount % Application.targetFrameRate == 0)
                 {
-                    var room = G.GameRoom;
-                    // 本当はルームマスタがルームを作成するシーケンスを想定しているが, サンプルは簡単のため,
-                    // マスタークライアントがJoinしてきたら, ルームマスタを委譲する
-                    if (room.Me == room.Master)
+                    if (!isWatcher)
                     {
-                        foreach (var p in room.Players.Values)
+                        events.Add(new PlayerEvent
                         {
-                            if (p.Id.StartsWith("gamemaster"))
-                            {
-                                RoomLog("Switch master to" + p.Id);
-                                room.ChangeRoomProperty(
-                                    null, null, null,
-                                    null, null, null,
-                                    new Dictionary<string, object> { { "gamemaster", p.Id }, { "masterclient", "joined" } },
-                                    new Dictionary<string, object> { });
-                                room.SwitchMaster(p);
-                                break;
-                            }
-                        }
+                            Code = PlayerEventCode.Join,
+                            PlayerId = myPlayerId,
+                            Tick = timer.NowTick,
+                        });
+                    }
+
+                    if (!isOnlineMode)
+                    {
+                        events.Add(new PlayerEvent
+                        {
+                            Code = PlayerEventCode.Join,
+                            PlayerId = cpuPlayerId,
+                            Tick = timer.NowTick,
+                        });
                     }
                 }
             }
-            else if (state.Code == GameStateCode.WaitingPlayer)
+
+            if (state.Code == GameStateCode.ReadyToStart)
             {
-                if (!isWatcher && Time.frameCount % 10 == 0)
-                {
-                    events.Add(new PlayerEvent
-                    {
-                        Code = PlayerEventCode.Join,
-                        PlayerId = myPlayerId,
-                        Tick = timer.NowTick,
-                    });
-                }
-            }
-            else if (state.Code == GameStateCode.ReadyToStart)
-            {
-                if (Time.frameCount % 10 == 0)
+                if (Time.frameCount % Application.targetFrameRate == 0)
                 {
                     bar1.gameObject.SetActive(true);
                     bar2.gameObject.SetActive(true);
-
-                    if (state.Player1 == myPlayerId)
-                    {
-                        playerBar = bar1;
-                        opponentBar = bar2;
-                    }
-                    if (state.Player2 == myPlayerId)
-                    {
-                        playerBar = bar2;
-                        opponentBar = bar1;
-                    }
 
                     if (!isWatcher)
                     {
@@ -332,7 +354,8 @@ namespace Sample
                     }
                 }
             }
-            else if (state.Code == GameStateCode.InGame)
+
+            if (state.Code == GameStateCode.InGame)
             {
                 if (!isWatcher)
                 {
@@ -350,17 +373,12 @@ namespace Sample
                             MoveInput = move,
                             Tick = timer.NowTick,
                         });
+
+                        prevMoveInput = value;
                     }
-                    prevMoveInput = value;
                 }
             }
-            else if (state.Code == GameStateCode.End)
-            {
-                return;
-            }
 
-            // オンラインモードならイベントをRPCで送信
-            // オフラインモードならローカルのシミュレータに入力
             if (isOnlineMode)
             {
                 if (G.GameRoom == null)
@@ -369,14 +387,43 @@ namespace Sample
                     return;
                 }
 
-                foreach (var ev in events)
+                if (simulator.IsMaster)
                 {
-                    rpc.PlayerEvent(ev);
+                    // 自分がマスタクライアントの場合相手にstateを同期する
+                    var prevState = state.Code;
+                    var forceSync = simulator.UpdateGame(timer.NowTick, state, events);
+                    if (forceSync || 100 <= new TimeSpan(timer.NowTick - lastSyncTick).TotalMilliseconds)
+                    {
+                        rpc.SyncServerTick(timer.NowTick);
+                        rpc.SyncGameState(state);
+                        lastSyncTick = timer.NowTick;
+                    }
+
+                    if (prevState != state.Code)
+                    {
+                        var room = G.GameRoom;
+                        room.ChangeRoomProperty(publicProps: new Dictionary<string, object> {
+                            { WSNet2Helper.PubKey.PlayerNum, (byte)room.PlayerCount},
+                            { WSNet2Helper.PubKey.State, state.Code.ToString()},
+                            { WSNet2Helper.PubKey.Updated, new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()},
+                        });
+                    }
                 }
-                simulator.UpdateGame(timer.NowTick, state, events.Where(ev => state.Tick <= ev.Tick));
+                else
+                {
+                    // イベントをRPCで送信する
+                    foreach (var ev in events)
+                    {
+                        rpc.PlayerEvent(ev);
+                    }
+
+                    // ローカルシミュレータを投機的に更新する
+                    simulator.UpdateGame(timer.NowTick, state, events);
+                }
             }
             else
             {
+                // ローカルシミュレータを更新する
                 Bar cpuBar = null;
                 if (state.Player1 == cpuPlayerId) cpuBar = state.Bar1;
                 if (state.Player2 == cpuPlayerId) cpuBar = state.Bar2;
@@ -395,11 +442,14 @@ namespace Sample
                         Tick = timer.NowTick,
                     });
                 }
+
                 simulator.UpdateGame(timer.NowTick, state, events);
             }
 
             if (state.Code == GameStateCode.InGame)
             {
+                bar1.gameObject.SetActive(true);
+                bar2.gameObject.SetActive(true);
                 bar1.UpdatePosition(state.Bar1);
                 bar2.UpdatePosition(state.Bar2);
 
@@ -419,6 +469,7 @@ namespace Sample
                     balls[i].UpdatePosition(state.Balls[i]);
                 }
             }
+
             events.Clear();
         }
     }

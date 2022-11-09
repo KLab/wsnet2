@@ -1,21 +1,31 @@
-﻿using WSNet2;
+﻿using System;
+using WSNet2;
 
 namespace Sample.Logic
 {
     public static class WSNet2Helper
     {
-        static AuthDataGenerator authgen = new AuthDataGenerator();
-
-        /// <summary>
-        /// WSNet2にログインするための認証用データを生成する
-        /// </summary>
-        /// <param name="key">アプリケーション固有の鍵</param>
-        /// <param name="userid">ユーザID</param>
-        /// <returns>AuthData</returns>
-        public static AuthData GenAuthData(string key, string userid)
+        /// <summary>部屋のPublicPropertyのキー</summary>
+        public class PubKey
         {
-            return authgen.Generate(key, userid);
+            /// <summary>ゲーム名 ("pong")</summary>
+            public const string Game = "game";
+
+            /// <summary>ゲームの状態 (string; GameStateCode)</summary>
+            public const string State = "state";
+
+            /// <summary>プレイヤー待ち状況の変更時刻 (long; unixtime)</summary>
+            public const string Updated = "updated";
+
+            /// <summary>ランダム入室絞り込み用 プレイヤー数 (byte)</summary>
+            public const string PlayerNum = "playernum";
         }
+
+        // ゲーム名
+        public const string GameName = "pong";
+
+        // 検索グループ
+        public const uint SearchGroup = 1000;
 
         static bool RegisterTypesOnce = false;
 
@@ -33,6 +43,18 @@ namespace Sample.Logic
                 WSNet2Serializer.Register<Sample.Logic.Ball>(12);
                 WSNet2Serializer.Register<Sample.Logic.PlayerEvent>(20);
             }
+        }
+    }
+
+    public static class RoomExtension
+    {
+        public static GameStateCode GameState(this Room room)
+        {
+            if (room != null && room.PublicProps.TryGetValue(WSNet2Helper.PubKey.State, out var s))
+            {
+                return (GameStateCode)Enum.Parse(typeof(GameStateCode), (string)s);
+            }
+            return GameStateCode.None;
         }
     }
 }
