@@ -3,7 +3,7 @@
 ## 使い方
 
 * [C#クライアントの使い方](csharp_client.md)
-* [ローカルで試す方法](docker.md)
+* [Dockerを使ったローカルでの起動](docker.md)
 * [サーバの設定](server_config.md)
 
 ## 機能詳細

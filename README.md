@@ -96,7 +96,7 @@ UnityクライアントのTitleシーンで「ランダム観戦」を押して�
 ### 使い方
 
 * [C#クライアントの使い方](_doc/csharp_client.md)
-* [ローカルで試す方法](_doc/docker.md)
+* [Dockerを使ったローカルでの起動](docker.md)
 * [サーバの設定](_doc/server_config.md)
 
 ### 機能詳細

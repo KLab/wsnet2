@@ -1,8 +1,10 @@
+# Dockerを使ったローカルでの起動
+
 ## 立ち上げ方
 
-ロカール環境にwsnet2のサーバ群を立ち上げるには、Dockerとdocker-composeを利用します。
+ロカール環境にwsnet2のサーバ群を立ち上げるには、Dockerとdocker-composeが利用できます
 
-[リポジトリ](https://github.jp.klab.com/WSNet/wsnet2)の`server`ディレクトリで`docker-compose build`と`docker-compose up`を叩いてください。
+[リポジトリの`server`ディレクトリ](../server)で`docker-compose build`と`docker-compose up`を実行してください。
 
 ```BASH
 $ git clone git@github.jp.klab.com:WSNet/wsnet2

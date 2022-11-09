@@ -21,7 +21,7 @@ Unityの場合はこのディレクトリを`Assets`以下にコピーしてく�
 
 ## `WSNet2Client`の利用
 
-WSNet2の利用は[`WSNet2Client`クラス](wset2client.md)を利用したロビーへのリクエスト（部屋作成・検索・入室）から始めます。
+WSNet2の利用は[`WSNet2Client`クラス](wsnet2client.md)を利用したロビーへのリクエスト（部屋作成・検索・入室）から始めます。
 これは、Unityでは`WSNet2Service.Instance.GetClient()`で取得できるほか、.Netアプリケーションでは直接`new WSNet2Client(...)`します。
 
 WSNet2Clientの利用には認証情報が必要になります。
@@ -215,7 +215,7 @@ client.Join(
 ## メッセージの送受信
 
 メッセージの送受信は基本的にはRPC（Remote Procedure Call）の形で行います。
-RPCで呼び出すメソッドは`Room.RegisterRPC()`によって登録します。
+RPCで呼び出すメソッドは[`Room.RegisterRPC()`](room.md#rpcの登録)によって登録します。
 この登録内容は順序も含め、部屋に参加する全てのクライアントで一致している必要があります。
 
 登録できるメソッドは、第一引数に送信者のPlayerID文字列、第二引数にRPCのパラメータ（ない場合もある）を取るActionです。
