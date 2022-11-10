@@ -52,7 +52,7 @@ VMやリモート環境で起動する場合は、
   - **CPU対戦**: オフラインでCPUと対戦します（WSNet2に接続しません）
   - **部屋作成**: WSNet2に部屋を作り、相手プレイヤーを待ち受けます
   - **ランダム入室**: プレイヤーを待っている部屋に入室します
-  - **ランダム観戦**: 大戦中のゲームを観戦します
+  - **ランダム観戦**: 対戦中のゲームを観戦します
 
 #### Unityクライアントでゲームロジックを動かす例
 
@@ -73,7 +73,7 @@ MasterClientが部屋を作り、BotとUnityクライアントの入室を待ち
 
 ```shell
 $ cd wsnet2-dotnet/WSNet2.Sample
-$ dotnet run -m -b
+$ dotnet run -- -m -b
 ```
 
 UnityクライアントのTitleシーンで「ランダム入室」を押してMasterClientの待ち受ける部屋に入室します。
@@ -85,7 +85,7 @@ MasterClientが部屋を作り、Botが入室して対戦を始めます。
 
 ```shell
 $ cd wsnet2-dotnet/WSNet2.Sample
-$ dotnet run -m -d 2
+$ dotnet run -- -m -b 2
 ```
 
 UnityクライアントのTitleシーンで「ランダム観戦」を押して観戦します。
