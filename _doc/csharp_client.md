@@ -17,12 +17,12 @@
 WSNet2を利用するのに必要なC#コードは[`wsnet2-unity/Assets/WSNet2`](../wsnet2-unity/Assets/WSNet2)以下に置かれています。
 Unityの場合はこのディレクトリを`Assets`以下にコピーしてください。
 
-.Netアプリケーションで利用する場合は、[`wsnet2-unity/Assets/WSNet2/Scripts/Core`](../wsnet2-unity/Assets/WSNet2/Scripts/Core)以下のファイルをプロジェクト（*.csproj）に含めてください。
+.NETアプリケーションで利用する場合は、[`wsnet2-unity/Assets/WSNet2/Scripts/Core`](../wsnet2-unity/Assets/WSNet2/Scripts/Core)以下のファイルをプロジェクト（*.csproj）に含めてください。
 
 ## `WSNet2Client`の利用
 
 WSNet2の利用は[`WSNet2Client`クラス](wsnet2client.md)を利用したロビーへのリクエスト（部屋作成・検索・入室）から始めます。
-これは、Unityでは`WSNet2Service.Instance.GetClient()`で取得できるほか、.Netアプリケーションでは直接`new WSNet2Client(...)`します。
+これは、Unityでは`WSNet2Service.Instance.GetClient()`で取得できるほか、.NETアプリケーションでは直接`new WSNet2Client(...)`します。
 
 WSNet2Clientの利用には認証情報が必要になります。
 詳しくは[WSNet2のユーザ認証](user_auth.md)を参照して下さい。

@@ -5,8 +5,7 @@
 クライアントは、認証データをゲームAPIサーバから取得し、その認証データを与えたWSNet2Clientを用いて、WSNet2へアクセスします。
 WSNet2は認証データを検証することで、ユーザIDが正規のものかを確認します。
 
-認証データには数分程度の有効期限を設けておきます
-（[設定ファイルのLobby.authdata_expire](server_setup.md#ファイル内容)で指定）。
+認証データには数分程度の有効期限を設けておきます（[設定ファイルのLobby.authdata_expire](server_setup.md#ファイル内容)で指定）。
 期限を過ぎたときには、ゲームAPIサーバから再度取得します。
 
 ## ゲームAPIサーバの手順
@@ -53,7 +52,7 @@ auth_data = Base64(nonce + timestamp + hmac)
 WSNet2（Lobby）へのアクセスは、[`WSNet2.WSNet2Client`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
 
 Unityの場合、[`WSNet2Service.Instance.GetClient()`](../wsnet2-unity/Assets/WSNet2/Scripts/WSNet2Service.cs#L42-L53)の引数として認証データを渡します。
-.Netの場合、[`WSNet2Client`のコンストラクタ](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L26-L34)に認証データを渡します。
+.NETの場合、[`WSNet2Client`のコンストラクタ](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs#L26-L34)に認証データを渡します。
 
 ### 認証データの更新
 
