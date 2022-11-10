@@ -85,14 +85,14 @@ hub_max_watchers = 10000 # Hubサーバの最大収容観戦者数
 
 # ログ設定
 loglevel = 5 # 基本ログレベル（デフォルト:2）
-logconf.log_stdout_level = 4       # stdoutのログレベル
-logconf.log_stdout_console = false # stdoutのログフォーマットを開発用にする
+log_stdout_level = 4       # stdoutのログレベル
+log_stdout_console = false # stdoutのログフォーマットを開発用にする
 # ログファイル出力とローテーションの設定
-logconf.log_path = ""         # 空ならファイルに出力しない
-logconf.log_max_size = 500
-logconf.log_max_backups = 0
-logconf.log_max_age = 0
-logconf.log_compress = false
+log_path = ""         # 空ならファイルに出力しない
+log_max_size = 500
+log_max_backups = 0
+log_max_age = 0
+log_compress = false
 
 #
 # Gameサーバの設定
@@ -119,19 +119,19 @@ default_max_players = 10 # 部屋あたりの最大プレイヤー数（デフ�
 default_deadline = 5     # クライアントタイムアウト判定時間（秒; デフォルト:5）
 default_loglevel = 2     # 部屋のログレベル
 # client設定
-client.event_buf_size = 128     # イベント再送バッファ数（デフォルト:128）
-client.wait_after_close = "30s" # 部屋終了後の再接続データ再送可能時間（デフォルト:30s）
+event_buf_size = 128     # イベント再送バッファ数（デフォルト:128）
+wait_after_close = "30s" # 部屋終了後の再接続データ再送可能時間（デフォルト:30s）
 auth_key_len = 32               # 接続のユーザ認証用の鍵のサイズ
 
 # ログ設定（Lobbyと同じ）
 loglevel = 2
-logconf.log_stdout_level = 4
-logconf.log_stdout_console = false
-logconf.log_path = ""
-logconf.log_max_size = 500
-logconf.log_max_backups = 0
-logconf.log_max_age = 0
-logconf.log_compress = false
+log_stdout_level = 4
+log_stdout_console = false
+log_path = ""
+log_max_size = 500
+log_max_backups = 0
+log_max_age = 0
+log_compress = false
 
 #
 # Hubサーバの設定
@@ -151,17 +151,17 @@ valid_heartbeat = "5s"     # Gameの最終HeartBeat時刻の有効期間（デ�
 heartbeat_interval = "2s"
 nodecount_interval = "1s"  # Hubを経由している観戦者数の同期間隔（デフォルト:1s）
 db_max_conns = 0
-client.event_buf_size = 128
-client.wait_after_close = "30s"
+event_buf_size = 128
+wait_after_close = "30s"
 auth_key_len = 32
 loglevel = 2
-logconf.log_stdout_level = 4
-logconf.log_stdout_console = false
-logconf.log_path = ""
-logconf.log_max_size = 500
-logconf.log_max_backups = 0
-logconf.log_max_age = 0
-logconf.log_compress = false
+log_stdout_level = 4
+log_stdout_console = false
+log_path = ""
+log_max_size = 500
+log_max_backups = 0
+log_max_age = 0
+log_compress = false
 ```
 
 ### 環境変数による設定
