@@ -4,7 +4,7 @@
 
 * [C#クライアントの使い方](csharp_client.md)
 * [Dockerを使ったローカルでの起動](docker.md)
-* [サーバの設定](server_config.md)
+* [サーバの構築](server_setup.md)
 
 ## 機能詳細
 

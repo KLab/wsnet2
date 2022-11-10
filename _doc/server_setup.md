@@ -1,10 +1,12 @@
-# サーバの設定
+# サーバの構築
 
 ## 目次
 
 - [サーバプログラムのビルド](#サーバプログラムのビルド)
 - [データベースの構築](#データベースの構築)
 - [サーバ設定ファイル](#サーバ設定ファイル)
+  - [ファイルの内容](#ファイルの内容)
+  - [環境変数による設定](#環境変数による設定)
 
 ## サーバプログラムのビルド
 
@@ -35,33 +37,24 @@ MySQL互換RDBMSを利用します。
 - **hub**: 稼働中の観戦用部屋
 - **room_history**: 終了した部屋
 
-`app`テーブルにAppIDとKeyを登録します。この情報はゲームAPIサーバと共有するものでユーザ認証に使われます。
-詳しくは[WSNet2のユーザ認証](user_auth.md#鍵の事前交換)を参照して下さい。
+最初に`app`テーブルにAppIDとKeyを登録します。この情報はゲームAPIサーバと共有するもので[ユーザ認証](user_auth.md#鍵の事前交換)に使われます。
+
+その他のテーブルは自動で書き込まれるため、空のままにします。
 
 ## サーバ設定ファイル
 
-サーバプログラム（wsnet2-lobby、wsnet2-game、wsnet2-hub）の起動時には、
+サーバプログラム（wsnet2-lobby、wsnet2-game、wsnet2-hub）の起動には、
 コマンドライン引数としてTOML形式の設定ファイルを指定します。
 
 サーバ種別ごと別テーブルに分けているので、同一のファイルを全種類のサーバに使えます。
 
-また、GameとHubの`hostname`、`public_name`、`grpc_port`、`websocket_port`は次の環境変数で上書きできます。
-複数台構成ではホスト名を環境変数で指定することで、設定ファイルを共通にできます。
-
-- `WSNET2_GAME_HOSTNAME`
-- `WSNET2_GAME_PUBLICNAME`
-- `WSNET2_GAME_GRPCPORT`
-- `WSNET2_GAME_WSPORT`
-
-### ファイル内容
+### ファイルの内容
 
 ```toml
 #
 # RDBMSに関する設定
 #
 [Database]
-
-# 接続先
 host = "wsnet2-db"
 port = 3306
 dbname = "wsnet2"
@@ -72,20 +65,20 @@ password = "password"
 # user, passwordの代わりに、authfileで指定することもできます
 authfile = "/path/to/authfile" # "user:password" が書かれたファイル
 
-conn_max_lifetime = "3m" # 接続を再利用できる最大時間（デフォルト: 3min）
+conn_max_lifetime = "3m" # 接続を再利用できる最大時間（デフォルト:3m）
 
 #
 # Lobbyサーバに関する設定
 #
 [Lobby]
-hostname = "" # 指定した場合、ホスト名がマッチしたHTTPリクエストのみ受け付ける
+hostname = ""     # 指定した場合、ホスト名がマッチしたHTTPリクエストのみ受け付ける
 net = "tcp"       # ソケット種別。"unix": UNIXドメインソケット
 unixpath = ""     # net="unix"のときのunixドメインソケットのパス
 port = 8080       # net="tcp"のときのポート番号
 pprof_prot = 3080 # pprofの待受けポート番号
 
 valid_heartbeat = "5s" # Game,Hubの最終HeartBeat時刻の有効期間（デフォルト:5s）
-authdata_expire = "1m" # AuthDataの有効期間（デフォルト:1m）
+authdata_expire = "1m" # 認証データの有効期間（デフォルト:1m）
 api_timeout = "5s"     # LobbyAPIの内部タイムアウト時間（デフォルト:5s）
 db_max_conns = 0       # 最大DB接続数
 hub_max_watchers = 10000 # Hubサーバの最大収容観戦者数
@@ -170,3 +163,13 @@ logconf.log_max_backups = 0
 logconf.log_max_age = 0
 logconf.log_compress = false
 ```
+
+### 環境変数による設定
+
+GameとHubの`hostname`、`public_name`、`grpc_port`、`websocket_port`は次の環境変数で上書きできます。
+複数台構成ではホスト名を環境変数で指定することで、設定ファイルを共通にできます。
+
+- `WSNET2_GAME_HOSTNAME`
+- `WSNET2_GAME_PUBLICNAME`
+- `WSNET2_GAME_GRPCPORT`
+- `WSNET2_GAME_WSPORT`
