@@ -6,15 +6,20 @@ on:
 
 jobs:
   build:
-    runs-on: [ ubuntu-latest ]
-    env:
-      REVIEWDOG_GITHUB_API_TOKEN: ${{ github.token }}
+    runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v2
+
       - name: make and test
-        run: cd server && docker-compose run --rm builder /bin/bash -eo pipefail -c "make all && go test ./... && ./bin/staticcheck -f=json -fail '' ./... > ../staticcheck-output.json"
-      - uses: reviewdog/action-setup@v1
-      - name: staticcheck pr comment
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: cat staticcheck-output.json | sed s#/repo/##g | jq -f ${{ github.workspace }}/.github/workflows/staticcheck-to-rdjsonl.jq -c | reviewdog -tee -f=rdjsonl -name=staticcheck -reporter=github-pr-review -level=warning
+        run: cd server && docker-compose run --rm builder /bin/bash -eo pipefail -c "make all && go test ./..."
+
+      - uses: reviewdog/action-staticcheck@v1
+        with:
+          workdir: server
+          github_token: ${{ secrets.github_token }}
+          # Change reviewdog reporter if you need [github-pr-check,github-check,github-pr-review].
+          reporter: github-pr-review
+          # Report all results.
+          filter_mode: nofilter
+          # Exit with 1 when it find at least one finding.
+          fail_on_error: true
