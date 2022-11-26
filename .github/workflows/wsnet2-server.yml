@@ -25,4 +25,4 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
           echo "::add-matcher::.github/staticcheck-matcher.json"
-          staticcheck ./...
+          staticcheck ./... 2>&1 | sed -e 's/^/server\//'
