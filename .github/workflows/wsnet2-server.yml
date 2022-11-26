@@ -18,7 +18,7 @@ jobs:
 
       - name: make and test
         working-directory: server
-        run: docker-compose run --rm builder /bin/bash -eo pipefail -c "make all"
+        run: docker-compose run --rm builder /bin/bash -eo pipefail -c "make all" && go test ./...
 
       - name: Run staticcheck
         working-directory: server
