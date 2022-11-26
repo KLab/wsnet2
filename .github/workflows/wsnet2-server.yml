@@ -17,8 +17,8 @@ jobs:
         with:
           go-version: "^1.19.0"
 
-      - name: prebuild for staticcheck
-        run: cd server && make build
+      # - name: prebuild for staticcheck
+      #   run: cd server && make build
 
       - uses: reviewdog/action-staticcheck@v1
         with:
