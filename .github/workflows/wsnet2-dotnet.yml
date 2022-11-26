@@ -3,6 +3,9 @@ name: WSNet2 dotnet ci
 on:
   pull_request:
     branches: [ main ]
+    paths:
+      - 'wsnet2-dotnet/**'
+      - 'wsnet2-unity/**'
 
 jobs:
   build:

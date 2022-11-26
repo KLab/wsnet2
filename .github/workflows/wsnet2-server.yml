@@ -3,6 +3,8 @@ name: WSNet2 server ci
 on:
   pull_request:
     branches: [ main ]
+    paths:
+      - 'server/**'
 
 jobs:
   build:
