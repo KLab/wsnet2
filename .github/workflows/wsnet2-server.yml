@@ -16,9 +16,9 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: make and test
-        working-directory: server
-        run: docker-compose run --rm builder /bin/bash -eo pipefail -c "make all" && go test ./...
+      # - name: make and test
+      #   working-directory: server
+      #   run: docker-compose run --rm builder /bin/bash -eo pipefail -c "make all" && go test ./...
 
       - uses: reviewdog/action-setup@v1
 
