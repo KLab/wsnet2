@@ -20,14 +20,25 @@ jobs:
       #   working-directory: server
       #   run: docker-compose run --rm builder /bin/bash -eo pipefail -c "make all" && go test ./...
 
-      - uses: reviewdog/action-setup@v1
+      - uses: reviewdog/action-staticcheck@v1
+        with:
+          workdir: server
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # Change reviewdog reporter if you need [github-pr-check,github-check,github-pr-review].
+          reporter: github-pr-review
+          # Report all results.
+          filter_mode: nofilter
+          # Exit with 1 when it find at least one finding.
+          fail_on_error: true
 
-      - name: Run staticcheck
-        working-directory: server
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          go install honnef.co/go/tools/cmd/staticcheck@latest
-          #echo "::add-matcher::.github/staticcheck-matcher.json"
-          #staticcheck ./... 2>&1 | sed -e 's/^/server\//'
-          staticcheck ./... 2>&1 | reviewdog -f staticcheck -reporter=github-pr-check
+      # - uses: reviewdog/action-setup@v1
+
+      # - name: Run staticcheck
+      #   working-directory: server
+      #   env:
+      #     REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     go install honnef.co/go/tools/cmd/staticcheck@latest
+      #     #echo "::add-matcher::.github/staticcheck-matcher.json"
+      #     #staticcheck ./... 2>&1 | sed -e 's/^/server\//'
+      #     staticcheck ./... 2>&1 | reviewdog -f staticcheck -reporter=github-pr-check
