@@ -20,9 +20,14 @@ jobs:
         working-directory: server
         run: docker-compose run --rm builder /bin/bash -eo pipefail -c "make all" && go test ./...
 
+      - uses: reviewdog/action-setup@v1
+
       - name: Run staticcheck
         working-directory: server
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
-          echo "::add-matcher::.github/staticcheck-matcher.json"
-          staticcheck ./... 2>&1 | sed -e 's/^/server\//'
+          #echo "::add-matcher::.github/staticcheck-matcher.json"
+          #staticcheck ./... 2>&1 | sed -e 's/^/server\//'
+          staticcheck ./... 2>&1 | reviewdog -f staticcheck -reporter=github-pr-check
