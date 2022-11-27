@@ -25,7 +25,7 @@ jobs:
           workdir: server
           github_token: ${{ secrets.GITHUB_TOKEN }}
           # Change reviewdog reporter if you need [github-pr-check,github-check,github-pr-review].
-          reporter: github-pr-review
+          reporter: github-check
           # Exit with 1 when it find at least one finding.
           fail_on_error: true
 
