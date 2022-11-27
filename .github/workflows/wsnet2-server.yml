@@ -16,7 +16,7 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '^1.19.0'
-          cache: true
+          #cache: true  # todo: enable cache after adding go.sum file
 
       - uses: arduino/setup-protoc@v1
         with:
