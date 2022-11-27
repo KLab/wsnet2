@@ -30,13 +30,6 @@ jobs:
       - name: Run go test
         run: go test ./...
 
-      # - uses: reviewdog/action-staticcheck@v1
-      #   with:
-      #     workdir: server
-      #     github_token: ${{ secrets.GITHUB_TOKEN }}
-      #     reporter: github-check
-      #     fail_on_error: true
-
       - uses: reviewdog/action-setup@v1
 
       - name: Run staticcheck

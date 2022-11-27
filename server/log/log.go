@@ -193,8 +193,3 @@ func InitLogger(logconf *config.LogConf) func() {
 		closer()
 	}
 }
-
-// Unused function for staticcheck test
-func unusedFunc() string {
-	return fmt.Sprintf("test")
-}
