@@ -3,10 +3,14 @@ name: WSNet2 dotnet ci
 on:
   pull_request:
     branches: [ main ]
+    paths:
+      - '.github/workflows/wsnet2-dotnet.yml'
+      - 'wsnet2-dotnet/**'
+      - 'wsnet2-unity/**'
 
 jobs:
   build:
-    runs-on: [ ubuntu-latest ]
+    runs-on: "ubuntu-latest"
     defaults:
       run:
         working-directory: wsnet2-dotnet
