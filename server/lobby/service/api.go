@@ -13,7 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/hostrouter"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
 
@@ -61,7 +62,7 @@ func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 			}
 		}
 
-		r := mux.NewRouter()
+		r := chi.NewMux()
 		sv.registerRoutes(r)
 
 		errCh <- http.Serve(listener, r)
@@ -75,23 +76,26 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("wsnet2 works\n"))
 }
 
-func (sv *LobbyService) registerRoutes(r *mux.Router) {
-	r.HandleFunc("/health", handleHealth).Methods("GET")
-	r.HandleFunc("/health/", handleHealth).Methods("GET")
+func (sv *LobbyService) registerRoutes(r chi.Router) {
+	r.Get("/health", handleHealth)
+	r.Get("/health/", handleHealth)
 
-	if sv.conf.Hostname != "" {
-		r = r.Host(sv.conf.Hostname).Subrouter()
-	}
+	// subroutes
+	r2 := chi.NewRouter()
+	r2.Post("/rooms", sv.handleCreateRoom)
+	r2.Post("/rooms/join/id/{roomId}", sv.handleJoinRoom)
+	r2.Post("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber)
+	r2.Post("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom)
+	r2.Post("/rooms/search", sv.handleSearchRooms)
+	r2.Post("/rooms/search/ids", sv.handleSearchByIds)
+	r2.Post("/rooms/watch/id/{roomId}", sv.handleWatchRoom)
+	r2.Post("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber)
+	r2.Post("/_admin/kick", sv.handleAdminKick)
 
-	r.HandleFunc("/rooms", sv.handleCreateRoom).Methods("POST")
-	r.HandleFunc("/rooms/join/id/{roomId}", sv.handleJoinRoom).Methods("POST")
-	r.HandleFunc("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber).Methods("POST")
-	r.HandleFunc("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom).Methods("POST")
-	r.HandleFunc("/rooms/search", sv.handleSearchRooms).Methods("POST")
-	r.HandleFunc("/rooms/search/ids", sv.handleSearchByIds).Methods("POST")
-	r.HandleFunc("/rooms/watch/id/{roomId}", sv.handleWatchRoom).Methods("POST")
-	r.HandleFunc("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber).Methods("POST")
-	r.HandleFunc("/_admin/kick", sv.handleAdminKick).Methods("POST")
+	hr := hostrouter.New()
+	hr.Map(sv.conf.Hostname, r2)
+
+	r.Mount("/", hr)
 }
 
 type header struct {
@@ -247,15 +251,24 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	renderJoinedRoomResponse(w, room, logger)
 }
 
-type JoinVars map[string]string
+type JoinVars struct {
+	ctx *chi.Context
+}
+
+func NewJoinVars(r *http.Request) *JoinVars {
+	return &JoinVars{
+		ctx: chi.RouteContext(r.Context()),
+	}
+}
 
 func (vars JoinVars) roomId() string {
-	id := vars["roomId"]
+	id := vars.ctx.URLParam("roomId")
 	return id
 }
 
 func (vars JoinVars) roomNumber() (number int32) {
-	if v, found := vars["roomNumber"]; found {
+	v := vars.ctx.URLParam("roomNumber")
+	if v != "" {
 		n, _ := strconv.ParseInt(v, 10, 32)
 		number = int32(n)
 	}
@@ -263,8 +276,9 @@ func (vars JoinVars) roomNumber() (number int32) {
 }
 
 func (vars JoinVars) searchGroup() (sg uint32) {
-	if v, found := vars["searchGroup"]; found {
-		n, _ := strconv.ParseUint(v, 10, 32)
+	v := vars.ctx.URLParam("searchGroup")
+	if v != "" {
+		n, _ := strconv.ParseInt(v, 10, 32)
 		sg = uint32(n)
 	}
 	return sg
@@ -297,7 +311,7 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := JoinVars(mux.Vars(r))
+	vars := NewJoinVars(r)
 	roomId := vars.roomId()
 	if roomId == "" {
 		renderErrorResponse(
@@ -342,7 +356,7 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	vars := JoinVars(mux.Vars(r))
+	vars := NewJoinVars(r)
 	roomNumber := vars.roomNumber()
 	if roomNumber == 0 {
 		renderErrorResponse(
@@ -387,7 +401,7 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	vars := JoinVars(mux.Vars(r))
+	vars := NewJoinVars(r)
 	searchGroup := vars.searchGroup()
 	logger = logger.With(log.KeySearchGroup, searchGroup)
 
@@ -486,7 +500,7 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	vars := JoinVars(mux.Vars(r))
+	vars := NewJoinVars(r)
 	roomId := vars.roomId()
 	if roomId == "" {
 		renderErrorResponse(
@@ -531,7 +545,7 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	vars := JoinVars(mux.Vars(r))
+	vars := NewJoinVars(r)
 	roomNumber := vars.roomNumber()
 	if roomNumber == 0 {
 		renderErrorResponse(
