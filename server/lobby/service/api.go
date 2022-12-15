@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/hostrouter"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
 
@@ -80,22 +79,15 @@ func (sv *LobbyService) registerRoutes(r chi.Router) {
 	r.Get("/health", handleHealth)
 	r.Get("/health/", handleHealth)
 
-	// subroutes
-	r2 := chi.NewRouter()
-	r2.Post("/rooms", sv.handleCreateRoom)
-	r2.Post("/rooms/join/id/{roomId}", sv.handleJoinRoom)
-	r2.Post("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber)
-	r2.Post("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom)
-	r2.Post("/rooms/search", sv.handleSearchRooms)
-	r2.Post("/rooms/search/ids", sv.handleSearchByIds)
-	r2.Post("/rooms/watch/id/{roomId}", sv.handleWatchRoom)
-	r2.Post("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber)
-	r2.Post("/_admin/kick", sv.handleAdminKick)
-
-	hr := hostrouter.New()
-	hr.Map(sv.conf.Hostname, r2)
-
-	r.Mount("/", hr)
+	r.Post("/rooms", sv.handleCreateRoom)
+	r.Post("/rooms/join/id/{roomId}", sv.handleJoinRoom)
+	r.Post("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber)
+	r.Post("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom)
+	r.Post("/rooms/search", sv.handleSearchRooms)
+	r.Post("/rooms/search/ids", sv.handleSearchByIds)
+	r.Post("/rooms/watch/id/{roomId}", sv.handleWatchRoom)
+	r.Post("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber)
+	r.Post("/_admin/kick", sv.handleAdminKick)
 }
 
 type header struct {
