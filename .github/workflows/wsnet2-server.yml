@@ -8,22 +8,23 @@ on:
       - 'server/**'
 
 jobs:
-  build:
+  test:
     runs-on: "ubuntu-latest"
     defaults:
       run:
         working-directory: server
     steps:
+      - uses: actions/checkout@v3
+
       - uses: actions/setup-go@v3
         with:
           go-version: '^1.19.0'
-          #cache: true  # todo: enable cache after adding go.sum file
+          cache: true
+          cache-dependency-path: server/go.sum
 
       - uses: arduino/setup-protoc@v1
         with:
           version: '3.x'
-
-      - uses: actions/checkout@v3
 
       - name: Build
         run: make all
@@ -39,3 +40,23 @@ jobs:
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./... 2>&1 | reviewdog -f staticcheck -reporter=github-pr-check
+
+      - run: docker compose up -d
+
+      - run: make bot
+
+      - name: Wait until service starts
+        run: |
+          # lobby
+          until curl -f "http://127.0.0.1:8080/health"; do
+            sleep 5
+          done
+          # game
+          until curl -o /dev/null "http://127.0.0.1:3000/debug/pprof/"; do
+            sleep 5
+          done
+          sleep 5
+
+      - run: bin/wsnet2-bot
+
+      - run: docker compose logs
