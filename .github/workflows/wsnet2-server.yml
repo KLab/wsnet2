@@ -45,11 +45,17 @@ jobs:
 
       - run: make bot
 
-      - run: |
-          sleep 5
+      - name: Wait until service starts
+        run: |
+          # lobby
           until curl -f "http://127.0.0.1:8080/health"; do
             sleep 5
           done
+          # game
+          until curl -o /dev/null "http://127.0.0.1:3000/debug/pprof/"; do
+            sleep 5
+          done
+          sleep 5
 
       - run: bin/wsnet2-bot
 
