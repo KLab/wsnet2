@@ -53,11 +53,8 @@ jobs:
           docker compose up -d
 
       - run: |
-          until [ -f bin/wsnet2-bot ]
-          do
-            ls bin/
-            sleep 5
-          done
+          ls bin/
+          sleep 5
 
       - run: bin/wsnet2-bot
 
