@@ -45,6 +45,12 @@ jobs:
 
       - run: make bot
 
+      - run: |
+          sleep 5
+          until curl -f "http://127.0.0.1:8080/health"; do
+            sleep 5
+          done
+
       - run: bin/wsnet2-bot
 
       - run: docker compose logs
