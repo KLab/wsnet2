@@ -51,9 +51,14 @@ jobs:
 
       - run: |
           docker compose up -d
+
+      - run: |
           until [ -f bin/wsnet2-bot ]
           do
+            ls bin/
             sleep 5
           done
-          bin/wsnet2-bot
-          docker compose logs
+
+      - run: bin/wsnet2-bot
+
+      - run: docker compose logs
