@@ -17,7 +17,8 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: '^1.19.0'
-          #cache: true  # todo: enable cache after adding go.sum file
+          cache: true
+          cache-dependency-path: server/go.sum
 
       - uses: arduino/setup-protoc@v1
         with:
@@ -40,21 +41,9 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./... 2>&1 | reviewdog -f staticcheck -reporter=github-pr-check
 
-  run-bot:
-    runs-on: "ubuntu-latest"
-    needs: test
-    defaults:
-      run:
-        working-directory: server
-    steps:
-      - uses: actions/checkout@v3
+      - run: docker compose up -d
 
-      - run: |
-          docker compose up -d
-
-      - run: |
-          ls bin/
-          sleep 5
+      - run: make bot
 
       - run: bin/wsnet2-bot
 
