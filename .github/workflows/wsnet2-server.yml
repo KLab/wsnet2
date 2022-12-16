@@ -47,6 +47,8 @@ jobs:
       run:
         working-directory: server
     steps:
+      - uses: actions/checkout@v3
+
       - run: |
           docker compose up -d
           until [ -f bin/wsnet2-bot ]
