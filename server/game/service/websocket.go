@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 	"golang.org/x/xerrors"
 
@@ -68,8 +68,8 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 		}
 
 		ws := &WSHandler{sv}
-		r := mux.NewRouter()
-		r.HandleFunc("/room/{id:[0-9a-f]+}", ws.HandleRoom).Methods("GET")
+		r := chi.NewMux()
+		r.Get("/room/{id:[0-9a-f]+}", ws.HandleRoom)
 
 		sv.wsURLFormat = fmt.Sprintf("%s://%s:%d/room/%%s",
 			scheme, sv.conf.PublicName, sv.conf.WebsocketPort)
@@ -87,8 +87,7 @@ func (sv *GameService) serveWebSocket(ctx context.Context) <-chan error {
 }
 
 func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	roomId := vars["id"]
+	roomId := chi.URLParam(r, "id")
 	appId := r.Header.Get("Wsnet2-App")
 	clientId := r.Header.Get("Wsnet2-User")
 	logger := log.GetLoggerWith(
