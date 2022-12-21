@@ -6,7 +6,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/gorilla/websocket"
+	"github.com/shiguredo/websocket"
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/gorilla/websocket"
+	"github.com/shiguredo/websocket"
 	"golang.org/x/xerrors"
 
 	"wsnet2/game"
