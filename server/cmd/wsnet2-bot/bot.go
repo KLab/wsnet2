@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
+	"github.com/shiguredo/websocket"
 	"github.com/vmihailenco/msgpack/v5"
 
 	"wsnet2/auth"
