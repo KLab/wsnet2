@@ -12,8 +12,10 @@ import (
 )
 
 var (
-	oldroomsAt    string
-	oldroomsLimit int
+	oldroomsAt     string
+	oldroomsBefore string
+	oldroomsAfter  string
+	oldroomsLimit  int
 )
 
 // oldroomsCmd represents the oldrooms command
@@ -23,12 +25,19 @@ var oldroomsCmd = &cobra.Command{
 	Long:  "Show closed room list",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		at, err := parseAt(oldroomsAt)
+		before, err := parseTime(oldroomsBefore)
 		if err != nil {
 			return err
 		}
-
-		rooms, err := selectRoomHistoryForList(cmd.Context(), oldroomsLimit, at)
+		after, err := parseTime(oldroomsAfter)
+		if err != nil {
+			return err
+		}
+		at, err := parseTime(oldroomsAt)
+		if err != nil {
+			return err
+		}
+		rooms, err := selectRoomHistoryForList(cmd.Context(), oldroomsLimit, before, after, at)
 		if err != nil {
 			return err
 		}
@@ -56,22 +65,24 @@ var oldroomsCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(oldroomsCmd)
 
-	oldroomsCmd.Flags().StringVarP(&oldroomsAt, "at", "", "", "Show the rooms existed at the specified time")
+	oldroomsCmd.Flags().StringVarP(&oldroomsAt, "at", "", "", "Show rooms existed at the specified time")
+	oldroomsCmd.Flags().StringVarP(&oldroomsBefore, "before", "b", "", "Show rooms created before the specified time")
+	oldroomsCmd.Flags().StringVarP(&oldroomsAfter, "after", "a", "", "Show rooms created after the specified time")
 	oldroomsCmd.Flags().IntVarP(&oldroomsLimit, "limit", "l", 100, "Upper limit of the room count to be shown")
 }
 
-func parseAt(at string) (*time.Time, error) {
-	if at == "" {
+func parseTime(t string) (*time.Time, error) {
+	if t == "" {
 		return nil, nil
 	}
 
 	// today's time
-	t, err := time.Parse("15:04:05", at)
+	tt, err := time.Parse("15:04:05", t)
 	if err == nil {
-		d := t.Sub(time.Date(0, 1, 1, 0, 0, 0, 0, t.Location()))
+		d := tt.Sub(time.Date(0, 1, 1, 0, 0, 0, 0, tt.Location()))
 		now := time.Now()
-		t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Add(d)
-		return &t, nil
+		tt = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).Add(d)
+		return &tt, nil
 	}
 
 	for _, layout := range []string{
@@ -79,21 +90,34 @@ func parseAt(at string) (*time.Time, error) {
 		"2006-01-02 15:04:05",
 		"2006/01/02 15:04:05",
 	} {
-		t, err := time.Parse(layout, at)
+		tt, err = time.Parse(layout, t)
 		if err == nil {
-			return &t, nil
+			return &tt, nil
 		}
 	}
-	return nil, xerrors.Errorf("Invalid time format: %v", at)
+	return nil, xerrors.Errorf("Invalid time format: %v", t)
 }
 
-func selectRoomHistoryForList(ctx context.Context, limit int, at *time.Time) ([]*roomHistory, error) {
+func selectRoomHistoryForList(ctx context.Context, limit int, before, after, at *time.Time) ([]*roomHistory, error) {
 	q := "SELECT app_id, host_id, room_id, number, search_group, max_players, public_props, private_props, player_logs, created, closed FROM room_history"
 	p := []interface{}{}
+	var where []string
+	if before != nil {
+		where = append(where, "created <= ?")
+		p = append(p, before)
+	}
+	if after != nil {
+		where = append(where, "created >= ?")
+		p = append(p, after)
+	}
 	if at != nil {
-		q += " WHERE created <= ? AND closed >= ?"
+		where = append(where, "created <= ?")
+		where = append(where, "closed >= ?")
 		p = append(p, at)
 		p = append(p, at)
+	}
+	if where != nil {
+		q += " WHERE " + strings.Join(where, " AND ")
 	}
 	q += " ORDER BY created DESC LIMIT ?"
 	p = append(p, limit)
@@ -104,6 +128,10 @@ func selectRoomHistoryForList(ctx context.Context, limit int, at *time.Time) ([]
 }
 
 func playerIds(data []byte) ([]string, error) {
+	if data == nil {
+		return []string{}, nil
+	}
+
 	var logs []map[string]interface{}
 	err := json.Unmarshal(data, &logs)
 	if err != nil {
