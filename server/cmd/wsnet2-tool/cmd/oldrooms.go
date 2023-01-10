@@ -176,9 +176,6 @@ func printOldRoom(cmd *cobra.Command, r *roomHistory, hosts map[uint32]*server) 
 	}
 
 	props, err := parsePropsSimple(r.PublicProps)
-	if err != nil {
-		return err
-	}
 
 	cmd.Printf("%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n",
 		r.RoomID,
@@ -193,5 +190,5 @@ func printOldRoom(cmd *cobra.Command, r *roomHistory, hosts map[uint32]*server) 
 		props,
 	)
 
-	return nil
+	return err
 }
