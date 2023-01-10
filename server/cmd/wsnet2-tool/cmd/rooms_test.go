@@ -88,7 +88,7 @@ func TestAppendPrimitiveArraySimple(t *testing.T) {
 	for k, test := range tests {
 		out, err := test.fnc(nil, test.data)
 		if err != nil {
-			t.Fatalf("%s: error: %v\n", k, err)
+			t.Fatalf("%s: %v\n", k, err)
 		}
 		r := string(out)
 		if diff := cmp.Diff(r, test.exp); diff != "" {
