@@ -71,22 +71,19 @@ func printRoomsHeader(cmd *cobra.Command) {
 }
 
 func printRoom(cmd *cobra.Command, r *pb.RoomInfo, h map[uint32]*server) error {
-	p, err := parsePropsSimple(r.PublicProps)
-	if err != nil {
-		return err
-	}
-
 	var num int32
 	if r.Number != nil {
 		num = r.Number.Number
 	}
+
+	p, err := parsePropsSimple(r.PublicProps)
 
 	cmd.Printf("%v\t%v\t%v\t%v\t%06d\t%d\t%d\t%d\t%d\t%v\t%s\n",
 		r.Id, r.AppId, h[r.HostId].HostName, roomFlags(r), num,
 		r.SearchGroup, r.MaxPlayers, r.Players, r.Watchers,
 		r.Created.Time(), p)
 
-	return nil
+	return err
 }
 
 func roomFlags(r *pb.RoomInfo) string {
@@ -112,44 +109,96 @@ func parsePropsSimple(data []byte) (string, error) {
 	out := []byte{'{'}
 	for k, d := range dic {
 		if len(d) == 0 {
-			return "", xerrors.Errorf("No payload: key=%v", k)
+			return string(out), xerrors.Errorf("No payload: key=%v", k)
 		}
 
-		out = append(out, []byte(k)...)
-		out = append(out, ':')
+		out = fmt.Appendf(out, "%q:", k)
 
 		t := binary.Type(d[0])
 		switch t {
 		case binary.TypeNull:
-			out = append(out, []byte("nil, ")...)
+			out = fmt.Append(out, "null,")
 		case binary.TypeTrue:
-			out = append(out, []byte("true, ")...)
+			out = fmt.Append(out, "true,")
 		case binary.TypeFalse:
-			out = append(out, []byte("false, ")...)
+			out = fmt.Append(out, "false,")
 		case binary.TypeSByte, binary.TypeByte, binary.TypeChar, binary.TypeShort, binary.TypeUShort,
 			binary.TypeInt, binary.TypeUInt, binary.TypeLong, binary.TypeULong,
 			binary.TypeFloat, binary.TypeDouble, binary.TypeDecimal:
 			v, _, err := binary.Unmarshal(d)
 			if err != nil {
-				return "", err
+				return string(out), err
 			}
-			out = append(out, []byte(fmt.Sprintf("%v, ", v))...)
+			out = fmt.Appendf(out, "%v,", v)
 		case binary.TypeStr8, binary.TypeStr16:
 			v, _, err := binary.Unmarshal(d)
 			if err != nil {
-				return "", err
+				return string(out), err
 			}
-			out = append(out, []byte(fmt.Sprintf("%q, ", v))...)
+			out = fmt.Appendf(out, "%q,", v)
 		case binary.TypeObj:
-			out = append(out, []byte(fmt.Sprintf("Obj(%d), ", d[1]))...)
+			out = fmt.Appendf(out, `"Obj(%d)",`, d[1])
+		case binary.TypeBools:
+			out, err = appendPrimitiveArraySimple[bool](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeSBytes, binary.TypeBytes, binary.TypeShorts, binary.TypeUShorts,
+			binary.TypeInts, binary.TypeUInts, binary.TypeLongs:
+			out, err = appendPrimitiveArraySimple[int](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeChars:
+			out, err = appendPrimitiveArraySimple[rune](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeULongs:
+			out, err = appendPrimitiveArraySimple[uint64](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeFloats:
+			out, err = appendPrimitiveArraySimple[float32](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeDoubles:
+			out, err = appendPrimitiveArraySimple[float64](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeList:
+			out = fmt.Appendf(out, `"List[%d]",`, d[1])
 		default:
-			out = append(out, []byte(fmt.Sprintf("%v, ", t))...)
+			out = fmt.Appendf(out, "%q,", t)
 		}
 	}
-	if len(out) > 2 {
-		out = out[:len(out)-2]
+	if len(out) > 1 {
+		out = out[:len(out)-1]
 	}
 	out = append(out, '}')
 
 	return string(out), nil
+}
+
+func appendPrimitiveArraySimple[T any](out, data []byte) ([]byte, error) {
+	if n := int(data[1])<<8 + int(data[2]); n > 4 {
+		return fmt.Appendf(out, "\"%v[%d]\",", binary.Type(data[0]), n), nil
+	}
+
+	u, _, err := binary.Unmarshal(data)
+	if err != nil {
+		return out, err
+	}
+	l, _ := u.([]T)
+	out = append(out, '[')
+	for _, v := range l {
+		out = fmt.Appendf(out, "%v,", v)
+	}
+	if len(out) > 1 {
+		out = out[:len(out)-1]
+	}
+	return fmt.Append(out, "],"), nil
 }
