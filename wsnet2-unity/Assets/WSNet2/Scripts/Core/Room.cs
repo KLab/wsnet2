@@ -692,6 +692,20 @@ namespace WSNet2
         /// </remarks>
         public int Kick(Player target, Action<EvType, string> onErrorResponse = null)
         {
+            return Kick(target, "", onErrorResponse);
+        }
+
+        /// <summary>
+        ///   対象のプレイヤーを強制退室させる
+        /// </summary>
+        /// <param name="target">対象プレイヤー</param>
+        /// <param name="message">メッセージ</param>
+        /// <param name="onErrorResponse">サーバ側でエラーになったときのコールバック</param>
+        /// <remarks>
+        ///   この操作はMasterのみ呼び出せる。
+        /// </remarks>
+        public int Kick(Player target, string message, Action<EvType, string> onErrorResponse = null)
+        {
             if (Me != Master)
             {
                 throw new Exception("Kick is for master only");
@@ -702,7 +716,7 @@ namespace WSNet2
                 throw new Exception($"Player \"{target.Id}\" is not in this room");
             }
 
-            var seqNum = con.msgPool.PostKick(target.Id);
+            var seqNum = con.msgPool.PostKick(target.Id, message);
 
             if (onErrorResponse != null)
             {
