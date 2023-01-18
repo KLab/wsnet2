@@ -94,6 +94,7 @@ const (
 	// MsgTypeKick
 	// payload:
 	// - str8: client id
+	// - string: message
 	MsgTypeKick
 )
 
@@ -161,6 +162,20 @@ func UnmarshalMsg(hmac hash.Hash, data []byte) (Msg, error) {
 	return &regularMsg{mt, seq, data}, nil
 }
 
+// UnmarshalLeavePayload
+func UnmarshalLeavePayload(payload []byte) (string, error) {
+	s, _, err := UnmarshalAs(payload, TypeStr8)
+	if err != nil {
+		return "", xerrors.Errorf("Invalid MsgLeave payload (message): %w", err)
+	}
+	m := s.(string)
+	if m == "" {
+		m = "client leave"
+	}
+	return m, nil
+}
+
+// NewMsgPing constructs MsgPing
 func NewMsgPing(timestamp time.Time) Msg {
 	payload := make([]byte, 8)
 	put64(payload, uint64(timestamp.UnixMilli()))
@@ -179,6 +194,7 @@ func UnmarshalPingPayload(payload []byte) (uint64, error) {
 	return get64(payload), nil
 }
 
+// NewMsgNodeCount constructs MsgNodeCount
 func NewMsgNodeCount(count uint32) Msg {
 	payload := MarshalUInt(int(count))
 	return &nonregularMsg{
@@ -322,11 +338,22 @@ func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 }
 
 // UnmarshalKickPayload parses payload of MsgTypeKick
-func UnmarshalKickPayload(payload []byte) (string, error) {
-	d, _, e := UnmarshalAs(payload, TypeStr8)
+func UnmarshalKickPayload(payload []byte) (string, string, error) {
+	d, l, e := UnmarshalAs(payload, TypeStr8)
 	if e != nil {
-		return "", xerrors.Errorf("Invalid MsgKick payload (client id): %w", e)
+		return "", "", xerrors.Errorf("Invalid MsgKick payload (client id): %w", e)
+	}
+	m, _, e := Unmarshal(payload[l:])
+	if e != nil {
+		return d.(string), "", xerrors.Errorf("Invalid MsgKick payload (message): %w", e)
+	}
+	msg, ok := m.(string)
+	if !ok {
+		return d.(string), "", xerrors.Errorf("Invalid MsgKick payload (message): %T", m)
+	}
+	if msg == "" {
+		msg = "kicked"
 	}
 
-	return d.(string), nil
+	return d.(string), msg, nil
 }

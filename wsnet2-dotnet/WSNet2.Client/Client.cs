@@ -52,8 +52,15 @@ namespace WSNet2.DotnetClient
             {
                 "kick",
                 (room, p) => {
-                    var ps = p.Split(" ", 2);
-                    room.Leave((ps.Length>1)? ps[1]: "");
+                    try
+                    {
+                        var ps = p.Split(" ", 2);
+                        room.Kick(room.Players[ps[0]], ((ps.Length>1)? ps[1]: ""));
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"kick error: {e.Message}");
+                    }
                 }
             },
             {
