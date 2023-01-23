@@ -760,6 +760,86 @@ namespace WSNet2
             }
         }
 
+        /// <summary>
+        ///   Bool型のみの辞書を書き込む
+        /// </summary>
+        public void Write(IDictionary<string, bool> v)
+        {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
+            expand(2);
+            buf[pos] = (byte)Type.Dict;
+            pos++;
+
+            var count = v.Count;
+            if (count > byte.MaxValue)
+            {
+                var msg = string.Format("Too many dictionary content: {0}", count);
+                throw new WSNet2SerializerException(msg);
+            }
+            Put8(count);
+
+            foreach (var kv in v)
+            {
+                var klen = utf8.GetByteCount(kv.Key);
+                if (klen > byte.MaxValue)
+                {
+                    var msg = string.Format("Too long key: \"{0}\"", kv.Key);
+                    throw new WSNet2SerializerException(msg);
+                }
+                expand(klen + 4);
+                Put8(klen);
+                utf8.GetBytes(kv.Key, 0, kv.Key.Length, buf, pos);
+                pos += klen;
+                Put16(1);
+                Write(kv.Value);
+            }
+        }
+
+        /// <summary>
+        ///   ulongのみの辞書を書き込む
+        /// </summary>
+        public void Write(IDictionary<string, ulong> v)
+        {
+            if (v == null)
+            {
+                Write();
+                return;
+            }
+
+            expand(2);
+            buf[pos] = (byte)Type.Dict;
+            pos++;
+
+            var count = v.Count;
+            if (count > byte.MaxValue)
+            {
+                var msg = string.Format("Too many dictionary content: {0}", count);
+                throw new WSNet2SerializerException(msg);
+            }
+            Put8(count);
+
+            foreach (var kv in v)
+            {
+                var klen = utf8.GetByteCount(kv.Key);
+                if (klen > byte.MaxValue)
+                {
+                    var msg = string.Format("Too long key: \"{0}\"", kv.Key);
+                    throw new WSNet2SerializerException(msg);
+                }
+                expand(klen + 3 + 9);
+                Put8(klen);
+                utf8.GetBytes(kv.Key, 0, kv.Key.Length, buf, pos);
+                pos += klen;
+                Put16(9);
+                Write(kv.Value);
+            }
+        }
+
         public void Put8(int v)
         {
             buf[pos] = (byte)(v & 0xff);
@@ -913,6 +993,12 @@ namespace WSNet2
                     Write(e);
                     break;
                 case double[] e:
+                    Write(e);
+                    break;
+                case IDictionary<string, bool> e:
+                    Write(e);
+                    break;
+                case IDictionary<string, ulong> e:
                     Write(e);
                     break;
                 case IEnumerable e:
