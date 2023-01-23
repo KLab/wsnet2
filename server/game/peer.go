@@ -5,12 +5,17 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/shiguredo/websocket"
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
 	"wsnet2/metrics"
+)
+
+const (
+	writeTimeout = 3 * time.Second
 )
 
 // Peer : websocketの接続
@@ -66,16 +71,16 @@ func (p *Peer) LastEventSeq() int {
 }
 
 // SendReady : EvPeerReadyを送信する.
-// clientのAttachPeerから呼ばれる.
+// websocketハンドラのgoroutineからcli.AttachPeer経由で呼ばれる.
 func (p *Peer) SendReady(lastMsgSeq int) error {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
 		return xerrors.New("peer closed")
 	}
+	p.client.logger.Infof("peer ready: %v lastMsg=%v peer=%p", p.client.Id, lastMsgSeq, p)
 	ev := binary.NewEvPeerReady(lastMsgSeq)
-	metrics.MessageSent.Add(1)
-	return p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
+	return writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 }
 
 // SendSystemEvent : SystemEventを送信する.
@@ -87,11 +92,10 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
 		return nil
 	}
 	metrics.MessageSent.Add(1)
-	err := p.conn.WriteMessage(websocket.BinaryMessage, ev.Marshal())
+	err := writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 	if err != nil {
 		p.client.logger.Errorf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
-		metrics.MessageSent.Add(1)
-		p.conn.WriteMessage(websocket.CloseMessage,
+		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 		p.conn.Close()
 		p.closed = true
@@ -113,8 +117,7 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 	if err != nil {
 		// evSeqNumが古すぎるため. 復帰不能.
 		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
-		metrics.MessageSent.Add(1)
-		p.conn.WriteMessage(websocket.CloseMessage,
+		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseGoingAway, err.Error()))
 		p.conn.Close()
 		p.closed = true
@@ -125,13 +128,11 @@ func (p *Peer) SendEvents(evbuf *EvBuf) error {
 	for _, ev := range evs {
 		seqNum++
 		buf := ev.Marshal(seqNum)
-		metrics.MessageSent.Add(1)
-		err := p.conn.WriteMessage(websocket.BinaryMessage, buf)
+		err := writeMessage(p.conn, websocket.BinaryMessage, buf)
 		if err != nil {
 			// 新しいpeerで復帰できるかもしれない
 			p.client.logger.Errorf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
-			metrics.MessageSent.Add(1)
-			p.conn.WriteMessage(websocket.CloseMessage,
+			writeMessage(p.conn, websocket.CloseMessage,
 				formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 			p.conn.Close()
 			p.closed = true
@@ -169,8 +170,7 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 	if p.closed {
 		return
 	}
-	metrics.MessageSent.Add(1)
-	p.conn.WriteMessage(websocket.CloseMessage, formatCloseMessage(code, msg))
+	writeMessage(p.conn, websocket.CloseMessage, formatCloseMessage(code, msg))
 	p.conn.Close()
 	p.closed = true
 }
@@ -215,6 +215,12 @@ loop:
 	p.client.DetachPeer(p)
 	close(p.msgCh)
 	close(p.done)
+}
+
+func writeMessage(conn *websocket.Conn, messageType int, data []byte) error {
+	metrics.MessageSent.Add(1)
+	conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+	return conn.WriteMessage(messageType, data)
 }
 
 func formatCloseMessage(closeCode int, text string) []byte {

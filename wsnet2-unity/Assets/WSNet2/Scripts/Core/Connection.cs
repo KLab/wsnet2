@@ -116,7 +116,6 @@ namespace WSNet2
 
                     var ws = await Connect(cts.Token);
                     reconnectLimit = null;
-                    reconnection = 0;
 
                     var tasks = new Task[]
                     {
@@ -173,7 +172,7 @@ namespace WSNet2
                 await retryInterval;
 
                 reconnection++;
-                logger?.Info($"reconnect now:{DateTime.Now}, limit:{reconnectLimit}, count:{reconnection}");
+                logger?.Info("reconnect now:{0}, limit:{1}, count:{2}", DateTime.Now, reconnectLimit?.ToString() ?? "null", reconnection);
             }
         }
 
@@ -212,12 +211,14 @@ namespace WSNet2
             ws.Options.SetRequestHeader("Wsnet2-App", appId);
             ws.Options.SetRequestHeader("Wsnet2-User", clientId);
             ws.Options.SetRequestHeader("Wsnet2-LastEventSeq", evSeqNum.ToString());
+            ws.Options.AddSubProtocol("wsnet2");
 
             logger?.Info("connecting to {0}", uri);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(WSNet2Settings.ConnectTimeoutMilliSec);
             NetworkInformer.OnRoomConnectRequest(room, uri.AbsoluteUri);
             await ws.ConnectAsync(uri, cts.Token);
+            logger?.Info("connected");
             return ws;
         }
 
@@ -248,6 +249,7 @@ namespace WSNet2
                     {
                         case EvType.PeerReady:
                             var evpr = ev as EvPeerReady;
+                            logger?.Info("receive peer-ready: lastMsgSeqNum={0}", evpr.LastMsgSeqNum);
                             var sender = Task.Run(async () => await Sender(ws, evpr.LastMsgSeqNum + 1, ct));
                             var pinger = Task.Run(async () => await Pinger(ws, ct));
                             senderTaskSource.TrySetResult(sender);
