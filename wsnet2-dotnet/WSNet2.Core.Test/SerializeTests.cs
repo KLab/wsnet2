@@ -963,6 +963,23 @@ namespace WSNet2.Core.Test
         }
 
         [Test]
+        public void TestReadIntoULongDict()
+        {
+            var data = new byte[]{
+                (byte)Type.Dict, 2,
+                1, (byte)'a', 0, 9, (byte)Type.ULong, 0,0,0,0, 0,0,0,1,
+                2, (byte)'b', (byte)'b', 0, 9, (byte)Type.ULong, 0,0,0,0, 0,0,0,2,
+            };
+            var expect = new Dictionary<string, ulong>(){{"a", 1}, {"bb", 2}};
+            var olddict = new Dictionary<string, ulong>(){{"a", 10}, {"bb", 20}};
+            var reader = WSNet2Serializer.NewReader(data);
+
+            var newdict = reader.ReadIntoULongDict(olddict);
+            Assert.AreEqual(expect, newdict);
+            Assert.AreSame(newdict, olddict);
+        }
+
+        [Test]
         public void TestRead()
         {
             writer.Write();

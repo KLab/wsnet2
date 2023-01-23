@@ -40,7 +40,7 @@ namespace WSNet2
         public ulong RttMillisec { get; private set; }
 
         /// <summary>全Playerの最終メッセージ受信時刻 (playerId => unixtime millisec)</summary>
-        public IReadOnlyDictionary<string, ulong> LastMsgTimestamps { get; private set; }
+        public IReadOnlyDictionary<string, ulong> LastMsgTimestamps { get => lastMsgTimestamps; }
 
         /// <summary>
         ///   入室イベント通知
@@ -113,6 +113,7 @@ namespace WSNet2
         Dictionary<string, Player> players;
         string masterId;
         uint clientDeadline;
+        Dictionary<string, ulong> lastMsgTimestamps;
 
         CallbackPool callbackPool;
         Dictionary<Delegate, byte> rpcMap;
@@ -154,10 +155,12 @@ namespace WSNet2
             privateProps = reader.ReadDict();
 
             players = new Dictionary<string, Player>(joined.players.Length);
+            lastMsgTimestamps = new Dictionary<string, ulong>(joined.players.Length);
             foreach (var p in joined.players)
             {
                 var player = new Player(p);
                 players[p.Id] = player;
+                lastMsgTimestamps[p.Id] = 0;
                 if (p.Id == myId)
                 {
                     Me = player;
@@ -928,7 +931,7 @@ namespace WSNet2
             {
                 info.watchers = ev.WatcherCount;
                 RttMillisec = ev.RTT;
-                LastMsgTimestamps = ev.lastMsgTimestamps;
+                ev.GetLastMsgTimestamps(lastMsgTimestamps);
             });
         }
 
@@ -956,6 +959,7 @@ namespace WSNet2
             {
                 var player = new Player(ev.ClientID, ev.GetProps());
                 players[player.Id] = player;
+                lastMsgTimestamps[player.Id] = 0;
                 info.players = (uint)players.Count;
                 if (OnOtherPlayerJoined != null)
                 {
@@ -1016,6 +1020,7 @@ namespace WSNet2
                 }
 
                 players.Remove(player.Id);
+                lastMsgTimestamps.Remove(player.Id);
                 info.players = (uint)players.Count;
                 if (OnOtherPlayerLeft != null)
                 {

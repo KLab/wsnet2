@@ -480,6 +480,8 @@ namespace WSNet2
                         };
                         break;
                     case EvPong evPong:
+                        var lastMsgTimestamps = new Dictionary<string, ulong>();
+                        evPong.GetLastMsgTimestamps(lastMsgTimestamps);
                         info = new RoomReceivePongInfo()
                         {
                             BodySize = bodySize,
@@ -489,7 +491,7 @@ namespace WSNet2
                             PingTimestampMilliSec = evPong.PingTimestamp,
                             RTT = evPong.RTT,
                             WatcherCount = evPong.WatcherCount,
-                            LastMsgTimestamps = evPong.lastMsgTimestamps,
+                            LastMsgTimestamps = lastMsgTimestamps,
                         };
                         break;
                     case EvJoined evJoined:

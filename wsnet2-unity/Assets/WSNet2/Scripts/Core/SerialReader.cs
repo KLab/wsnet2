@@ -803,7 +803,21 @@ namespace WSNet2
                 return null;
             }
 
-            var dict = new Dictionary<string, ulong>();
+            pos--;
+            return ReadIntoULongDict(new Dictionary<string, ulong>());
+        }
+
+        /// <summary>
+        ///   ulong辞書を読み取り既存のulong辞書に書き込む
+        /// </summary>
+        /// <remarks>
+        ///   既存dictの要素は削除せず追記する。
+        ///   Room.lastMsgTimestampsを直接書き換えるのに利用する。
+        /// </remarks>
+        public Dictionary<string, ulong> ReadIntoULongDict(Dictionary<string, ulong> dict)
+        {
+            checkType(Type.Dict);
+
             var count = Get8();
 
             for (var i = 0; i < count; i++)
