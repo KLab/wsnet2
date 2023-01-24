@@ -39,6 +39,148 @@ namespace WSNet2.DotnetClient
 
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
+        static bool showNetInfo = false;
+
+        static Dictionary<string, Action<Room, string>> cmds = new Dictionary<string, Action<Room, string>>()
+        {
+            {
+                "leave",
+                (room, p) => {
+                    room.Leave(p);
+                }
+            },
+            {
+                "kick",
+                (room, p) => {
+                    try
+                    {
+                        var ps = p.Split(" ", 2);
+                        room.Kick(room.Players[ps[0]], ((ps.Length>1)? ps[1]: ""));
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"kick error: {e.Message}");
+                    }
+                }
+            },
+            {
+                "switchmaster",
+                (room, p)=> {
+                    Console.WriteLine($"switch master to {p}");
+                    try
+                    {
+                        room.SwitchMaster(
+                            room.Players[p],
+                            (t, id) => Console.WriteLine($"SwitchMaster({id}) error: {t}"));
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine($"switch master error: {e.Message}");
+                    }
+                }
+            },
+            {
+                "roomprop",
+                (room, p) => {
+                    var strs = p.Split(' ');
+                    var joinable = !room.Joinable;
+                    var deadline = room.ClientDeadline + 3;
+                    var pubProps = new Dictionary<string, object>();
+                    if (strs.Length > 0)
+                    {
+                        pubProps["public-modify"] = strs[0];
+                    }
+                    Dictionary<string, object> privProps = null;
+                    if (strs.Length > 1)
+                    {
+                        privProps = new Dictionary<string, object>(){
+                            {"private-modify", strs[1]},
+                        };
+                    }
+                    room.ChangeRoomProperty(
+                        joinable: joinable,
+                        clientDeadline: deadline,
+                        publicProps: pubProps,
+                        privateProps: privProps,
+                        onErrorResponse: (t, v, j, w, sg, mp, cd, pub, priv) =>
+                        {
+                            var f = !v.HasValue ? "-" : v.Value ? "V" : "x";
+                            f += !j.HasValue ? "-" : j.Value ? "J" : "x";
+                            f += !w.HasValue ? "-" : w.Value ? "W" : "x";
+                            var pubp = "";
+                            if (pub != null)
+                            {
+                                foreach (var kv in pub)
+                                {
+                                    pubp += $"{kv.Key}:{kv.Value},";
+                                }
+                            }
+                            var prip = "";
+                            if (priv != null)
+                            {
+                                foreach (var kv in priv)
+                                {
+                                    prip += $"{kv.Key}:{kv.Value},";
+                                }
+                            }
+                            Console.WriteLine($"OnRoomPropertyChanged {t}: flg={f} sg={sg} mp={mp} cd={cd} pub={pubp} priv={prip}");
+                        });
+                }
+            },
+            {
+                "myprop",
+                (room, p) => {
+                    var strs = p.Split(' ');
+                    if (strs.Length != 2)
+                    {
+                        Console.WriteLine("invalid param: myprop <key> <value>");
+                        return;
+                    }
+
+                    room.ChangeMyProperty(new Dictionary<string, object>() { { strs[0], strs[1] } });
+                }
+            },
+            {
+                "pause",
+                (room, p) => {
+                    room.Pause();
+                    Console.WriteLine("room paused");
+                }
+            },
+            {
+                "restart",
+                (room, p) => {
+                    room.Restart();
+                    Console.WriteLine("room restarted");
+                }
+            },
+            {
+                "netinfo",
+                (room, p) => {
+                    showNetInfo = !showNetInfo;
+                    Console.WriteLine("netinfo " + (showNetInfo ? "on" : "off"));
+                }
+            },
+        };
+
+        static bool doAsCmd(Room room, string str)
+        {
+            if (str[0] != '!')
+            {
+                return false;
+            }
+
+            var ss = str.Substring(1).Split(" ", 2);
+            if (!cmds.ContainsKey(ss[0]))
+            {
+                Console.WriteLine("commands: " + string.Join(" ", cmds.Keys));
+                return true;
+            }
+
+            cmds[ss[0]](room, (ss.Length>1) ? ss[1] : "");
+            return true;
+        }
+
         static async Task callbackrunner(WSNet2Client cli, CancellationToken ct)
         {
             while (true)
@@ -324,118 +466,15 @@ namespace WSNet2.DotnetClient
                 {
                     cts.Token.ThrowIfCancellationRequested();
                     var str = Console.ReadLine();
+                    if (str == "")
+                    {
+                        continue;
+                    }
 
                     cts.Token.ThrowIfCancellationRequested();
 
-                    if (str.StartsWith("leave "))
+                    if (doAsCmd(room, str))
                     {
-                        room.Leave(str);
-                        continue;
-                    }
-
-                    if (str == "pause")
-                    {
-                        room.Pause();
-                        continue;
-                    }
-                    if (str == "restart")
-                    {
-                        room.Restart();
-                        continue;
-                    }
-
-                    if (str.StartsWith("switchmaster "))
-                    {
-                        var newMaster = str.Substring("switchmaster ".Length);
-                        Console.WriteLine($"switch master to {newMaster}");
-                        try
-                        {
-                            room.SwitchMaster(
-                                room.Players[newMaster],
-                                (t, id) => Console.WriteLine($"SwitchMaster({id}) error: {t}"));
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine($"switch master error: {e.Message}");
-                        }
-                        continue;
-                    }
-
-                    if (str.StartsWith("kick "))
-                    {
-                        var target = str.Substring("kick ".Length);
-                        Console.WriteLine($"kick {target}");
-                        try
-                        {
-                            room.Kick(room.Players[target]);
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine($"kick error: {e.Message}");
-                        }
-                        continue;
-                    }
-
-                    if (str.StartsWith("roomprop "))
-                    {
-                        var strs = str.Split(' ');
-                        var joinable = !room.Joinable;
-                        var deadline = room.ClientDeadline + 3;
-                        var pubProps = new Dictionary<string, object>();
-                        if (strs.Length > 1)
-                        {
-                            pubProps["public-modify"] = strs[1];
-                        }
-                        Dictionary<string, object> privProps = null;
-                        if (strs.Length > 2)
-                        {
-                            privProps = new Dictionary<string, object>(){
-                                {"private-modify", strs[2]},
-                            };
-                        }
-                        room.ChangeRoomProperty(
-                            joinable: joinable,
-                            clientDeadline: deadline,
-                            publicProps: pubProps,
-                            privateProps: privProps,
-                            onErrorResponse: (t, v, j, w, sg, mp, cd, pub, priv) =>
-                            {
-                                var f = !v.HasValue ? "-" : v.Value ? "V" : "x";
-                                f += !j.HasValue ? "-" : j.Value ? "J" : "x";
-                                f += !w.HasValue ? "-" : w.Value ? "W" : "x";
-                                var pubp = "";
-                                if (pub != null)
-                                {
-                                    foreach (var kv in pub)
-                                    {
-                                        pubp += $"{kv.Key}:{kv.Value},";
-                                    }
-                                }
-                                var prip = "";
-                                if (priv != null)
-                                {
-                                    foreach (var kv in priv)
-                                    {
-                                        prip += $"{kv.Key}:{kv.Value},";
-                                    }
-                                }
-                                Console.WriteLine($"OnRoomPropertyChanged {t}: flg={f} sg={sg} mp={mp} cd={cd} pub={pubp} priv={prip}");
-                            });
-                        continue;
-                    }
-
-                    if (str.StartsWith("myprop "))
-                    {
-                        var strs = str.Split(' ');
-                        if (strs.Length == 3)
-                        {
-                            var prop = new Dictionary<string, object>() { { strs[1], strs[2] } };
-                            room.ChangeMyProperty(prop);
-                        }
-                        else
-                        {
-                            Console.WriteLine("invalid param: myprop <key> <value>");
-                        }
                         continue;
                     }
 
@@ -477,6 +516,8 @@ namespace WSNet2.DotnetClient
 
         static void NetInfoCallback(NetworkInformer.Info info)
         {
+            if (!showNetInfo) return;
+
             var str = JsonSerializer.Serialize((object)info, new JsonSerializerOptions { IncludeFields = true });
             Console.WriteLine($"NetInfo: {info.GetType().Name} {str}");
 

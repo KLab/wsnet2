@@ -793,7 +793,7 @@ func (r *Room) msgKick(msg *MsgKick) error {
 
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 
-	r.removeClient(target, "kicked")
+	r.removeClient(target, msg.Message)
 	return nil
 }
 

@@ -171,12 +171,13 @@ namespace WSNet2
         /// <summary>
         ///   強制退室メッセージを投下
         /// </summary>
-        public int PostKick(string targetId)
+        public int PostKick(string targetId, string message)
         {
             lock (this)
             {
                 var writer = writeMsgType(MsgType.Kick);
                 writer.Write(targetId);
+                writer.Write(message);
                 writer.AppendHMAC(hmac);
                 return sequenceNum;
             }

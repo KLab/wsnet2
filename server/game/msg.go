@@ -169,13 +169,9 @@ func (m *MsgLeave) SenderID() ClientID {
 }
 
 func msgLeave(sender *Client, msg binary.RegularMsg) (Msg, error) {
-	m := "client leave"
-	s, _, err := binary.UnmarshalAs(msg.Payload(), binary.TypeStr8)
+	m, err := binary.UnmarshalLeavePayload(msg.Payload())
 	if err != nil {
 		return nil, err
-	}
-	if ss, _ := s.(string); len(ss) > 0 {
-		m = ss
 	}
 	return &MsgLeave{
 		RegularMsg: msg,
@@ -334,8 +330,9 @@ func msgSwitchMaster(sender *Client, msg binary.RegularMsg) (Msg, error) {
 // MasterClientからのみ受け付ける.
 type MsgKick struct {
 	binary.RegularMsg
-	Sender *Client
-	Target ClientID
+	Sender  *Client
+	Target  ClientID
+	Message string
 }
 
 func (*MsgKick) msg() {}
@@ -345,7 +342,7 @@ func (m *MsgKick) SenderID() ClientID {
 }
 
 func msgKick(sender *Client, msg binary.RegularMsg) (Msg, error) {
-	target, err := binary.UnmarshalKickPayload(msg.Payload())
+	target, message, err := binary.UnmarshalKickPayload(msg.Payload())
 	if err != nil {
 		return nil, err
 	}
@@ -353,6 +350,7 @@ func msgKick(sender *Client, msg binary.RegularMsg) (Msg, error) {
 		RegularMsg: msg,
 		Sender:     sender,
 		Target:     ClientID(target),
+		Message:    message,
 	}, nil
 }
 
