@@ -39,6 +39,7 @@ namespace WSNet2.DotnetClient
 
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
+        static bool showPong = false;
         static bool showNetInfo = false;
 
         static Dictionary<string, Action<Room, string>> cmds = new Dictionary<string, Action<Room, string>>()
@@ -152,6 +153,13 @@ namespace WSNet2.DotnetClient
                 (room, p) => {
                     room.Restart();
                     Console.WriteLine("room restarted");
+                }
+            },
+            {
+                "showpong",
+                (room, p) => {
+                    showPong = !showPong;
+                    Console.WriteLine("show pong " + (showPong ? "on" : "off"));
                 }
             },
             {
@@ -361,38 +369,23 @@ namespace WSNet2.DotnetClient
                 room.OnOtherPlayerRejoined += (p) => Console.WriteLine($"OnOtherPlayerRejoined: {p.Id}");
                 room.OnOtherPlayerLeft += (p, m) => Console.WriteLine($"OnOtherplayerleft: {p.Id}: {m}");
                 room.OnMasterPlayerSwitched += (p, n) => Console.WriteLine($"OnMasterPlayerSwitched: {p.Id} -> {n.Id}");
+                room.OnPongReceived += (r, w, ts) => {
+                    if (showPong) Console.WriteLine(
+                        $"onPong: RTT={r} Watchers={w} LMTS={{"+ts.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a,s)=>$"{a},{s}")+"}");
+                };
                 room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
                 {
                     var flags = !visible.HasValue ? "-" : visible.Value ? "V" : "x";
                     flags += !joinable.HasValue ? "-" : joinable.Value ? "J" : "x";
                     flags += !watchable.HasValue ? "-" : watchable.Value ? "W" : "x";
-                    var pubp = "";
-                    if (publicProps != null)
-                    {
-                        foreach (var kv in publicProps)
-                        {
-                            pubp += $"{kv.Key}:{kv.Value},";
-                        }
-                    }
-                    var prip = "";
-                    if (privateProps != null)
-                    {
-                        foreach (var kv in privateProps)
-                        {
-                            prip += $"{kv.Key}:{kv.Value},";
-                        }
-                    }
+                    var pubp = publicProps?.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}");
+                    var prip = publicProps?.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}");
 
                     Console.WriteLine($"OnRoomPropertyChanged: flg={flags} sg={searchGroup} mp={maxPlayers} cd={clientDeadline} pub={pubp} priv={prip}");
                 };
                 room.OnPlayerPropertyChanged += (p, props) =>
                 {
-                    var propstr = "";
-                    foreach (var kv in props)
-                    {
-                        propstr += $"{kv.Key}:{kv.Value},";
-                    }
-
+                    var propstr = props?.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}");
                     Console.WriteLine($"OnPlayerPropertyChanged: {p.Id} {propstr}");
                 };
                 room.OnClosed += (_) => cts.Cancel();
