@@ -8,7 +8,8 @@ namespace WSNet2
         public ulong PingTimestamp { get; private set; }
         public ulong RTT { get; private set; }
         public uint WatcherCount { get; private set; }
-        public Dictionary<string, ulong> lastMsgTimestamps { get; private set; }
+
+        Dictionary<string, ulong> lastMsgTimestamps;
 
         public EvPong(SerialReader reader) : base(EvType.Pong, reader)
         {
@@ -16,9 +17,21 @@ namespace WSNet2
 
             PingTimestamp = reader.ReadULong();
             WatcherCount = reader.ReadUInt();
-            lastMsgTimestamps = reader.ReadULongDict();
-
             RTT = now - PingTimestamp;
+        }
+
+        public void GetLastMsgTimestamps(Dictionary<string, ulong> output)
+        {
+            if (lastMsgTimestamps == null)
+            {
+                lastMsgTimestamps = reader.ReadIntoULongDict(output);
+                return;
+            }
+
+            foreach (var kv in lastMsgTimestamps)
+            {
+                output[kv.Key] = kv.Value;
+            }
         }
     }
 }

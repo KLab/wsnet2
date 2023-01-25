@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 
 namespace WSNet2.Core.Test
 {
-    public class EvResponsePayloadTests
+    public class EvResponseTests
     {
         MsgPool msgpool;
 
