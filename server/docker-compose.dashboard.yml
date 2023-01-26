@@ -1,0 +1,40 @@
+version: "3"
+services:
+  frontend:
+    container_name: wsnet2-dashboard-frontend
+    build: ../wsnet2-dashboard/frontend
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ../wsnet2-dashboard/frontend/.env
+    restart: always
+    ports:
+      - "80:80"
+  backend:
+    container_name: wsnet2-dashboard-backend
+    build: ../wsnet2-dashboard/backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - ../wsnet2-dashboard/backend/.env
+    restart: always
+    ports:
+      - "5555:5555"
+  bot:
+    container_name: wsnet2-bot
+    image: wsnet2-arelo
+    volumes:
+      - ../:/repo
+    working_dir: /repo/server
+    depends_on:
+      - frontend
+      - lobby
+      - game
+      - hub
+    command: arelo -t "bin" -p "bin/wsnet2-bot" -- bin/wsnet2-bot --lobby="http://lobby:8080" static 3600

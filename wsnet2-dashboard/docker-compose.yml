@@ -1,0 +1,24 @@
+version: "3"
+services:
+  frontend:
+    container_name: wsnet2-dashboard-frontend
+    build: frontend
+    depends_on:
+      - backend
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - frontend/.env
+    restart: always
+    ports:
+      - "80:80"
+  backend:
+    container_name: wsnet2-dashboard-backend
+    build: backend
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - backend/.env
+    restart: always
+    ports:
+      - "5555:5555"

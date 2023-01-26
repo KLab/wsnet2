@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 services:
   db:
     container_name: wsnet2-db
@@ -14,6 +14,20 @@ services:
       - ./sql:/docker-entrypoint-initdb.d
     ports:
       - 3306:3306
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p$$MYSQL_ROOT_PASSWORD",
+        ]
+      timeout: 20s
+      retries: 10
   builder:
     container_name: wsnet2-builder
     build: .
