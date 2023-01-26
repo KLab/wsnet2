@@ -379,7 +379,7 @@ namespace WSNet2.DotnetClient
                     flags += !joinable.HasValue ? "-" : joinable.Value ? "J" : "x";
                     flags += !watchable.HasValue ? "-" : watchable.Value ? "W" : "x";
                     var pubp = publicProps?.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}");
-                    var prip = publicProps?.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}");
+                    var prip = privateProps?.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}");
 
                     Console.WriteLine($"OnRoomPropertyChanged: flg={flags} sg={searchGroup} mp={maxPlayers} cd={clientDeadline} pub={pubp} priv={prip}");
                 };
