@@ -260,7 +260,7 @@ func (c *Client) Removed(cause string) {
 	p := c.peer
 	c.mu.RUnlock()
 	if p != nil {
-		p.Close(c.removeCause)
+		go p.Close(c.removeCause)
 	}
 }
 
