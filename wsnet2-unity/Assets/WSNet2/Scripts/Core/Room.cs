@@ -106,6 +106,13 @@ namespace WSNet2
         public Action<ulong, ulong, IReadOnlyDictionary<string, ulong>> OnPongReceived;
 
         /// <summary>
+        ///   接続状態変化通知
+        /// </summary>
+        /// OnConnectionStateChanged(connected)
+        /// connected: true=接続した false=切断した
+        public Action<bool> OnConnectionStateChanged;
+
+        /// <summary>
         ///   エラー通知
         /// </summary>
         /// OnError(exception)
@@ -1239,6 +1246,17 @@ namespace WSNet2
                     {
                         handler(ev);
                     }
+                }
+            });
+        }
+
+        internal void ConnectionStateChanged(bool connected)
+        {
+            callbackPool.Add(() =>
+            {
+                if (OnConnectionStateChanged != null)
+                {
+                    OnConnectionStateChanged(connected);
                 }
             });
         }

@@ -116,6 +116,7 @@ namespace WSNet2
 
                     var ws = await Connect(cts.Token);
                     reconnectLimit = null;
+                    room.ConnectionStateChanged(true);
 
                     var tasks = new Task[]
                     {
@@ -155,6 +156,10 @@ namespace WSNet2
                     senderTaskSource.TrySetCanceled();
                     pingerTaskSource.TrySetCanceled();
                     cts.Cancel();
+                    if (reconnectLimit == null) // 接続成功している
+                    {
+                        room.ConnectionStateChanged(false);
+                    }
                 }
 
                 if (canceller.IsCancellationRequested)
