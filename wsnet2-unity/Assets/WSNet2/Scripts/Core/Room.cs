@@ -97,6 +97,15 @@ namespace WSNet2
         public Action<Player, Dictionary<string, object>> OnPlayerPropertyChanged;
 
         /// <summary>
+        ///   Pong受信通知
+        /// </summary>
+        /// OnPongReceived(rttMillisec, watcherCount, lastMsgTimestamps)
+        /// <remarks>
+        ///  引数はRoomの RttMillisec, WatcherCount, LastMsgTimestamps と同じ
+        /// </remarks>
+        public Action<ulong, ulong, IReadOnlyDictionary<string, ulong>> OnPongReceived;
+
+        /// <summary>
         ///   エラー通知
         /// </summary>
         /// OnError(exception)
@@ -946,6 +955,10 @@ namespace WSNet2
                 info.watchers = ev.WatcherCount;
                 RttMillisec = ev.RTT;
                 ev.GetLastMsgTimestamps(lastMsgTimestamps);
+                if (OnPongReceived != null)
+                {
+                    OnPongReceived(RttMillisec, info.watchers, lastMsgTimestamps);
+                }
             });
         }
 
