@@ -3,6 +3,7 @@ services:
   frontend:
     container_name: wsnet2-dashboard-frontend
     build: ../wsnet2-dashboard/frontend
+    image: wsnet2-dashboard-frontend
     depends_on:
       backend:
         condition: service_started
@@ -16,6 +17,7 @@ services:
   backend:
     container_name: wsnet2-dashboard-backend
     build: ../wsnet2-dashboard/backend
+    image: wsnet2-dashboard-backend
     depends_on:
       db:
         condition: service_healthy
