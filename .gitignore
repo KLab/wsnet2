@@ -1,1 +1,5 @@
 .markdown-preview.html
+.DS_Store
+.vscode/
+*.local
+.log/

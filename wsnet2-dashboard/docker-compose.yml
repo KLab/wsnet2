@@ -1,24 +1,36 @@
 version: "3"
+name: wsnet2
 services:
+  frontbuilder:
+    container_name: wsnet2-dashboard-frontbuilder
+    image: node:lts-alpine3.11
+    profiles:
+      - build
+    env_file:
+      - ../wsnet2-dashboard/frontend/.env
+    volumes:
+      - ..:/repo
+      - ../wsnet2-dashboard/frontend/.docker_node_modules:/repo/wsnet2-dashboard/frontend/node_modules
+    working_dir: /repo/wsnet2-dashboard/frontend
+    command: [ "sh", "-c", "npm install && npm run build" ]
   frontend:
     container_name: wsnet2-dashboard-frontend
-    build: frontend
-    depends_on:
-      - backend
-    environment:
-      - NODE_ENV=production
-    env_file:
-      - frontend/.env
-    restart: always
+    image: nginx:stable-alpine
+    volumes:
+      - ../wsnet2-dashboard/frontend/dist:/usr/share/nginx/html
     ports:
-      - "80:80"
+      - 80:80
   backend:
     container_name: wsnet2-dashboard-backend
-    build: backend
-    environment:
-      - NODE_ENV=production
+    build: ../wsnet2-dashboard/backend
+    image: wsnet2-dashboard-backend
     env_file:
-      - backend/.env
-    restart: always
+      - ../wsnet2-dashboard/backend/.env
+    volumes:
+      - ..:/repo
+      - ../wsnet2-dashboard/backend/.docker_node_modules:/repo/wsnet2-dashboard/backend/node_modules
+    working_dir: /repo/wsnet2-dashboard/backend
     ports:
-      - "5555:5555"
+      - 5555:5555
+    command: bash -c "make install-deps && arelo -t src -t prisma -t ../../server/pb -i 'src/pb' -p '**/*.{ts,proto,prisma}' -- make re-run"
+    entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --

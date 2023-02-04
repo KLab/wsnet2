@@ -1,4 +1,5 @@
 version: "3"
+name: wsnet2
 services:
   db:
     container_name: wsnet2-db
@@ -11,7 +12,7 @@ services:
       TZ: Asia/Tokyo
     command: --innodb_flush_log_at_trx_commit=2
     volumes:
-      - ./sql:/docker-entrypoint-initdb.d
+      - ../server/sql:/docker-entrypoint-initdb.d
     ports:
       - 3306:3306
     healthcheck:
