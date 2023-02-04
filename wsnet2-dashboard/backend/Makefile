@@ -42,6 +42,7 @@ prisma/schema.prisma: #../../server/sql/.loaded
 	npm run generate
 
 $(pb.js): $(proto)
+	mkdir -p ./src/pb
 	$(NODE_PROTOC) \
 	  --plugin=protoc-gen-ts="$(PROTOC_GEN_TS)" \
 	  --js_out="import_style=commonjs,binary:$(PROTO_DST)" \

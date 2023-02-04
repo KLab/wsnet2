@@ -32,5 +32,5 @@ services:
     working_dir: /repo/wsnet2-dashboard/backend
     ports:
       - 5555:5555
-    command: bash -c "make install-deps && arelo -t src -t prisma -t ../../server/pb -i 'src/pb' -p '**/*.{ts,proto,prisma}' -- make re-run"
+    command: bash -c "make install-deps && arelo -t src -t ../../server/pb -i 'src/pb' -i 'node_modules' -p '**/*.{ts,proto}' -- make re-run"
     entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --
