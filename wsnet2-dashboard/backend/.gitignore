@@ -1,5 +1,5 @@
-node_modules
-.DS_Store
-dist
-dist-ssr
-*.local
+/prisma
+/src/pb
+/node_modules
+/.docker_node_modules
+/dist
