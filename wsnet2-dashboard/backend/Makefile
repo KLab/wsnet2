@@ -1,7 +1,7 @@
-
+include .env
 
 target := ./dist/index.js
-src.ts := $(wildcard src/*.ts src/**/*.ts)
+src.ts := $(wildcard src/*.ts src/*/*.ts src/*/*/*.ts)
 
 PROTO_DST := ./src/pb
 PROTO_SRC := ../../server/pb
@@ -11,24 +11,28 @@ PROTOC_GEN_TS := node_modules/.bin/protoc-gen-ts
 proto := $(wildcard $(PROTO_SRC)/*.proto)
 pb.js := $(proto:$(PROTO_SRC)%.proto=$(PROTO_DST)%_pb.js)
 
-.PHONY: all install_deps build re-build run re-run
+.PHONY: build re-build run re-run clean install-deps
 
-all: build
-
-install-deps:
-	npm install
-	chmod +x node_modules/nexus-prisma/dist-cjs/cli/nexus-prisma.js
-
-build: install-deps re-build
+build: install-deps $(target)
 
 re-build: $(target)
 
 run: install-deps re-run
 
-re-run: re-build
+re-run: $(target)
 	node ./dist/index.js
 
-$(target): prisma/schema.prisma $(pb.js) $(src.ts)
+clean:
+	rm -rf node_modules/*
+	rm -rf dist
+	rm -rf prisma
+	rm -rf $(PROTO_DST)
+
+install-deps:
+	npm install
+	chmod +x node_modules/nexus-prisma/dist-cjs/cli/nexus-prisma.js
+
+$(target): prisma/schema.prisma $(pb.js) $(src.ts) .env
 	npx tsc
 
 # todo schemaがDBに投入された時だけ実行したい
