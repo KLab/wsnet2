@@ -13,8 +13,10 @@ services:
     command: --innodb_flush_log_at_trx_commit=2
     volumes:
       - ../server/sql:/docker-entrypoint-initdb.d
+      - ../server/sql/trigger.d:/trigger.d
     ports:
       - 3306:3306
+    entrypoint: bash -c 'chmod a+w /trigger.d; docker-entrypoint.sh "$@"' docker-entrypoint.sh
     healthcheck:
       test:
         [

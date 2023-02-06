@@ -35,9 +35,7 @@ install-deps:
 $(target): prisma/schema.prisma $(pb.js) $(src.ts) .env
 	npx tsc
 
-# todo schemaがDBに投入された時だけ実行したい
-# mysqlのdocker-entrypoint-initdb.dのスクリプトでどうにかする
-prisma/schema.prisma: #../../server/sql/.loaded
+prisma/schema.prisma: $(wildcard ../../server/sql/trigger.d/db.trigger)
 	if [ ! -e prisma/schema.prisma ]; then \
 	  rm -rf prisma; \
 	  npx prisma init --datasource-provider mysql; \
