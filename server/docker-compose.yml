@@ -38,7 +38,7 @@ services:
     volumes:
       - ../:/repo
     working_dir: /repo/server
-    command: arelo -p "**/*.{go,proto}" -i "**/.*" -i "**/*_test.go" -i "cmd/wsnet2-{bot,tool}" -- make
+    command: bash -c 'make install-deps; arelo -p "**/*.{go,proto}" -i "**/.*" -i "**/*{_test,_string,.pb}.go" -i "cmd/wsnet2-{bot,tool}" -- make build'
   game:
     container_name: wsnet2-game
     depends_on:

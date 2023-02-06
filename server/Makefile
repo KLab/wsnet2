@@ -24,22 +24,20 @@ GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1"
 export GOBIN := $(abspath bin)
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: all generate clean test check install-go-tools build build-commit
+.PHONY: all clean test check install-deps build build-commit
 
-all: install-go-tools generate build
-
-generate: $(pb.go) $(string.go)
+all: install-deps build
 
 clean:
 	$(RM) pb/*.pb.go
 	$(RM) **/*_string.go
 
-test: generate
+test: $(pb.go) $(string.go)
 	go vet ./...
 	staticcheck ./...
 	go test ./...
 
-install-go-tools:
+install-deps:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
 	go install github.com/favadi/protoc-go-inject-tag@v1.3.0
