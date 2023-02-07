@@ -24,15 +24,17 @@ GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1"
 export GOBIN := $(abspath bin)
 export PATH := $(GOBIN):$(PATH)
 
-.PHONY: all clean test check install-deps build build-commit
+.PHONY: all generate clean test check install-deps build build-commit
 
 all: install-deps build
+
+generate: $(pb.go) $(string.go)
 
 clean:
 	$(RM) pb/*.pb.go
 	$(RM) **/*_string.go
 
-test: $(pb.go) $(string.go)
+test: generate
 	go vet ./...
 	staticcheck ./...
 	go test ./...
