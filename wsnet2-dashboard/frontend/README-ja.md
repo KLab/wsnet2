@@ -14,7 +14,16 @@
 
 - [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar)
 
-## コマンド一覧
+## npm コマンド一覧
 
 - `npm run dev`：開発サーバーを立ち上げる
 - `npm run build`：アプリのビルド（`./dist`に格納される）
+
+## Dockerを使ったビルド
+
+```bash
+cd wsnet2-dashboard
+docker compose run --rm frontbuilder
+```
+
+ビルドされたコードは `wsnet2-dashboard/frontend/dist` に格納される。

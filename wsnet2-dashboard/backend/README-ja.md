@@ -13,6 +13,18 @@ wsnet2-dashboard 専用バックエンド（所謂 BFF）、
 | DATABASE_URL    | データベースの指定（DB 名やパスワードも必要）             | "mysql://wsnet:wsnetpass@localhost:3306/wsnet2" |
 | FRONTEND_ORIGIN | ダッシュボードフロントエンドの IP アドレス（CORS 指定用） | "http://localhost:3000"                         |
 
+## アプリのビルド
+
+データベースからスキーマを生成するので、`db`を起動しておく必要がある。
+
+```bash
+docker compose -f server/docker-compose.yml up -d db
+cd wsnet2-dashboard
+docker compose run --rm backend make
+```
+
+生成されたコードは `wsnet2-dashboard/backend/dist` に格納される。
+
 ## GraphQL について
 
 [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping)は[Prisma](https://www.prisma.io/)を採用。

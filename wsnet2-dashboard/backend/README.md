@@ -13,6 +13,18 @@ It provides APIs of `GraphQL` and `GRPC` for the dashboard.
 | DATABASE_URL    | Database uri（including database name and password） | "mysql://wsnet:wsnetpass@localhost:3306/wsnet2" |
 | FRONTEND_ORIGIN | IP address of the dashboard frontend（for CORS）     | "http://localhost:3000"                         |
 
+## Build the application
+
+It is necessary to start `db`, as the schema is generated from the database.
+
+```bash
+docker compose -f server/docker-compose.yml up -d db
+cd wsnet2-dashboard
+docker compose run --rm backend make
+```
+
+The built code will be stored at `wsnet2-dashboard/backend/dist`.
+
 ## About the GraphQL
 
 The [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) being used is [Prisma](https://www.prisma.io/).
