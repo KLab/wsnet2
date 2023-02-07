@@ -35,14 +35,12 @@ docker compose run --rm backend make
   - 自動生成されたスキーマは[`prisma/schema.prisma`](prisma/schema.prisma)に書き込まれる
 - Apollo Server で公開する GraphQL の API は別途手動で指定（実装）する必要がある、場所は[`src/types`](src/types/)
 
-## GRPC について
+## gRPC について
 
-wsnet2 本体との GRPC 通信はバックエンドで行う。ダッシュボードへのデータ転送は通常の REST で行う（データフォマットは`application/msgpack`のみサポート）。
+wsnet2 本体との gRPC 通信はバックエンドで行う。ダッシュボードへのデータ転送は通常の REST で行う（データフォマットは`application/msgpack`のみサポート）。
 
-- GRPC コードの自動生成
-  - [protobuf コンパイル用環境を用意](https://grpc.io/docs/protoc-installation/)
-  - [`Makefile`](Makefile)の`PROTO_PATH`を proto ファイルが格納されているディレクトリに指定
-  - backend のルートディレクトリで`make`
+gRPC コードの自動生成は、`make` により自動的に行われる。
+（`server/pb/*.proto` から生成し、`wsnet2-dashboard/backend/src/pb` 以下に格納する）
 
 ## 開発ノート
 
