@@ -16,7 +16,7 @@ services:
       - ../server/sql/trigger.d:/trigger.d
     ports:
       - 3306:3306
-    entrypoint: bash -c 'chmod a+w /trigger.d; docker-entrypoint.sh "$@"' docker-entrypoint.sh
+    entrypoint: bash -c 'chown -R mysql /trigger.d; docker-entrypoint.sh "$@"' docker-entrypoint.sh
     healthcheck:
       test:
         [

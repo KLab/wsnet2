@@ -19,7 +19,7 @@ services:
     volumes:
       - ../wsnet2-dashboard/frontend/dist:/usr/share/nginx/html
     ports:
-      - 80:80
+      - 8081:80
   backend:
     container_name: wsnet2-dashboard-backend
     build: ../wsnet2-dashboard/backend
