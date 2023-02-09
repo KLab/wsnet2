@@ -17,5 +17,5 @@
 /pb/*.pb.go
 *_string.go
 bin/
-.log/
 /include/
+/sql/trigger.d

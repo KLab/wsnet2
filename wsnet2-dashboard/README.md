@@ -21,28 +21,25 @@ This webapp allows you to check real-time information on a running wsnet2 server
 
 ### You want to start wsnet2-server along with wsnet2-dashboard locally
 
-1. Move to `server` directory:
+1. Build `frontend` WEB application:
    ```bash
-   cd ../server
+   cd wsnet2-dashboard
+   docker compose run --rm frontbuilder
    ```
-2. Build docker image for `wsnet2-server`:
+2. Start `wsnet2-server` and `wsnet2-dashboard` together:
    ```bash
-   docker-compose build
+   docker-compose -f docker-compose.yml -f ../server/docker-compose.yml up
    ```
-3. Start `wsnet2-server` and `wsnet2-dashboard` together:
-   ```bash
-   docker-compose -f docker-compose.yml -f docker-compose.dashboard.yml up
-   ```
-4. (Optional)Create a test room:
+3. (Optional)Create a test room:
    ```bash
    docker-compose exec game /repo/server/bin/wsnet2-bot --lobby="http://lobby:8080" static 3600
    ```
-5. Access `wsnet2-dashboard` through `http://localhost`.
+4. Access `wsnet2-dashboard` through `http://localhost:8081`.
 
 ### You already have wsnet2-server running somewhere else
 
 1. Make sure that [wsnet2-server](https://github.jp.klab.com/WSNet/wsnet2/tree/master/server) is running properly.
-2. Edit environment variables in `docker-compose.yml` according to your setup.
+2. Edit environment variables in `frontend/.env` and `backend/.env` according to your setup.
 
    - [Environment variables for backend](backend/README.md#%E7%92%B0%E5%A2%83%E5%A4%89%E6%95%B0)
    - [Environment variables for frontend](frontend/README.md#%E7%92%B0%E5%A2%83%E5%A4%89%E6%95%B0)

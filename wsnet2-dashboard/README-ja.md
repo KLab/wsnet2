@@ -21,28 +21,27 @@ wsnet2 のダッシュボード。
 
 ### wsnet2-server とまとめてローカルで立ち上げる場合
 
-1. `server` ディレクトリに移動：
+1. `frontend` の WEB アプリをビルド
    ```bash
-   cd ../server
+   cd wsnet2-dashboard
+   docker compose run --rm frontbuilder
    ```
-2. `wsnet2-server` 用イメージをビルド：
+2. `wsnet2-server` と `wsnet2-dashboard` を一緒に立ち上げる：
    ```bash
-   docker-compose build
+   docker-compose -f docker-compose.yml -f ../server/docker-compose.yml up
    ```
-3. `wsnet2-server` と `wsnet2-dashboard` を一緒に立ち上げる：
-   ```bash
-   docker-compose -f docker-compose.yml -f docker-compose.dashboard.yml up
-   ```
-4. （オプショナル）テスト用部屋生成：
+   （`server`ディレクトリと`wsnet2-dashboard`ディレクトリのそれぞれで`docker compose up`することもできます）
+
+3. （オプショナル）テスト用部屋生成：
    ```bash
    docker-compose exec game /repo/server/bin/wsnet2-bot --lobby="http://lobby:8080" static 3600
    ```
-5. `http://localhost` から `wsnet2-dashboard` の WEB アプリへアクセス
+4. `http://localhost:8081` から `wsnet2-dashboard` の WEB アプリへアクセス
 
 ### wsnet2-server が既に別の環境で用意されている場合
 
 1. [wsnet2-server 本体](https://github.jp.klab.com/WSNet/wsnet2/tree/master/server)が起動されていることを確認
-2. `docker-compose.yml` に記載されている環境変数を必要に応じて編集
+2. `frontend/.env`、`backend/.env` に記載されている環境変数を必要に応じて編集
 
    - [Backend 環境変数](backend/README.md#%E7%92%B0%E5%A2%83%E5%A4%89%E6%95%B0)
    - [Frontend 環境変数](frontend/README.md#%E7%92%B0%E5%A2%83%E5%A4%89%E6%95%B0)

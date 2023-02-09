@@ -1,4 +1,5 @@
 version: '3'
+name: wsnet2
 services:
   game2:
     container_name: wsnet2-game2

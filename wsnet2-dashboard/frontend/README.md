@@ -18,3 +18,12 @@ SPA built using `Vue 3 + Typescript + Vite`. [NaiveUI](https://www.naiveui.com/e
 
 - `npm run dev`：run development server
 - `npm run build`：build the application（stored at `./dist`）
+
+## Build the application with Docker
+
+```bash
+cd wsnet2-dashboard
+docker compose run --rm frontbuilder
+```
+
+The built code will be stored at `wsnet2-dashboard/frontend/dist`.
