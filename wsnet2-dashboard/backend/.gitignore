@@ -1,0 +1,5 @@
+/prisma
+/src/pb
+/node_modules
+/.docker_node_modules
+/dist

@@ -1,0 +1,4 @@
+/node_modules
+/.docker_node_modules
+/dist
+/dist-ssr
