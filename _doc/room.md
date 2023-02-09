@@ -17,6 +17,8 @@
   - [OnMasterPlayerSwitched](#onmasterplayerswitched)
   - [OnRoomPropertyChanged](#onroompropertychanged)
   - [OnPlayerPropertyChanged](#onplayerpropertychanged)
+  - [OnPongReceived](#onpongreceived)
+  - [OnConnectionStateChanged](#onconnectionstatechanged)
   - [OnError, OnErrorClosed](#onerror-onerrorclosed)
 - [RPC](#rpc)
   - [RPC対象メソッドのシグネチャ](#rpc対象メソッドのシグネチャ)
@@ -193,6 +195,26 @@ void OnPlayerPropertyChanged(Player player, Dictionary<string, object> props);
 プレイヤーのプロパティが変更されたイベントです。
 引数`props`には、変更されたキーのみ含まれます。
 
+### OnPongReceived
+```C#
+void OnPongReceived(ulong rttMillisec, ulong watcherCount, IReadOnlyDictionary<string, ulong> lastMsgTimestamps);
+```
+
+Pongを受信したイベントです。
+`room.RttMillsec`, `room.WatcherCount`, `room.LastMsgTimestamps` はこのタイミングで更新されます。
+これらの値は引数としても渡されます。
+
+### OnConnectionStateChanged
+```C#
+void OnConnectionStateChanged(bool connected);
+```
+
+自身の接続状態が変化したイベントです（入室状態ではありません）。
+
+引数`connected`:
+- **true**: 接続した
+- **false**: 切断した
+
 ### OnError, OnErrorClosed
 ```C#
 void OnError(Exception exception);
@@ -338,20 +360,26 @@ int SwitchMaster(Player newMaster, Action<EvType, string> onErrorResponse = null
 ### 退室
 
 ```C#
-int Leave();
+int Leave(string message = "");
 ```
 
 部屋から退室します。
 呼び出しただけではまだ退室しておらず、`OnClosed`が呼ばれるタイミングで退室が完了します。
 それまでのイベントは届き続けます。
 
+引数の`message`は`OnClosed`、`OnOtherPlayerLeft`の引数になります。
+省略(空文字列)時はデフォルトのメッセージが生成されます。
+
 ### Kick
 
 ```C#
-int Kick(Player target, Action<EvType, string> onErrorResponse = null)
+int Kick(Player target, Action<EvType, string> onErrorResponse = null);
+int Kick(Player target, string message, Action<EvType, string> onErrorResponse = null);
 ```
 
 マスタープレイヤーは、他のプレイヤーを強制退室させることができます。
+引数の`message`は`OnClosed`、`OnOtherPlayerLeft`の引数になります。
+省略または空文字列のときはデフォルトのメッセージが生成されます。
 
 `onErrorResponse`を指定しておくと、サーバ側でのエラーの通知を受け取れます。
 成功したことは`OnOtherPlayerLeft`で確認してください。
