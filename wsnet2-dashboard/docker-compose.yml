@@ -12,7 +12,7 @@ services:
       - ..:/repo
       - ../wsnet2-dashboard/frontend/.docker_node_modules:/repo/wsnet2-dashboard/frontend/node_modules
     working_dir: /repo/wsnet2-dashboard/frontend
-    command: [ "sh", "-c", "npm install && npm run build" ]
+    command: ["sh", "-c", "npm install && npm run build"]
   frontend:
     container_name: wsnet2-dashboard-frontend
     image: nginx:stable-alpine

@@ -14,7 +14,7 @@ SPA built using `Vue 3 + Typescript + Vite`. [NaiveUI](https://www.naiveui.com/e
 
 - [VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar)
 
-## Commands
+## npm Commands
 
 - `npm run dev`：run development server
 - `npm run build`：build the application（stored at `./dist`）

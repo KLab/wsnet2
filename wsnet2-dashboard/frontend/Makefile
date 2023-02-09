@@ -13,4 +13,3 @@ install-deps:
 clean:
 	rm -rf dist
 	rm -rf node_modules
-
