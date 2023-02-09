@@ -212,10 +212,7 @@ namespace WSNet2
                 callbackPool.Add(() =>
                 {
                     Closed = true;
-                    if (OnErrorClosed != null)
-                    {
-                        OnErrorClosed(e);
-                    }
+                    OnErrorClosed?.Invoke(e);
                 });
             }
         }
@@ -900,10 +897,7 @@ namespace WSNet2
         {
             callbackPool.Add(() =>
             {
-                if (OnError != null)
-                {
-                    OnError(e);
-                }
+                OnError?.Invoke(e);
             });
         }
 
@@ -962,10 +956,7 @@ namespace WSNet2
                 info.watchers = ev.WatcherCount;
                 RttMillisec = ev.RTT;
                 ev.GetLastMsgTimestamps(lastMsgTimestamps);
-                if (OnPongReceived != null)
-                {
-                    OnPongReceived(RttMillisec, info.watchers, lastMsgTimestamps);
-                }
+                OnPongReceived?.Invoke(RttMillisec, info.watchers, lastMsgTimestamps);
             });
         }
 
@@ -980,10 +971,7 @@ namespace WSNet2
                 callbackPool.Add(() =>
                 {
                     Me.Props = ev.GetProps(Me.Props);
-                    if (OnJoined != null)
-                    {
-                        OnJoined(Me);
-                    }
+                    OnJoined?.Invoke(Me);
                 });
                 return;
             }
@@ -995,10 +983,7 @@ namespace WSNet2
                 players[player.Id] = player;
                 lastMsgTimestamps[player.Id] = 0;
                 info.players = (uint)players.Count;
-                if (OnOtherPlayerJoined != null)
-                {
-                    OnOtherPlayerJoined(player);
-                }
+                OnOtherPlayerJoined?.Invoke(player);
             });
         }
 
@@ -1013,10 +998,7 @@ namespace WSNet2
                 callbackPool.Add(() =>
                 {
                     Me.Props = ev.GetProps(Me.Props);
-                    if (OnJoined != null)
-                    {
-                        OnJoined(Me);
-                    }
+                    OnJoined?.Invoke(Me);
                 });
                 return;
             }
@@ -1026,10 +1008,7 @@ namespace WSNet2
             {
                 var player = players[ev.ClientID];
                 player.Props = ev.GetProps(player.Props);
-                if (OnOtherPlayerRejoined != null)
-                {
-                    OnOtherPlayerRejoined(player);
-                }
+                OnOtherPlayerRejoined?.Invoke(player);
             });
         }
 
@@ -1047,19 +1026,13 @@ namespace WSNet2
                 if (masterId == player.Id)
                 {
                     masterId = ev.MasterID;
-                    if (OnMasterPlayerSwitched != null)
-                    {
-                        OnMasterPlayerSwitched(player, Master);
-                    }
+                    OnMasterPlayerSwitched?.Invoke(player, Master);
                 }
 
                 players.Remove(player.Id);
                 lastMsgTimestamps.Remove(player.Id);
                 info.players = (uint)players.Count;
-                if (OnOtherPlayerLeft != null)
-                {
-                    OnOtherPlayerLeft(player, ev.Message);
-                }
+                OnOtherPlayerLeft?.Invoke(player, ev.Message);
             });
         }
 
@@ -1137,13 +1110,10 @@ namespace WSNet2
                     }
                 }
 
-                if (OnRoomPropertyChanged != null)
-                {
-                    OnRoomPropertyChanged(
-                        visible, joinable, watchable,
-                        searchGroup, maxPlayers, clientDeadline,
-                        publicProps, privateProps);
-                }
+                OnRoomPropertyChanged?.Invoke(
+                    visible, joinable, watchable,
+                    searchGroup, maxPlayers, clientDeadline,
+                    publicProps, privateProps);
             });
         }
 
@@ -1163,10 +1133,7 @@ namespace WSNet2
                     player.Props[kv.Key] = kv.Value;
                 }
 
-                if (OnPlayerPropertyChanged != null)
-                {
-                    OnPlayerPropertyChanged(player, props);
-                }
+                OnPlayerPropertyChanged?.Invoke(player, props);
             });
         }
 
@@ -1181,10 +1148,7 @@ namespace WSNet2
             {
                 var prev = Master;
                 masterId = ev.NewMasterId;
-                if (OnMasterPlayerSwitched != null)
-                {
-                    OnMasterPlayerSwitched(prev, Master);
-                }
+                OnMasterPlayerSwitched?.Invoke(prev, Master);
             });
         }
 
@@ -1200,10 +1164,7 @@ namespace WSNet2
                 if (ev.RpcID >= rpcActions.Count)
                 {
                     var e = new Exception($"RpcID({ev.RpcID}) is not registered");
-                    if (OnError != null)
-                    {
-                        OnError(e);
-                    }
+                    OnError?.Invoke(e);
 
                     return;
                 }
@@ -1223,10 +1184,7 @@ namespace WSNet2
             callbackPool.Add(() =>
             {
                 Closed = true;
-                if (OnClosed != null)
-                {
-                    OnClosed(ev.Description);
-                }
+                OnClosed?.Invoke(ev.Description);
             });
         }
 
@@ -1254,10 +1212,7 @@ namespace WSNet2
         {
             callbackPool.Add(() =>
             {
-                if (OnConnectionStateChanged != null)
-                {
-                    OnConnectionStateChanged(connected);
-                }
+                OnConnectionStateChanged?.Invoke(connected);
             });
         }
 
