@@ -28,7 +28,7 @@ export PATH := $(GOBIN):$(PATH)
 
 all: install-deps build
 
-generate: $(pb.go) $(string.go)
+generate: install-deps $(pb.go) $(string.go)
 
 clean:
 	$(RM) pb/*.pb.go
