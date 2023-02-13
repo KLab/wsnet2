@@ -1,6 +1,6 @@
 include .env
 
-target := ./dist/index.js
+target := dist/index.js
 src.ts := $(wildcard src/*.ts src/*/*.ts src/*/*/*.ts)
 
 PROTO_DST := ./src/pb
@@ -32,8 +32,11 @@ install-deps:
 	npm install
 	chmod +x node_modules/nexus-prisma/dist-cjs/cli/nexus-prisma.js
 
-$(target): prisma/schema.prisma $(pb.js) $(src.ts) .env
+$(target): prisma/schema.prisma $(pb.js) $(src.ts) .env src/plugins/binary.js
 	npx tsc
+
+src/plugins/binary.js: ../../server/binary/*.go go-binary/*
+	cd go-binary && gopherjs build -o ../$@
 
 prisma/schema.prisma: $(wildcard ../../server/sql/trigger.d/db.trigger)
 	if [ ! -e prisma/schema.prisma ]; then \

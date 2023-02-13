@@ -32,4 +32,4 @@ services:
     working_dir: /repo/wsnet2-dashboard/backend
     ports:
       - 5555:5555
-    command: bash -c "make install-deps && arelo -t src -t ../../server/pb -t ../../server/sql -i '**/.*' -i 'src/pb' -i 'node_modules' -p '**/*.{ts,proto,trigger}' -- /wait-for-it.sh wsnet2-db:3306 -s -t 0 -- make re-run"
+    command: bash -c "make install-deps && arelo -t src -t ../../server/pb -t ../../server/sql -t ../../server/binary -i '**/.*' -i 'src/pb' -i 'node_modules' -p '**/*.{ts,proto,trigger}' -p '../../server/binary/*.go' -- /wait-for-it.sh wsnet2-db:3306 -s -t 0 -- make re-run"

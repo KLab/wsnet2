@@ -1,5 +1,7 @@
 /prisma
 /src/pb
+/src/plugins/binary.js
+/src/plugins/binary.js.map
 /node_modules
 /.docker_node_modules
 /dist
