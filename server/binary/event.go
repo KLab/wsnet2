@@ -107,7 +107,7 @@ func NewRegularEvent(etype EvType, payload []byte) *RegularEvent {
 func (ev *RegularEvent) Marshal(seqNum int) []byte {
 	buf := make([]byte, len(ev.payload)+5)
 	buf[0] = byte(ev.etype)
-	put32(buf[1:], seqNum)
+	put32(buf[1:], int64(seqNum))
 	copy(buf[5:], ev.payload)
 	return buf
 }
@@ -162,7 +162,7 @@ func (ev *SystemEvent) Marshal() []byte {
 // | 24bit-be msg sequence number |
 func NewEvPeerReady(seqNum int) *SystemEvent {
 	payload := make([]byte, 3)
-	put24(payload, seqNum)
+	put24(payload, int64(seqNum))
 	return &SystemEvent{
 		etype:   EvTypePeerReady,
 		payload: payload,
@@ -431,7 +431,7 @@ func UnmarshalEvMessage(payload []byte) (cliId string, body []byte, err error) {
 // NewEvSucceeded : 成功イベント
 func NewEvSucceeded(msg RegularMsg) *RegularEvent {
 	payload := make([]byte, 3)
-	put24(payload, msg.SequenceNum())
+	put24(payload, int64(msg.SequenceNum()))
 	return &RegularEvent{EvTypeSucceeded, payload}
 }
 
@@ -439,7 +439,7 @@ func NewEvSucceeded(msg RegularMsg) *RegularEvent {
 // エラー発生の原因となったメッセージをそのまま返す
 func NewEvPermissionDenied(msg RegularMsg) *RegularEvent {
 	payload := make([]byte, 3+len(msg.Payload()))
-	put24(payload, msg.SequenceNum())
+	put24(payload, int64(msg.SequenceNum()))
 	copy(payload[3:], msg.Payload())
 	return &RegularEvent{EvTypePermissionDenied, payload}
 }
@@ -448,7 +448,7 @@ func NewEvPermissionDenied(msg RegularMsg) *RegularEvent {
 // 不明なClientのリストとエラー発生の原因となったメッセージをそのまま返す
 func NewEvTargetNotFound(msg RegularMsg, cliIds []string) *RegularEvent {
 	payload := make([]byte, 3, 3+len(msg.Payload()))
-	put24(payload, msg.SequenceNum())
+	put24(payload, int64(msg.SequenceNum()))
 	payload = append(payload, MarshalStrings(cliIds)...)
 	payload = append(payload, msg.Payload()...)
 	return &RegularEvent{EvTypeTargetNotFound, payload}

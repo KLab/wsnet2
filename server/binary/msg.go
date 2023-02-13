@@ -129,7 +129,7 @@ func (m *regularMsg) Marshal(hmac hash.Hash) []byte {
 func BuildRegularMsgFrame(t MsgType, seq int, payload []byte, hmac hash.Hash) []byte {
 	data := make([]byte, 1+3+len(payload)+hmac.Size())
 	data[0] = byte(t)
-	put24(data[1:4], seq)
+	put24(data[1:4], int64(seq))
 	copy(data[4:], payload)
 	copy(data[4+len(payload):], auth.CalculateMsgHMAC(hmac, data[:4+len(payload)]))
 	return data
