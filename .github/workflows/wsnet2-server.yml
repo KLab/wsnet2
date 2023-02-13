@@ -51,7 +51,13 @@ jobs:
 
       - uses: actions/checkout@v3
 
+      - run: docker compose run builder make all
+      - run: ls bin
+
       - run: docker compose up -d
+
+      - name: Wait binaries
+        run: until ls bin/wsnet2-bot; do sleep 5; done
 
       - name: Wait until service starts
         run: |
