@@ -2,10 +2,13 @@ package game
 
 import (
 	"context"
+	crand "crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"math/rand"
 	"reflect"
 	"strings"
@@ -30,10 +33,14 @@ var (
 	roomInsertQuery        string
 	roomUpdateQuery        string
 	roomHistoryInsertQuery string
+
+	randsrc *rand.Rand
 )
 
 func init() {
 	initQueries()
+	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
+	randsrc = rand.New(rand.NewSource(seed.Int64()))
 }
 
 func dbCols(t reflect.Type) []string {
@@ -72,7 +79,7 @@ func initQueries() {
 
 func RandomHex(n int) string {
 	b := make([]byte, n)
-	_, _ = rand.Read(b) // rand.Read always success.
+	_, _ = randsrc.Read(b) // (*rand.Rand).Read always success.
 	return hex.EncodeToString(b)
 }
 
@@ -294,7 +301,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 
 		ri.Id = RandomHex(lenId)
 		if op.WithNumber {
-			ri.Number.Number = rand.Int31n(maxNumber) + 1 // [1..maxNumber]
+			ri.Number.Number = randsrc.Int31n(maxNumber) + 1 // [1..maxNumber]
 		}
 
 		_, err = tx.NamedExecContext(ctx, roomInsertQuery, ri)

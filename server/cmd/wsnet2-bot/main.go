@@ -1,12 +1,8 @@
 package main
 
 import (
-	crand "crypto/rand"
 	"flag"
 	"fmt"
-	"math"
-	"math/big"
-	"math/rand"
 	"runtime/debug"
 	"strings"
 
@@ -43,8 +39,6 @@ func main() {
 	verbose := flag.Bool("v", false, "verbose")
 	flag.StringVar(&lobbyPrefix, "lobby", "http://localhost:8080", "lobby schema://host:port")
 	flag.Parse()
-	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	rand.Seed(seed.Int64())
 
 	cfg := zap.NewDevelopmentConfig()
 	if !*verbose {
