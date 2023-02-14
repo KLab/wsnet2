@@ -1,0 +1,40 @@
+name: WSNet2 dashboard ci
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/wsnet2-dashboard.yml'
+      - 'wsnet2-dashboard/**'
+      - 'server/**'
+
+jobs:
+  gopherjs:
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        working-directory: wsnet2-dashboard/backend/go-binary
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '^1.20.0'
+          cache: true
+          cache-dependency-path: wsnet2-dashboard/backend/go-binary/go.sum
+
+      - uses: arduino/setup-protoc@v1
+        with:
+          version: '3.x'
+
+      - run: make -C ../../../server generate
+
+      - run: go install golang.org/dl/go1.18.5@latest && go1.18.5 download
+
+      - run: go1.18.5 test wsnet2/binary
+
+      - run: GOARCH=386 go1.18.5 build
+
+      - run: go install github.com/gopherjs/gopherjs@v1.18.0-beta2
+
+      - run: GOPHERJS_GOROOT="$(go1.18.5 env GOROOT)" gopherjs build
