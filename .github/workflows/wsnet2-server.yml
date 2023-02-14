@@ -8,7 +8,7 @@ on:
       - 'server/**'
 
 jobs:
-  test:
+  unit-test:
     runs-on: "ubuntu-latest"
     defaults:
       run:
@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-go@v3
         with:
-          go-version: '^1.19.0'
+          go-version: '^1.20.0'
           cache: true
           cache-dependency-path: server/go.sum
 
@@ -41,9 +41,17 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./... 2>&1 | reviewdog -f staticcheck -reporter=github-pr-check
 
-      - run: docker compose up -d
+  combined-test:
+    runs-on: "ubuntu-latest"
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v3
 
-      - run: make bot
+      - run: docker compose run builder make all
+
+      - run: docker compose up -d
 
       - name: Wait until service starts
         run: |
