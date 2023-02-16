@@ -100,7 +100,7 @@ func parseTime(t string) (*time.Time, error) {
 
 func selectRoomHistoryForList(ctx context.Context, limit int, before, after, at *time.Time) ([]*roomHistory, error) {
 	q := "SELECT app_id, host_id, room_id, number, search_group, max_players, public_props, private_props, player_logs, created, closed FROM room_history"
-	p := []interface{}{}
+	p := []any{}
 	var where []string
 	if before != nil {
 		where = append(where, "created <= ?")
@@ -132,7 +132,7 @@ func playerIds(data []byte) ([]string, error) {
 		return []string{}, nil
 	}
 
-	var logs []map[string]interface{}
+	var logs []map[string]any
 	err := json.Unmarshal(data, &logs)
 	if err != nil {
 		return nil, err
