@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 	"wsnet2/binary"
 	"wsnet2/pb"
 
@@ -79,7 +80,7 @@ var roomCmd = &cobra.Command{
 				return err
 			}
 
-			out, err := formatRoom(res)
+			out, err := formatRoom(res, svr.Host)
 			if err != nil {
 				return err
 			}
@@ -101,14 +102,17 @@ func init() {
 	rootCmd.AddCommand(roomCmd)
 }
 
-func formatRoom(res *pb.GetRoomInfoRes) (map[string]interface{}, error) {
+func formatRoom(res *pb.GetRoomInfoRes, host string) (map[string]any, error) {
 	r := res.RoomInfo
 	cs := res.ClientInfos
 
-	m := map[string]interface{}{
-		"id":             r.Id,
-		"app_id":         r.AppId,
-		"host_id":        r.HostId,
+	m := map[string]any{
+		"id":     r.Id,
+		"app_id": r.AppId,
+		"host": map[string]any{
+			"id":   r.HostId,
+			"name": host,
+		},
 		"visible":        r.Visible,
 		"joinable":       r.Joinable,
 		"watchable":      r.Watchable,
@@ -128,17 +132,18 @@ func formatRoom(res *pb.GetRoomInfoRes) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	ps := make([]map[string]interface{}, 0)
+	ps := make([]map[string]any, 0)
 	for _, c := range cs {
 		props, err := binary.UnmarshalRecursive(c.Props)
 		if err != nil {
 			return nil, err
 		}
 
-		p := map[string]interface{}{
+		p := map[string]any{
 			"id":        c.Id,
 			"is_master": c.Id == res.MasterId,
 			"props":     props,
+			"last_msg":  time.UnixMilli(int64(res.LastMsgTimes[c.Id])),
 		}
 
 		ps = append(ps, p)
