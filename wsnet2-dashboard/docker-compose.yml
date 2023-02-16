@@ -22,6 +22,7 @@ services:
       - 8081:80
   backend:
     container_name: wsnet2-dashboard-backend
+    platform: linux/amd64
     build: ../wsnet2-dashboard/backend
     image: wsnet2-dashboard-backend
     env_file:

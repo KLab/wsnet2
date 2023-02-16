@@ -1,7 +1,6 @@
 import { Module, VuexModule, Action, getModule } from "vuex-module-decorators";
 import { store } from ".";
 import settings from "./settings";
-import { encode, decodeAsync } from "@msgpack/msgpack";
 
 export interface RoomInfoReq {
   appId: string;
@@ -66,19 +65,19 @@ class RoomInfoModule extends VuexModule {
       method: "POST",
       mode: "cors",
       headers: {
-        accept: "application/msgpack",
-        "content-type": "application/msgpack",
+        accept: "application/json",
+        "content-type": "application/json",
       },
-      body: encode(args),
+      body: JSON.stringify(args),
     });
 
     if (response.ok && response.body != null) {
-      const result = await decodeAsync(response.body);
+      const result = await response.json();
       return result as RoomInfo;
     } else {
       let message: string;
       if (response.body != null) {
-        const err = await decodeAsync(response.body);
+        const err = await response.json();
         message = (err as any)["details"];
       } else {
         message = "Failed to fetch room info!";
@@ -97,16 +96,16 @@ class RoomInfoModule extends VuexModule {
       method: "POST",
       mode: "cors",
       headers: {
-        accept: "application/msgpack",
-        "content-type": "application/msgpack",
+        accept: "application/json",
+        "content-type": "application/json",
       },
-      body: encode(args),
+      body: JSON.stringify(args),
     });
 
     if (!response.ok) {
       let message: string;
       if (response.body != null) {
-        const err = await decodeAsync(response.body);
+        const err = await response.json();
         message = (err as any)["details"];
       } else {
         message = "Failed to kick!";

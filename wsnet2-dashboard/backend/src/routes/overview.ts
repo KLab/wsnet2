@@ -26,7 +26,10 @@ router.get("/", (req: express.Request, res: express.Response) => {
         `),
   ])
     .then(([[rooms], [servers]]) => {
-      res.status(200).send({ rooms: rooms, servers: servers });
+      res.status(200).send({
+        rooms: rooms,
+        servers: servers,
+      });
     })
     .catch((err: Error) => {
       res.status(500).send({ details: err.message });

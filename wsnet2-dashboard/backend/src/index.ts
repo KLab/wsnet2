@@ -24,9 +24,9 @@ async function init() {
     })
   );
 
-  app.use(msgpack());
-  // app.use(express.json());
-  // app.use(express.urlencoded({ extended: true }));
+  // app.use(msgpack());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
   await server.start();
   server.applyMiddleware({ app, path: "/graphql" });
 
@@ -39,8 +39,12 @@ async function init() {
 // start server
 init()
   .then((app) => {
-    app.listen(process.env.SERVER_PORT, () => {
-      console.log(`Start on port ${String(process.env.SERVER_PORT)}.`);
+    app.listen({
+      port: process.env.SERVER_PORT,
+      host: "0.0.0.0",
+      callback: () => {
+        console.log(`Start on port ${String(process.env.SERVER_PORT)}.`);
+      },
     });
   })
   .catch((err: Error) => {
