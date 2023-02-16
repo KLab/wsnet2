@@ -1,5 +1,4 @@
 import express from "express";
-import msgpack from "express-msgpack";
 import cors from "cors";
 import { ApolloServer } from "apollo-server-express";
 // local imports
@@ -41,7 +40,7 @@ init()
   .then((app) => {
     app.listen({
       port: process.env.SERVER_PORT,
-      host: "0.0.0.0",
+      // host: "0.0.0.0",
       callback: () => {
         console.log(`Start on port ${String(process.env.SERVER_PORT)}.`);
       },
