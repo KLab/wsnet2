@@ -59,6 +59,7 @@ message GetRoomInfoRes {
 	RoomInfo room_info = 1;
 	repeated ClientInfo client_infos = 2;
 	string master_id = 3;
+	map<string, uint64> last_msg_times = 4;
 }
 
 message KickReq {

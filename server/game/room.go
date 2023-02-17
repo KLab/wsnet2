@@ -183,8 +183,8 @@ func (r *Room) removeLastMsg(cid ClientID) {
 	delete(r.lastMsg, string(cid))
 }
 
-/// UpdateLastMsg : PlayerがMsgを受信したとき更新する.
-/// 既に登録されているPlayerのみ書き込み (watcherを含めないため)
+// UpdateLastMsg : PlayerがMsgを受信したとき更新する.
+// 既に登録されているPlayerのみ書き込み (watcherを含めないため)
 func (r *Room) updateLastMsg(cid ClientID) {
 	id := string(cid)
 	if _, ok := r.lastMsg[id]; ok {
@@ -820,11 +820,20 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) error {
 	for _, id := range r.masterOrder {
 		cis = append(cis, r.players[id].ClientInfo.Clone())
 	}
+	lmt := make(map[string]uint64)
+	for p, d := range r.lastMsg {
+		t, _, err := binary.UnmarshalAs(d, binary.TypeULong)
+		if err != nil {
+			return xerrors.Errorf("Unmarshal LastMsg[%s]: %w", p, err)
+		}
+		lmt[p] = t.(uint64)
+	}
 
 	msg.Res <- &pb.GetRoomInfoRes{
-		RoomInfo:    ri,
-		ClientInfos: cis,
-		MasterId:    r.master.Id,
+		RoomInfo:     ri,
+		ClientInfos:  cis,
+		MasterId:     r.master.Id,
+		LastMsgTimes: lmt,
 	}
 
 	return nil

@@ -88,26 +88,34 @@ func selectRoomHistory(ctx context.Context, ids []string) (map[string]*roomHisto
 	return m, nil
 }
 
-func formatRoomHistory(r *roomHistory) (map[string]interface{}, error) {
+func formatRoomHistory(r *roomHistory) (_ map[string]any, err error) {
 	var number int32
 	if r.Number.Valid {
 		number = r.Number.Int32
 	}
-	publicProps, err := binary.UnmarshalRecursive(r.PublicProps)
-	if err != nil {
-		return nil, err
+	var publicProps any
+	if len(r.PublicProps) > 0 {
+		publicProps, err = binary.UnmarshalRecursive(r.PublicProps)
+		if err != nil {
+			return nil, err
+		}
 	}
-	privateProps, err := binary.UnmarshalRecursive(r.PrivateProps)
-	if err != nil {
-		return nil, err
+	var privateProps any
+	if len(r.PrivateProps) > 0 {
+		privateProps, err = binary.UnmarshalRecursive(r.PrivateProps)
+		if err != nil {
+			return nil, err
+		}
 	}
-	var playerLogs interface{}
-	err = json.Unmarshal(r.PlayerLogs, &playerLogs)
-	if err != nil {
-		return nil, err
+	var playerLogs any
+	if len(r.PlayerLogs) > 0 {
+		err = json.Unmarshal(r.PlayerLogs, &playerLogs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"id":            r.RoomID,
 		"app_id":        r.AppID,
 		"host_id":       r.HostID,
