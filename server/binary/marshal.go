@@ -117,10 +117,10 @@ func MarshalBool(b bool) []byte {
 
 // MarshalByte marshals unsigned 8bit integer
 func MarshalByte(val int) []byte {
-	val = clamp(val, 0, math.MaxUint8)
+	v := clamp(int64(val), 0, math.MaxUint8)
 	buf := make([]byte, 1+ByteDataSize)
 	buf[0] = byte(TypeByte)
-	put8(buf[1:], val)
+	put8(buf[1:], v)
 	return buf
 }
 
@@ -136,10 +136,10 @@ func unmarshalByte(src []byte) (int, int, error) {
 // This func maps the value -128..127 to unsigned value 0..255
 // to make the dst array comparable byte-by-byte directly.
 func MarshalSByte(val int) []byte {
-	val = clamp(val, math.MinInt8, math.MaxInt8)
+	v := clamp(int64(val), math.MinInt8, math.MaxInt8)
 	buf := make([]byte, 1+SByteDataSize)
 	buf[0] = byte(TypeSByte)
-	put8(buf[1:], val-math.MinInt8)
+	put8(buf[1:], v-math.MinInt8)
 	return buf
 }
 
@@ -154,7 +154,7 @@ func unmarshalSByte(src []byte) (int, int, error) {
 //
 // if the val is larger than \uffff, it is replaced to \uffff.
 func MarshalChar(val rune) []byte {
-	v := clamp(int(val), 0, math.MaxUint16)
+	v := clamp(int64(val), 0, math.MaxUint16)
 	buf := make([]byte, 1+CharDataSize)
 	buf[0] = byte(TypeChar)
 	put16(buf[1:], v)
@@ -170,10 +170,10 @@ func unmarshalChar(src []byte) (rune, int, error) {
 
 // MarshalUShort marshals unsigned 16bit integer
 func MarshalUShort(val int) []byte {
-	val = clamp(val, 0, math.MaxUint16)
+	v := clamp(int64(val), 0, math.MaxUint16)
 	buf := make([]byte, 1+UShortDataSize)
 	buf[0] = byte(TypeUShort)
-	put16(buf[1:], val)
+	put16(buf[1:], v)
 	return buf
 }
 
@@ -186,10 +186,10 @@ func unmarshalUShort(src []byte) (int, int, error) {
 
 // MarshalUShort marshals signed 16bit integer comparably
 func MarshalShort(val int) []byte {
-	val = clamp(val, math.MinInt16, math.MaxInt16)
+	v := clamp(int64(val), math.MinInt16, math.MaxInt16)
 	buf := make([]byte, 1+ShortDataSize)
 	buf[0] = byte(TypeShort)
-	put16(buf[1:], val-math.MinInt16)
+	put16(buf[1:], v-math.MinInt16)
 	return buf
 }
 
@@ -202,10 +202,10 @@ func unmarshalShort(src []byte) (int, int, error) {
 
 // MarshalUInt marshals unsigned 32bit integer
 func MarshalUInt(val int) []byte {
-	val = clamp(val, 0, math.MaxUint32)
+	v := clamp(int64(val), 0, math.MaxUint32)
 	buf := make([]byte, 1+UIntDataSize)
 	buf[0] = byte(TypeUInt)
-	put32(buf[1:], val)
+	put32(buf[1:], v)
 	return buf
 }
 
@@ -218,10 +218,10 @@ func unmarshalUInt(src []byte) (int, int, error) {
 
 // MarshalInt marshals signed 32bit integer comparably
 func MarshalInt(val int) []byte {
-	val = clamp(val, math.MinInt32, math.MaxInt32)
+	v := clamp(int64(val), math.MinInt32, math.MaxInt32)
 	buf := make([]byte, 1+IntDataSize)
 	buf[0] = byte(TypeInt)
-	put32(buf[1:], val-math.MinInt32)
+	put32(buf[1:], v-math.MinInt32)
 	return buf
 }
 
@@ -248,12 +248,12 @@ func unmarshalULong(src []byte) (uint64, int, error) {
 }
 
 // MarshalLong marshals signed 64bit integer comparably
-func MarshalLong(val int) []byte {
+func MarshalLong(val int64) []byte {
 	var v uint64
 	if val >= 0 {
 		v = uint64(val) + -math.MinInt64
 	} else {
-		v = uint64(val - math.MinInt64)
+		v = uint64(int64(val) - math.MinInt64)
 	}
 	buf := make([]byte, 1+LongDataSize)
 	buf[0] = byte(TypeLong)
@@ -261,15 +261,15 @@ func MarshalLong(val int) []byte {
 	return buf
 }
 
-func unmarshalLong(src []byte) (int, int, error) {
+func unmarshalLong(src []byte) (int64, int, error) {
 	if len(src) < 1+LongDataSize {
 		return 0, 0, xerrors.Errorf("Unmarshal Long error: not enough data (%v)", len(src))
 	}
 	v := get64(src[1:])
 	if v >= -math.MinInt64 {
-		return int(v - -math.MinInt64), 1 + LongDataSize, nil
+		return int64(v - -math.MinInt64), 1 + LongDataSize, nil
 	}
-	return int(v) + math.MinInt64, 1 + LongDataSize, nil
+	return int64(v) + math.MinInt64, 1 + LongDataSize, nil
 }
 
 // MarshalFloat marshals IEEE 754 single value as comparably.
@@ -284,7 +284,7 @@ func MarshalFloat(val float32) []byte {
 	} else {
 		v = ^v
 	}
-	put32(buf[1:], int(v))
+	put32(buf[1:], int64(v))
 	return buf
 }
 
@@ -337,7 +337,7 @@ func MarshalStr8(str string) []byte {
 	}
 	buf := make([]byte, len+2)
 	buf[0] = byte(TypeStr8)
-	put8(buf[1:], len)
+	put8(buf[1:], int64(len))
 	copy(buf[2:], []byte(str))
 	return buf
 }
@@ -362,7 +362,7 @@ func MarshalStr16(str string) []byte {
 	}
 	buf := make([]byte, len+3)
 	buf[0] = byte(TypeStr16)
-	put16(buf[1:], len)
+	put16(buf[1:], int64(len))
 	copy(buf[3:], []byte(str))
 	return buf
 }
@@ -392,7 +392,7 @@ func MarshalObj(obj *Obj) []byte {
 	buf := make([]byte, len+4)
 	buf[0] = byte(TypeObj)
 	buf[1] = obj.ClassId
-	put16(buf[2:], len)
+	put16(buf[2:], int64(len))
 	copy(buf[4:], obj.Body)
 	return buf
 }
@@ -428,7 +428,7 @@ func MarshalList(list List) []byte {
 	buf[1] = byte(len(list))
 	sizebuf := make([]byte, 2)
 	for _, b := range list {
-		put16(sizebuf, len(b))
+		put16(sizebuf, int64(len(b)))
 		buf = append(buf, sizebuf...)
 		buf = append(buf, b...)
 	}
@@ -477,7 +477,7 @@ func MarshalDict(dict Dict) []byte {
 	for k, v := range dict {
 		buf = append(buf, byte(len(k)))
 		buf = append(buf, []byte(k)...)
-		put16(sizebuf, len(v))
+		put16(sizebuf, int64(len(v)))
 		buf = append(buf, sizebuf...)
 		buf = append(buf, v...)
 	}
@@ -531,7 +531,7 @@ func MarshalBools(bs []bool) []byte {
 	l := (len(bs) + 7) / 8
 	buf := make([]byte, l+3)
 	buf[0] = byte(TypeBools)
-	put16(buf[1:], len(bs))
+	put16(buf[1:], int64(len(bs)))
 
 	for i, b := range bs {
 		if b {
@@ -576,10 +576,10 @@ func MarshalSBytes(vals []int) []byte {
 	}
 	buf := make([]byte, 3+count*SByteDataSize)
 	buf[0] = byte(TypeSBytes)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		buf[3+i*SByteDataSize] = byte(clamp(vals[i], math.MinInt8, math.MaxInt8) - math.MinInt8)
+		buf[3+i*SByteDataSize] = byte(clamp(int64(vals[i]), math.MinInt8, math.MaxInt8) - math.MinInt8)
 	}
 
 	return buf
@@ -617,10 +617,10 @@ func MarshalBytes(vals []int) []byte {
 	}
 	buf := make([]byte, 3+count*ByteDataSize)
 	buf[0] = byte(TypeBytes)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		buf[3+i*ByteDataSize] = byte(clamp(vals[i], 0, math.MaxUint8))
+		buf[3+i*ByteDataSize] = byte(clamp(int64(vals[i]), 0, math.MaxUint8))
 	}
 
 	return buf
@@ -659,10 +659,10 @@ func MarshalChars(vals []rune) []byte {
 	}
 	buf := make([]byte, 3+(count*CharDataSize))
 	buf[0] = byte(TypeChars)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		put16(buf[3+i*CharDataSize:], int(s[i]))
+		put16(buf[3+i*CharDataSize:], int64(s[i]))
 	}
 
 	return buf
@@ -700,10 +700,10 @@ func MarshalShorts(vals []int) []byte {
 	}
 	buf := make([]byte, 3+count*ShortDataSize)
 	buf[0] = byte(TypeShorts)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		v := clamp(vals[i], math.MinInt16, math.MaxInt16) - math.MinInt16
+		v := clamp(int64(vals[i]), math.MinInt16, math.MaxInt16) - math.MinInt16
 		put16(buf[3+i*ShortDataSize:], v)
 	}
 
@@ -742,10 +742,10 @@ func MarshalUShorts(vals []int) []byte {
 	}
 	buf := make([]byte, 3+(count*UShortDataSize))
 	buf[0] = byte(TypeUShorts)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		v := clamp(vals[i], 0, math.MaxUint16)
+		v := clamp(int64(vals[i]), 0, math.MaxUint16)
 		put16(buf[3+i*UShortDataSize:], v)
 	}
 
@@ -784,10 +784,10 @@ func MarshalInts(vals []int) []byte {
 	}
 	buf := make([]byte, 3+count*IntDataSize)
 	buf[0] = byte(TypeInts)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		v := clamp(vals[i], math.MinInt32, math.MaxInt32) - math.MinInt32
+		v := clamp(int64(vals[i]), math.MinInt32, math.MaxInt32) - math.MinInt32
 		put32(buf[3+i*IntDataSize:], v)
 	}
 
@@ -826,10 +826,10 @@ func MarshalUInts(vals []int) []byte {
 	}
 	buf := make([]byte, 3+(count*UIntDataSize))
 	buf[0] = byte(TypeUInts)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		v := clamp(vals[i], 0, math.MaxUint32)
+		v := clamp(int64(vals[i]), 0, math.MaxUint32)
 		put32(buf[3+i*UIntDataSize:], v)
 	}
 
@@ -857,7 +857,7 @@ func unmarshalUInts(src []byte) ([]int, int, error) {
 //  - TypeInts
 //  - 16bit count
 //  - repeat: 64bit BE integer...
-func MarshalLongs(vals []int) []byte {
+func MarshalLongs(vals []int64) []byte {
 	if vals == nil {
 		return MarshalNull()
 	}
@@ -868,14 +868,14 @@ func MarshalLongs(vals []int) []byte {
 	}
 	buf := make([]byte, 3+count*LongDataSize)
 	buf[0] = byte(TypeLongs)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
 		var v uint64
 		if vals[i] >= 0 {
 			v = uint64(vals[i]) + -math.MinInt64
 		} else {
-			v = uint64(vals[i] - math.MinInt64)
+			v = uint64(int64(vals[i]) - math.MinInt64)
 		}
 		put64(buf[3+i*LongDataSize:], v)
 	}
@@ -883,7 +883,7 @@ func MarshalLongs(vals []int) []byte {
 	return buf
 }
 
-func unmarshalLongs(src []byte) ([]int, int, error) {
+func unmarshalLongs(src []byte) ([]int64, int, error) {
 	if len(src) < 3 {
 		return nil, 0, xerrors.Errorf("Unmarshal Longs error: not enough data (%v)", len(src))
 	}
@@ -892,13 +892,13 @@ func unmarshalLongs(src []byte) ([]int, int, error) {
 	if len(src) < l {
 		return nil, 0, xerrors.Errorf("Unmarshal Longs error: not enough data (%v)", len(src))
 	}
-	vals := make([]int, count)
+	vals := make([]int64, count)
 	for i := 0; i < count; i++ {
 		v := get64(src[3+i*LongDataSize:])
 		if v >= -math.MinInt64 {
-			vals[i] = int(v - -math.MinInt64)
+			vals[i] = int64(v - -math.MinInt64)
 		} else {
-			vals[i] = int(v) + math.MinInt64
+			vals[i] = int64(v) + math.MinInt64
 		}
 	}
 	return vals, l, nil
@@ -920,7 +920,7 @@ func MarshalULongs(vals []uint64) []byte {
 	}
 	buf := make([]byte, 3+count*ULongDataSize)
 	buf[0] = byte(TypeULongs)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
 		put64(buf[3+i*ULongDataSize:], vals[i])
@@ -957,7 +957,7 @@ func MarshalFloats(vals []float32) []byte {
 	}
 	buf := make([]byte, 3+count*FloatDataSize)
 	buf[0] = byte(TypeFloats)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
 		v := math.Float32bits(vals[i])
@@ -966,7 +966,7 @@ func MarshalFloats(vals []float32) []byte {
 		} else {
 			v = ^v
 		}
-		put32(buf[3+i*FloatDataSize:], int(v))
+		put32(buf[3+i*FloatDataSize:], int64(v))
 	}
 
 	return buf
@@ -1006,7 +1006,7 @@ func MarshalDoubles(vals []float64) []byte {
 	}
 	buf := make([]byte, 3+count*DoubleDataSize)
 	buf[0] = byte(TypeDoubles)
-	put16(buf[1:], count)
+	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
 		v := math.Float64bits(vals[i])
@@ -1050,8 +1050,8 @@ func MarshalStrings(vals []string) []byte {
 	sizebuf := make([]byte, 2)
 	strbuf := make([]byte, 3)
 	for _, v := range vals {
-		var sz int
-		n := len(v)
+		var sz int64
+		n := int64(len(v))
 		if n <= math.MaxUint8 {
 			sz = 1
 			strbuf[0] = byte(TypeStr8)
@@ -1160,7 +1160,7 @@ func UnmarshalAs(src []byte, types ...Type) (interface{}, int, error) {
 	return nil, 0, xerrors.Errorf("Unmarshal type mismatch: %v != %v", Type(src[0]), types)
 }
 
-func clamp(val, min, max int) int {
+func clamp(val, min, max int64) int64 {
 	if val < min {
 		return min
 	} else if val > max {
@@ -1169,7 +1169,7 @@ func clamp(val, min, max int) int {
 	return val
 }
 
-func put8(dst []byte, val int) {
+func put8(dst []byte, val int64) {
 	dst[0] = byte(val)
 }
 
@@ -1177,7 +1177,7 @@ func get8(src []byte) int {
 	return int(src[0])
 }
 
-func put16(dst []byte, val int) {
+func put16(dst []byte, val int64) {
 	dst[0] = byte((val & 0xff00) >> 8)
 	dst[1] = byte(val & 0xff)
 }
@@ -1188,7 +1188,7 @@ func get16(src []byte) int {
 	return v
 }
 
-func put24(dst []byte, val int) {
+func put24(dst []byte, val int64) {
 	dst[0] = byte((val & 0xff0000) >> 16)
 	dst[1] = byte((val & 0xff00) >> 8)
 	dst[2] = byte(val & 0xff)
@@ -1201,7 +1201,7 @@ func get24(src []byte) int {
 	return i
 }
 
-func put32(dst []byte, val int) {
+func put32(dst []byte, val int64) {
 	dst[0] = byte((val & 0xff000000) >> 24)
 	dst[1] = byte((val & 0xff0000) >> 16)
 	dst[2] = byte((val & 0xff00) >> 8)

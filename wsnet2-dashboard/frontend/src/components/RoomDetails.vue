@@ -134,4 +134,3 @@ defineExpose({ show });
   margin: 5%;
 }
 </style>
-#detail { margin: 5%; }

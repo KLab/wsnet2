@@ -1,5 +1,4 @@
 import { Module, VuexModule, Action, getModule } from "vuex-module-decorators";
-import { decodeAsync } from "@msgpack/msgpack";
 import { store } from ".";
 import settings from "./settings";
 
@@ -19,17 +18,17 @@ class OverviewModule extends VuexModule {
       method: "GET",
       mode: "cors",
       headers: {
-        accept: "application/msgpack",
+        accept: "application/json",
       },
     });
 
     if (response.ok && response.body != null) {
-      const result = await decodeAsync(response.body);
+      const result = await response.json();
       return result as Overview;
     } else {
       let message = "Failed to fetch overview!";
       if (response.body != null) {
-        const err = await decodeAsync(response.body);
+        const err = await response.json();
         message = (err as any)["details"];
       }
       throw Error(message);

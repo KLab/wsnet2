@@ -96,19 +96,6 @@ func TestMarshalInteger(t *testing.T) {
 		{MarshalInt, 0x01020304, 0x01020304, []byte{byte(TypeInt), 0x81, 0x02, 0x03, 0x04}},
 		{MarshalInt, 0x7fffffff, 0x7fffffff, []byte{byte(TypeInt), 0xff, 0xff, 0xff, 0xff}},
 		{MarshalInt, 0x80000000, 0x7fffffff, []byte{byte(TypeInt), 0xff, 0xff, 0xff, 0xff}},
-
-		{MarshalLong, math.MinInt64, math.MinInt64,
-			[]byte{byte(TypeLong), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
-		{MarshalLong, -1, -1,
-			[]byte{byte(TypeLong), 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
-		{MarshalLong, 0, 0,
-			[]byte{byte(TypeLong), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
-		{MarshalLong, 1, 1,
-			[]byte{byte(TypeLong), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}},
-		{MarshalLong, math.MaxInt64, math.MaxInt64,
-			[]byte{byte(TypeLong), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
-		{MarshalLong, 0x0102030405060708, 0x0102030405060708,
-			[]byte{byte(TypeLong), 0x81, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
 	}
 	for _, test := range tests {
 		b := test.marshal(test.in)
@@ -149,6 +136,41 @@ func TestMarshalChar(t *testing.T) {
 		}
 		if r != test.val || l != len(test.buf) {
 			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, test.val, len(test.buf))
+		}
+	}
+}
+
+func TestMarshalLong(t *testing.T) {
+	tests := []struct {
+		in  int64
+		out int64
+		buf []byte
+	}{
+		{math.MinInt64, math.MinInt64,
+			[]byte{byte(TypeLong), 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+		{-1, -1,
+			[]byte{byte(TypeLong), 0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+		{0, 0,
+			[]byte{byte(TypeLong), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}},
+		{1, 1,
+			[]byte{byte(TypeLong), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}},
+		{math.MaxInt64, math.MaxInt64,
+			[]byte{byte(TypeLong), 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
+		{0x0102030405060708, 0x0102030405060708,
+			[]byte{byte(TypeLong), 0x81, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}},
+	}
+	for _, test := range tests {
+		b := MarshalLong(test.in)
+		if !reflect.DeepEqual(b, test.buf) {
+			t.Fatalf("MarshalLong(%x):\n%#v\n%#v", test.in, b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("MarshalLong(%x): Unmarshal error: %v", test.in, e)
+		}
+		if r != test.out || l != len(test.buf) {
+			t.Fatalf("MarshalLong(%x): Unmarshal = %v (len=%v) wants %v (len=%v)",
+				test.in, r, l, test.out, len(test.buf))
 		}
 	}
 }
@@ -608,25 +630,12 @@ func TestMarshalIntegers(t *testing.T) {
 				0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
-
-		{MarshalLongs, []int{}, []int{}, []byte{byte(TypeLongs), 0, 0}},
-		{MarshalLongs,
-			[]int{0, 1, math.MinInt64, math.MaxInt64},
-			[]int{0, 1, math.MinInt64, math.MaxInt64},
-			[]byte{byte(TypeLongs), 0, 4,
-				0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-			},
-		},
 		{MarshalSBytes, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalBytes, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalShorts, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalUShorts, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalInts, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalUInts, nil, nil, []byte{byte(TypeNull)}},
-		{MarshalLongs, nil, nil, []byte{byte(TypeNull)}},
 	}
 	for _, test := range tests {
 		b := test.marshal(test.in)
@@ -671,7 +680,7 @@ func TestMarshalChars(t *testing.T) {
 	for _, test := range tests {
 		b := MarshalChars(test.val)
 		if diff := cmp.Diff(b, test.buf); diff != "" {
-			t.Fatalf("MarshalULongs(%#v): Marshal (-got +want)\n%s", test.val, diff)
+			t.Fatalf("MarshalChars(%#v): Marshal (-got +want)\n%s", test.val, diff)
 		}
 		r, l, e := Unmarshal(b)
 		if e != nil {
@@ -684,6 +693,45 @@ func TestMarshalChars(t *testing.T) {
 		}
 		if l != len(test.buf) {
 			t.Fatalf("Unmarshal length = %v, wants %v", l, len(test.buf))
+		}
+	}
+}
+
+func TestMarshalLongs(t *testing.T) {
+	tests := []struct {
+		in  []int64
+		out []int64
+		buf []byte
+	}{
+		{[]int64{}, []int64{}, []byte{byte(TypeLongs), 0, 0}},
+		{
+			[]int64{0, 1, math.MinInt64, math.MaxInt64},
+			[]int64{0, 1, math.MinInt64, math.MaxInt64},
+			[]byte{byte(TypeLongs), 0, 4,
+				0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+			},
+		},
+		{nil, nil, []byte{byte(TypeNull)}},
+	}
+	for _, test := range tests {
+		b := MarshalLongs(test.in)
+		if diff := cmp.Diff(b, test.buf); diff != "" {
+			t.Fatalf("MarshalLongs(%#v): Marshal (-got +want)\n%s", test.in, diff)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			t.Fatalf("MarshalLongs(%#v): Unmarshal error: %v", test.in, e)
+		}
+		if !(test.out == nil && r == nil) {
+			if diff := cmp.Diff(r, test.out); diff != "" {
+				t.Fatalf("Unmarshal(%#v) (-got +want)\n%s", test.in, diff)
+			}
+		}
+		if l != len(test.buf) {
+			t.Fatalf("Unmarshal(%#v) len=%v wants %v", test.in, l, len(test.buf))
 		}
 	}
 }
