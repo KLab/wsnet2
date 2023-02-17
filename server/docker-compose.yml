@@ -33,7 +33,6 @@ services:
       retries: 10
   builder:
     container_name: wsnet2-builder
-    platform: linux/amd64
     build: .
     image: wsnet2-arelo
     volumes:
@@ -42,7 +41,6 @@ services:
     command: bash -c 'make install-deps; arelo -p "**/*.{go,proto}" -i "**/.*" -i "**/*{_test,_string,.pb}.go" -i "cmd/wsnet2-{bot,tool}" -- make build'
   game:
     container_name: wsnet2-game
-    platform: linux/amd64
     depends_on:
       - db
     build: .
@@ -64,7 +62,6 @@ services:
       - 3000:3000
   hub:
     container_name: wsnet2-hub
-    platform: linux/amd64
     depends_on:
       - db
       - game
@@ -87,7 +84,6 @@ services:
       - 3010:3000
   lobby:
     container_name: wsnet2-lobby
-    platform: linux/amd64
     depends_on:
       - db
     build: .
