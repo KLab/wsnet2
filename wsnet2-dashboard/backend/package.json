@@ -1,6 +1,6 @@
 {
   "name": "wsnet2-dashboard-backend",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Backend for wsnet2-dashboard",
   "main": "src/index.ts",
   "scripts": {
@@ -23,7 +23,6 @@
     "cors": "^2.8.5",
     "dotenv": "^14.3.2",
     "express": "^4.17.2",
-    "express-msgpack": "^3.0.2",
     "graphql": "^15.8.0",
     "mysql2": "^2.3.3",
     "nexus": "^1.1.0",
