@@ -293,7 +293,7 @@ func (c *Client) sendRenewPeer() {
 }
 
 // attachPeer: peerを紐付ける
-//  peerのgoroutineから呼ばれる
+// peerのgoroutineから呼ばれる
 func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 	c.logger.Debugf("attach peer: %v peer=%p", c.Id, p)
 	c.mu.Lock()
