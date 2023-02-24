@@ -507,7 +507,7 @@ func unmarshalDict(src []byte) (Dict, int, error) {
 		if len(src) < l+lv {
 			return nil, 0, xerrors.Errorf("Unmarshal Dict[%q](%v..%v) error: not enough data (%v)", key, l, lv, len(src))
 		}
-		dict[string(key)] = src[l : l+lv]
+		dict[unsafeString(key)] = src[l : l+lv]
 		l += lv
 	}
 	return dict, l, nil
