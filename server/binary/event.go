@@ -91,7 +91,6 @@ type Event interface {
 //
 // regular event binary format:
 // | 8bit EvType | 32bit-be sequence number | payload ... |
-//
 type RegularEvent struct {
 	etype   EvType
 	payload []byte
@@ -139,7 +138,6 @@ func UnmarshalEvent(data []byte) (Event, int, error) {
 // - EvTypePong
 // binary format:
 // | 8bit MsgType | payload ... |
-//
 type SystemEvent struct {
 	etype   EvType
 	payload []byte

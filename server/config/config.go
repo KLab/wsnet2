@@ -155,7 +155,6 @@ func (d *Duration) UnmarshalText(text []byte) error {
 // - WSNET2_GAME_PUBLICNAME: Config.{Game,Hub}.PublicName
 // - WSNET2_GAME_GRPCPORT:   Config.{Game,Hub}.GRPCPort
 // - WSNET2_GAME_WSPORT:     Config.{Game,Hub}.WebsocketPort
-//
 func Load(conffile string) (*Config, error) {
 	hostname, _ := os.Hostname()
 	if hostname == "" {

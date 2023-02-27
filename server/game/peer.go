@@ -21,9 +21,8 @@ const (
 // Peer : websocketの接続
 //
 // CloseCodeが次の場合はクライアントは再接続を試行しない
-//  - (1000) CloseNormalClosure (C#: WebsocketCloseStatus.NormalClosure)
-//  - (1001) CloseGoingAway (C#: WebsocketCloseStatus.EndpointUnavailable)
-//
+//   - (1000) CloseNormalClosure (C#: WebsocketCloseStatus.NormalClosure)
+//   - (1001) CloseGoingAway (C#: WebsocketCloseStatus.EndpointUnavailable)
 type Peer struct {
 	client *Client
 	conn   *websocket.Conn

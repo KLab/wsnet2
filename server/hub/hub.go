@@ -162,8 +162,8 @@ func (h *Hub) writeLastMsg(cid ClientID) {
 	h.lastMsg[string(cid)] = binary.MarshalULong(millisec)
 }
 
-/// UpdateLastMsg : PlayerがMsgを受信したとき更新する.
-/// 既に登録されているPlayerのみ書き込み (watcherを含めないため)
+// UpdateLastMsg : PlayerがMsgを受信したとき更新する
+// 既に登録されているPlayerのみ書き込み (watcherを含めないため)
 func (h *Hub) updateLastMsg(cid ClientID) {
 	id := string(cid)
 	if _, ok := h.lastMsg[id]; ok {

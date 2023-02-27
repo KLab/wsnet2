@@ -380,10 +380,10 @@ func unmarshalStr16(src []byte) (string, int, error) {
 
 // MarshalObj marshals Obj
 // format:
-//  - TypeObj
-//  - 8bit class id (specified by app)
-//  - 16bit body length
-//  - body
+//   - TypeObj
+//   - 8bit class id (specified by app)
+//   - 16bit body length
+//   - body
 func MarshalObj(obj *Obj) []byte {
 	if obj == nil {
 		return MarshalNull()
@@ -414,11 +414,11 @@ func unmarshalObj(src []byte) (*Obj, int, error) {
 
 // MarshalList marshals List
 // format:
-//  - TypeList
-//  - 8bit count
-//  - repeat:
-//    - 16bit body length
-//    - marshaled body
+//   - TypeList
+//   - 8bit count
+//   - repeat:
+//     -- 16bit body length
+//     -- marshaled body
 func MarshalList(list List) []byte {
 	if list == nil {
 		return MarshalNull()
@@ -459,13 +459,13 @@ func unmarshalList(src []byte) (List, int, error) {
 
 // MarshalDict marshals Dict
 // format:
-//  - TypeDict
-//  - 8bit count
-//  - repeat:
-//    - 8bit key length
-//    - key string
-//    - 16bit body length
-//    - marshaled body
+//   - TypeDict
+//   - 8bit count
+//   - repeat:
+//     -- 8bit key length
+//     -- key string
+//     -- 16bit body length
+//     -- marshaled body
 func MarshalDict(dict Dict) []byte {
 	if dict == nil {
 		return MarshalNull()
@@ -515,9 +515,9 @@ func unmarshalDict(src []byte) (Dict, int, error) {
 
 // MarshalBools marshals bool array
 // format:
-//  - TypeBools
-//  - 16bit count
-//  - repeat: bits...
+//   - TypeBools
+//   - 16bit count
+//   - repeat: bits...
 func MarshalBools(bs []bool) []byte {
 	if bs == nil {
 		return MarshalNull()
@@ -562,9 +562,9 @@ func unmarshalBools(src []byte) ([]bool, int, error) {
 
 // MarshalSBytes marshals sbytes array
 // format:
-//  - TypeSBytes
-//  - 16bit count
-//  - repeat: sbyte...
+//   - TypeSBytes
+//   - 16bit count
+//   - repeat: sbyte...
 func MarshalSBytes(vals []int) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -603,9 +603,9 @@ func unmarshalSBytes(src []byte) ([]int, int, error) {
 
 // MarshalBytes marshals bytes array
 // format:
-//  - TypeBytes
-//  - 16bit count
-//  - repeat: byte...
+//   - TypeBytes
+//   - 16bit count
+//   - repeat: byte...
 func MarshalBytes(vals []int) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -644,9 +644,9 @@ func unmarshalBytes(src []byte) ([]int, int, error) {
 
 // MarshalChars marshals code-point array to UTF-16 sequence
 // format:
-//  - TypeChars
-//  - 16bit count
-//  - repeat: 16bit BE integer...
+//   - TypeChars
+//   - 16bit count
+//   - repeat: 16bit BE integer...
 func MarshalChars(vals []rune) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -686,9 +686,9 @@ func unmarshalChars(src []byte) ([]rune, int, error) {
 
 // MarshalShorts marshals signed 16bit integer array
 // format:
-//  - TypeShorts
-//  - 16bit count
-//  - repeat: 16bit BE integer...
+//   - TypeShorts
+//   - 16bit count
+//   - repeat: 16bit BE integer...
 func MarshalShorts(vals []int) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -728,9 +728,9 @@ func unmarshalShorts(src []byte) ([]int, int, error) {
 
 // MarshalUShort marshals unsigned 16bit integer array
 // format:
-//  - TypeUShort
-//  - 16bit count
-//  - repeat: 16bit BE integer...
+//   - TypeUShort
+//   - 16bit count
+//   - repeat: 16bit BE integer...
 func MarshalUShorts(vals []int) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -770,9 +770,9 @@ func unmarshalUShorts(src []byte) ([]int, int, error) {
 
 // MarshalInts marshals signed 32bit integer array
 // format:
-//  - TypeInts
-//  - 16bit count
-//  - repeat: 32bit BE integer...
+//   - TypeInts
+//   - 16bit count
+//   - repeat: 32bit BE integer...
 func MarshalInts(vals []int) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -812,9 +812,9 @@ func unmarshalInts(src []byte) ([]int, int, error) {
 
 // MarshalInts marshals unsigned 32bit integer array
 // format:
-//  - TypeUInts
-//  - 16bit count
-//  - repeat: 32bit BE integer...
+//   - TypeUInts
+//   - 16bit count
+//   - repeat: 32bit BE integer...
 func MarshalUInts(vals []int) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -854,9 +854,9 @@ func unmarshalUInts(src []byte) ([]int, int, error) {
 
 // MarshalLongs marshals signed 64bit integer array
 // format:
-//  - TypeInts
-//  - 16bit count
-//  - repeat: 64bit BE integer...
+//   - TypeInts
+//   - 16bit count
+//   - repeat: 64bit BE integer...
 func MarshalLongs(vals []int64) []byte {
 	if vals == nil {
 		return MarshalNull()
@@ -906,9 +906,9 @@ func unmarshalLongs(src []byte) ([]int64, int, error) {
 
 // MarshalULongs marshals unsigned 64bit integer array
 // format:
-//  - TypeInts
-//  - 16bit count
-//  - repeat: 64bit BE integer...
+//   - TypeInts
+//   - 16bit count
+//   - repeat: 64bit BE integer...
 func MarshalULongs(vals []uint64) []byte {
 	if vals == nil {
 		return MarshalNull()

@@ -18,7 +18,6 @@ import (
 // - MsgTypePing
 // binary format:
 // | 8bit MsgType | payload ... |
-//
 type Msg interface {
 	Type() MsgType
 	Payload() []byte
