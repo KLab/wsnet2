@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 
+	"wsnet2"
 	"wsnet2/config"
 )
 
@@ -22,8 +23,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "wsnet2-tool",
 	Short: "WSNet2 tool",
-	Long:  `CLI tool for WSNet2`,
-
+	Long:  "CLI tool for WSNet2 " + wsnet2.Version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if confFile == "" {
 			return fmt.Errorf("need --config option\n")

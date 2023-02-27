@@ -11,13 +11,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 
+	"wsnet2"
 	"wsnet2/config"
 	"wsnet2/lobby/service"
 	"wsnet2/log"
-)
-
-var (
-	WSNet2Version string = "LOCAL"
 )
 
 func main() {
@@ -32,7 +29,7 @@ func main() {
 	defer log.InitLogger(&conf.Lobby.LogConf)()
 	log.SetLevel(log.Level(conf.Lobby.Loglevel))
 	log.Infof("WSNet2-Lobby")
-	log.Infof("WSNet2Version: %v", WSNet2Version)
+	log.Infof("WSNet2Version: %v", wsnet2.Version)
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range bi.Settings {
 			if strings.HasPrefix(s.Key, "vcs.") {

@@ -1,12 +1,13 @@
 # binaries to build
 TARGETS := bin/wsnet2-lobby bin/wsnet2-game bin/wsnet2-hub bin/wsnet2-bot bin/wsnet2-tool
+VERSION := $(shell git describe --tag 2>/dev/null || echo "v0.0.0")
 
 # dependencies
-PKG_LOBBY := cmd/wsnet2-lobby lobby lobby/service    auth binary common config log pb
-PKG_GAME  := cmd/wsnet2-game  game  game/service     auth binary common config log pb
-PKG_HUB   := cmd/wsnet2-hub   hub   hub/service game auth binary common config log pb
-PKG_BOT   := cmd/wsnet2-bot   lobby lobby/service    auth binary common config log pb
-PKG_TOOL  := cmd/wsnet2-tool cmd/wsnet2-tool/cmd          binary        config     pb
+PKG_LOBBY := cmd/wsnet2-lobby lobby lobby/service    auth binary common config log pb .
+PKG_GAME  := cmd/wsnet2-game  game  game/service     auth binary common config log pb .
+PKG_HUB   := cmd/wsnet2-hub   hub   hub/service game auth binary common config log pb .
+PKG_BOT   := cmd/wsnet2-bot   lobby lobby/service    auth binary common config log pb .
+PKG_TOOL  := cmd/wsnet2-tool cmd/wsnet2-tool/cmd          binary        config     pb .
 
 # protoc targets
 proto := $(wildcard pb/*.proto)
@@ -19,7 +20,7 @@ string.go := $(foreach s,$(stringer),\
                  $(dir $(word 1,$(subst >, ,$(s))))$(shell echo $(word 2,$(subst >, ,$(s))) | tr A-Z a-z))
 
 COMMIT := $(shell git rev-parse --short HEAD)
-GOBUILD := go build -ldflags "-X main.WSNet2Version=v0.0.1"
+GOBUILD := go build -ldflags "-X wsnet2.Version=$(VERSION)"
 
 export GOBIN := $(abspath bin)
 export PATH := $(GOBIN):$(PATH)

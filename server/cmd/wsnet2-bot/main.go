@@ -8,15 +8,13 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	"wsnet2"
 )
 
 var (
 	appID  = "testapp"
 	appKey = "testapppkey"
-)
-
-var (
-	WSNet2Version string = "LOCAL"
 
 	logger *zap.SugaredLogger
 )
@@ -54,7 +52,7 @@ func main() {
 	logger = lg.Sugar()
 
 	fmt.Println("WSNet2-Bot")
-	fmt.Println("WSNet2Version:", WSNet2Version)
+	fmt.Println("WSNet2Version:", wsnet2.Version)
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range bi.Settings {
 			if strings.HasPrefix(s.Key, "vcs.") {
