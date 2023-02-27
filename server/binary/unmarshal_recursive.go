@@ -10,6 +10,8 @@ type RawObj struct {
 }
 
 // UnmarshalRecursive unmarshal all bytes recursive
+//
+// srcの領域はUnmarshal後に参照されるため書き換えてはいけない
 func UnmarshalRecursive(src []byte) (interface{}, error) {
 	if len(src) == 0 {
 		return nil, xerrors.Errorf("Unmarshal error: empty")

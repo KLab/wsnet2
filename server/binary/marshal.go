@@ -1074,6 +1074,8 @@ func MarshalStrings(vals []string) []byte {
 }
 
 // Unmarshal serialized bytes
+//
+// srcの領域はUnmarshal後に参照されるため書き換えてはいけない
 func Unmarshal(src []byte) (interface{}, int, error) {
 	if len(src) == 0 {
 		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
@@ -1146,6 +1148,8 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 }
 
 // Unmarshal bytes as specified type
+//
+// srcの領域はUnmarshal後に参照されるため書き換えてはいけない
 func UnmarshalAs(src []byte, types ...Type) (interface{}, int, error) {
 	if len(src) == 0 {
 		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
