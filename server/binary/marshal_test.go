@@ -386,7 +386,7 @@ func TestMarshalStr8(t *testing.T) {
 			exp = exp[:255]
 		}
 		if r != string(exp) || l != len(test.buf) {
-			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, string(exp), len(test.buf))
+			t.Fatalf("Unmarshal(%q) = %v (len=%v) wants %v (len=%v)", test.val, r, l, string(exp), len(test.buf))
 		}
 	}
 }
@@ -409,7 +409,7 @@ func TestMarshalStr16(t *testing.T) {
 		{s256, append([]byte{byte(TypeStr16), 0x01, 0x00}, []byte(s256)...)},
 		{s65536, append([]byte{byte(TypeStr16), 0xff, 0xff}, []byte(s65536[:65535])...)},
 	}
-	for _, test := range tests {
+	for i, test := range tests {
 		b := MarshalStr16(test.val)
 		if !reflect.DeepEqual(b, test.buf) {
 			t.Fatalf("MarshalStr16:\n%#v\n%#v", b, test.buf)
@@ -423,7 +423,7 @@ func TestMarshalStr16(t *testing.T) {
 			exp = exp[:math.MaxUint16]
 		}
 		if r != string(exp) || l != len(test.buf) {
-			t.Fatalf("Unmarshal = %v (len=%v) wants %v (len=%v)", r, l, string(exp), len(test.buf))
+			t.Fatalf("Unmarshal[%v] = %v (len=%v) wants %v (len=%v)", i, r, l, string(exp), len(test.buf))
 		}
 	}
 }

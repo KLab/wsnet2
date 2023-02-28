@@ -350,7 +350,10 @@ func unmarshalStr8(src []byte) (string, int, error) {
 	if len(src) < 2+l {
 		return "", 0, xerrors.Errorf("Unmarshal Str8(%v) error: not enough data (%v)", l, len(src))
 	}
-	return string(src[2 : 2+l]), 2 + l, nil
+	if l == 0 {
+		return "", 2, nil
+	}
+	return unsafeString(src[2 : 2+l]), 2 + l, nil
 }
 
 // MarshalStr16 marshals long string (255 < len <= 65535)
@@ -375,7 +378,10 @@ func unmarshalStr16(src []byte) (string, int, error) {
 	if len(src) < 3+l {
 		return "", 0, xerrors.Errorf("Unmarshal Str16(%v) error: not enough data (%v)", l, len(src))
 	}
-	return string(src[3 : 3+l]), 3 + l, nil
+	if l == 0 {
+		return "", 3, nil
+	}
+	return unsafeString(src[3 : 3+l]), 3 + l, nil
 }
 
 // MarshalObj marshals Obj
@@ -507,7 +513,7 @@ func unmarshalDict(src []byte) (Dict, int, error) {
 		if len(src) < l+lv {
 			return nil, 0, xerrors.Errorf("Unmarshal Dict[%q](%v..%v) error: not enough data (%v)", key, l, lv, len(src))
 		}
-		dict[string(key)] = src[l : l+lv]
+		dict[unsafeString(key)] = src[l : l+lv]
 		l += lv
 	}
 	return dict, l, nil
@@ -1074,6 +1080,8 @@ func MarshalStrings(vals []string) []byte {
 }
 
 // Unmarshal serialized bytes
+//
+// srcの領域はUnmarshal後に参照されるため書き換えてはいけない
 func Unmarshal(src []byte) (interface{}, int, error) {
 	if len(src) == 0 {
 		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
@@ -1146,6 +1154,8 @@ func Unmarshal(src []byte) (interface{}, int, error) {
 }
 
 // Unmarshal bytes as specified type
+//
+// srcの領域はUnmarshal後に参照されるため書き換えてはいけない
 func UnmarshalAs(src []byte, types ...Type) (interface{}, int, error) {
 	if len(src) == 0 {
 		return nil, 0, xerrors.Errorf("Unmarshal error: empty")
