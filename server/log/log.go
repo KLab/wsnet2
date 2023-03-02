@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 
+	"wsnet2"
 	"wsnet2/config"
 )
 
@@ -179,7 +180,8 @@ func InitLogger(logconf *config.LogConf) func() {
 	}
 
 	host, _ := os.Hostname()
-	logger := zap.New(core, zap.WithCaller(true)).With(zap.String("host", host))
+	logger := zap.New(core, zap.WithCaller(true)).With(
+		zap.String("host", host), zap.String("version", wsnet2.Version))
 	rootLogger = logger
 	wrappedLogger = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
 

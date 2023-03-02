@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"strings"
 	"syscall"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 
+	"wsnet2"
 	"wsnet2/config"
 	"wsnet2/hub/service"
 	"wsnet2/log"
@@ -27,6 +30,15 @@ func main() {
 
 	defer log.InitLogger(&conf.Hub.LogConf)()
 	log.SetLevel(log.Level(conf.Hub.DefaultLoglevel))
+	log.Infof("WSNet2-Hub")
+	log.Infof("WSNet2Version: %v", wsnet2.Version)
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		for _, s := range bi.Settings {
+			if strings.HasPrefix(s.Key, "vcs.") {
+				log.Infof("%v: %v", s.Key, s.Value)
+			}
+		}
+	}
 
 	db := sqlx.MustOpen("mysql", conf.Db.DSN())
 	maxConns := conf.Hub.DbMaxConns
