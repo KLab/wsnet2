@@ -57,4 +57,14 @@ namespace WSNet2
         [Key("query")]
         public List<List<Query.Condition>> queries;
     }
+
+    [MessagePackObject]
+    public class SearchByNumbersParam
+    {
+        [Key("numbers")]
+        public int[] numbers;
+
+        [Key("query")]
+        public List<List<Query.Condition>> queries;
+    }
 }
