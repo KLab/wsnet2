@@ -85,6 +85,7 @@ func (sv *LobbyService) registerRoutes(r chi.Router) {
 	r.Post("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom)
 	r.Post("/rooms/search", sv.handleSearchRooms)
 	r.Post("/rooms/search/ids", sv.handleSearchByIds)
+	r.Post("/rooms/search/numbers", sv.handleSearchByNumbers)
 	r.Post("/rooms/watch/id/{roomId}", sv.handleWatchRoom)
 	r.Post("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber)
 	r.Post("/_admin/kick", sv.handleAdminKick)
@@ -423,8 +424,8 @@ func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	logger = logger.With(log.KeySearchGroup, param.SearchGroup)
 	logger.Debugf("search param: %#v", param)
+	logger = logger.With(log.KeySearchGroup, param.SearchGroup)
 
 	rooms, err := sv.roomService.Search(r.Context(),
 		h.appId, param.SearchGroup, param.Queries, int(param.Limit), param.CheckJoinable, param.CheckWatchable, logger)
@@ -439,7 +440,7 @@ func (sv *LobbyService) handleSearchRooms(w http.ResponseWriter, r *http.Request
 func (sv *LobbyService) handleSearchByIds(w http.ResponseWriter, r *http.Request) {
 	h := parseSpecificHeader(r)
 	logger := prepareLogger("lobby:search/ids", h, r)
-	logger.Debugf("handleSearchRoom")
+	logger.Debugf("handleSearchByIds")
 
 	if _, err := sv.authUser(h); err != nil {
 		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err, logger)
@@ -453,10 +454,39 @@ func (sv *LobbyService) handleSearchByIds(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	logger = logger.With(log.KeyRoomIds, param.RoomIDs)
 	logger.Debugf("search param: %#v", param)
+	logger = logger.With(log.KeyRoomIds, param.RoomIDs)
 
 	rooms, err := sv.roomService.SearchByIds(r.Context(), h.appId, param.RoomIDs, param.Queries, logger)
+	if err != nil {
+		renderErrorResponse(w, "Failed to list rooms", http.StatusInternalServerError, err, logger)
+		return
+	}
+
+	renderFoundRoomsResponse(w, rooms, logger)
+}
+
+func (sv *LobbyService) handleSearchByNumbers(w http.ResponseWriter, r *http.Request) {
+	h := parseSpecificHeader(r)
+	logger := prepareLogger("lobby:search/numbers", h, r)
+	logger.Debugf("handleSearchByNumbers")
+
+	if _, err := sv.authUser(h); err != nil {
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err, logger)
+		return
+	}
+
+	var param SearchByNumbersParam
+	err := msgpackDecode(r.Body, &param)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err, logger)
+		return
+	}
+
+	logger.Debugf("search param: %#v", param)
+	logger = logger.With(log.KeyRoomNumbers, param.RoomNumbers)
+
+	rooms, err := sv.roomService.SearchByNumbers(r.Context(), h.appId, param.RoomNumbers, param.Queries, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to list rooms", http.StatusInternalServerError, err, logger)
 		return

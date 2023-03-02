@@ -291,8 +291,25 @@ func (rs *RoomService) SearchByIds(ctx context.Context, appId string, roomIds []
 		return nil, xerrors.Errorf("sqlx.In: %w", err)
 	}
 
+	return rs.searchBySQL(ctx, sql, params, queries, logger)
+}
+
+func (rs *RoomService) SearchByNumbers(ctx context.Context, appId string, roomNumbers []int32, queries []PropQueries, logger log.Logger) ([]*pb.RoomInfo, error) {
+	if len(roomNumbers) == 0 {
+		return []*pb.RoomInfo{}, nil
+	}
+
+	sql, params, err := sqlx.In("SELECT * FROM room WHERE app_id = ? AND number IN (?)", appId, roomNumbers)
+	if err != nil {
+		return nil, xerrors.Errorf("sqlx.In: %w", err)
+	}
+
+	return rs.searchBySQL(ctx, sql, params, queries, logger)
+}
+
+func (rs *RoomService) searchBySQL(ctx context.Context, sql string, params []any, queries []PropQueries, logger log.Logger) ([]*pb.RoomInfo, error) {
 	var rooms []*pb.RoomInfo
-	err = rs.db.SelectContext(ctx, &rooms, sql, params...)
+	err := rs.db.SelectContext(ctx, &rooms, sql, params...)
 	if err != nil {
 		return nil, xerrors.Errorf("Select: %w", err)
 	}
