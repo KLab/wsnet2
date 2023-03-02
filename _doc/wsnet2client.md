@@ -165,7 +165,7 @@ void Watch(
     IWSNet2Logger<WSNet2LogPayload> roomLogger);
 ```
 
-- `roomId`: Room ID
+- `number`: 部屋番号
 - `query`: 部屋条件クエリ
 - `onSuccess`: 成功時コールバック。引数は入室したRoom。
 - `onFailed`: 失敗時コールバック。引数は例外オブジェクト。
@@ -173,7 +173,7 @@ void Watch(
 
 ## 部屋検索
 
-### Search(group/roomIds)
+### Search(group/roomIds/roomNumbers)
 
 ```C#
 void Search(
@@ -197,12 +197,19 @@ void Search(
     Query query,
     Action<PublicRoom[]> onSuccess,
     Action<Exception> onFailed);
+
+void Search(
+    int[] roomNumbers,
+    Query query,
+    Action<PublicRoom[]> onSuccess,
+    Action<Exception> onFailed);
 ```
 
-条件に合うRoom一覧を取得する。
+条件に合うRoom一覧を取得します。
 
 - `group`: 検索グループ
-- `roomIds`: 部屋ID
+- `roomIds`: 部屋IDリスト
+- `roomNumbers`: 部屋番号リスト
 - `query`: 部屋条件クエリ
 - `limit`: 件数上限
 - `checkJoinable`: true: 入室可能な部屋のみ含める
