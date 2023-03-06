@@ -206,3 +206,5 @@ func (r *Repository) GetHubCount() int {
 	defer r.mu.RUnlock()
 	return len(r.hubs)
 }
+
+func (r *Repository) PlayerLog(c *game.Client, msg game.PlayerLogMsg) {}

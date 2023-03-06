@@ -44,19 +44,11 @@ type Room struct {
 
 	lastMsg binary.Dict // map[clientID]unixtime_millisec
 
-	playerLogs []roomPlayerLog
-
 	logger log.Logger
 
 	chRoomInfo   chan struct{}
 	mRoomInfo    sync.Mutex // used by updateRoomInfo
 	lastRoomInfo *pb.RoomInfo
-}
-
-type roomPlayerLog struct {
-	PlayerID  string    `json:"player_id,omitempty"`
-	Message   string    `json:"message,omitempty"`
-	TimeStamp time.Time `json:"timestamp,omitempty"`
 }
 
 func NewRoom(ctx context.Context, repo *Repository, info *pb.RoomInfo, masterInfo *pb.ClientInfo, macKey string, deadlineSec uint32, conf *config.GameConf, logger log.Logger) (*Room, *JoinedInfo, ErrorWithCode) {
@@ -219,11 +211,7 @@ func (r *Room) removePlayer(c *Client, cause string) {
 		}
 	}
 
-	r.playerLogs = append(r.playerLogs, roomPlayerLog{
-		PlayerID:  c.Id,
-		Message:   "Remove",
-		TimeStamp: time.Now(),
-	})
+	r.repo.PlayerLog(c, PlayerLogLeave)
 
 	c.logger.Infof("player left: %v: %v", cid, cause)
 	c.Removed(cause)
@@ -390,11 +378,7 @@ func (r *Room) msgCreate(msg *MsgCreate) error {
 	r.master = master
 	r.players[master.ID()] = master
 	r.masterOrder = append(r.masterOrder, master.ID())
-	r.playerLogs = append(r.playerLogs, roomPlayerLog{
-		PlayerID:  master.Id,
-		Message:   "Create",
-		TimeStamp: time.Now(),
-	})
+	r.repo.PlayerLog(master, PlayerLogCreate)
 
 	rinfo := r.RoomInfo.Clone()
 	cinfo := r.master.ClientInfo.Clone()
@@ -446,19 +430,11 @@ func (r *Room) msgJoin(msg *MsgJoin) error {
 		if r.master == oldp {
 			r.master = client
 		}
-		r.playerLogs = append(r.playerLogs, roomPlayerLog{
-			PlayerID:  client.Id,
-			Message:   "Rejoin",
-			TimeStamp: time.Now(),
-		})
+		r.repo.PlayerLog(client, PlayerLogRejoin)
 		client.logger.Infof("rejoin player: %v", client.Id)
 	} else {
 		r.masterOrder = append(r.masterOrder, client.ID())
-		r.playerLogs = append(r.playerLogs, roomPlayerLog{
-			PlayerID:  client.Id,
-			Message:   "Join",
-			TimeStamp: time.Now(),
-		})
+		r.repo.PlayerLog(client, PlayerLogJoin)
 		r.RoomInfo.Players = uint32(len(r.players))
 		r.updateRoomInfo()
 		client.logger.Infof("new player: %v", client.Id)

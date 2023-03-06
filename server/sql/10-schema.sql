@@ -60,11 +60,20 @@ CREATE TABLE `room_history` (
   `max_players` INTEGER UNSIGNED NOT NULL,
   `public_props` BLOB,
   `private_props` BLOB,
-  `player_logs` JSON,
   `created` DATETIME,
   `closed` DATETIME,
   KEY `room_id` (`room_id`),
   KEY `created` (`created`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+DROP TABLE IF EXISTS `player_log`;
+CREATE TABLE player_log (
+  `id`        BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+  `room_id`   VARCHAR(32) NOT NULL,
+  `player_id` VARCHAR(32) NOT NULL,
+  `message`   VARCHAR(32) NOT NULL,
+  `datetime`  DATETIME,
+  KEY `room_id` (`room_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE IF EXISTS `hub`;

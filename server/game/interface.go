@@ -29,4 +29,5 @@ type IRoom interface {
 
 type IRepo interface {
 	RemoveClient(c *Client)
+	PlayerLog(c *Client, msg PlayerLogMsg)
 }
