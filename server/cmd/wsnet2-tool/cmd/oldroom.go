@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"os"
 	"time"
-	"wsnet2/binary"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/cobra"
 	"golang.org/x/xerrors"
+
+	"wsnet2/binary"
+	"wsnet2/game"
 )
 
 type roomHistory struct {
@@ -23,9 +25,18 @@ type roomHistory struct {
 	MaxPlayers   uint32        `db:"max_players"`
 	PublicProps  []byte        `db:"public_props"`
 	PrivateProps []byte        `db:"private_props"`
-	PlayerLogs   []byte        `db:"player_logs"` // JSON Type
 	Created      time.Time     `db:"created"`
 	Closed       time.Time     `db:"closed"`
+
+	PlayerLogs []*playerLog
+}
+
+type playerLog struct {
+	ID       int               `db:"id" json:"-"`
+	RoomID   string            `db:"room_id" json:"-"`
+	PlayerID string            `db:"player_id" json:"player_id"`
+	Message  game.PlayerLogMsg `db:"message" json:"message"`
+	Datetime time.Time         `db:"datetime" json:"time"`
 }
 
 // oldroomCmd represents the oldroom command
@@ -38,7 +49,7 @@ var oldroomCmd = &cobra.Command{
 			return xerrors.Errorf("need roomid\n")
 		}
 
-		rooms, err := selectRoomHistory(cmd.Context(), args)
+		rooms, err := selectRoomHistoryByIds(cmd.Context(), args)
 		if err != nil {
 			return err
 		}
@@ -71,21 +82,43 @@ func init() {
 	rootCmd.AddCommand(oldroomCmd)
 }
 
-func selectRoomHistory(ctx context.Context, ids []string) (map[string]*roomHistory, error) {
+func selectRoomHistoryByIds(ctx context.Context, ids []string) (map[string]*roomHistory, error) {
 	q, p, err := sqlx.In("SELECT * FROM room_history WHERE room_id IN (?)", ids)
 	if err != nil {
 		return nil, err
 	}
+	_, rooms, err := selectRoomHistory(ctx, q, p...)
+	return rooms, err
+}
+
+func selectRoomHistory(ctx context.Context, q string, p ...any) ([]*roomHistory, map[string]*roomHistory, error) {
 	var rooms []*roomHistory
-	err = db.SelectContext(ctx, &rooms, q, p...)
-	if err != nil {
-		return nil, err
+	err := db.SelectContext(ctx, &rooms, q, p...)
+	if err != nil || len(rooms) == 0 {
+		return rooms, map[string]*roomHistory{}, err
 	}
-	m := make(map[string]*roomHistory)
+	m := make(map[string]*roomHistory, len(rooms))
+	rids := make([]string, 0, len(rooms))
 	for _, r := range rooms {
 		m[r.RoomID] = r
+		rids = append(rids, r.RoomID)
 	}
-	return m, nil
+
+	q, p, err = sqlx.In("SELECT * FROM player_log WHERE room_id IN (?)", rids)
+	if err != nil {
+		return nil, nil, err
+	}
+	var plogs []*playerLog
+	err = db.SelectContext(ctx, &plogs, q, p...)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, p := range plogs {
+		rid := p.RoomID
+		m[rid].PlayerLogs = append(m[rid].PlayerLogs, p)
+	}
+
+	return rooms, m, nil
 }
 
 func formatRoomHistory(r *roomHistory) (_ map[string]any, err error) {
@@ -107,13 +140,6 @@ func formatRoomHistory(r *roomHistory) (_ map[string]any, err error) {
 			return nil, err
 		}
 	}
-	var playerLogs any
-	if len(r.PlayerLogs) > 0 {
-		err = json.Unmarshal(r.PlayerLogs, &playerLogs)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	return map[string]any{
 		"id":            r.RoomID,
@@ -125,7 +151,7 @@ func formatRoomHistory(r *roomHistory) (_ map[string]any, err error) {
 		"max_players":   r.MaxPlayers,
 		"public_props":  publicProps,
 		"private_props": privateProps,
-		"player_logs":   playerLogs,
+		"player_logs":   r.PlayerLogs,
 		"created":       r.Created,
 		"closed":        r.Closed,
 	}, nil
