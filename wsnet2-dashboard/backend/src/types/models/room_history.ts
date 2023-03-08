@@ -14,8 +14,16 @@ export const roomHistoryModel = objectType({
     t.field(room_history.max_players);
     t.field(room_history.public_props);
     t.field(room_history.private_props);
-    t.field(room_history.player_logs);
     t.field(room_history.created);
     t.field(room_history.closed);
+    t.list.field("player_logs", {
+      type: "player_log",
+      resolve(parent, _args, ctx) {
+        return ctx.prisma.player_log.findMany({
+          where: { room_id: parent.room_id },
+          orderBy: { id: "asc" },
+        });
+      },
+    });
   },
 });

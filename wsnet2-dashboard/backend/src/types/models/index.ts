@@ -5,3 +5,4 @@ export * from "./hub";
 export * from "./room_history";
 export * from "./room";
 export * from "./scalars";
+export * from "./player_log";

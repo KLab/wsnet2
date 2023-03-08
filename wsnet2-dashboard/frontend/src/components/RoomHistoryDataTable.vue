@@ -256,7 +256,7 @@ const columns = reactive<DataTableColumn[]>([
     key: "",
     render(data: unknown) {
       const row = data as RoomHistory;
-      return render(row.player_logs);
+      return render(row.player_logs.map((l) => `[${l.message}] ${l.player_id} : ${l.datetime}`));
     },
   },
 ]);
