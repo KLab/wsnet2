@@ -104,7 +104,7 @@ func selectRoomHistory(ctx context.Context, q string, p ...any) ([]*roomHistory,
 		rids = append(rids, r.RoomID)
 	}
 
-	q, p, err = sqlx.In("SELECT * FROM player_log WHERE room_id IN (?)", rids)
+	q, p, err = sqlx.In("SELECT * FROM player_log WHERE room_id IN (?) ORDER BY id", rids)
 	if err != nil {
 		return nil, nil, err
 	}
