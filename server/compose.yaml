@@ -22,17 +22,19 @@ services:
           "CMD",
           "mysqladmin",
           "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
+          "-hlocalhost",
+          "--protocol=tcp",
+          "--port=3306",
+          "-uroot",
           "-p$$MYSQL_ROOT_PASSWORD",
         ]
-      timeout: 20s
+      interval: 3s
+      timeout: 1s
       retries: 10
+      start_period: 1m
   builder:
     container_name: wsnet2-builder
-    build: .
+    build: ../server
     image: wsnet2-arelo
     volumes:
       - ../:/repo
@@ -41,8 +43,9 @@ services:
   game:
     container_name: wsnet2-game
     depends_on:
-      - db
-    build: .
+      db:
+        condition: service_healthy
+    build: ../server
     image: wsnet2-arelo
     environment:
       WSNET2_GAME_HOSTNAME: wsnet2-game
@@ -54,7 +57,6 @@ services:
       - .log/:/var/log/wsnet2
     working_dir: /repo/server
     command: arelo -t "bin" -p "bin/wsnet2-game" -s SIGINT -- bin/wsnet2-game docker.toml
-    entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --
     ports:
       - 19000:19000
       - 8000:8000
@@ -62,9 +64,11 @@ services:
   hub:
     container_name: wsnet2-hub
     depends_on:
-      - db
-      - game
-    build: .
+      db:
+        condition: service_healthy
+      game:
+        condition: service_started
+    build: ../server
     image: wsnet2-arelo
     environment:
       WSNET2_GAME_HOSTNAME: wsnet2-hub
@@ -76,7 +80,6 @@ services:
       - .log/:/var/log/wsnet2
     working_dir: /repo/server
     command: arelo -t "bin" -p "bin/wsnet2-hub" -s SIGINT -- bin/wsnet2-hub docker.toml
-    entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --
     ports:
       - 19010:19010
       - 8010:8010
@@ -84,15 +87,15 @@ services:
   lobby:
     container_name: wsnet2-lobby
     depends_on:
-      - db
-    build: .
+      db:
+        condition: service_healthy
+    build: ../server
     image: wsnet2-arelo
     volumes:
       - ../:/repo
       - .log/:/var/log/wsnet2
     working_dir: /repo/server
     command: arelo -t "bin" -p "bin/wsnet2-lobby" -- bin/wsnet2-lobby docker.toml
-    entrypoint: /wait-for-it.sh wsnet2-db:3306 -s -t 0 --
     ports:
       - 8080:8080
       - 3080:3000
