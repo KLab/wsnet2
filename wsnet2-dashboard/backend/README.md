@@ -18,7 +18,7 @@ It provides APIs of `GraphQL` and `GRPC` for the dashboard.
 It is necessary to start `db`, as the schema is generated from the database.
 
 ```bash
-docker compose -f server/docker-compose.yml up -d db
+docker compose -f server/compose.yaml up -d db
 cd wsnet2-dashboard
 docker compose run --rm backend make
 ```
