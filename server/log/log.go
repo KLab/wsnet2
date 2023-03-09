@@ -58,6 +58,8 @@ const (
 	KeyRoomIds = "roomIds"
 	// Room number
 	KeyRoomNumber = "roomNum"
+	// Room Numbers ([]int32)
+	KeyRoomNumbers = "roomNums"
 	// Search group
 	KeySearchGroup = "group"
 )

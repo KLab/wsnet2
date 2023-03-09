@@ -219,6 +219,7 @@ namespace WSNet2.DotnetClient
             join,
             search,
             ids,
+            nums,
             watch,
         }
 
@@ -296,6 +297,26 @@ namespace WSNet2.DotnetClient
             PrintRooms(await roomsrc.Task);
         }
 
+        static async Task SearchByNums(WSNet2Client client, int[] numbers)
+        {
+            var roomsrc = new TaskCompletionSource<PublicRoom[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            client.Search(
+                numbers, null,
+                (rs) =>
+                {
+                    Console.WriteLine($"onSuccess: {rs.Length}");
+                    roomsrc.TrySetResult(rs);
+                },
+                (e) =>
+                {
+                    Console.WriteLine($"onFailed: {e}");
+                    roomsrc.TrySetCanceled();
+                });
+
+            PrintRooms(await roomsrc.Task);
+        }
+
         static void PrintRooms(PublicRoom[] rooms)
         {
             Console.WriteLine("rooms:");
@@ -339,17 +360,20 @@ namespace WSNet2.DotnetClient
             var cts = new CancellationTokenSource();
             _ = Task.Run(async () => await callbackrunner(client, cts.Token));
 
-            if (cmd.Value == Cmd.search)
+            switch (cmd.Value)
             {
-                await Search(client);
-                cts.Cancel();
-                return;
-            }
-            if (cmd.Value == Cmd.ids)
-            {
-                await SearchByIds(client, args.Skip(1).ToArray());
-                cts.Cancel();
-                return;
+                case Cmd.search:
+                    await Search(client);
+                    cts.Cancel();
+                    return;
+                case Cmd.ids:
+                    await SearchByIds(client, args.Skip(1).ToArray());
+                    cts.Cancel();
+                    return;
+                case Cmd.nums:
+                    await SearchByNums(client, args.Skip(1).Select(int.Parse).ToArray());
+                    cts.Cancel();
+                    return;
             }
 
             var cliProps = new Dictionary<string, object>(){

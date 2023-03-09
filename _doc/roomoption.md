@@ -47,7 +47,7 @@ RoomOption Joinable(bool val);
 RoomOption Watchable(bool val);
 ```
 
-検索可能、入室可能、観戦可能の各フラグを設定します。
+グループ検索可能、入室可能、観戦可能の各フラグを設定します。
 
 ## 部屋番号の割り当て
 

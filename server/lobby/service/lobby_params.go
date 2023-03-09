@@ -29,3 +29,8 @@ type SearchByIdsParam struct {
 	RoomIDs []string            `json:"ids"`
 	Queries []lobby.PropQueries `json:"query"`
 }
+
+type SearchByNumbersParam struct {
+	RoomNumbers []int32             `json:"numbers"`
+	Queries     []lobby.PropQueries `json:"query"`
+}
