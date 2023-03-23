@@ -18,7 +18,7 @@ wsnet2-dashboard 専用バックエンド（所謂 BFF）、
 データベースからスキーマを生成するので、`db`を起動しておく必要がある。
 
 ```bash
-docker compose -f server/docker-compose.yml up -d db
+docker compose -f server/compose.yaml up -d db
 cd wsnet2-dashboard
 docker compose run --rm backend make
 ```

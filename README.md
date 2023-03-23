@@ -32,7 +32,7 @@ $ docker compose up
 ```
 
 VM やリモート環境で起動する場合は、
-`docker-compose.yml`にて game/hub の接続ホスト名を環境変数`WSNET2_GAME_PUBLICNAME`で適切に指定してください。
+`compose.yaml`にて game/hub の接続ホスト名を環境変数`WSNET2_GAME_PUBLICNAME`で適切に指定してください。
 
 ### サンプルゲーム
 

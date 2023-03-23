@@ -28,7 +28,7 @@ This webapp allows you to check real-time information on a running wsnet2 server
    ```
 2. Start `wsnet2-server` and `wsnet2-dashboard` together:
    ```bash
-   docker-compose -f docker-compose.yml -f ../server/docker-compose.yml up
+   docker compose -f compose.yaml -f ../server/compose.yaml up
    ```
 3. (Optional)Create a test room:
    ```bash

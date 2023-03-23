@@ -8,6 +8,3 @@ RUN apt-get update && apt-get install -y unzip && \
 
 RUN go install github.com/makiuchi-d/arelo@latest && \
     git config --global --add safe.directory /repo
-
-RUN wget -O /wait-for-it.sh https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh > /dev/null 2>&1 && \
-    chmod +x /wait-for-it.sh

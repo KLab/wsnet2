@@ -28,7 +28,7 @@ wsnet2 のダッシュボード。
    ```
 2. `wsnet2-server` と `wsnet2-dashboard` を一緒に立ち上げる：
    ```bash
-   docker-compose -f docker-compose.yml -f ../server/docker-compose.yml up
+   docker compose -f compose.yaml -f ../server/compose.yaml up
    ```
    （`server`ディレクトリと`wsnet2-dashboard`ディレクトリのそれぞれで`docker compose up`することもできます）
 
