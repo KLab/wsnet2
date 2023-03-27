@@ -20,7 +20,6 @@ import (
 	"wsnet2/auth"
 	"wsnet2/binary"
 	"wsnet2/lobby"
-	"wsnet2/lobby/service"
 	"wsnet2/pb"
 )
 
@@ -74,8 +73,8 @@ func NewBot(appId, appKey, userId string, props binary.Dict) *bot {
 }
 
 func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
-	param := &service.CreateParam{
-		RoomOption: pb.RoomOption{
+	param := &lobby.CreateParam{
+		RoomOption: &pb.RoomOption{
 			Visible:     true,
 			Joinable:    true,
 			Watchable:   true,
@@ -84,14 +83,14 @@ func (b *bot) CreateRoom(props binary.Dict) (*pb.JoinedRoomRes, error) {
 			SearchGroup: 1,
 			PublicProps: binary.MarshalDict(props),
 		},
-		ClientInfo: pb.ClientInfo{
+		ClientInfo: &pb.ClientInfo{
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
 		EncMACKey: b.encMACKey,
 	}
 
-	var res service.LobbyResponse
+	var res lobby.Response
 
 	err := b.doLobbyRequest("POST", fmt.Sprintf("%s/rooms", lobbyPrefix), param, &res)
 	if err != nil {
@@ -117,16 +116,16 @@ func (b *bot) WatchRoom(roomId string, queries []lobby.PropQuery) (*pb.JoinedRoo
 }
 
 func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
-	param := &service.JoinParam{
+	param := &lobby.JoinParam{
 		Queries: []lobby.PropQueries{queries},
-		ClientInfo: pb.ClientInfo{
+		ClientInfo: &pb.ClientInfo{
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
 		EncMACKey: b.encMACKey,
 	}
 
-	var res service.LobbyResponse
+	var res lobby.Response
 
 	var url string
 	if watch {
@@ -150,16 +149,16 @@ func (b *bot) joinRoom(watch bool, roomId string, queries []lobby.PropQuery) (*p
 }
 
 func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
-	param := &service.JoinParam{
+	param := &lobby.JoinParam{
 		Queries: []lobby.PropQueries{queries},
-		ClientInfo: pb.ClientInfo{
+		ClientInfo: &pb.ClientInfo{
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
 		EncMACKey: b.encMACKey,
 	}
 
-	var res service.LobbyResponse
+	var res lobby.Response
 
 	url := fmt.Sprintf("%s/rooms/join/number/%d", lobbyPrefix, roomNumber)
 	err := b.doLobbyRequest("POST", url, param, &res)
@@ -178,16 +177,16 @@ func (b *bot) JoinRoomByNumber(roomNumber int32, queries []lobby.PropQuery) (*pb
 }
 
 func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*pb.JoinedRoomRes, error) {
-	param := &service.JoinParam{
+	param := &lobby.JoinParam{
 		Queries: []lobby.PropQueries{queries},
-		ClientInfo: pb.ClientInfo{
+		ClientInfo: &pb.ClientInfo{
 			Id:    b.userId,
 			Props: binary.MarshalDict(b.props),
 		},
 		EncMACKey: b.encMACKey,
 	}
 
-	var res service.LobbyResponse
+	var res lobby.Response
 
 	url := fmt.Sprintf("%s/rooms/join/random/%d", lobbyPrefix, searchGroup)
 	err := b.doLobbyRequest("POST", url, param, &res)
@@ -205,12 +204,12 @@ func (b *bot) JoinRoomAtRandom(searchGroup uint32, queries []lobby.PropQuery) (*
 }
 
 func (b *bot) SearchRoom(searchGroup uint32, queries []lobby.PropQuery) ([]*pb.RoomInfo, error) {
-	param := &service.SearchParam{
+	param := &lobby.SearchParam{
 		SearchGroup: searchGroup,
 		Queries:     []lobby.PropQueries{queries},
 	}
 
-	var res service.LobbyResponse
+	var res lobby.Response
 
 	err := b.doLobbyRequest("POST", fmt.Sprintf("%s/rooms/search", lobbyPrefix), param, &res)
 	if err != nil {
