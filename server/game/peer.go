@@ -11,6 +11,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
+	"wsnet2/common"
 	"wsnet2/metrics"
 )
 
@@ -105,7 +106,7 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
 // SendEvents : evbufに蓄積されてるイベントを送信
 // 送信失敗時はPeerを閉じて再接続できるようにする. errorは返さない.
 // 再接続しても復帰不能な場合はerrorを返す（Client.EventLoopを止める）.
-func (p *Peer) SendEvents(evbuf *EvBuf) error {
+func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
