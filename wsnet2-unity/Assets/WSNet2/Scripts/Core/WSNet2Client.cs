@@ -446,6 +446,11 @@ namespace WSNet2
                     Task.Run(room.Start);
                 });
             }
+            catch (LobbyNormalException e)
+            {
+                logger?.Info(e, "Failed to connect to room");
+                callbackPool.Add(() => onFailed(e));
+            }
             catch (Exception e)
             {
                 logger?.Error(e, "Failed to connect to room");
