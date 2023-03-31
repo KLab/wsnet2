@@ -36,7 +36,7 @@ type SearchByNumbersParam struct {
 	Queries     []PropQueries `json:"query"`
 }
 
-type AdminKickRequest struct {
+type AdminKickParam struct {
 	TargetID string `json:"target_id"`
 }
 

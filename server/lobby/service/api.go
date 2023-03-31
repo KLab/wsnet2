@@ -605,7 +605,7 @@ func (sv *LobbyService) handleAdminKick(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var req lobby.AdminKickRequest
+	var req lobby.AdminKickParam
 	err = json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
 		renderErrorResponse(w, "failed to decode JSON request", http.StatusBadRequest, err, logger)
