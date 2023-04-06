@@ -20,9 +20,15 @@ export interface RoomHistory {
   max_players: number;
   public_props: Unmarshaled;
   private_props: Unmarshaled;
-  player_logs: object;
   created: string;
   closed: string;
+  player_logs: PlayerLog[];
+}
+
+export interface PlayerLog {
+  player_id: string;
+  message: string;
+  datetime: string;
 }
 
 export interface FetchRoomHistoriesInput {
@@ -90,9 +96,13 @@ class RoomHistoriesModule extends VuexModule {
             max_players
             public_props
             private_props
-            player_logs
             created
             closed
+            player_logs {
+              player_id
+              message
+              datetime
+            }
           }
         }
       `,

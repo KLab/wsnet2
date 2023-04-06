@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"strings"
 	"time"
@@ -99,7 +98,7 @@ func parseTime(t string) (*time.Time, error) {
 }
 
 func selectRoomHistoryForList(ctx context.Context, limit int, before, after, at *time.Time) ([]*roomHistory, error) {
-	q := "SELECT app_id, host_id, room_id, number, search_group, max_players, public_props, private_props, player_logs, created, closed FROM room_history"
+	q := "SELECT * FROM room_history"
 	p := []any{}
 	var where []string
 	if before != nil {
@@ -122,29 +121,15 @@ func selectRoomHistoryForList(ctx context.Context, limit int, before, after, at 
 	q += " ORDER BY created DESC LIMIT ?"
 	p = append(p, limit)
 
-	var rooms []*roomHistory
-	err := db.SelectContext(ctx, &rooms, q, p...)
+	rooms, _, err := selectRoomHistory(ctx, q, p...)
 	return rooms, err
 }
 
-func playerIds(data []byte) ([]string, error) {
-	if data == nil {
-		return []string{}, nil
-	}
-
-	var logs []map[string]any
-	err := json.Unmarshal(data, &logs)
-	if err != nil {
-		return nil, err
-	}
-
+func playerIds(logs []*playerLog) []string {
 	m := make(map[string]struct{})
 	ids := []string{}
 	for _, l := range logs {
-		pid, ok := l["player_id"].(string)
-		if !ok {
-			continue
-		}
+		pid := l.PlayerID
 		if _, ok := m[pid]; ok {
 			continue
 		}
@@ -152,7 +137,7 @@ func playerIds(data []byte) ([]string, error) {
 		ids = append(ids, pid)
 	}
 
-	return ids, nil
+	return ids
 }
 
 func printOldRoomsHeader(cmd *cobra.Command) {
@@ -170,10 +155,7 @@ func printOldRoom(cmd *cobra.Command, r *roomHistory, hosts map[uint32]*server) 
 		number = r.Number.Int32
 	}
 
-	players, err := playerIds(r.PlayerLogs)
-	if err != nil {
-		return err
-	}
+	players := playerIds(r.PlayerLogs)
 
 	props, err := parsePropsSimple(r.PublicProps)
 

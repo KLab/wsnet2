@@ -167,11 +167,17 @@ loop:
 			if c.peer == nil {
 				peerMsgCh = nil
 				curPeer = nil
+				if c.isPlayer {
+					c.room.Repo().PlayerLog(c, PlayerLogDetach)
+				}
 			} else {
 				c.connectCount++
 				c.logger.Infof("new peer attached: %v peer=%p", c.Id, c.peer)
 				peerMsgCh = c.peer.MsgCh()
 				curPeer = c.peer
+				if c.isPlayer {
+					c.room.Repo().PlayerLog(c, PlayerLogAttach)
+				}
 				// つなげて切るだけのクライアントをタイムアウトさせるため、t.Resetしない
 			}
 			c.mu.Unlock()

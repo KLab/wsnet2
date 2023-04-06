@@ -5,7 +5,6 @@ import (
 	crand "crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -335,7 +334,6 @@ type roomHistory struct {
 	MaxPlayers   uint32        `db:"max_players"`
 	PublicProps  []byte        `db:"public_props"`
 	PrivateProps []byte        `db:"private_props"`
-	PlayerLogs   []byte        `db:"player_logs"` // JSON Type
 	Created      time.Time     `db:"created"`
 	Closed       time.Time     `db:"closed"`
 }
@@ -355,11 +353,6 @@ func (repo *Repository) deleteRoom(room *Room) {
 		number = sql.NullInt32{Int32: room.Number.Number, Valid: true}
 	}
 
-	playerLogs, err := json.Marshal(room.playerLogs)
-	if err != nil {
-		room.logger.Errorf("marshal player logs: %+v", err)
-	}
-
 	history := roomHistory{
 		AppID:        room.AppId,
 		HostID:       room.HostId,
@@ -369,7 +362,6 @@ func (repo *Repository) deleteRoom(room *Room) {
 		MaxPlayers:   room.MaxPlayers,
 		PublicProps:  room.PublicProps,
 		PrivateProps: room.PrivateProps,
-		PlayerLogs:   playerLogs,
 		Created:      room.Created.Time(),
 		Closed:       time.Now(),
 	}
@@ -518,4 +510,33 @@ func (repo *Repository) adminKickRoom(room *Room, userID string) error {
 	case err := <-ch:
 		return err
 	}
+}
+
+type PlayerLogMsg string
+
+const (
+	PlayerLogCreate PlayerLogMsg = "Create"
+	PlayerLogJoin   PlayerLogMsg = "Join"
+	PlayerLogRejoin PlayerLogMsg = "Rejoin"
+	PlayerLogLeave  PlayerLogMsg = "Leave"
+	PlayerLogAttach PlayerLogMsg = "Attach"
+	PlayerLogDetach PlayerLogMsg = "Detach"
+)
+
+func (repo *Repository) PlayerLog(c *Client, msg PlayerLogMsg) {
+	const q = "INSERT INTO player_log (`room_id`, `player_id`, `message`, `datetime`) VALUES (:room_id, :player_id, :message, :datetime)"
+
+	param := map[string]any{
+		"room_id":   c.RoomID(),
+		"player_id": c.ID(),
+		"message":   msg,
+		"datetime":  time.Now(),
+	}
+
+	go func() {
+		_, err := repo.db.NamedExec(q, param)
+		if err != nil {
+			c.logger.Errorf("Repository.PlayerLog(%v, %v, %v): %+v", c.RoomID(), c.ID(), msg, err)
+		}
+	}()
 }
