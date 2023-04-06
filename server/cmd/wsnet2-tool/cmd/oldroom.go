@@ -36,7 +36,7 @@ type playerLog struct {
 	RoomID   string            `db:"room_id" json:"-"`
 	PlayerID string            `db:"player_id" json:"player_id"`
 	Message  game.PlayerLogMsg `db:"message" json:"message"`
-	Datetime time.Time         `db:"datetime" json:"time"`
+	Datetime time.Time         `db:"datetime" json:"datetime"`
 }
 
 // oldroomCmd represents the oldroom command
