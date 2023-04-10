@@ -350,9 +350,6 @@ func unmarshalStr8(src []byte) (string, int, error) {
 	if len(src) < 2+l {
 		return "", 0, xerrors.Errorf("Unmarshal Str8(%v) error: not enough data (%v)", l, len(src))
 	}
-	if l == 0 {
-		return "", 2, nil
-	}
 	return unsafeString(src[2 : 2+l]), 2 + l, nil
 }
 
@@ -377,9 +374,6 @@ func unmarshalStr16(src []byte) (string, int, error) {
 	l := get16(src[1:])
 	if len(src) < 3+l {
 		return "", 0, xerrors.Errorf("Unmarshal Str16(%v) error: not enough data (%v)", l, len(src))
-	}
-	if l == 0 {
-		return "", 3, nil
 	}
 	return unsafeString(src[3 : 3+l]), 3 + l, nil
 }
