@@ -161,6 +161,17 @@ func UnmarshalMsg(hmac hash.Hash, data []byte) (Msg, error) {
 	return &regularMsg{mt, seq, data}, nil
 }
 
+func UnmarshalNullDict(payload []byte) (Dict, int, error) {
+	d, l, e := UnmarshalAs(payload, TypeDict, TypeNull)
+	if e != nil {
+		return nil, l, e
+	}
+	if d == nil {
+		d = Dict{}
+	}
+	return d.(Dict), l, e
+}
+
 // UnmarshalLeavePayload
 func UnmarshalLeavePayload(payload []byte) (string, error) {
 	s, _, err := UnmarshalAs(payload, TypeStr8)
@@ -273,34 +284,36 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	payload = payload[l:]
 
 	// public props
-	d, l, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	rpp.PublicProps, l, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (public props): %w", e)
 	}
-	if d != nil {
-		rpp.PublicProps = d.(Dict)
-	}
 	payload = payload[l:]
 
-	// public props
-	d, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	// private props
+	rpp.PrivateProps, _, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (private props): %w", e)
-	}
-	if d != nil {
-		rpp.PrivateProps = d.(Dict)
 	}
 
 	return &rpp, nil
 }
 
+func GetRoomPropClientDeadline(payload []byte) (uint32, error) {
+	if len(payload) < 12 {
+		return 0, xerrors.Errorf("payload too short: %v", len(payload))
+	}
+	v, _, e := unmarshalUShort(payload[10:])
+	return uint32(v), e
+}
+
 // UnmarshalClientProp parses payload of MsgTypeClientProp.
 func UnmarshalClientProp(payload []byte) (Dict, error) {
-	d, _, e := UnmarshalAs(payload, TypeDict)
+	d, _, e := UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgClientProp payload (props): %w", e)
 	}
-	return d.(Dict), nil
+	return d, nil
 }
 
 // UnmarshalSwitchMasterPayload parses payload of MsgTypeSwitchMaster
