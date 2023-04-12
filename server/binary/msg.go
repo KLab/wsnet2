@@ -3,6 +3,7 @@ package binary
 import (
 	"hash"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/xerrors"
 
@@ -172,19 +173,6 @@ func UnmarshalNullDict(payload []byte) (Dict, int, error) {
 	return d.(Dict), l, e
 }
 
-// UnmarshalLeavePayload
-func UnmarshalLeavePayload(payload []byte) (string, error) {
-	s, _, err := UnmarshalAs(payload, TypeStr8)
-	if err != nil {
-		return "", xerrors.Errorf("Invalid MsgLeave payload (message): %w", err)
-	}
-	m := s.(string)
-	if m == "" {
-		m = "client leave"
-	}
-	return m, nil
-}
-
 // NewMsgPing constructs MsgPing
 func NewMsgPing(timestamp time.Time) Msg {
 	payload := make([]byte, 8)
@@ -222,6 +210,32 @@ func UnmarshalNodeCountPayload(payload []byte) (uint32, error) {
 	return uint32(d.(int)), nil
 }
 
+// MarshalLeavePayload marshals MsgLeave payload
+func MarshalLeavePayload(message string) []byte {
+	const limit = 123
+	if len(message) > limit {
+		r := []rune(message[:limit])
+		for r[len(r)-1] == utf8.RuneError {
+			r = r[:len(r)-1]
+		}
+		message = string(r)
+	}
+	return MarshalStr8(message)
+}
+
+// UnmarshalLeavePayload unmarshals MsgLeave payload
+func UnmarshalLeavePayload(payload []byte) (string, error) {
+	s, _, err := UnmarshalAs(payload, TypeStr8)
+	if err != nil {
+		return "", xerrors.Errorf("Invalid MsgLeave payload (message): %w", err)
+	}
+	m := s.(string)
+	if m == "" {
+		m = "client leave"
+	}
+	return m, nil
+}
+
 type MsgRoomPropPayload struct {
 	EventPayload []byte
 
@@ -242,7 +256,29 @@ const (
 	roomPropFlagsWatchable = 4
 )
 
-// UnmarshalRoomPropPayload parses payload of MsgTypeRoomProp.
+// MarshalRoomPropPayload marshals MsgRoomProp payload
+func MarshalRoomPropPayload(visible, joinable, watchable bool, searchGroup, maxPlayer, clientDeadline uint32, publicProps, privateProps Dict) []byte {
+	flg := 0
+	if visible {
+		flg |= roomPropFlagsVisible
+	}
+	if joinable {
+		flg |= roomPropFlagsJoinable
+	}
+	if watchable {
+		flg |= roomPropFlagsWatchable
+	}
+	p := make([]byte, 0, 15)
+	p = append(p, MarshalByte(flg)...)
+	p = append(p, MarshalUInt(int(searchGroup))...)
+	p = append(p, MarshalUShort(int(maxPlayer))...)
+	p = append(p, MarshalUShort(int(clientDeadline))...)
+	p = append(p, MarshalDict(publicProps)...)
+	p = append(p, MarshalDict(privateProps)...)
+	return p
+}
+
+// UnmarshalRoomPropPayload unmarshals MsgRoomProp payload
 func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	rpp := MsgRoomPropPayload{
 		EventPayload: payload,
@@ -307,13 +343,23 @@ func GetRoomPropClientDeadline(payload []byte) (uint32, error) {
 	return uint32(v), e
 }
 
-// UnmarshalClientProp parses payload of MsgTypeClientProp.
-func UnmarshalClientProp(payload []byte) (Dict, error) {
+// MarshalClientPropPayload marshals MsgClientProp payload
+func MarshalClientPropPayload(prop Dict) []byte {
+	return MarshalDict(prop)
+}
+
+// UnmarshalClientPropPayload unmarshals MsgClientProp payload
+func UnmarshalClientPropPayload(payload []byte) (Dict, error) {
 	d, _, e := UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgClientProp payload (props): %w", e)
 	}
 	return d, nil
+}
+
+// MarshalSwitchMasterPayload marshals MsgSwitchMaster payload
+func MarshalSwitchMasterPayload(id string) []byte {
+	return MarshalStr8(id)
 }
 
 // UnmarshalSwitchMasterPayload parses payload of MsgTypeSwitchMaster
@@ -326,7 +372,18 @@ func UnmarshalSwitchMasterPayload(payload []byte) (string, error) {
 	return d.(string), nil
 }
 
-// UnmarshalTargetsAndData parses payload of MsgTypeTargets
+// MarshalTargetsPayload marshals MsgTargets payload
+func MarshalTargetsPayload(targets []string, data []byte) []byte {
+	ts := make(List, 0, len(targets))
+	for _, t := range targets {
+		ts = append(ts, MarshalStr8(t))
+	}
+	p := MarshalList(ts)
+	p = append(p, data...)
+	return p
+}
+
+// UnmarshalTargetsAndData unmarshals MsgTargets payload
 func UnmarshalTargetsAndData(payload []byte) ([]string, []byte, error) {
 	t, l, e := UnmarshalAs(payload, TypeList)
 	if e != nil {
