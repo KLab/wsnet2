@@ -87,6 +87,18 @@ type Event interface {
 	Payload() []byte
 }
 
+func IsSystemEvent(ev Event) bool {
+	return ev.Type() < regularEvType
+}
+
+func IsRegularEvent(ev Event) bool {
+	return ev.Type() >= regularEvType && ev.Type() < responseEvType
+}
+
+func IsResponseEvent(ev Event) bool {
+	return ev.Type() >= responseEvType
+}
+
 // Event from wsnet to client via websocket
 //
 // regular event binary format:
