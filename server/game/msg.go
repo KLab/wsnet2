@@ -220,7 +220,7 @@ func (m *MsgClientProp) SenderID() ClientID {
 }
 
 func msgClientProp(sender *Client, msg binary.RegularMsg) (Msg, error) {
-	props, err := binary.UnmarshalClientProp(msg.Payload())
+	props, err := binary.UnmarshalClientPropPayload(msg.Payload())
 	if err != nil {
 		return nil, err
 	}

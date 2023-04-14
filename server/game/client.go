@@ -33,7 +33,7 @@ type Client struct {
 	done        chan struct{}
 	newDeadline chan time.Duration
 
-	evbuf *EvBuf
+	evbuf *common.RingBuf[*binary.RegularEvent]
 
 	mu           sync.RWMutex
 	msgSeqNum    int
@@ -78,7 +78,7 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 		done:        make(chan struct{}),
 		newDeadline: make(chan time.Duration, 1),
 
-		evbuf: NewEvBuf(room.ClientConf().EventBufSize),
+		evbuf: common.NewRingBuf[*binary.RegularEvent](room.ClientConf().EventBufSize),
 
 		waitPeer:  make(chan *Peer, 1),
 		renewPeer: make(chan struct{}, 1),
@@ -392,7 +392,7 @@ func (c *Client) getWritePeer() (*Peer, <-chan *Peer) {
 	return c.peer, c.waitPeer
 }
 
-// EventLoop : EvBufにEventが入ってきたらPeerに送信してもらう
+// EventLoop : evbufにEventが入ってきたらPeerに送信してもらう
 func (c *Client) EventLoop() {
 loop:
 	for {

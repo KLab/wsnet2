@@ -1,4 +1,4 @@
-package game
+package common
 
 import (
 	"reflect"
@@ -6,6 +6,10 @@ import (
 
 	"wsnet2/binary"
 )
+
+func NewEvBuf(size int) *RingBuf[*binary.RegularEvent] {
+	return NewRingBuf[*binary.RegularEvent](size)
+}
 
 func TestWriteRead(t *testing.T) {
 	buf := NewEvBuf(5)

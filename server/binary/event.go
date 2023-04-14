@@ -87,6 +87,18 @@ type Event interface {
 	Payload() []byte
 }
 
+func IsSystemEvent(ev Event) bool {
+	return ev.Type() < regularEvType
+}
+
+func IsRegularEvent(ev Event) bool {
+	return ev.Type() >= regularEvType && ev.Type() < responseEvType
+}
+
+func IsResponseEvent(ev Event) bool {
+	return ev.Type() >= responseEvType
+}
+
 // Event from wsnet to client via websocket
 //
 // regular event binary format:
@@ -217,12 +229,9 @@ func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
 	payload = payload[l:]
 
 	// lastmsg
-	d, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	pp.LastMsg, _, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvPong payload (lastmsg): %w", e)
-	}
-	if d != nil {
-		pp.LastMsg = d.(Dict)
 	}
 
 	return &pp, nil
@@ -248,7 +257,7 @@ func UnmarshalEvJoinedPayload(payload []byte) (*pb.ClientInfo, error) {
 	payload = payload[l:]
 
 	// client props
-	_, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	_, _, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvJoined payload (client props): %w", e)
 	}
@@ -277,7 +286,7 @@ func UnmarshalEvRejoinedPayload(payload []byte) (*pb.ClientInfo, error) {
 	payload = payload[l:]
 
 	// client props
-	_, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	_, _, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvRejoined payload (client props): %w", e)
 	}
@@ -386,12 +395,9 @@ func UnmarshalEvClientPropPayload(payload []byte) (*EvClientPropPayload, error) 
 	payload = payload[l:]
 
 	// client props
-	d, _, e = UnmarshalAs(payload, TypeDict, TypeNull)
+	um.Props, _, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvClientProp payload (client props): %w", e)
-	}
-	if d != nil {
-		um.Props = d.(Dict)
 	}
 
 	return &um, nil
