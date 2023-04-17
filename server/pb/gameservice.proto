@@ -29,6 +29,7 @@ message JoinRoomReq {
 	string room_id = 2;
 	ClientInfo client_info = 3;
 	string mac_key = 4;
+	string game_server = 5;
 }
 
 message JoinedRoomRes {
