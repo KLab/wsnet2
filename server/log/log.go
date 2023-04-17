@@ -40,6 +40,10 @@ const (
 
 // key strings for structured logging.
 const (
+	// Hostname
+	KeyHost = "host"
+	// WSNet2 Version
+	KeyVersion = "version"
 	// App ID
 	KeyApp = "app"
 	// Client ID
@@ -183,7 +187,7 @@ func InitLogger(logconf *config.LogConf) func() {
 
 	host, _ := os.Hostname()
 	logger := zap.New(core, zap.WithCaller(true)).With(
-		zap.String("host", host), zap.String("version", wsnet2.Version))
+		zap.String(KeyHost, host), zap.String(KeyVersion, wsnet2.Version))
 	rootLogger = logger
 	wrappedLogger = logger.WithOptions(zap.AddCallerSkip(1)).Sugar()
 
