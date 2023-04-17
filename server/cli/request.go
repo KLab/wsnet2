@@ -10,6 +10,7 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
+	"wsnet2/auth"
 	"wsnet2/lobby"
 	"wsnet2/pb"
 )
@@ -99,11 +100,17 @@ func Watch(ctx context.Context, accinfo *AccessInfo, roomid string, query *Query
 }
 
 // WatchDirect : gameサーバに直接gRPCで観戦リクエストする
-func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, accinfo *AccessInfo, roomid string, warn func(error)) (*Room, *Connection, error) {
+func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, appid, roomid string, clinfo *pb.ClientInfo, warn func(error)) (*Room, *Connection, error) {
+	accinfo := &AccessInfo{
+		AppId:  appid,
+		UserId: clinfo.Id,
+		MACKey: auth.GenMACKey(),
+	}
+
 	req := &pb.JoinRoomReq{
 		AppId:      accinfo.AppId,
 		RoomId:     roomid,
-		ClientInfo: &pb.ClientInfo{Id: accinfo.UserId},
+		ClientInfo: clinfo,
 		MacKey:     accinfo.MACKey,
 	}
 
