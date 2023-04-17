@@ -360,7 +360,8 @@ func (rs *RoomService) watch(ctx context.Context, room *pb.RoomInfo, clientInfo 
 		RoomId:     room.Id,
 		ClientInfo: clientInfo,
 		MacKey:     macKey,
-		GameServer: fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort),
+		GrpcHost:   fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort),
+		WsHost:     fmt.Sprintf("%s:%d", game.Hostname, game.WebSocketPort),
 	}
 
 	res, err := client.Watch(ctx, req)

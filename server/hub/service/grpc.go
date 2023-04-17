@@ -60,7 +60,7 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 	)
 	logger.Debugf("gRPC Watch: %v %v", in.RoomId, in.ClientInfo)
 
-	res, err := sv.repo.WatchRoom(ctx, in.GameServer, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo, in.MacKey)
+	res, err := sv.repo.WatchRoom(ctx, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo, in.GrpcHost, in.WsHost, in.MacKey)
 	if err != nil {
 		logger.Errorf("repo.WatchRoom: %+v", err)
 		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)

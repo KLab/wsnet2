@@ -40,7 +40,8 @@ type Hub struct {
 	appId    AppID
 	clientId string
 
-	gameServer string
+	grpcHost string
+	wsHost   string
 
 	deadline    time.Duration
 	newDeadline chan time.Duration
@@ -77,7 +78,7 @@ type Hub struct {
 	logger *zap.SugaredLogger
 }
 
-func NewHub(repo *Repository, appId AppID, roomId RoomID, gameServer string) *Hub {
+func NewHub(repo *Repository, appId AppID, roomId RoomID, grpcHost, wsHost string) *Hub {
 	// hub->game 接続に使うclientId. このhubを作成するトリガーになったclientIdは使わない
 	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
 	clientId := fmt.Sprintf("hub:%d:%s", repo.hostId, roomId)
@@ -95,8 +96,8 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID, gameServer string) *Hu
 		repo:     repo,
 		appId:    appId,
 		clientId: clientId,
-
-		gameServer: gameServer,
+		grpcHost: grpcHost,
+		wsHost:   wsHost,
 
 		newDeadline: make(chan time.Duration, 1),
 
@@ -367,7 +368,7 @@ func (h *Hub) Start() {
 		h.logger.Debug("hub end")
 	}()
 
-	res, err := h.requestWatch(h.gameServer)
+	res, err := h.requestWatch(h.grpcHost)
 	if err != nil {
 		h.logger.Errorf("Failed to Watch request: %v\n", err)
 		return
@@ -392,7 +393,7 @@ func (h *Hub) Start() {
 		h.logger.Errorf("Failed to parse url: %v", res.Url)
 		return
 	}
-	u.Host = h.gameServer
+	u.Host = h.wsHost
 	url := u.String()
 	h.logger.Debugf("Dial Game: %v\n", url)
 
