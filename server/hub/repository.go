@@ -30,8 +30,7 @@ type Repository struct {
 	db       *sqlx.DB
 	grpcPool *common.GrpcPool
 
-	gameCache *common.GameCache
-	ws        *websocket.Dialer
+	ws *websocket.Dialer
 
 	mu      sync.RWMutex
 	hubs    map[RoomID]*Hub
@@ -50,7 +49,6 @@ func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repositor
 		db:       db,
 		grpcPool: common.NewGrpcPool(grpc.WithTransportCredentials(insecure.NewCredentials())),
 
-		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
 			ReadBufferSize:  1024,
@@ -63,11 +61,11 @@ func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repositor
 	return repo, nil
 }
 
-func (r *Repository) GetOrCreateHub(ctx context.Context, appId AppID, roomId RoomID) (*Hub, error) {
+func (r *Repository) GetOrCreateHub(ctx context.Context, appId AppID, roomId RoomID, grpcHost, wsHost string) (*Hub, error) {
 	r.mu.Lock()
 	hub, ok := r.hubs[roomId]
 	if !ok {
-		hub = NewHub(r, appId, roomId)
+		hub = NewHub(r, appId, roomId, grpcHost, wsHost)
 		r.hubs[roomId] = hub
 		go func() {
 			hub.Start()
@@ -94,7 +92,7 @@ func (r *Repository) RemoveHub(hub *Hub) {
 	log.Debugf("hub removed from repository: room=%v", rid)
 }
 
-func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, game.ErrorWithCode) {
+func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, client *pb.ClientInfo, grpcHost, wsHost, macKey string) (*pb.JoinedRoomRes, game.ErrorWithCode) {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -106,7 +104,7 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 			xerrors.Errorf("reached to the max_clients"), codes.ResourceExhausted)
 	}
 
-	hub, err := r.GetOrCreateHub(ctx, appId, roomId)
+	hub, err := r.GetOrCreateHub(ctx, appId, roomId, grpcHost, wsHost)
 	if err != nil {
 		return nil, game.WithCode(xerrors.Errorf("WatchRoom: %w", err), codes.NotFound)
 	}
