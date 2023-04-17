@@ -30,8 +30,7 @@ type Repository struct {
 	db       *sqlx.DB
 	grpcPool *common.GrpcPool
 
-	gameCache *common.GameCache
-	ws        *websocket.Dialer
+	ws *websocket.Dialer
 
 	mu      sync.RWMutex
 	hubs    map[RoomID]*Hub
@@ -50,7 +49,6 @@ func NewRepository(db *sqlx.DB, conf *config.HubConf, hostId uint32) (*Repositor
 		db:       db,
 		grpcPool: common.NewGrpcPool(grpc.WithTransportCredentials(insecure.NewCredentials())),
 
-		gameCache: common.NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 		ws: &websocket.Dialer{
 			Subprotocols:    []string{},
 			ReadBufferSize:  1024,
