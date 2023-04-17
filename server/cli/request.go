@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
@@ -100,7 +101,7 @@ func Watch(ctx context.Context, accinfo *AccessInfo, roomid string, query *Query
 }
 
 // WatchDirect : gameサーバに直接gRPCで観戦リクエストする
-func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, appid, roomid string, clinfo *pb.ClientInfo, warn func(error)) (*Room, *Connection, error) {
+func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, roomid string, clinfo *pb.ClientInfo, warn func(error)) (*Room, *Connection, error) {
 	accinfo := &AccessInfo{
 		AppId:  appid,
 		UserId: clinfo.Id,
@@ -118,6 +119,12 @@ func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, appid, roomid st
 	if err != nil {
 		return nil, nil, xerrors.Errorf("WatchDirect: %w", err)
 	}
+	wsurl, err := url.Parse(res.Url)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("WatchDirect: %w", err)
+	}
+	wsurl.Host = wshost
+	res.Url = wsurl.String()
 
 	return connectToRoom(ctx, accinfo, res, warn)
 }
