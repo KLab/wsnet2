@@ -100,7 +100,7 @@ func Watch(ctx context.Context, accinfo *AccessInfo, roomid string, query *Query
 	return connectToRoom(ctx, accinfo, res.Room, warn)
 }
 
-// WatchDirect : gameサーバに直接gRPCで観戦リクエストする
+// WatchDirect : gameサーバに直接接続して観戦する（hub->game用）
 func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, roomid string, clinfo *pb.ClientInfo, warn func(error)) (*Room, *Connection, error) {
 	accinfo := &AccessInfo{
 		AppId:  appid,
