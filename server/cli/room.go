@@ -22,6 +22,7 @@ type Room struct {
 	Players        map[string]*Player
 	Me             *Player
 	Master         *Player
+	LastMsg        binary.Dict
 }
 
 type Player struct {
@@ -187,5 +188,6 @@ func (r *Room) onEvPong(ev binary.Event) error {
 		return xerrors.Errorf("Room.onEvPong: payload: %w", err)
 	}
 	r.Watchers = p.Watchers
+	r.LastMsg = p.LastMsg
 	return nil
 }
