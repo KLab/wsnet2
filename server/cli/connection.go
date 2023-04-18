@@ -80,7 +80,7 @@ func (r *Connection) Send(typ binary.MsgType, payload []byte) error {
 		binary.BuildRegularMsgFrame(typ, next, payload, r.hmac),
 	})
 	if err != nil {
-		return xerrors.Errorf("Room.Send: %w", err)
+		return xerrors.Errorf("write to msgbuf: %w", err)
 	}
 	r.msgseq++
 	return nil
@@ -302,7 +302,7 @@ func (conn *Connection) sender(ctx context.Context, ws *websocket.Conn, mu *sync
 	for {
 		msgs, err := conn.msgbuf.Read(lastseq)
 		if err != nil {
-			return unrecoverable(xerrors.Errorf("sender: %w", err))
+			return unrecoverable(xerrors.Errorf("sender read: %w", err))
 		}
 
 		for _, msg := range msgs {

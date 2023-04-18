@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -26,7 +27,7 @@ func Create(ctx context.Context, accinfo *AccessInfo, roomopt *pb.RoomOption, cl
 
 	res, err := lobbyRequest(ctx, accinfo, "/rooms", param)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("Create: %w", err)
+		return nil, nil, xerrors.Errorf("lobbyRequest: %w", err)
 	}
 
 	return connectToRoom(ctx, accinfo, res.Room, warn)
@@ -42,7 +43,7 @@ func Join(ctx context.Context, accinfo *AccessInfo, roomid string, query *Query,
 
 	res, err := lobbyRequest(ctx, accinfo, "/rooms/join/id/"+roomid, param)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("Join: %w", err)
+		return nil, nil, xerrors.Errorf("lobbyRequest: %w", err)
 	}
 
 	return connectToRoom(ctx, accinfo, res.Room, warn)
@@ -58,7 +59,7 @@ func JoinByNumber(ctx context.Context, accinfo *AccessInfo, number int32, query 
 
 	res, err := lobbyRequest(ctx, accinfo, fmt.Sprintf("/rooms/join/number/%d", number), param)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("Join: %w", err)
+		return nil, nil, xerrors.Errorf("lobbyRequest: %w", err)
 	}
 
 	return connectToRoom(ctx, accinfo, res.Room, warn)
@@ -74,7 +75,7 @@ func RandomJoin(ctx context.Context, accinfo *AccessInfo, group uint32, query *Q
 
 	res, err := lobbyRequest(ctx, accinfo, fmt.Sprintf("/rooms/join/random/%d", group), param)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("RandomJoin: %w", err)
+		return nil, nil, xerrors.Errorf("lobbyRequest: %w", err)
 	}
 
 	return connectToRoom(ctx, accinfo, res.Room, warn)
@@ -94,7 +95,7 @@ func Watch(ctx context.Context, accinfo *AccessInfo, roomid string, query *Query
 
 	res, err := lobbyRequest(ctx, accinfo, "/rooms/watch/id/"+roomid, param)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("Watch: %w", err)
+		return nil, nil, xerrors.Errorf("lobbyRequest: %w", err)
 	}
 
 	return connectToRoom(ctx, accinfo, res.Room, warn)
@@ -117,11 +118,11 @@ func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, r
 
 	res, err := pb.NewGameClient(grpccon).Watch(ctx, req)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("WatchDirect: %w", err)
+		return nil, nil, xerrors.Errorf("gRPC Watch: %w", err)
 	}
 	wsurl, err := url.Parse(res.Url)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("WatchDirect: %w", err)
+		return nil, nil, xerrors.Errorf("parse url(%v): %w", res.Url, err)
 	}
 	wsurl.Host = wshost
 	res.Url = wsurl.String()
@@ -136,12 +137,12 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	enc.UseCompactInts(true)
 	err := enc.Encode(param)
 	if err != nil {
-		return nil, xerrors.Errorf("lobbyRequest: %w", err)
+		return nil, xerrors.Errorf("encode param: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", accinfo.LobbyURL+path, &p)
 	if err != nil {
-		return nil, xerrors.Errorf("lobbyRequest: %w", err)
+		return nil, xerrors.Errorf("new request: %w", err)
 	}
 	req.Header.Add("Content-Type", "application/x-msgpack")
 	req.Header.Add("Wsnet2-App", accinfo.AppId)
@@ -150,7 +151,12 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 
 	r, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, xerrors.Errorf("lobbyRequest: %w", err)
+		return nil, xerrors.Errorf("do request: %w", err)
+	}
+	if r.StatusCode != 200 {
+		body, _ := io.ReadAll(r.Body)
+		r.Body.Close()
+		return nil, xerrors.Errorf("do request: %v: %v", r.Status, string(body))
 	}
 
 	var res lobby.Response
@@ -159,10 +165,10 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	err = dec.Decode(&res)
 	r.Body.Close()
 	if err != nil {
-		return nil, xerrors.Errorf("lobbyRequest: %w", err)
+		return nil, xerrors.Errorf("decode body: %w", err)
 	}
 	if res.Type != lobby.ResponseTypeOK {
-		return nil, xerrors.Errorf("lobbyRequest: %s: %v", res.Type, res.Msg)
+		return nil, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
 	}
 
 	return &res, nil

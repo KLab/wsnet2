@@ -102,11 +102,11 @@ func (r *Room) Update(ev binary.Event) error {
 func (r *Room) onEvJoined(ev binary.Event) error {
 	clinfo, err := binary.UnmarshalEvJoinedPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvJoined: %w", err)
+		return xerrors.Errorf("Room.onEvJoined: payload: %w", err)
 	}
 	props, _, err := binary.UnmarshalNullDict(clinfo.Props)
 	if err != nil {
-		return xerrors.Errorf("Room.onEvJoined: %w", err)
+		return xerrors.Errorf("Room.onEvJoined: player(%v) props: %w", clinfo.Id, err)
 	}
 	r.Players[clinfo.Id] = &Player{
 		Id:    clinfo.Id,
@@ -118,7 +118,7 @@ func (r *Room) onEvJoined(ev binary.Event) error {
 func (r *Room) onEvLeft(ev binary.Event) error {
 	p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvLeft: %w", err)
+		return xerrors.Errorf("Room.onEvLeft: payload: %w", err)
 	}
 	r.Master = r.Players[p.MasterId]
 	delete(r.Players, p.ClientId)
@@ -128,7 +128,7 @@ func (r *Room) onEvLeft(ev binary.Event) error {
 func (r *Room) onEvRoomProp(ev binary.Event) error {
 	p, err := binary.UnmarshalEvRoomPropPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvRoomProp: %w", err)
+		return xerrors.Errorf("Room.onEvRoomProp: payload: %w", err)
 	}
 	r.Visible = p.Visible
 	r.Joinable = p.Joinable
@@ -148,7 +148,7 @@ func (r *Room) onEvRoomProp(ev binary.Event) error {
 func (r *Room) onEvClientProp(ev binary.Event) error {
 	p, err := binary.UnmarshalEvClientPropPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvClientProp: %w", err)
+		return xerrors.Errorf("Room.onEvClientProp: payload: %w", err)
 	}
 	for k, v := range p.Props {
 		r.Players[p.Id].Props[k] = v
@@ -159,7 +159,7 @@ func (r *Room) onEvClientProp(ev binary.Event) error {
 func (r *Room) onEvMasterSwitched(ev binary.Event) error {
 	mid, err := binary.UnmarshalEvMasterSwitchedPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvMasterSwitched: %w", err)
+		return xerrors.Errorf("Room.onEvMasterSwitched: payload: %w", err)
 	}
 	r.Master = r.Players[mid]
 	return nil
@@ -168,11 +168,11 @@ func (r *Room) onEvMasterSwitched(ev binary.Event) error {
 func (r *Room) onEvRejoined(ev binary.Event) error {
 	p, err := binary.UnmarshalEvRejoinedPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvRejoined: %w", err)
+		return xerrors.Errorf("Room.onEvRejoined: payload: %w", err)
 	}
 	props, _, err := binary.UnmarshalNullDict(p.Props)
 	if err != nil {
-		return xerrors.Errorf("Room.onEvRejoined[%v]: %w", p.Id, err)
+		return xerrors.Errorf("Room.onEvRejoined: player(%v) props: %w", p.Id, err)
 	}
 	r.Players[p.Id] = &Player{
 		Id:    p.Id,
@@ -184,7 +184,7 @@ func (r *Room) onEvRejoined(ev binary.Event) error {
 func (r *Room) onEvPong(ev binary.Event) error {
 	p, err := binary.UnmarshalEvPongPayload(ev.Payload())
 	if err != nil {
-		return xerrors.Errorf("Room.onEvPong: %w", err)
+		return xerrors.Errorf("Room.onEvPong: payload: %w", err)
 	}
 	r.Watchers = p.Watchers
 	return nil
