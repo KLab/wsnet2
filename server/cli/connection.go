@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha1"
+	"errors"
 	"hash"
 	"net/http"
 	"strconv"
@@ -205,7 +206,7 @@ func (conn *Connection) connect(ctx context.Context, warn func(error)) (string, 
 		if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 			return err.(*websocket.CloseError).Text, nil
 		}
-		if ue := unrecoverable(nil); xerrors.As(err, &ue) {
+		if ue := unrecoverable(nil); errors.As(err, &ue) {
 			return "give up reconnecting", ue.Unwrap()
 		}
 
