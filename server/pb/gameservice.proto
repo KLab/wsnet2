@@ -29,6 +29,8 @@ message JoinRoomReq {
 	string room_id = 2;
 	ClientInfo client_info = 3;
 	string mac_key = 4;
+	string grpc_host = 5;
+	string ws_host = 6;
 }
 
 message JoinedRoomRes {

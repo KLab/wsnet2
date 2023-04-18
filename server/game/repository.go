@@ -97,16 +97,16 @@ type Repository struct {
 func NewRepos(db *sqlx.DB, conf *config.GameConf, hostId uint32) (map[pb.AppId]*Repository, error) {
 	if _, err := db.Exec("INSERT INTO room_history (room_id, app_id, host_id, number, search_group, max_players, public_props, created, closed) "+
 		"SELECT id, app_id, host_id, number, search_group, max_players, props, created, now() FROM room WHERE host_id=?", hostId); err != nil {
-		return nil, xerrors.Errorf("room to history error: %w", err)
+		return nil, xerrors.Errorf("room to history: %w", err)
 	}
 	if _, err := db.Exec("DELETE FROM `room` WHERE host_id=?", hostId); err != nil {
-		return nil, xerrors.Errorf("delete room error: %w", err)
+		return nil, xerrors.Errorf("delete rooms: %w", err)
 	}
 	query := "SELECT id, `key` FROM app"
 	var apps []*pb.App
 	err := db.Select(&apps, query)
 	if err != nil {
-		return nil, xerrors.Errorf("select apps error: %w", err)
+		return nil, xerrors.Errorf("select apps: %w", err)
 	}
 	log.Debugf("new repos: apps=%v", apps)
 	repos := make(map[pb.AppId]*Repository, len(apps))

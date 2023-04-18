@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"hash"
 	"net/http"
+	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +39,9 @@ type Hub struct {
 	repo     *Repository
 	appId    AppID
 	clientId string
+
+	grpcHost string
+	wsHost   string
 
 	deadline    time.Duration
 	newDeadline chan time.Duration
@@ -75,7 +78,7 @@ type Hub struct {
 	logger *zap.SugaredLogger
 }
 
-func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
+func NewHub(repo *Repository, appId AppID, roomId RoomID, grpcHost, wsHost string) *Hub {
 	// hub->game 接続に使うclientId. このhubを作成するトリガーになったclientIdは使わない
 	// roomIdもhostIdもユニークなので hostId:roomId はユニークになるはず。
 	clientId := fmt.Sprintf("hub:%d:%s", repo.hostId, roomId)
@@ -93,6 +96,8 @@ func NewHub(repo *Repository, appId AppID, roomId RoomID) *Hub {
 		repo:     repo,
 		appId:    appId,
 		clientId: clientId,
+		grpcHost: grpcHost,
+		wsHost:   wsHost,
 
 		newDeadline: make(chan time.Duration, 1),
 
@@ -354,15 +359,6 @@ func (h *Hub) copyInitialValues(res *pb.JoinedRoomRes) error {
 	return nil
 }
 
-func (h *Hub) getGameServer() (*common.GameServer, error) {
-	var room pb.RoomInfo
-	err := h.repo.db.Get(&room, "SELECT * FROM room WHERE id = ?", h.roomId)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to get room: %w", err)
-	}
-	return h.repo.gameCache.Get(room.HostId)
-}
-
 func (h *Hub) Start() {
 	h.logger.Debug("hub start")
 	metrics.Hubs.Add(1)
@@ -372,13 +368,7 @@ func (h *Hub) Start() {
 		h.logger.Debug("hub end")
 	}()
 
-	gs, err := h.getGameServer()
-	if err != nil {
-		h.logger.Errorf("Failed to get game server: %v\n", err)
-		return
-	}
-
-	res, err := h.requestWatch(fmt.Sprintf("%s:%d", gs.Hostname, gs.GRPCPort))
+	res, err := h.requestWatch(h.grpcHost)
 	if err != nil {
 		h.logger.Errorf("Failed to Watch request: %v\n", err)
 		return
@@ -398,7 +388,13 @@ func (h *Hub) Start() {
 	go h.ProcessLoop()
 
 	// Hub -> Game は Hostname で接続する
-	url := strings.Replace(res.Url, gs.PublicName, gs.Hostname, 1)
+	u, err := url.Parse(res.Url)
+	if err != nil {
+		h.logger.Errorf("Failed to parse url: %v", res.Url)
+		return
+	}
+	u.Host = h.wsHost
+	url := u.String()
 	h.logger.Debugf("Dial Game: %v\n", url)
 
 	err = h.dialGame(url, res.AuthKey)

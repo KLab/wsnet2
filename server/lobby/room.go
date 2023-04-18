@@ -324,17 +324,17 @@ func (rs *RoomService) searchBySQL(ctx context.Context, sql string, params []any
 	return filter(rooms, props, queries, len(rooms), false, false, logger), nil
 }
 
-func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientInfo *pb.ClientInfo, macKey string, hostId uint32) (*pb.JoinedRoomRes, error) {
-	var hostIDs []uint32
-	err := rs.db.Select(&hostIDs, "SELECT `host_id` FROM `hub` WHERE `room_id`=? AND `watchers`<?", roomId, rs.conf.HubMaxWatchers)
+func (rs *RoomService) watch(ctx context.Context, room *pb.RoomInfo, clientInfo *pb.ClientInfo, macKey string) (*pb.JoinedRoomRes, error) {
+	var hubIDs []uint32
+	err := rs.db.Select(&hubIDs, "SELECT `host_id` FROM `hub` WHERE `room_id`=? AND `watchers`<?", room.Id, rs.conf.HubMaxWatchers)
 	if err != nil {
 		return nil, xerrors.Errorf("select hub: %w", err)
 	}
 
 	var hub *common.HubServer
-	if len(hostIDs) > 0 {
-		n := rand.Intn(len(hostIDs))
-		hub, err = rs.hubCache.Get(hostIDs[n])
+	if len(hubIDs) > 0 {
+		n := rand.Intn(len(hubIDs))
+		hub, err = rs.hubCache.Get(hubIDs[n])
 	} else {
 		hub, err = rs.hubCache.Rand()
 	}
@@ -350,11 +350,18 @@ func (rs *RoomService) watch(ctx context.Context, appId, roomId string, clientIn
 
 	client := pb.NewGameClient(conn)
 
+	game, err := rs.gameCache.Get(room.HostId)
+	if err != nil {
+		return nil, xerrors.Errorf("get game server: %w", err)
+	}
+
 	req := &pb.JoinRoomReq{
-		AppId:      appId,
-		RoomId:     roomId,
+		AppId:      room.AppId,
+		RoomId:     room.Id,
 		ClientInfo: clientInfo,
 		MacKey:     macKey,
+		GrpcHost:   fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort),
+		WsHost:     fmt.Sprintf("%s:%d", game.Hostname, game.WebSocketPort),
 	}
 
 	res, err := client.Watch(ctx, req)
@@ -404,7 +411,7 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 			ErrNoWatchableRoom)
 	}
 
-	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
+	return rs.watch(ctx, filtered[0], clientInfo, macKey)
 }
 
 func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumber int32, queries []PropQueries, clientInfo *pb.ClientInfo, macKey string, logger log.Logger) (*pb.JoinedRoomRes, error) {
@@ -432,7 +439,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 			ErrNoWatchableRoom)
 	}
 
-	return rs.watch(ctx, appId, filtered[0].Id, clientInfo, macKey, filtered[0].HostId)
+	return rs.watch(ctx, filtered[0], clientInfo, macKey)
 }
 
 func (rs *RoomService) AdminKick(ctx context.Context, appId, targetID string, logger log.Logger) error {
