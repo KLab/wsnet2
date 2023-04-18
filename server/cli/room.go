@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"time"
+
 	"golang.org/x/xerrors"
 
 	"wsnet2/binary"
@@ -18,6 +20,7 @@ type Room struct {
 	Watchers       uint32
 	PublicProps    binary.Dict
 	PrivateProps   binary.Dict
+	Created        time.Time
 	ClientDeadline uint32
 	Players        map[string]*Player
 	Me             *Player
@@ -70,6 +73,7 @@ func newRoom(joined *pb.JoinedRoomRes, myid string) (*Room, error) {
 		Watchers:       joined.RoomInfo.Watchers,
 		PublicProps:    pubProps,
 		PrivateProps:   privProps,
+		Created:        joined.RoomInfo.Created.Time(),
 		ClientDeadline: joined.Deadline,
 		Players:        players,
 		Me:             players[myid],
