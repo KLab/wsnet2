@@ -22,7 +22,7 @@ type Room struct {
 	Players        map[string]*Player
 	Me             *Player
 	Master         *Player
-	LastMsg        binary.Dict
+	LastMsgTimes   binary.Dict
 }
 
 type Player struct {
@@ -74,6 +74,7 @@ func newRoom(joined *pb.JoinedRoomRes, myid string) (*Room, error) {
 		Players:        players,
 		Me:             players[myid],
 		Master:         players[joined.MasterId],
+		LastMsgTimes:   make(binary.Dict),
 	}, nil
 }
 
@@ -188,6 +189,6 @@ func (r *Room) onEvPong(ev binary.Event) error {
 		return xerrors.Errorf("Room.onEvPong: payload: %w", err)
 	}
 	r.Watchers = p.Watchers
-	r.LastMsg = p.LastMsg
+	r.LastMsgTimes = p.LastMsgTimes
 	return nil
 }

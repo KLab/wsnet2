@@ -204,9 +204,9 @@ func NewEvPong(pingtime uint64, watchers uint32, lastMsg Dict) *SystemEvent {
 }
 
 type EvPongPayload struct {
-	Timestamp uint64
-	Watchers  uint32
-	LastMsg   Dict
+	Timestamp    uint64
+	Watchers     uint32
+	LastMsgTimes Dict
 }
 
 func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
@@ -229,7 +229,7 @@ func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
 	payload = payload[l:]
 
 	// lastmsg
-	pp.LastMsg, _, e = UnmarshalNullDict(payload)
+	pp.LastMsgTimes, _, e = UnmarshalNullDict(payload)
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvPong payload (lastmsg): %w", e)
 	}

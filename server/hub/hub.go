@@ -664,7 +664,7 @@ func (h *Hub) evPong(ev binary.Event) error {
 	defer h.muClients.Unlock()
 
 	h.RoomInfo.Watchers = pong.Watchers
-	h.lastMsg = pong.LastMsg
+	h.lastMsg = pong.LastMsgTimes
 	return nil
 }
 
