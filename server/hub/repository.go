@@ -99,7 +99,7 @@ func (r *Repository) getOrCreateHub(ctx context.Context, appId AppID, roomId Roo
 		pk, err := r.insertHub(ctx, tx, roomId)
 		if err != nil {
 			tx.Rollback()
-			return nil, xerrors.Errorf("insert into hub: %w")
+			return nil, xerrors.Errorf("insert into hub: %w", err)
 		}
 
 		hub, err = NewHub(r, pk, appId, roomId, grpc, wsHost, logger)
