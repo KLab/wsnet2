@@ -118,6 +118,10 @@ func (c *Client) NodeCount() uint32 {
 	return c.nodeCount
 }
 
+func (c *Client) Logger() log.Logger {
+	return c.logger
+}
+
 func (c *Client) ValidAuthData(authData string) error {
 	// clientのtimestampは信用できないのでhashだけ検証
 	_, err := auth.ValidAuthDataHash(authData, c.authKey, c.Id)

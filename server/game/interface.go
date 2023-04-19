@@ -5,8 +5,7 @@ import (
 	"sync"
 	"time"
 	"wsnet2/config"
-
-	"go.uber.org/zap"
+	"wsnet2/log"
 )
 
 type RoomID string
@@ -19,7 +18,7 @@ type IRoom interface {
 
 	Deadline() time.Duration
 	WaitGroup() *sync.WaitGroup
-	Logger() *zap.SugaredLogger
+	Logger() log.Logger
 
 	// Done returns a channel which cloased when room is done.
 	Done() <-chan struct{}

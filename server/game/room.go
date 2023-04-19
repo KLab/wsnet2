@@ -844,7 +844,10 @@ func (r *Room) Logger() log.Logger {
 }
 
 func (r *Room) SendMessage(msg Msg) {
-	r.msgCh <- msg
+	select {
+	case <-r.done:
+	case r.msgCh <- msg:
+	}
 }
 
 func (r *Room) Repo() IRepo {
