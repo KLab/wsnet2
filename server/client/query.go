@@ -1,4 +1,4 @@
-package cli
+package client
 
 import "wsnet2/lobby"
 

@@ -1,15 +1,15 @@
-package cli_test
+package client_test
 
 import (
 	"reflect"
 	"testing"
 	"wsnet2/binary"
-	"wsnet2/cli"
+	"wsnet2/client"
 	"wsnet2/pb"
 )
 
-func newRoom() *cli.Room {
-	players := map[string]*cli.Player{
+func newRoom() *client.Room {
+	players := map[string]*client.Player{
 		"user1": {
 			Id:    "user1",
 			Props: binary.Dict{"cli1": binary.MarshalInt(100)},
@@ -19,7 +19,7 @@ func newRoom() *cli.Room {
 			Props: binary.Dict{},
 		},
 	}
-	return &cli.Room{
+	return &client.Room{
 		Id:             "room1",
 		Number:         nil,
 		Visible:        false,

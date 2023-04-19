@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"wsnet2/binary"
-	"wsnet2/cli"
+	"wsnet2/client"
 	"wsnet2/pb"
 )
 
@@ -23,7 +23,7 @@ func main() {
 	appKey := "testapppkey"
 	userId := "testuser"
 
-	accessInfo, err := cli.GenAccessInfo(lobbyUrl, appId, appKey, userId)
+	accessInfo, err := client.GenAccessInfo(lobbyUrl, appId, appKey, userId)
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +42,7 @@ func main() {
 		Props: binary.MarshalDict(binary.Dict{"Name": binary.MarshalStr8("TestUser1")}),
 	}
 
-	room, conn, err := cli.Create(
+	room, conn, err := client.Create(
 		ctx, accessInfo, roomOption, clientInfo,
 		func(err error) { fmt.Printf("warning: %+v\n", err) })
 	if err != nil {
