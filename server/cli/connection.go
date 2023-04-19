@@ -68,10 +68,12 @@ type Connection struct {
 	lastev int
 	evch   chan binary.Event
 
+	sysmsg chan binary.Msg
+
 	done chan msgerr
 }
 
-// Send : Msgを送信
+// Send : Msg (RegularMsg) を送信（バッファに書き込み、自動再送対象）
 func (r *Connection) Send(typ binary.MsgType, payload []byte) error {
 	r.mumsg.Lock()
 	defer r.mumsg.Unlock()
@@ -85,6 +87,19 @@ func (r *Connection) Send(typ binary.MsgType, payload []byte) error {
 	}
 	r.msgseq++
 	return nil
+}
+
+// SendSystemMsg : SystemMsg (NonRegularMsg) を送信
+func (r *Connection) SendSystemMsg(msg binary.Msg) error {
+	if _, ok := msg.(binary.RegularMsg); ok {
+		return xerrors.Errorf("not a system msg: %T %v", msg, msg)
+	}
+	select {
+	case r.sysmsg <- msg:
+		return nil
+	default:
+		return xerrors.Errorf("system msg sender is not ready")
+	}
 }
 
 // Events : Eventが流れてくるチャネル
@@ -121,6 +136,7 @@ func newConn(ctx context.Context, accinfo *AccessInfo, joined *pb.JoinedRoomRes,
 
 		msgbuf: common.NewRingBuf[marshaledMsg](32),
 		evch:   make(chan binary.Event, 32),
+		sysmsg: make(chan binary.Msg),
 		done:   make(chan msgerr, 1),
 	}
 
@@ -179,20 +195,24 @@ func (conn *Connection) connect(ctx context.Context, warn func(error)) (string, 
 		}
 
 		conctx, cancel := context.WithCancel(ctx)
-		done := make(chan error, 3)
+		done := make(chan error, 4)
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
 			done <- conn.receiver(conctx, ws, func(lastmsgseq int) {
 				retrylimit = nil
 				var mu sync.Mutex
-				wg.Add(2)
+				wg.Add(3)
 				go func() {
 					done <- conn.pinger(conctx, ws, &mu)
 					wg.Done()
 				}()
 				go func() {
 					done <- conn.sender(conctx, ws, &mu, lastmsgseq)
+					wg.Done()
+				}()
+				go func() {
+					done <- conn.systemSender(conctx, ws, &mu)
 					wg.Done()
 				}()
 			})
@@ -326,6 +346,27 @@ func (conn *Connection) sender(ctx context.Context, ws *websocket.Conn, mu *sync
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-conn.msgbuf.HasData():
+		}
+	}
+}
+
+func (conn *Connection) systemSender(ctx context.Context, ws *websocket.Conn, mu *sync.Mutex) error {
+	for {
+		var msg binary.Msg
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case msg = <-conn.sysmsg:
+		}
+
+		frame := msg.Marshal(conn.hmac)
+
+		mu.Lock()
+		ws.SetWriteDeadline(time.Now().Add(time.Second))
+		err := ws.WriteMessage(websocket.BinaryMessage, frame)
+		mu.Unlock()
+		if err != nil {
+			return xerrors.Errorf("systemSender write: %w", err)
 		}
 	}
 }
