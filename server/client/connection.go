@@ -61,9 +61,9 @@ type Connection struct {
 
 	deadline atomic.Uint32
 
+	mumsg  sync.Mutex
 	msgseq int
 	msgbuf *common.RingBuf[marshaledMsg]
-	mumsg  sync.Mutex
 
 	lastev int
 	evch   chan binary.Event
