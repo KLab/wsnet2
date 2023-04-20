@@ -20,6 +20,7 @@ import (
 )
 
 type Hub struct {
+	ctx      context.Context
 	repo     *Repository
 	hubPK    int64
 	roomId   RoomID
@@ -30,7 +31,6 @@ type Hub struct {
 	conn *client.Connection
 
 	msgCh chan game.Msg
-	done  <-chan struct{}
 
 	watchers map[ClientID]*game.Client
 	wgClient sync.WaitGroup
@@ -54,7 +54,8 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 		IsHub: true,
 	}
 
-	ctx := context.Background() // hubの寿命はリクエストなどに紐付かない
+	// hubの寿命はリクエストなどに紐付かない
+	ctx, cancelCause := context.WithCancelCause(context.Background())
 
 	room, conn, err := client.WatchDirect(
 		ctx, grpc, wsHost, appid, string(roomid), clinfo,
@@ -63,10 +64,10 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 		return nil, xerrors.Errorf("client.WatchDirect: %w", err)
 	}
 
-	done := make(chan struct{})
 	go func() {
 		msg, err := conn.Wait(ctx)
-		close(done)
+		// ここ以外でも hub を閉じる必要が生じた場合は cancelCause を Hub に入れる。
+		cancelCause(err)
 		if err != nil {
 			logger.Errorf("connection closed with error: room=%v %v, %+v", roomid, msg, err)
 		} else {
@@ -75,6 +76,7 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 	}()
 
 	hub := &Hub{
+		ctx:      ctx,
 		repo:     repo,
 		hubPK:    pk,
 		roomId:   roomid,
@@ -82,7 +84,6 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 		room:     room,
 		conn:     conn,
 		msgCh:    make(chan game.Msg, game.RoomMsgChSize),
-		done:     done,
 		watchers: make(map[ClientID]*game.Client),
 
 		nodeCountUpdated: make(chan struct{}, 1),
@@ -121,12 +122,12 @@ func (h *Hub) Logger() log.Logger {
 }
 
 func (h *Hub) Done() <-chan struct{} {
-	return h.done
+	return h.ctx.Done()
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
 	select {
-	case <-h.done:
+	case <-h.Done():
 	case h.msgCh <- msg:
 	}
 }
