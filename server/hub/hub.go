@@ -187,7 +187,7 @@ func (h *Hub) nodeCountUpdater() {
 		select {
 		case <-h.Done():
 			return
-		case <-time.NewTimer(interval).C:
+		case <-time.After(interval):
 		}
 	}
 }
