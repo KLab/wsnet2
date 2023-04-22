@@ -36,6 +36,7 @@ MySQL互換RDBMSを利用します。
 - **room**: 稼働中の部屋
 - **hub**: 稼働中の観戦用部屋
 - **room_history**: 終了した部屋
+- **player_log**: Playerの入退室と接続切断の記録
 
 最初に`app`テーブルにAppIDとKeyを登録します。この情報はゲームAPIサーバと共有するもので[ユーザ認証](user_auth.md#鍵の事前交換)に使われます。
 
