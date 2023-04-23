@@ -20,7 +20,6 @@ import (
 )
 
 type Hub struct {
-	ctx      context.Context
 	repo     *Repository
 	hubPK    int64
 	roomId   RoomID
@@ -31,6 +30,7 @@ type Hub struct {
 	conn *client.Connection
 
 	msgCh chan game.Msg
+	done  <-chan struct{}
 
 	watchers map[ClientID]*game.Client
 	wgClient sync.WaitGroup
@@ -76,7 +76,6 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 	}()
 
 	hub := &Hub{
-		ctx:      ctx,
 		repo:     repo,
 		hubPK:    pk,
 		roomId:   roomid,
@@ -84,6 +83,7 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 		room:     room,
 		conn:     conn,
 		msgCh:    make(chan game.Msg, game.RoomMsgChSize),
+		done:     ctx.Done(),
 		watchers: make(map[ClientID]*game.Client),
 
 		nodeCountUpdated: make(chan struct{}, 1),
@@ -122,12 +122,12 @@ func (h *Hub) Logger() log.Logger {
 }
 
 func (h *Hub) Done() <-chan struct{} {
-	return h.ctx.Done()
+	return h.done
 }
 
 func (h *Hub) SendMessage(msg game.Msg) {
 	select {
-	case <-h.Done():
+	case <-h.done:
 	case h.msgCh <- msg:
 	}
 }
