@@ -181,6 +181,7 @@ func InitLogger(logconf *config.LogConf) func() {
 			ljackLogger.Close()
 		}
 		conf := zap.NewProductionEncoderConfig()
+		conf.EncodeTime = zapcore.RFC3339NanoTimeEncoder
 		core2 := zapcore.NewCore(zapcore.NewJSONEncoder(conf), sink, zap.DebugLevel)
 		core = zapcore.NewTee(core, core2)
 	}
