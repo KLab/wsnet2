@@ -185,7 +185,7 @@ namespace WSNet2.DotnetClient
                 return true;
             }
 
-            cmds[ss[0]](room, (ss.Length>1) ? ss[1] : "");
+            cmds[ss[0]](room, (ss.Length > 1) ? ss[1] : "");
             return true;
         }
 
@@ -393,9 +393,10 @@ namespace WSNet2.DotnetClient
                 room.OnOtherPlayerRejoined += (p) => Console.WriteLine($"OnOtherPlayerRejoined: {p.Id}");
                 room.OnOtherPlayerLeft += (p, m) => Console.WriteLine($"OnOtherplayerleft: {p.Id}: {m}");
                 room.OnMasterPlayerSwitched += (p, n) => Console.WriteLine($"OnMasterPlayerSwitched: {p.Id} -> {n.Id}");
-                room.OnPongReceived += (r, w, ts) => {
+                room.OnPongReceived += (r, w, ts) =>
+                {
                     if (showPong) Console.WriteLine(
-                        $"onPong: RTT={r} Watchers={w} LMTS={{"+ts.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a,s)=>$"{a},{s}")+"}");
+                        $"onPong: RTT={r} Watchers={w} LMTS={{" + ts.Select(kv => $"{kv.Key}:{kv.Value}").Aggregate((a, s) => $"{a},{s}") + "}");
                 };
                 room.OnRoomPropertyChanged += (visible, joinable, watchable, searchGroup, maxPlayers, clientDeadline, publicProps, privateProps) =>
                 {

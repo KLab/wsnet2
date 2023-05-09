@@ -899,7 +899,7 @@ namespace WSNet2.Core.Test
         public void TestBoolDict()
         {
             Dictionary<string, bool> dic = null;
-            var expect = new byte[]{ (byte)Type.Null };
+            var expect = new byte[] { (byte)Type.Null };
             writer.Write(dic);
             Assert.AreEqual(expect, writer.ArraySegment());
             var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
@@ -907,8 +907,8 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(dic, r);
 
             writer.Reset();
-            dic = new Dictionary<string, bool>(){};
-            expect = new byte[]{ (byte)Type.Dict, 0 };
+            dic = new Dictionary<string, bool>() { };
+            expect = new byte[] { (byte)Type.Dict, 0 };
             writer.Write(dic);
             Assert.AreEqual(expect, writer.ArraySegment());
             reader = WSNet2Serializer.NewReader(writer.ArraySegment());
@@ -916,7 +916,7 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(dic, r);
 
             writer.Reset();
-            dic = new Dictionary<string, bool>(){ {"a", true}, {"bb", false} };
+            dic = new Dictionary<string, bool>() { { "a", true }, { "bb", false } };
             expect = new byte[]{
                 (byte)Type.Dict, 2,
                 1, (byte)'a', 0, 1, (byte)Type.True, 2, (byte)'b', (byte)'b', 0, 1, (byte)Type.False,
@@ -932,7 +932,7 @@ namespace WSNet2.Core.Test
         public void TestULongDict()
         {
             Dictionary<string, ulong> dic = null;
-            var expect = new byte[]{ (byte)Type.Null };
+            var expect = new byte[] { (byte)Type.Null };
             writer.Write(dic);
             Assert.AreEqual(expect, writer.ArraySegment());
             var reader = WSNet2Serializer.NewReader(writer.ArraySegment());
@@ -940,8 +940,8 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(dic, r);
 
             writer.Reset();
-            dic = new Dictionary<string, ulong>(){};
-            expect = new byte[]{ (byte)Type.Dict, 0 };
+            dic = new Dictionary<string, ulong>() { };
+            expect = new byte[] { (byte)Type.Dict, 0 };
             writer.Write(dic);
             Assert.AreEqual(expect, writer.ArraySegment());
             reader = WSNet2Serializer.NewReader(writer.ArraySegment());
@@ -949,7 +949,7 @@ namespace WSNet2.Core.Test
             Assert.AreEqual(dic, r);
 
             writer.Reset();
-            dic = new Dictionary<string, ulong>(){ {"a", 0x1020304050607080}, {"bb", 2} };
+            dic = new Dictionary<string, ulong>() { { "a", 0x1020304050607080 }, { "bb", 2 } };
             expect = new byte[]{
                 (byte)Type.Dict, 2,
                 1, (byte)'a', 0, 9, (byte)Type.ULong, 0x10,0x20,0x30,0x40,0x50,0x60,0x70,0x80,
@@ -970,8 +970,8 @@ namespace WSNet2.Core.Test
                 1, (byte)'a', 0, 9, (byte)Type.ULong, 0,0,0,0, 0,0,0,1,
                 2, (byte)'b', (byte)'b', 0, 9, (byte)Type.ULong, 0,0,0,0, 0,0,0,2,
             };
-            var expect = new Dictionary<string, ulong>(){{"a", 1}, {"bb", 2}};
-            var olddict = new Dictionary<string, ulong>(){{"a", 10}, {"bb", 20}};
+            var expect = new Dictionary<string, ulong>() { { "a", 1 }, { "bb", 2 } };
+            var olddict = new Dictionary<string, ulong>() { { "a", 10 }, { "bb", 20 } };
             var reader = WSNet2Serializer.NewReader(data);
 
             var newdict = reader.ReadIntoULongDict(olddict);

@@ -75,7 +75,7 @@ namespace WSNet2.Sample
 
                 if (args[i] == "-m" || args[i] == "--master")
                 {
-                    if (i + 1 < args.Length && args[i+1][0] != '-')
+                    if (i + 1 < args.Length && args[i + 1][0] != '-')
                     {
                         masterCount += int.Parse(args[++i]);
                     }
@@ -87,7 +87,7 @@ namespace WSNet2.Sample
 
                 if (args[i] == "-b" || args[i] == "--bot")
                 {
-                    if (i + 1 < args.Length && args[i+1][0] != '-')
+                    if (i + 1 < args.Length && args[i + 1][0] != '-')
                     {
                         botCount += int.Parse(args[++i]);
                     }

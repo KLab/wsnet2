@@ -12,7 +12,7 @@ namespace WSNet2.Sample
         /// <summary>Pongゲームの最大プレイヤー数（2Player + MasterClient)</summary>
         const uint MaxPlayers = 3;
         /// <summary>1フレームの時間</summary>
-        const int frameMilliSec = 1000/60;
+        const int frameMilliSec = 1000 / 60;
 
         string userId;
         string pKey;
@@ -66,7 +66,7 @@ namespace WSNet2.Sample
                     CreateRoom(cts);
                     await Updater(cts.Token);
                 }
-                catch (OperationCanceledException) {}
+                catch (OperationCanceledException) { }
                 catch (Exception e)
                 {
                     cts.Cancel();
@@ -179,7 +179,8 @@ namespace WSNet2.Sample
 
                 // 先に入室した方を1Pとする
                 var joiner = room.Players.Where((p) => p.Value.Id != userId).ToArray();
-                if (joiner[0].Value.Id == player.Id) {
+                if (joiner[0].Value.Id == player.Id)
+                {
                     (joiner[0], joiner[1]) = (joiner[1], joiner[0]);
                 }
 

@@ -53,8 +53,8 @@ namespace WSNet2.Sample
                     JoinRandomRoom(cts);
                     await Updater(cts.Token);
                 }
-                catch (OperationCanceledException) {}
-                catch (RoomNotFoundException) {}
+                catch (OperationCanceledException) { }
+                catch (RoomNotFoundException) { }
                 catch (Exception e)
                 {
                     logger.Error(e, "({0}) ServeError {1}", userId, e);
@@ -75,7 +75,8 @@ namespace WSNet2.Sample
                 WSNet2Helper.SearchGroup,
                 query,
                 null,
-                (room) => {
+                (room) =>
+                {
                     logger.Info("({0}) Room joined {1}", userId, room.Id);
                     room.OnClosed += msg =>
                     {
