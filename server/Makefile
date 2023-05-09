@@ -34,6 +34,7 @@ generate: install-deps $(pb.go) $(string.go)
 clean:
 	$(RM) pb/*.pb.go
 	$(RM) **/*_string.go
+	$(RM) bin/*
 
 test: generate
 	go vet ./...
