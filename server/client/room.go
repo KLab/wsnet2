@@ -141,7 +141,9 @@ func (r *Room) onEvRoomProp(ev binary.Event) error {
 	r.Watchable = p.Watchable
 	r.SearchGroup = p.SearchGroup
 	r.MaxPlayers = p.MaxPlayer
-	r.ClientDeadline = p.ClientDeadline
+	if p.ClientDeadline != 0 {
+		r.ClientDeadline = p.ClientDeadline
+	}
 	for k, v := range p.PublicProps {
 		r.PublicProps[k] = v
 	}
