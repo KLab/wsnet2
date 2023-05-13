@@ -50,9 +50,9 @@ install-deps:
 
 build: $(TARGETS)
 
-build-commit: $(TARGETS:%=%-$(COMMIT))
+build-version: $(TARGETS:%=%-$(VERSION))
 
-%-$(COMMIT): %
+%-$(VERSION): %
 	cp $< $@
 
 bin/wsnet2-lobby: $(PKG_LOBBY:%=%/*.go) $(pb.go) $(string.go)
