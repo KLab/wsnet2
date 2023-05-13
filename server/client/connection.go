@@ -252,12 +252,12 @@ func (conn *Connection) receiver(ctx context.Context, ws *websocket.Conn, starts
 		ws.SetReadDeadline(time.Now().Add(time.Duration(conn.deadline.Load()) * time.Second))
 		_, data, err := ws.ReadMessage()
 		if err != nil {
-			return err
+			return xerrors.Errorf("receiver read: %w", err)
 		}
 
 		ev, seq, err := binary.UnmarshalEvent(data)
 		if err != nil {
-			return err
+			return xerrors.Errorf("receiver unmarshal: %w", err)
 		}
 
 		lastev := conn.lastev
@@ -281,7 +281,9 @@ func (conn *Connection) receiver(ctx context.Context, ws *websocket.Conn, starts
 			if err != nil {
 				return xerrors.Errorf("get client deadline: %w", err)
 			}
-			conn.deadline.Store(deadline)
+			if deadline != 0 {
+				conn.deadline.Store(deadline)
+			}
 		}
 
 		select {

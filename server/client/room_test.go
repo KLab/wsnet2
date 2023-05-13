@@ -134,6 +134,23 @@ func TestRoom_Update_onEvRoomProp(t *testing.T) {
 	if !reflect.DeepEqual(room.PrivateProps, expPrivp) {
 		t.Fatalf("PrivateProps = %v, wants %v", room.PrivateProps, expPrivp)
 	}
+
+	ev = binary.NewRegularEvent(
+		binary.EvTypeRoomProp,
+		binary.MarshalRoomPropPayload(v, j, w, sgrp, maxp, 0, nil, nil))
+	err = room.Update(ev)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	if room.ClientDeadline != cdl {
+		t.Fatalf("ClientDeadline = %v, wants %v", room.ClientDeadline, cdl)
+	}
+	if !reflect.DeepEqual(room.PublicProps, expPubp) {
+		t.Fatalf("PublicProps = %v, wants %v", room.PublicProps, expPubp)
+	}
+	if !reflect.DeepEqual(room.PrivateProps, expPrivp) {
+		t.Fatalf("PrivateProps = %v, wants %v", room.PrivateProps, expPrivp)
+	}
 }
 
 func TestRoom_Update_onEvClientProp(t *testing.T) {
