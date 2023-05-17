@@ -57,13 +57,13 @@ type Connection struct {
 	userid string
 	url    string
 	bearer string
-	hmac   hash.Hash
 
 	deadline atomic.Uint32
 
 	mumsg  sync.Mutex
 	msgseq int
 	msgbuf *common.RingBuf[marshaledMsg]
+	hmac   hash.Hash
 
 	lastev int
 	evch   chan binary.Event
@@ -132,9 +132,10 @@ func newConn(ctx context.Context, accinfo *AccessInfo, joined *pb.JoinedRoomRes,
 		userid: accinfo.UserId,
 		url:    joined.Url,
 		bearer: "Bearer " + bearer,
-		hmac:   mac,
 
 		msgbuf: common.NewRingBuf[marshaledMsg](32),
+		hmac:   mac,
+
 		evch:   make(chan binary.Event, 32),
 		sysmsg: make(chan binary.Msg),
 		done:   make(chan msgerr, 1),
@@ -302,7 +303,9 @@ func (conn *Connection) receiver(ctx context.Context, ws *websocket.Conn, starts
 
 func (conn *Connection) pinger(ctx context.Context, ws *websocket.Conn, mu *sync.Mutex) error {
 	for {
+		conn.mumsg.Lock()
 		msg := binary.NewMsgPing(time.Now()).Marshal(conn.hmac)
+		conn.mumsg.Unlock()
 
 		mu.Lock()
 		ws.SetWriteDeadline(time.Now().Add(time.Second))
@@ -361,7 +364,9 @@ func (conn *Connection) systemSender(ctx context.Context, ws *websocket.Conn, mu
 		case msg = <-conn.sysmsg:
 		}
 
+		conn.mumsg.Lock()
 		frame := msg.Marshal(conn.hmac)
+		conn.mumsg.Unlock()
 
 		mu.Lock()
 		ws.SetWriteDeadline(time.Now().Add(time.Second))
