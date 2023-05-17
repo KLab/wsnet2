@@ -253,7 +253,7 @@ func (conn *Connection) receiver(ctx context.Context, ws *websocket.Conn, starts
 		ws.SetReadDeadline(time.Now().Add(time.Duration(conn.deadline.Load()) * time.Second))
 		_, data, err := ws.ReadMessage()
 		if err != nil {
-			return xerrors.Errorf("receiver read: %w", err)
+			return err // websocket.IsCloseError()がwrapを考慮してくれないのでこのまま返す
 		}
 
 		ev, seq, err := binary.UnmarshalEvent(data)
