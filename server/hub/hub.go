@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.uber.org/zap"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -56,9 +57,10 @@ func NewHub(repo *Repository, pk int64, appid AppID, roomid RoomID, grpc *grpc.C
 
 	ctx := context.Background() // hubの寿命はリクエストなどに紐付かない
 
+	lg := logger.WithOptions(zap.AddCallerSkip(1))
 	room, conn, err := client.WatchDirect(
 		ctx, grpc, wsHost, appid, string(roomid), clinfo,
-		func(err error) { logger.Warnf("%v: %v", clientid, err) })
+		func(err error) { lg.Warnf("%v: %v", clientid, err) })
 	if err != nil {
 		return nil, xerrors.Errorf("client.WatchDirect: %w", err)
 	}
