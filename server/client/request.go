@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
@@ -15,6 +16,15 @@ import (
 	"wsnet2/auth"
 	"wsnet2/lobby"
 	"wsnet2/pb"
+)
+
+var (
+	// LobbyTransport : Lobbyへのリクエストに使う http.Client.Transport
+	// プロキシやTLS設定などを変更できる
+	LobbyTransport http.RoundTripper
+
+	// LobbyTimeout : Lobbyへのリクエストのタイムアウト時間
+	LobbyTimeout time.Duration = time.Second * 5
 )
 
 // Create : Roomを作成して入室
@@ -149,7 +159,11 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	req.Header.Add("Wsnet2-User", accinfo.UserId)
 	req.Header.Add("Authorization", "Bearer "+accinfo.Bearer)
 
-	r, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		Transport: LobbyTransport,
+		Timeout:   LobbyTimeout,
+	}
+	r, err := client.Do(req)
 	if err != nil {
 		return nil, xerrors.Errorf("do request: %w", err)
 	}
