@@ -183,8 +183,9 @@ func (h *Hub) nodeCountUpdater() {
 			case h.nodeCountUpdated <- struct{}{}:
 			default:
 			}
+		} else {
+			h.lastNodeCount = count
 		}
-		h.lastNodeCount = count
 
 		select {
 		case <-h.Done():
