@@ -95,26 +95,25 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		log.KeyRoom, roomId,
 		log.KeyApp, appId,
 		log.KeyClient, clientId,
-		log.KeyRemoteAddr, r.RemoteAddr,
 		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
 	)
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
-		logger.Errorf("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
+		logger.Infof("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
 		http.Error(w, "Bad Request", 400)
 		return
 	}
 
 	repo, ok := s.repos[appId]
 	if !ok {
-		logger.Errorf("websocket: invalid appId: %v", appId)
+		logger.Infof("websocket: invalid appId: %v", appId)
 		http.Error(w, "Bad Request", 400)
 		return
 	}
 
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {
-		logger.Errorf("websocket: repo.GetClient: %+v", err)
+		logger.Infof("websocket: repo.GetClient: %+v", err)
 		http.Error(w, "Bad Request", 400)
 		return
 	}
@@ -125,7 +124,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		authData = ad[len("Bearer "):]
 	}
 	if err := cli.ValidAuthData(authData); err != nil {
-		logger.Errorf("websocket: Authentication: %+v", err)
+		logger.Infof("websocket: Authorization: %+v", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -148,5 +147,5 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	<-peer.Done()
-	logger.Debugf("websocket: finish")
+	logger.Debugf("websocket: finish: room=%v client=%v peer=%p", roomId, clientId, peer)
 }
