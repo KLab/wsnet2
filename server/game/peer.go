@@ -94,7 +94,7 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
 	metrics.MessageSent.Add(1)
 	err := writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 	if err != nil {
-		p.client.logger.Errorf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
+		p.client.logger.Warnf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 		p.conn.Close()
@@ -131,7 +131,7 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 		err := writeMessage(p.conn, websocket.BinaryMessage, buf)
 		if err != nil {
 			// 新しいpeerで復帰できるかもしれない
-			p.client.logger.Errorf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
+			p.client.logger.Warnf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
 			writeMessage(p.conn, websocket.CloseMessage,
 				formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 			p.conn.Close()
@@ -186,7 +186,7 @@ loop:
 				p.client.logger.Errorf("peer close error (%v, %p): %+v", p.client.Id, p, err)
 			} else {
 				if !errors.Is(err, net.ErrClosed) {
-					p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
+					p.client.logger.Warnf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 				}
 			}
