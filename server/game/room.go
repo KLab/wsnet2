@@ -519,7 +519,8 @@ func (r *Room) msgPing(msg *MsgPing) error {
 	}
 	msg.Sender.logger.Debugf("ping %v: %v", msg.Sender.Id, msg.Timestamp)
 	ev := binary.NewEvPong(msg.Timestamp, r.RoomInfo.Watchers, r.lastMsg)
-	return msg.Sender.SendSystemEvent(ev)
+	msg.Sender.SendSystemEvent(ev)
+	return nil
 }
 
 func (r *Room) msgNodeCount(msg *MsgNodeCount) error {

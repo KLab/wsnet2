@@ -85,22 +85,22 @@ func (p *Peer) SendReady(lastMsgSeq int) error {
 
 // SendSystemEvent : SystemEventを送信する.
 // 送信失敗時はPeerを閉じて再接続できるようにする.
-func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
+// 個別のgoroutineで呼ばれるのでerrorは返さない. see: (*Client).SendSystemEvent()
+func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
-		return nil
+		return
 	}
 	metrics.MessageSent.Add(1)
 	err := writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 	if err != nil {
-		p.client.logger.Warnf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
+		p.client.logger.Warnf("peer send %v (%v, peer=%p): %+v", ev.Type(), p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 		p.conn.Close()
 		p.closed = true
 	}
-	return err
 }
 
 // SendEvents : evbufに蓄積されてるイベントを送信
@@ -131,7 +131,7 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 		err := writeMessage(p.conn, websocket.BinaryMessage, buf)
 		if err != nil {
 			// 新しいpeerで復帰できるかもしれない
-			p.client.logger.Warnf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
+			p.client.logger.Warnf("peer send %v (%v, %p): %+v", ev.Type(), p.client.Id, p, err)
 			writeMessage(p.conn, websocket.CloseMessage,
 				formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
 			p.conn.Close()

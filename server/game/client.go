@@ -280,19 +280,17 @@ func (c *Client) Send(e *binary.RegularEvent) error {
 }
 
 // RoomのMsgLoopから呼ばれる.
-func (c *Client) SendSystemEvent(e *binary.SystemEvent) error {
+func (c *Client) SendSystemEvent(e *binary.SystemEvent) {
 	c.mu.RLock()
 	p := c.peer
 	c.mu.RUnlock()
 	if p == nil {
-		return xerrors.Errorf("client.SendSystemEvent: no peer attached")
+		return
 	}
 
 	// SystemEventは送信順序を問わない. 多少遅れても構わない.
 	// roomのmsgloopを止めないために新しいgoroutineで送信する.
 	go p.SendSystemEvent(e)
-
-	return nil
 }
 
 func (c *Client) sendRenewPeer() {

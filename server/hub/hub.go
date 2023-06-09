@@ -361,7 +361,8 @@ func (h *Hub) msgPing(msg *game.MsgPing) error {
 	}
 	msg.Sender.Logger().Debugf("ping %v: %v", msg.Sender.Id, msg.Timestamp)
 	ev := binary.NewEvPong(msg.Timestamp, h.room.Watchers, h.room.LastMsgTimes)
-	return msg.Sender.SendSystemEvent(ev)
+	msg.Sender.SendSystemEvent(ev)
+	return nil
 }
 
 func (h *Hub) msgClientError(msg *game.MsgClientError) error {
