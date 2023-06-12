@@ -52,7 +52,7 @@ func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq i
 	err := cli.AttachPeer(p, lastEvSeq)
 	if err != nil {
 		p.closeWithMessage(websocket.CloseGoingAway, err.Error())
-		return nil, err
+		return nil, xerrors.Errorf("AttachPeer (%v, peer=%p): %w", cli.Id, p, err)
 	}
 	go p.MsgLoop(ctx)
 	return p, nil
@@ -78,7 +78,7 @@ func (p *Peer) SendReady(lastMsgSeq int) error {
 	if p.closed {
 		return xerrors.New("peer closed")
 	}
-	p.client.logger.Infof("peer ready: %v lastMsg=%v peer=%p", p.client.Id, lastMsgSeq, p)
+	p.client.logger.Infof("peer ready (%v, peer=%p): lastMsg=%v", p.client.Id, p, lastMsgSeq)
 	ev := binary.NewEvPeerReady(lastMsgSeq)
 	return writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 }
@@ -116,6 +116,7 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 	evs, err := evbuf.Read(p.evSeqNum)
 	if err != nil {
 		// evSeqNumが古すぎるため. 復帰不能.
+		// 頻発するようならevbufのサイズ(ClientConf.EventBufSize)を拡張したほうがよいかも
 		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseGoingAway, err.Error()))
@@ -185,8 +186,8 @@ loop:
 			} else if websocket.IsUnexpectedCloseError(err) {
 				p.client.logger.Errorf("peer close error (%v, %p): %+v", p.client.Id, p, err)
 			} else {
+				p.client.logger.Warnf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 				if !errors.Is(err, net.ErrClosed) {
-					p.client.logger.Warnf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 				}
 			}

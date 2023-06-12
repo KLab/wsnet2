@@ -62,7 +62,7 @@ func newClient(info *pb.ClientInfo, macKey string, room IRoom, isPlayer bool) (*
 	props, iProps, err := common.InitProps(info.Props)
 	if err != nil {
 		return nil, WithCode(
-			xerrors.Errorf("Props unmarshal error: %w", err),
+			xerrors.Errorf("InitProps: %w", err),
 			codes.InvalidArgument)
 	}
 	info.Props = iProps
@@ -137,7 +137,12 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			c.logger.Infof("client timeout: %v connectCount=%v", c.Id, c.connectCount)
+			if c.connectCount == 0 {
+				// lobbyに繋がるがgameに繋げないのは何かある
+				c.logger.Errorf("client timeout: %v connectCount=%v", c.Id, c.connectCount)
+			} else {
+				c.logger.Infof("client timeout: %v connectCount=%v", c.Id, c.connectCount)
+			}
 			c.room.SendMessage(&MsgClientTimeout{Sender: c})
 			break loop
 
@@ -219,8 +224,8 @@ loop:
 
 				if !valid {
 					// 再接続時の再送に期待して切断
-					err := xerrors.Errorf("invalid sequence num: %d to %d", cSeq, seq)
-					c.logger.Errorf("client msg: %v %+v", c.Id, err)
+					err := xerrors.Errorf("invalid sequence num: %d, wants %d", seq, cSeq+1)
+					c.logger.Warnf("client msg: %v %+v", c.Id, err)
 					c.DetachAndClosePeer(curPeer, err)
 					continue
 				}
@@ -232,7 +237,6 @@ loop:
 			t.Reset(deadline)
 
 		case err := <-c.evErr:
-			c.logger.Errorf("client event: %v %+v", c.Id, err)
 			c.room.SendMessage(
 				&MsgClientError{
 					Sender: c,
@@ -309,7 +313,7 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 
 	// 未読Eventを再送. client終了後でも送信する.
 	if err := p.SendEvents(c.evbuf); err != nil {
-		return err
+		return xerrors.Errorf("SendEvents: %w", err)
 	}
 
 	select {
@@ -322,7 +326,7 @@ func (c *Client) AttachPeer(p *Peer, lastEvSeq int) error {
 
 	// msgSeqNumの後のメッセージから送信してもらう(再送含む)
 	if err := p.SendReady(c.msgSeqNum); err != nil {
-		return err
+		return xerrors.Errorf("SendReady: %w", err)
 	}
 
 	if c.peer == nil {
@@ -378,7 +382,7 @@ func (c *Client) DetachAndClosePeer(p *Peer, err error) {
 
 	select {
 	case <-c.done:
-		c.logger.Debugf("detach and close peer: client already closed: %v", c.Id)
+		c.logger.Debugf("detach+close peer: client already closed: %v", c.Id)
 		return
 	default:
 	}

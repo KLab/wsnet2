@@ -143,7 +143,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 
 	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
 	if err != nil {
-		logger.Errorf("websocket: new peer: %+v", err)
+		logger.Warnf("websocket: NewPeer: %+v", err)
 		return
 	}
 	<-peer.Done()

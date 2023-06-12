@@ -250,7 +250,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 			xerrors.Errorf("context done: room=%v", room.Id),
 			codes.DeadlineExceeded)
 	case ewc := <-errch:
-		return nil, WithCode(ewc, ewc.Code())
+		return nil, ewc
 	case joined = <-jch:
 	}
 
@@ -478,7 +478,7 @@ func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string, lo
 	for roomID, room := range rooms {
 		err := repo.adminKickRoom(room, userID)
 		if err != nil {
-			logger.Errorf("Repository.AdminKick: user=%q room=%q err=%+v", userID, roomID, err)
+			logger.Errorf("Repository.AdminKick: client=%q room=%q err=%+v", userID, roomID, err)
 		}
 		continue
 	}
