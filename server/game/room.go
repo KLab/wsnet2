@@ -338,9 +338,10 @@ func (r *Room) dispatch(msg Msg) {
 // sendTo : 特定クライアントに送信.
 // muClients のロックを取得してから呼び出す.
 // 送信できない場合続行不能なので退室させる.
-func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
+func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) {
 	err := c.Send(ev)
 	if err != nil {
+		c.logger.Info(err.Error())
 		// players/watchersのループ内で呼ばれているため、removeClientは別goroutineで呼ぶ
 		go func() {
 			r.muClients.Lock()
@@ -348,17 +349,16 @@ func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) error {
 			r.muClients.Unlock()
 		}()
 	}
-	return err
 }
 
 // broadcast : 全員に送信.
 // muClients のロックを取得してから呼び出すこと
 func (r *Room) broadcast(ev *binary.RegularEvent) {
 	for _, c := range r.players {
-		_ = r.sendTo(c, ev)
+		r.sendTo(c, ev)
 	}
 	for _, c := range r.watchers {
-		_ = r.sendTo(c, ev)
+		r.sendTo(c, ev)
 	}
 }
 
@@ -554,9 +554,8 @@ func (r *Room) msgRoomProp(msg *MsgRoomProp) {
 	defer r.muClients.RUnlock()
 
 	if msg.Sender != r.master {
-		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		r.logger.Warnf("msgRoomProp: sender %q is not master %q", msg.Sender.Id, r.master.Id)
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return
 	}
 
@@ -624,9 +623,8 @@ func (r *Room) msgClientProp(msg *MsgClientProp) {
 	defer r.muClients.RUnlock()
 
 	if !msg.Sender.isPlayer {
-		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		msg.Sender.logger.Warnf("sender %q is not a player", msg.Sender.Id)
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return
 	}
 	if r.players[msg.Sender.ID()] != msg.Sender {
@@ -677,7 +675,7 @@ func (r *Room) msgTargets(msg *MsgTargets) {
 			absent = append(absent, t)
 			continue
 		}
-		_ = r.sendTo(c, ev)
+		r.sendTo(c, ev)
 	}
 
 	// 居なかった人を通知
@@ -701,7 +699,7 @@ func (r *Room) msgToMaster(msg *MsgToMaster) {
 
 	msg.Sender.logger.Debugf("message to master: %v", msg.Data)
 
-	_ = r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
+	r.sendTo(r.master, binary.NewEvMessage(msg.Sender.Id, msg.Data))
 }
 
 func (r *Room) msgBroadcast(msg *MsgBroadcast) {
@@ -727,16 +725,14 @@ func (r *Room) msgSwitchMaster(msg *MsgSwitchMaster) {
 	defer r.muClients.RUnlock()
 
 	if msg.Sender != r.master {
-		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		msg.Sender.logger.Warnf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 	}
 
 	target, found := r.players[msg.Target]
 	if !found {
-		// 対象が居ないことを通知
-		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
 		msg.Sender.logger.Infof("target %s is absent", msg.Target)
+		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
 		return
 	}
 
@@ -753,17 +749,15 @@ func (r *Room) msgKick(msg *MsgKick) {
 	defer r.muClients.Unlock()
 
 	if msg.Sender != r.master {
-		// 送信元にエラー通知
-		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		msg.Sender.logger.Warnf("sender %q is not master %q", msg.Sender.Id, r.master.Id)
+		r.sendTo(msg.Sender, binary.NewEvPermissionDenied(msg))
 		return
 	}
 
 	target, found := r.players[msg.Target]
 	if !found {
-		// 対象が居ないことを通知
-		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
 		msg.Sender.logger.Warnf("player not found: %v", msg.Target)
+		r.sendTo(msg.Sender, binary.NewEvTargetNotFound(msg, []string{string(msg.Target)}))
 		return
 	}
 
