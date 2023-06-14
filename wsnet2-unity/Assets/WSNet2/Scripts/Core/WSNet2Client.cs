@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography;
-using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using MessagePack;
 
@@ -13,15 +14,26 @@ namespace WSNet2
     /// </summary>
     public class WSNet2Client
     {
+        const int httpPostTimeoutMillisec = 5000;
+
         string baseUri;
         string appId;
         string userId;
         AuthData authData;
+        Dictionary<string, string> requestHeaders;
 
         List<Room> rooms = new List<Room>();
         CallbackPool callbackPool = new CallbackPool();
 
         Logger logger;
+
+        /// <summary>
+        ///   HttpPost(url, headers, content, tcs<(code, body)>)
+        /// </summary>
+        /// LobbyサーバへのPOSTに使う実装を設定します。
+        /// レスポンスは tcs.TrySetResult((code, body)) として返却します。
+        /// 例外が発生した時は tcs.TrySetException(exceptin) とします。
+        public Action<string, IReadOnlyDictionary<string, string>, byte[], TaskCompletionSource<(int, byte[])>> HttpPost { private get; set; }
 
         /// <summary>
         ///   コンストラクタ
@@ -36,8 +48,14 @@ namespace WSNet2
             this.appId = appId;
             this.userId = userId;
             this.SetBaseUri(baseUri);
+            this.requestHeaders = new Dictionary<string, string>()
+            {
+                {"WSNet2-App", appId},
+                {"WSNet2-User", userId},
+            };
             this.UpdateAuthData(authData);
             this.logger = prepareLogger(logger);
+            this.HttpPost = DefaultHttpClient.Post;
             checkMinThreads();
         }
 
@@ -57,6 +75,7 @@ namespace WSNet2
         public void UpdateAuthData(AuthData authData)
         {
             this.authData = authData;
+            this.requestHeaders["Authorization"] = authData.Bearer;
         }
 
         /// <summary>
@@ -391,20 +410,36 @@ namespace WSNet2
 
         private async Task<LobbyResponse> post(string path, byte[] content)
         {
-            var cli = new HttpClient();
-            cli.DefaultRequestHeaders.Add("Wsnet2-App", appId);
-            cli.DefaultRequestHeaders.Add("Wsnet2-User", userId);
-            cli.DefaultRequestHeaders.Add("Authorization", authData.Bearer);
-
             var url = baseUri + path;
-            NetworkInformer.OnLobbySend(url, content);
-            var res = await cli.PostAsync(url, new ByteArrayContent(content));
-            var body = await res.Content.ReadAsByteArrayAsync();
-            NetworkInformer.OnLobbyReceive(url, res.StatusCode, body);
-            if (!res.IsSuccessStatusCode)
+            var tcs = new TaskCompletionSource<(int, byte[])>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int code;
+            byte[] body;
+
+            using (var cs = new CancellationTokenSource(httpPostTimeoutMillisec))
             {
-                var msg = System.Text.Encoding.UTF8.GetString(body);
-                throw new Exception($"wsnet2 {path} failed: code={res.StatusCode} {msg}");
+                cs.Token.Register(() => tcs.TrySetException(new Exception("Http post timeout")));
+
+                NetworkInformer.OnLobbySend(url, content);
+
+                HttpPost(url, requestHeaders, content, tcs);
+                (code, body) = await tcs.Task;
+
+                NetworkInformer.OnLobbyReceive(url, (HttpStatusCode)code, body);
+            }
+
+            if (code != (int)HttpStatusCode.OK)
+            {
+                string msg;
+                try
+                {
+                    msg = Encoding.UTF8.GetString(body);
+                }
+                catch (Exception e)
+                {
+                    msg = "UTF8.GetString: " + e.Message;
+                }
+
+                throw new Exception($"wsnet2 {path} failed: code={code} {msg}");
             }
 
             return MessagePackSerializer.Deserialize<LobbyResponse>(body);

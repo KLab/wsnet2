@@ -1,5 +1,9 @@
 ﻿using UnityEngine;
+using UnityEngine.Networking;
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace WSNet2
 {
@@ -28,6 +32,7 @@ namespace WSNet2
 
         Dictionary<string, WSNet2Client> clients;
         Dictionary<string, WSNet2Client> newClients;
+        Action doOnUpdate;
 
         IWSNet2Logger<WSNet2LogPayload> defaultLogger;
 
@@ -70,6 +75,7 @@ namespace WSNet2
             }
 
             cli = new WSNet2Client(baseUri, appId, userId, authData, logger ?? defaultLogger);
+            cli.HttpPost = httpPost;
 
             // Note: ProcessCallback 内で clients の追加を直接行うと InvalidOperationException が発生する
             newClients[key] = cli;
@@ -83,7 +89,12 @@ namespace WSNet2
             {
                 cli.ProcessCallback();
             }
-            mergeNewClients();
+
+            lock (this)
+            {
+                doOnUpdate?.Invoke();
+                doOnUpdate = null;
+            }
         }
 
         void OnDestroy()
@@ -104,6 +115,46 @@ namespace WSNet2
                 clients[kv.Key] = kv.Value;
             }
             newClients.Clear();
+        }
+
+        void httpPost(string url, IReadOnlyDictionary<string, string> headers, byte[] content, TaskCompletionSource<(int, byte[])> tcs)
+        {
+            lock (this)
+            {
+                doOnUpdate += () => StartCoroutine(doPost(url, headers, content, tcs));
+            }
+        }
+
+        IEnumerator doPost(string url, IReadOnlyDictionary<string, string> headers, byte[] content, TaskCompletionSource<(int, byte[])> tcs)
+        {
+            using var uploadHandler = new UploadHandlerRaw(content);
+            using var downloadHandler = new DownloadHandlerBuffer();
+            using var req = new UnityWebRequest(url, "POST", downloadHandler, uploadHandler);
+
+            foreach (var h in headers)
+            {
+                req.SetRequestHeader(h.Key, h.Value);
+            }
+
+            yield return req.SendWebRequest();
+
+            // 接続できないなどレスポンスを受け取れないケースや中断
+            if (req.responseCode == 0 || !downloadHandler.isDone)
+            {
+                try
+                {
+                    // stack traceを記録するため一回throw
+                    throw new Exception($"http post failed: {req.error} {url}");
+                }
+                catch (Exception e)
+                {
+                    tcs.TrySetException(e);
+                }
+
+                yield break;
+            }
+
+            tcs.TrySetResult(((int)req.responseCode, downloadHandler.data));
         }
     }
 }

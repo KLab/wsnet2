@@ -118,14 +118,10 @@ namespace WSNet2
                     reconnectLimit = null;
                     room.ConnectionStateChanged(true);
 
-                    var tasks = new Task[]
-                    {
-                        Task.Run(async() => await Receiver(ws, cts.Token)),
-                        Task.Run(async() => await await senderTaskSource.Task),
-                        Task.Run(async() => await await pingerTaskSource.Task),
-                    };
-
-                    await tasks[Task.WaitAny(tasks)];
+                    await await Task.WhenAny(
+                        Task.Run(async () => await Receiver(ws, cts.Token)),
+                        Task.Run(async () => await await senderTaskSource.Task),
+                        Task.Run(async () => await await pingerTaskSource.Task));
 
                     // finish task without exception: unreconnectable. don't retry.
                     return;
