@@ -201,9 +201,7 @@ Loop:
 	for {
 		select {
 		case msg := <-h.msgCh:
-			if err := h.dispatchMsg(msg); err != nil {
-				h.logger.Errorf("dispatchMsg %T: %+v", msg, err)
-			}
+			h.dispatchMsg(msg)
 		case ev, ok := <-h.conn.Events():
 			if !ok {
 				h.logger.Debugf("connection events closed")
@@ -241,32 +239,32 @@ func (h *Hub) drainMsg() {
 	}
 }
 
-func (h *Hub) dispatchMsg(msg game.Msg) error {
+func (h *Hub) dispatchMsg(msg game.Msg) {
 	switch m := msg.(type) {
 	case *game.MsgWatch:
-		return h.msgWatch(m)
+		h.msgWatch(m)
 	case *game.MsgLeave:
-		return h.msgLeave(m)
+		h.msgLeave(m)
 	case *game.MsgPing:
-		return h.msgPing(m)
+		h.msgPing(m)
 	case *game.MsgClientError:
-		return h.msgClientError(m)
+		h.msgClientError(m)
 	case *game.MsgClientTimeout:
-		return h.msgClientTimeout(m)
+		h.msgClientTimeout(m)
 
 	// clientから来たメッセージをgameに伝える.
 	case *game.MsgTargets:
 		m.Sender.Logger().Debugf("message to targets: %v, %v", m.Targets, m.Data)
-		return h.proxyMessage(m.RegularMsg)
+		h.proxyMessage(m.RegularMsg)
 	case *game.MsgToMaster:
 		m.Sender.Logger().Debugf("message to master: %v", m.Data)
-		return h.proxyMessage(m.RegularMsg)
+		h.proxyMessage(m.RegularMsg)
 	case *game.MsgBroadcast:
 		m.Sender.Logger().Debugf("message to all: %v", m.Data)
-		return h.proxyMessage(m.RegularMsg)
+		h.proxyMessage(m.RegularMsg)
 
 	default:
-		return xerrors.Errorf("unknown msg type: %T %v", m, m)
+		h.logger.Errorf("unknown msg type: %T %v", m, m)
 	}
 }
 
@@ -284,18 +282,20 @@ func (h *Hub) broadcast(ev *binary.RegularEvent) {
 	}
 }
 
-func (h *Hub) msgWatch(msg *game.MsgWatch) error {
+func (h *Hub) msgWatch(msg *game.MsgWatch) {
 	if !h.room.Watchable {
 		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", h.ID(), msg.Info.Id)
+		h.logger.Info(err.Error())
 		msg.Err <- game.WithCode(err, codes.FailedPrecondition)
-		return err
+		return
 	}
 
 	// Playerとして参加中の観戦は不許可
 	if _, ok := h.room.Players[string(msg.SenderID())]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", h.ID(), msg.SenderID())
+		h.logger.Warn(err.Error())
 		msg.Err <- game.WithCode(err, codes.AlreadyExists)
-		return err
+		return
 	}
 
 	client, err := game.NewWatcher(msg.Info, msg.MACKey, h)
@@ -303,8 +303,9 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		err = game.WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", h.ID(), msg.Info.Id, err),
 			err.Code())
+		h.logger.Warn(err.Error())
 		msg.Err <- err
-		return err
+		return
 	}
 	oldc, rejoin := h.watchers[client.ID()]
 	h.watchers[client.ID()] = client
@@ -348,34 +349,33 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) error {
 		MasterId: game.ClientID(h.room.Master.Id),
 		Deadline: h.Deadline(),
 	}
-	return nil
 }
 
-func (h *Hub) msgLeave(msg *game.MsgLeave) error {
+func (h *Hub) msgLeave(msg *game.MsgLeave) {
 	h.removeWatcher(msg.Sender.ID(), msg.Message)
-	return nil
 }
 
-func (h *Hub) msgPing(msg *game.MsgPing) error {
+func (h *Hub) msgPing(msg *game.MsgPing) {
 	if h.watchers[msg.SenderID()] != msg.Sender {
-		return nil
+		return
 	}
 	msg.Sender.Logger().Debugf("ping %v: %v", msg.Sender.Id, msg.Timestamp)
 	ev := binary.NewEvPong(msg.Timestamp, h.room.Watchers, h.room.LastMsgTimes)
-	return msg.Sender.SendSystemEvent(ev)
+	msg.Sender.SendSystemEvent(ev)
 }
 
-func (h *Hub) msgClientError(msg *game.MsgClientError) error {
+func (h *Hub) msgClientError(msg *game.MsgClientError) {
 	h.removeWatcher(msg.Sender.ID(), msg.ErrMsg)
-	return nil
 }
 
-func (h *Hub) msgClientTimeout(msg *game.MsgClientTimeout) error {
+func (h *Hub) msgClientTimeout(msg *game.MsgClientTimeout) {
 	h.removeWatcher(msg.Sender.ID(), "timeout")
-	return nil
 }
 
 // clientから受け取った RegularMsg を gameサーバーに転送する
-func (h *Hub) proxyMessage(msg binary.RegularMsg) error {
-	return h.conn.Send(msg.Type(), msg.Payload())
+func (h *Hub) proxyMessage(msg binary.RegularMsg) {
+	err := h.conn.Send(msg.Type(), msg.Payload())
+	if err != nil {
+		h.logger.Errorf("send message: %+v", err)
+	}
 }
