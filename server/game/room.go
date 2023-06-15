@@ -341,7 +341,7 @@ func (r *Room) dispatch(msg Msg) {
 func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) {
 	err := c.Send(ev)
 	if err != nil {
-		c.logger.Info(err.Error())
+		c.logger.Infof("sendTo %v: %v", c.Id, err.Error())
 		// players/watchersのループ内で呼ばれているため、removeClientは別goroutineで呼ぶ
 		go func() {
 			r.muClients.Lock()
