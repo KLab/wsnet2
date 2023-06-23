@@ -62,7 +62,7 @@ func (c *gameCache) updateInner() error {
 }
 
 func (c *gameCache) update() error {
-	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
+	if time.Since(c.lastUpdated) > c.expire {
 		return c.updateInner()
 	}
 	return nil

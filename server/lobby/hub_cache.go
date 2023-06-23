@@ -56,7 +56,7 @@ func (c *hubCache) updateInner() error {
 }
 
 func (c *hubCache) update() error {
-	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
+	if time.Since(c.lastUpdated) > c.expire {
 		return c.updateInner()
 	}
 	return nil
