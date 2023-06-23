@@ -27,8 +27,8 @@ type RoomService struct {
 	grpcPool *common.GrpcPool
 
 	roomCache *RoomCache
-	gameCache *GameCache
-	hubCache  *HubCache
+	gameCache *gameCache
+	hubCache  *hubCache
 }
 
 func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
@@ -44,8 +44,8 @@ func NewRoomService(db *sqlx.DB, conf *config.LobbyConf) (*RoomService, error) {
 		apps:      make(map[string]*pb.App),
 		grpcPool:  common.NewGrpcPool(grpc.WithTransportCredentials(insecure.NewCredentials())),
 		roomCache: NewRoomCache(db, time.Millisecond*10),
-		gameCache: NewGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
-		hubCache:  NewHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		gameCache: newGameCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
+		hubCache:  newHubCache(db, time.Second*1, time.Duration(conf.ValidHeartBeat)),
 	}
 	for i, app := range apps {
 		rs.apps[app.Id] = apps[i]
@@ -331,7 +331,7 @@ func (rs *RoomService) watch(ctx context.Context, room *pb.RoomInfo, clientInfo 
 		return nil, xerrors.Errorf("select hub: %w", err)
 	}
 
-	var hub *HubServer
+	var hub *hubServer
 	if len(hubIDs) > 0 {
 		n := rand.Intn(len(hubIDs))
 		hub, err = rs.hubCache.Get(hubIDs[n])

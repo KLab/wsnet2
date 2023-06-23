@@ -11,9 +11,9 @@ import (
 	"wsnet2/log"
 )
 
-type GameServerID uint32
+type gameServerID uint32
 
-type GameServer struct {
+type gameServer struct {
 	Id            uint32
 	Hostname      string
 	PublicName    string `db:"public_name"`
@@ -21,31 +21,31 @@ type GameServer struct {
 	WebSocketPort int    `db:"ws_port"`
 }
 
-type GameCache struct {
+type gameCache struct {
 	sync.Mutex
 	db     *sqlx.DB
 	expire time.Duration
 	valid  time.Duration
 
-	servers     map[GameServerID]*GameServer
-	order       []GameServerID
+	servers     map[gameServerID]*gameServer
+	order       []gameServerID
 	lastUpdated time.Time
 }
 
-func NewGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *GameCache {
-	return &GameCache{
+func newGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *gameCache {
+	return &gameCache{
 		db:      db,
 		expire:  expire,
 		valid:   valid,
-		servers: make(map[GameServerID]*GameServer),
-		order:   []GameServerID{},
+		servers: make(map[gameServerID]*gameServer),
+		order:   []gameServerID{},
 	}
 }
 
-func (c *GameCache) updateInner() error {
+func (c *gameCache) updateInner() error {
 	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
 
-	var servers []GameServer
+	var servers []gameServer
 	err := c.db.Select(&servers, query, time.Now().Add(-c.valid).Unix())
 	if err != nil {
 		return err
@@ -53,24 +53,24 @@ func (c *GameCache) updateInner() error {
 
 	log.Debugf("Now alive game servers: %+v", servers)
 
-	c.servers = make(map[GameServerID]*GameServer, len(servers))
-	c.order = make([]GameServerID, len(servers))
+	c.servers = make(map[gameServerID]*gameServer, len(servers))
+	c.order = make([]gameServerID, len(servers))
 	for i, s := range servers {
-		c.servers[GameServerID(s.Id)] = &servers[i]
-		c.order[i] = GameServerID(s.Id)
+		c.servers[gameServerID(s.Id)] = &servers[i]
+		c.order[i] = gameServerID(s.Id)
 	}
 	c.lastUpdated = time.Now()
 	return nil
 }
 
-func (c *GameCache) update() error {
+func (c *gameCache) update() error {
 	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
 		return c.updateInner()
 	}
 	return nil
 }
 
-func (c *GameCache) Get(id uint32) (*GameServer, error) {
+func (c *gameCache) Get(id uint32) (*gameServer, error) {
 	c.Lock()
 	defer c.Unlock()
 	if err := c.update(); err != nil {
@@ -80,14 +80,14 @@ func (c *GameCache) Get(id uint32) (*GameServer, error) {
 	if len(c.servers) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
-	game := c.servers[GameServerID(id)]
+	game := c.servers[gameServerID(id)]
 	if game == nil {
 		return nil, xerrors.Errorf("game server not found (id=%v)", id)
 	}
 	return game, nil
 }
 
-func (c *GameCache) Rand() (*GameServer, error) {
+func (c *gameCache) Rand() (*gameServer, error) {
 	c.Lock()
 	defer c.Unlock()
 	if err := c.update(); err != nil {
@@ -101,14 +101,14 @@ func (c *GameCache) Rand() (*GameServer, error) {
 	return c.servers[id], nil
 }
 
-func (c *GameCache) All() ([]*GameServer, error) {
+func (c *gameCache) All() ([]*gameServer, error) {
 	c.Lock()
 	defer c.Unlock()
 	if err := c.update(); err != nil {
 		return nil, err
 	}
 
-	res := make([]*GameServer, 0, len(c.servers))
+	res := make([]*gameServer, 0, len(c.servers))
 	for _, gs := range c.servers {
 		res = append(res, gs)
 	}
