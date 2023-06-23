@@ -35,7 +35,7 @@ func NewHubCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *HubCac
 	}
 }
 
-func (c *HubCache) update() error {
+func (c *HubCache) updateInner() error {
 	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM hub_server WHERE status=1 AND heartbeat >= ?"
 
 	var servers []HubServer
@@ -56,15 +56,20 @@ func (c *HubCache) update() error {
 	return nil
 }
 
+func (c *HubCache) update() error {
+	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
+		return c.updateInner()
+	}
+	return nil
+}
+
 func (c *HubCache) Get(id uint32) (*HubServer, error) {
 	c.Lock()
 	defer c.Unlock()
-	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
-		err := c.update()
-		if err != nil {
-			return nil, err
-		}
+	if err := c.update(); err != nil {
+		return nil, err
 	}
+
 	if len(c.servers) == 0 {
 		return nil, xerrors.New("no available hub server")
 	}
@@ -78,12 +83,10 @@ func (c *HubCache) Get(id uint32) (*HubServer, error) {
 func (c *HubCache) Rand() (*HubServer, error) {
 	c.Lock()
 	defer c.Unlock()
-	if c.lastUpdated.Add(c.expire).Before(time.Now()) {
-		err := c.update()
-		if err != nil {
-			return nil, err
-		}
+	if err := c.update(); err != nil {
+		return nil, err
 	}
+
 	if len(c.order) == 0 {
 		return nil, xerrors.New("no available hub server")
 	}
