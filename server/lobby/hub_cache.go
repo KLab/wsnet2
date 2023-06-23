@@ -11,7 +11,6 @@ import (
 	"wsnet2/log"
 )
 
-type hubServerID gameServerID
 type hubServer gameServer
 
 type hubCache struct {
@@ -20,8 +19,8 @@ type hubCache struct {
 	expire time.Duration
 	valid  time.Duration
 
-	servers     map[hubServerID]*hubServer
-	order       []hubServerID
+	servers     map[uint32]*hubServer
+	order       []uint32
 	lastUpdated time.Time
 }
 
@@ -30,8 +29,8 @@ func newHubCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *hubCac
 		db:      db,
 		expire:  expire,
 		valid:   valid,
-		servers: make(map[hubServerID]*hubServer),
-		order:   []hubServerID{},
+		servers: make(map[uint32]*hubServer),
+		order:   []uint32{},
 	}
 }
 
@@ -46,11 +45,11 @@ func (c *hubCache) updateInner() error {
 
 	log.Debugf("Now alive hub servers: %+v", servers)
 
-	c.servers = make(map[hubServerID]*hubServer, len(servers))
-	c.order = make([]hubServerID, len(servers))
+	c.servers = make(map[uint32]*hubServer, len(servers))
+	c.order = make([]uint32, len(servers))
 	for i, s := range servers {
-		c.servers[hubServerID(s.Id)] = &servers[i]
-		c.order[i] = hubServerID(s.Id)
+		c.servers[uint32(s.Id)] = &servers[i]
+		c.order[i] = uint32(s.Id)
 	}
 	c.lastUpdated = time.Now()
 	return nil
@@ -73,7 +72,7 @@ func (c *hubCache) Get(id uint32) (*hubServer, error) {
 	if len(c.servers) == 0 {
 		return nil, xerrors.New("no available hub server")
 	}
-	hub := c.servers[hubServerID(id)]
+	hub := c.servers[id]
 	if hub == nil {
 		return nil, xerrors.Errorf("hub server not found (id=%v)", id)
 	}

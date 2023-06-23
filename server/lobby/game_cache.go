@@ -11,8 +11,6 @@ import (
 	"wsnet2/log"
 )
 
-type gameServerID uint32
-
 type gameServer struct {
 	Id            uint32
 	Hostname      string
@@ -27,8 +25,8 @@ type gameCache struct {
 	expire time.Duration
 	valid  time.Duration
 
-	servers     map[gameServerID]*gameServer
-	order       []gameServerID
+	servers     map[uint32]*gameServer
+	order       []uint32
 	lastUpdated time.Time
 }
 
@@ -37,8 +35,8 @@ func newGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *gameC
 		db:      db,
 		expire:  expire,
 		valid:   valid,
-		servers: make(map[gameServerID]*gameServer),
-		order:   []gameServerID{},
+		servers: make(map[uint32]*gameServer),
+		order:   []uint32{},
 	}
 }
 
@@ -53,11 +51,11 @@ func (c *gameCache) updateInner() error {
 
 	log.Debugf("Now alive game servers: %+v", servers)
 
-	c.servers = make(map[gameServerID]*gameServer, len(servers))
-	c.order = make([]gameServerID, len(servers))
+	c.servers = make(map[uint32]*gameServer, len(servers))
+	c.order = make([]uint32, len(servers))
 	for i, s := range servers {
-		c.servers[gameServerID(s.Id)] = &servers[i]
-		c.order[i] = gameServerID(s.Id)
+		c.servers[uint32(s.Id)] = &servers[i]
+		c.order[i] = uint32(s.Id)
 	}
 	c.lastUpdated = time.Now()
 	return nil
@@ -80,7 +78,7 @@ func (c *gameCache) Get(id uint32) (*gameServer, error) {
 	if len(c.servers) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
-	game := c.servers[gameServerID(id)]
+	game := c.servers[id]
 	if game == nil {
 		return nil, xerrors.Errorf("game server not found (id=%v)", id)
 	}
