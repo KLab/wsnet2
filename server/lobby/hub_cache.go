@@ -11,7 +11,7 @@ import (
 	"wsnet2/log"
 )
 
-type hubServer gameServer
+type hubServer hostInfo
 
 type hubCache struct {
 	sync.Mutex
@@ -40,7 +40,7 @@ func (c *hubCache) updateInner() error {
 	var servers []hubServer
 	err := c.db.Select(&servers, query, time.Now().Add(-c.valid).Unix())
 	if err != nil {
-		return err
+		return xerrors.Errorf("selecting hub servers: %w", err)
 	}
 
 	log.Debugf("Now alive hub servers: %+v", servers)
@@ -48,8 +48,8 @@ func (c *hubCache) updateInner() error {
 	c.servers = make(map[uint32]*hubServer, len(servers))
 	c.order = make([]uint32, len(servers))
 	for i, s := range servers {
-		c.servers[uint32(s.Id)] = &servers[i]
-		c.order[i] = uint32(s.Id)
+		c.servers[s.Id] = &servers[i]
+		c.order[i] = s.Id
 	}
 	c.lastUpdated = time.Now()
 	return nil
