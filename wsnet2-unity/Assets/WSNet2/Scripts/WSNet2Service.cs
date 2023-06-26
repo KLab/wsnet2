@@ -33,6 +33,7 @@ namespace WSNet2
         Dictionary<string, WSNet2Client> clients;
         Dictionary<string, WSNet2Client> newClients;
         Action doOnUpdate;
+        Object doOnUpdateLock;
 
         IWSNet2Logger<WSNet2LogPayload> defaultLogger;
 
@@ -42,6 +43,7 @@ namespace WSNet2
             newClients = new Dictionary<string, WSNet2Client>();
             DontDestroyOnLoad(this.gameObject);
             defaultLogger = new DefaultUnityLogger();
+            doOnUpdateLock = new Object();
         }
 
         /// <summary>
@@ -90,7 +92,7 @@ namespace WSNet2
                 cli.ProcessCallback();
             }
 
-            lock (this)
+            lock (doOnUpdateLock)
             {
                 doOnUpdate?.Invoke();
                 doOnUpdate = null;
@@ -119,7 +121,7 @@ namespace WSNet2
 
         void httpPost(string url, IReadOnlyDictionary<string, string> headers, byte[] content, TaskCompletionSource<(int, byte[])> tcs)
         {
-            lock (this)
+            lock (doOnUpdateLock)
             {
                 doOnUpdate += () => StartCoroutine(doPost(url, headers, content, tcs));
             }
