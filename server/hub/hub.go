@@ -176,7 +176,7 @@ func (h *Hub) nodeCountUpdater() {
 
 		h.repo.updateHubWatchers(h, int(count))
 		if err := h.conn.SendSystemMsg(binary.NewMsgNodeCount(count)); err != nil {
-			h.logger.Errorf("send nodecount: %+v", err)
+			h.logger.Infof("send nodecount: %v", err)
 
 			// retry after interval
 			select {
