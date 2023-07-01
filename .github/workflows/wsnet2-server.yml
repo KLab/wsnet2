@@ -10,6 +10,19 @@ on:
 jobs:
   unit-test:
     runs-on: "ubuntu-latest"
+
+    services:
+      # docker run -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -p 3306:3306 --rm --name mysql mysql:8.0
+      mysql:
+        image: "mysql:8.0"
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+        options: "--name=mysqld"
+        volumes:
+          - /run/mysqld:/run/mysqld
+
     defaults:
       run:
         working-directory: server
@@ -30,6 +43,8 @@ jobs:
         run: make all
 
       - name: Run go test
+        env:
+          WSNET2_FORCE_DB_TEST: 1
         run: go test ./...
 
       - uses: reviewdog/action-setup@v1
