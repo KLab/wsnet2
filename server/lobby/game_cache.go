@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 
-	"wsnet2/game/service"
+	"wsnet2/common"
 	"wsnet2/log"
 )
 
@@ -48,9 +48,8 @@ func newGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *gameC
 
 func (c *gameCache) updateInner() error {
 	// 再入室のために、graceful shutdown中のサーバー(status == closing == 2)の情報も取得する.
-	// HostStatusRunning  = 1
-	// HostStatusClosing  = 2
-	query := "SELECT id, hostname, public_name, grpc_port, ws_port, status FROM game_server WHERE status IN (1, 2) AND heartbeat >= ?"
+	query := ("SELECT id, hostname, public_name, grpc_port, ws_port, status\n" +
+		"FROM game_server WHERE status IN (1, 2) AND heartbeat >= ?")
 
 	var servers []gameServer
 	err := c.db.Select(&servers, query, time.Now().Add(-c.valid).Unix())
@@ -67,7 +66,7 @@ func (c *gameCache) updateInner() error {
 		c.servers[s.Id] = s
 		// Rand() がgraceful shutdown中のサーバーを返さないために、
 		// status=running のサーバーのみ order に追加する.
-		if s.Status == service.HostStatusRunning {
+		if s.Status == common.HostStatusRunning {
 			c.order = append(c.order, s.Id)
 		}
 	}
