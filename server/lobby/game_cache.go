@@ -47,7 +47,7 @@ func newGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *gameC
 }
 
 func (c *gameCache) updateInner() error {
-	// 再接続のために、graceful shutdown中のサーバー(status == closing == 2)の情報も取得する.
+	// 再入室のために、graceful shutdown中のサーバー(status == closing == 2)の情報も取得する.
 	// HostStatusRunning  = 1
 	// HostStatusClosing  = 2
 	query := "SELECT id, hostname, public_name, grpc_port, ws_port, status FROM game_server WHERE status IN (1, 2) AND heartbeat >= ?"
