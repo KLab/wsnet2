@@ -73,7 +73,8 @@ CREATE TABLE player_log (
   `player_id` VARCHAR(32) NOT NULL,
   `message`   VARCHAR(32) NOT NULL,
   `datetime`  DATETIME,
-  KEY `room_id` (`room_id`)
+  KEY `room_id` (`room_id`),
+  KEY `player_id` (`player_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DROP TABLE IF EXISTS `hub`;
