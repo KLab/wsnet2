@@ -8,15 +8,21 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 
+	"wsnet2/common"
 	"wsnet2/log"
 )
 
-type gameServer struct {
+type hostInfo struct {
 	Id            uint32
 	Hostname      string
 	PublicName    string `db:"public_name"`
 	GRPCPort      int    `db:"grpc_port"`
 	WebSocketPort int    `db:"ws_port"`
+}
+
+type gameServer struct {
+	hostInfo
+	Status int32
 }
 
 type gameCache struct {
@@ -41,21 +47,28 @@ func newGameCache(db *sqlx.DB, expire time.Duration, valid time.Duration) *gameC
 }
 
 func (c *gameCache) updateInner() error {
-	query := "SELECT id, hostname, public_name, grpc_port, ws_port FROM game_server WHERE status=1 AND heartbeat >= ?"
+	// 再入室のために、graceful shutdown中のサーバー(status == closing == 2)の情報も取得する.
+	query := ("SELECT id, hostname, public_name, grpc_port, ws_port, status\n" +
+		"FROM game_server WHERE status IN (1, 2) AND heartbeat >= ?")
 
 	var servers []gameServer
 	err := c.db.Select(&servers, query, time.Now().Add(-c.valid).Unix())
 	if err != nil {
-		return err
+		return xerrors.Errorf("selecting game servers: %w", err)
 	}
 
 	log.Debugf("Now alive game servers: %+v", servers)
 
 	c.servers = make(map[uint32]*gameServer, len(servers))
-	c.order = make([]uint32, len(servers))
-	for i, s := range servers {
-		c.servers[uint32(s.Id)] = &servers[i]
-		c.order[i] = uint32(s.Id)
+	c.order = make([]uint32, 0, len(servers))
+	for i := range servers {
+		s := &servers[i]
+		c.servers[s.Id] = s
+		// Rand() がgraceful shutdown中のサーバーを返さないために、
+		// status=running のサーバーのみ order に追加する.
+		if s.Status == common.HostStatusRunning {
+			c.order = append(c.order, s.Id)
+		}
 	}
 	c.lastUpdated = time.Now()
 	return nil

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/game"
 	"wsnet2/log"
@@ -19,10 +20,6 @@ const (
 		"ON DUPLICATE KEY UPDATE `public_name`=:public_name, `grpc_port`=:grpc_port, `ws_port`=:ws_port, `status`=:status, id=last_insert_id(id)"
 	heartbeatQuery = "" +
 		"UPDATE `game_server` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
-
-	HostStatusStarting = 0
-	HostStatusRunning  = 1
-	HostStatusClosing  = 2
 )
 
 type GameService struct {
@@ -84,7 +81,7 @@ func registerHost(db *sqlx.DB, conf *config.GameConf) (int64, error) {
 		"public_name": conf.PublicName,
 		"grpc_port":   conf.GRPCPort,
 		"ws_port":     conf.WebsocketPort,
-		"status":      HostStatusRunning,
+		"status":      common.HostStatusRunning,
 	}
 	res, err := sqlx.NamedExec(db, registerQuery, bind)
 	if err != nil {
@@ -122,7 +119,7 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 		t := time.NewTicker(time.Duration(s.conf.HeartBeatInterval))
 		bind := map[string]interface{}{
 			"hostid": s.HostId,
-			"status": HostStatusRunning,
+			"status": common.HostStatusRunning,
 		}
 		for {
 			select {
@@ -134,7 +131,7 @@ func (s *GameService) heartbeat(ctx context.Context) <-chan error {
 			bind["now"] = time.Now().Unix()
 
 			if s.shutdownRequested() {
-				bind["status"] = HostStatusClosing
+				bind["status"] = common.HostStatusClosing
 				log.Infof("the host is shutting down and waiting for %v rooms to be closed", s.numRooms())
 			}
 
@@ -162,7 +159,7 @@ func (s *GameService) Shutdown(ctx context.Context) {
 	bind := map[string]interface{}{
 		"now":    time.Now().Unix(),
 		"hostid": s.HostId,
-		"status": HostStatusClosing,
+		"status": common.HostStatusClosing,
 	}
 	if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 		s.done <- err
