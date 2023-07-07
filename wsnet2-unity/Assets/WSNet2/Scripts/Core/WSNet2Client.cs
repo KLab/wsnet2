@@ -213,6 +213,12 @@ namespace WSNet2
         {
             logger?.Debug("WSNet2Client.Join(number={0})", number);
 
+            if (number == 0)
+            {
+                callbackPool.Add(() => onFailed(new Exception("Room number cannot be 0")));
+                return;
+            }
+
             var authData = this.authData;
             var param = new JoinParam()
             {
@@ -301,6 +307,12 @@ namespace WSNet2
             IWSNet2Logger<WSNet2LogPayload> roomLogger)
         {
             logger?.Debug("WSNet2Client.Watch(number={0})", number);
+
+            if (number == 0)
+            {
+                callbackPool.Add(() => onFailed(new Exception("Room number cannot be 0")));
+                return;
+            }
 
             var authData = this.authData;
             var param = new JoinParam()
