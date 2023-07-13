@@ -33,7 +33,7 @@ namespace WSNet2
         Dictionary<string, WSNet2Client> clients;
         Dictionary<string, WSNet2Client> newClients;
         Action doOnUpdate;
-        Object doOnUpdateLock;
+        object doOnUpdateLock;
 
         IWSNet2Logger<WSNet2LogPayload> defaultLogger;
 
@@ -43,7 +43,7 @@ namespace WSNet2
             newClients = new Dictionary<string, WSNet2Client>();
             DontDestroyOnLoad(this.gameObject);
             defaultLogger = new DefaultUnityLogger();
-            doOnUpdateLock = new Object();
+            doOnUpdateLock = new object();
         }
 
         /// <summary>
