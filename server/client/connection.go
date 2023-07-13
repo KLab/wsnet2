@@ -228,7 +228,7 @@ func (conn *Connection) connect(ctx context.Context, warn func(error)) (string, 
 			return err.(*websocket.CloseError).Text, nil
 		}
 		if ue := unrecoverable(nil); errors.As(err, &ue) {
-			return "give up reconnecting", ue.Unwrap()
+			return "give up on reconnection", ue.Unwrap()
 		}
 
 		warn(err)
