@@ -126,21 +126,6 @@ namespace WSNet2
                     // finish task without exception: unreconnectable. don't retry.
                     return;
                 }
-                catch (WebSocketException e)
-                {
-                    logger?.Error(e, "websocket exception: {0}", e);
-                    switch (e.WebSocketErrorCode)
-                    {
-                        case WebSocketError.NotAWebSocket:
-                        case WebSocketError.UnsupportedProtocol:
-                        case WebSocketError.UnsupportedVersion:
-                            // unnable to connect. don't retry.
-                            throw;
-                    }
-
-                    // retry on other error.
-                    lastException = e;
-                }
                 catch (Exception e)
                 {
                     logger?.Error(e, "connection exception: {0}", e);
@@ -165,7 +150,7 @@ namespace WSNet2
 
                 if (DateTime.Now > reconnectLimit)
                 {
-                    throw new Exception($"MaxReconnection: {lastException.Message}", lastException);
+                    throw new Exception($"Gave up on Reconnection: {lastException.Message}", lastException);
                 }
 
                 room.handleError(lastException);
