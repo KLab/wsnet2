@@ -100,21 +100,21 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
 		logger.Infof("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
-		http.Error(w, "Bad Request", 400)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	repo, ok := s.repos[appId]
 	if !ok {
 		logger.Infof("websocket: invalid appId: %v", appId)
-		http.Error(w, "Bad Request", 400)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {
-		logger.Infof("websocket: repo.GetClient: %+v", err)
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: repo.GetClient: %v", err)
+		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
 	logger.Infof("websocket: room=%v client=%v", roomId, clientId)
