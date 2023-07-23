@@ -100,14 +100,14 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
 		logger.Infof("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
-		http.Error(w, "Bad Request", 400)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	cli, err := s.repo.GetClient(roomId, clientId)
 	if err != nil {
-		logger.Infof("websocket: repo.GetClient: %+v", err)
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: repo.GetClient: %v", err)
+		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
 	logger.Infof("websocket: room=%v client=%v", roomId, clientId)
@@ -131,14 +131,14 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		logger.Errorf("websocket: upgrade: %+v\nrequest: %v", err, string(breq))
 		return
 	}
+	metrics.Conns.Add(1)
+	defer metrics.Conns.Add(-1)
 
 	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
 	if err != nil {
-		logger.Errorf("websocket: new peer: %+v", err)
+		logger.Warnf("websocket: new peer: %+v", err)
 		return
 	}
-	metrics.Conns.Add(1)
 	<-peer.Done()
-	metrics.Conns.Add(-1)
 	logger.Debugf("websocket: finish: room=%v client=%v peer=%p", roomId, clientId, peer)
 }
