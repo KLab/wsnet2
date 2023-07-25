@@ -98,8 +98,8 @@ func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) {
 		p.client.logger.Warnf("peer send %v (%v, peer=%p): %+v", ev.Type(), p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
-		p.conn.Close()
 		p.closed = true
+		p.conn.Close()
 	}
 }
 
@@ -120,8 +120,8 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseGoingAway, err.Error()))
-		p.conn.Close()
 		p.closed = true
+		p.conn.Close()
 		return err
 	}
 
@@ -135,8 +135,8 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 			p.client.logger.Warnf("peer send %v (%v, %p): %+v", ev.Type(), p.client.Id, p, err)
 			writeMessage(p.conn, websocket.CloseMessage,
 				formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
-			p.conn.Close()
 			p.closed = true
+			p.conn.Close()
 			return nil
 		}
 	}
@@ -172,8 +172,8 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 		return
 	}
 	writeMessage(p.conn, websocket.CloseMessage, formatCloseMessage(code, msg))
-	p.conn.Close()
 	p.closed = true
+	p.conn.Close()
 }
 
 func (p *Peer) MsgLoop(ctx context.Context) {
@@ -181,12 +181,14 @@ loop:
 	for {
 		_, data, err := p.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
+			if p.closed {
+				// do nothing
+			} else if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
 				p.client.logger.Infof("peer closed (%v, %p): %+v", p.client.Id, p, err)
 			} else if websocket.IsUnexpectedCloseError(err) {
 				p.client.logger.Errorf("peer close error (%v, %p): %+v", p.client.Id, p, err)
 			} else {
-				p.client.logger.Warnf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
+				p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 				if !errors.Is(err, net.ErrClosed) {
 					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 				}
