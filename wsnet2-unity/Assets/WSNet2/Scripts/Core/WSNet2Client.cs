@@ -215,7 +215,7 @@ namespace WSNet2
 
             if (number == 0)
             {
-                callbackPool.Add(() => onFailed(new Exception("Room number cannot be 0")));
+                callbackPool.Add(() => onFailed(new RoomNotFoundException("Room number cannot be 0")));
                 return;
             }
 
@@ -310,7 +310,7 @@ namespace WSNet2
 
             if (number == 0)
             {
-                callbackPool.Add(() => onFailed(new Exception("Room number cannot be 0")));
+                callbackPool.Add(() => onFailed(new RoomNotFoundException("Room number cannot be 0")));
                 return;
             }
 
