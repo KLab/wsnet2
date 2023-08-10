@@ -117,7 +117,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
-	logger.Infof("websocket: room=%v client=%v", roomId, clientId)
+	logger.Infof("websocket: room=%v client=%v lastEv=%v", roomId, clientId, lastEvSeq)
 
 	var authData string
 	if ad := r.Header.Get("Authorization"); strings.HasPrefix(ad, "Bearer ") {
