@@ -280,7 +280,7 @@ namespace WSNet2
 
                     if (ret.MessageType == WebSocketMessageType.Close)
                     {
-                        await SendClose(ws, ret.CloseStatus.Value, ret.CloseStatusDescription, ct);
+                        await SendClose(ws, ret.CloseStatusDescription, ct);
 
                         switch (ret.CloseStatus)
                         {
@@ -402,14 +402,14 @@ namespace WSNet2
             }
         }
 
-        private async Task SendClose(ClientWebSocket ws, WebSocketCloseStatus st, string msg, CancellationToken ct)
+        private async Task SendClose(ClientWebSocket ws, string msg, CancellationToken ct)
         {
             await sendSemaphore.WaitAsync(ct);
             try
             {
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(SendCloseTimeout);
-                await ws.CloseAsync(st, msg, cts.Token);
+                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
             }
             finally
             {

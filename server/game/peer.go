@@ -160,18 +160,22 @@ func (p *Peer) CloseWithClientError(err error) {
 	p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 }
 
+// closeWithMessage : CloseMessageを送信して一定時間後にWebsocketを閉じる
+// 内部で p.muWrite をロックする
 func (p *Peer) closeWithMessage(code int, msg string) {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	p.sendCloseAndCloseConn(code, msg)
 }
 
+// sendCloseAndCloseconn : CloseMessageを送信して一定時間後にWebsocketを閉じる
+// 呼び出す前に p.muWrite をロックすること
 func (p *Peer) sendCloseAndCloseConn(code int, msg string) {
 	if p.closed {
 		return
 	}
-	writeMessage(p.conn, websocket.CloseMessage, formatCloseMessage(code, msg))
 	p.closed = true
+	writeMessage(p.conn, websocket.CloseMessage, formatCloseMessage(code, msg))
 	go func() {
 		// wait close message from client
 		time.Sleep(waitCloseTimeout)
@@ -184,19 +188,29 @@ loop:
 	for {
 		_, data, err := p.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				p.client.logger.Infof("peer closed (%v, %p): %v", p.client.Id, p, err)
-			} else if p.closed {
-				// do nothing
-			} else if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
-				p.client.logger.Warnf("peer close error (%v, %p) %v", p.client.Id, p, err)
-			} else if websocket.IsUnexpectedCloseError(err) {
-				p.client.logger.Errorf("peer close error (%v, %p): %+v", p.client.Id, p, err)
-			} else {
-				p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
-				if !errors.Is(err, net.ErrClosed) {
-					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
+			if !p.closed {
+				if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
+					// CloseMessage送信前のTCPソケットcloseもAbnorormalClosureになる
+					// iOSでバックグラウンドにしたりアプリkillでも起こるのでErrorにはしない
+					p.client.logger.Warnf("peer close error (%v, %p): %v", p.client.Id, p, err)
+					p.closeWithMessage(websocket.CloseUnsupportedData, "unexpected close message")
+				} else if websocket.IsUnexpectedCloseError(err) {
+					// その他のCloseMessageはErrorとして報告
+					p.client.logger.Errorf("peer close error (%v, %p): %v", p.client.Id, p, err)
+					p.closeWithMessage(websocket.CloseUnsupportedData, "unexpected close message")
+				} else {
+					p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
+					if !errors.Is(err, net.ErrClosed) {
+						// 切断していないならclose messageを送ってから切断
+						p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
+					}
 				}
+			} else if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				// clientから送るのはNormalClosureのみなのでそれ以外は警告（切断後なのでErrorにはしなくていい）
+				p.client.logger.Warnf("peer read error (%v, %p): %T %v", p.client.Id, p, err, err)
+			} else {
+				// 正常切断
+				p.client.logger.Infof("peer closed (%v, %p): %v", p.client.Id, p, err)
 			}
 			break loop
 		}
