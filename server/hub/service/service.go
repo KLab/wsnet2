@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/hub"
 	"wsnet2/log"
@@ -19,10 +20,6 @@ const (
 		"ON DUPLICATE KEY UPDATE `public_name`=:public_name, `grpc_port`=:grpc_port, `ws_port`=:ws_port, `status`=:status, id=last_insert_id(id)"
 	heartbeatQuery = "" +
 		"UPDATE `hub_server` SET `status`=:status, heartbeat=:now WHERE `id`=:hostid"
-
-	HostStatusStarting = 0
-	HostStatusRunning  = 1
-	HostStatusClosing  = 2
 )
 
 type HubService struct {
@@ -70,7 +67,7 @@ func registerHost(db *sqlx.DB, conf *config.HubConf) (int64, error) {
 		"public_name": conf.PublicName,
 		"grpc_port":   conf.GRPCPort,
 		"ws_port":     conf.WebsocketPort,
-		"status":      HostStatusRunning,
+		"status":      common.HostStatusRunning,
 	}
 	res, err := sqlx.NamedExec(db, registerQuery, bind)
 	if err != nil {
@@ -124,7 +121,7 @@ func (s *HubService) heartbeat(ctx context.Context) <-chan error {
 		t := time.NewTicker(time.Duration(s.conf.HeartBeatInterval))
 		bind := map[string]interface{}{
 			"hostid": s.HostId,
-			"status": HostStatusRunning,
+			"status": common.HostStatusRunning,
 		}
 		for {
 			select {
@@ -135,7 +132,7 @@ func (s *HubService) heartbeat(ctx context.Context) <-chan error {
 
 			bind["now"] = time.Now().Unix()
 			if s.shutdownRequested() {
-				bind["status"] = HostStatusClosing
+				bind["status"] = common.HostStatusClosing
 			}
 			if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 				errCh <- err
@@ -161,7 +158,7 @@ func (s *HubService) Shutdown(ctx context.Context) {
 	bind := map[string]interface{}{
 		"now":    time.Now().Unix(),
 		"hostid": s.HostId,
-		"status": HostStatusClosing,
+		"status": common.HostStatusClosing,
 	}
 	if _, err := sqlx.NamedExec(s.db, heartbeatQuery, bind); err != nil {
 		s.done <- err

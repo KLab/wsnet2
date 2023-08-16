@@ -118,32 +118,13 @@ namespace WSNet2
                     reconnectLimit = null;
                     room.ConnectionStateChanged(true);
 
-                    var tasks = new Task[]
-                    {
-                        Task.Run(async() => await Receiver(ws, cts.Token)),
-                        Task.Run(async() => await await senderTaskSource.Task),
-                        Task.Run(async() => await await pingerTaskSource.Task),
-                    };
-
-                    await tasks[Task.WaitAny(tasks)];
+                    await await Task.WhenAny(
+                        Task.Run(async () => await Receiver(ws, cts.Token)),
+                        Task.Run(async () => await await senderTaskSource.Task),
+                        Task.Run(async () => await await pingerTaskSource.Task));
 
                     // finish task without exception: unreconnectable. don't retry.
                     return;
-                }
-                catch (WebSocketException e)
-                {
-                    logger?.Error(e, "websocket exception: {0}", e);
-                    switch (e.WebSocketErrorCode)
-                    {
-                        case WebSocketError.NotAWebSocket:
-                        case WebSocketError.UnsupportedProtocol:
-                        case WebSocketError.UnsupportedVersion:
-                            // unnable to connect. don't retry.
-                            throw;
-                    }
-
-                    // retry on other error.
-                    lastException = e;
                 }
                 catch (Exception e)
                 {
@@ -169,7 +150,7 @@ namespace WSNet2
 
                 if (DateTime.Now > reconnectLimit)
                 {
-                    throw new Exception($"MaxReconnection: {lastException.Message}", lastException);
+                    throw new Exception($"Gave up on Reconnection: {lastException.Message}", lastException);
                 }
 
                 room.handleError(lastException);

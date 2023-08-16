@@ -52,7 +52,7 @@ func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq i
 	err := cli.AttachPeer(p, lastEvSeq)
 	if err != nil {
 		p.closeWithMessage(websocket.CloseGoingAway, err.Error())
-		return nil, err
+		return nil, xerrors.Errorf("AttachPeer (%v, peer=%p): %w", cli.Id, p, err)
 	}
 	go p.MsgLoop(ctx)
 	return p, nil
@@ -78,29 +78,29 @@ func (p *Peer) SendReady(lastMsgSeq int) error {
 	if p.closed {
 		return xerrors.New("peer closed")
 	}
-	p.client.logger.Infof("peer ready: %v lastMsg=%v peer=%p", p.client.Id, lastMsgSeq, p)
+	p.client.logger.Infof("peer ready (%v, peer=%p): lastMsg=%v", p.client.Id, p, lastMsgSeq)
 	ev := binary.NewEvPeerReady(lastMsgSeq)
 	return writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 }
 
 // SendSystemEvent : SystemEventを送信する.
 // 送信失敗時はPeerを閉じて再接続できるようにする.
-func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) error {
+// 個別のgoroutineで呼ばれるのでerrorは返さない. see: (*Client).SendSystemEvent()
+func (p *Peer) SendSystemEvent(ev *binary.SystemEvent) {
 	p.muWrite.Lock()
 	defer p.muWrite.Unlock()
 	if p.closed {
-		return nil
+		return
 	}
 	metrics.MessageSent.Add(1)
 	err := writeMessage(p.conn, websocket.BinaryMessage, ev.Marshal())
 	if err != nil {
-		p.client.logger.Errorf("peer SendSystemEvent write (%v, %p): %+v", p.client.Id, p, err)
+		p.client.logger.Warnf("peer send %v (%v, peer=%p): %+v", ev.Type(), p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
-		p.conn.Close()
 		p.closed = true
+		p.conn.Close()
 	}
-	return err
 }
 
 // SendEvents : evbufに蓄積されてるイベントを送信
@@ -116,11 +116,12 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 	evs, err := evbuf.Read(p.evSeqNum)
 	if err != nil {
 		// evSeqNumが古すぎるため. 復帰不能.
+		// 頻発するようならevbufのサイズ(ClientConf.EventBufSize)を拡張したほうがよいかも
 		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
 		writeMessage(p.conn, websocket.CloseMessage,
 			formatCloseMessage(websocket.CloseGoingAway, err.Error()))
-		p.conn.Close()
 		p.closed = true
+		p.conn.Close()
 		return err
 	}
 
@@ -131,11 +132,11 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 		err := writeMessage(p.conn, websocket.BinaryMessage, buf)
 		if err != nil {
 			// 新しいpeerで復帰できるかもしれない
-			p.client.logger.Errorf("peer WriteMessage (%v, %p): %+v", p.client.Id, p, err)
+			p.client.logger.Warnf("peer send %v (%v, %p): %+v", ev.Type(), p.client.Id, p, err)
 			writeMessage(p.conn, websocket.CloseMessage,
 				formatCloseMessage(websocket.CloseInternalServerErr, err.Error()))
-			p.conn.Close()
 			p.closed = true
+			p.conn.Close()
 			return nil
 		}
 	}
@@ -171,8 +172,8 @@ func (p *Peer) closeWithMessage(code int, msg string) {
 		return
 	}
 	writeMessage(p.conn, websocket.CloseMessage, formatCloseMessage(code, msg))
-	p.conn.Close()
 	p.closed = true
+	p.conn.Close()
 }
 
 func (p *Peer) MsgLoop(ctx context.Context) {
@@ -180,13 +181,15 @@ loop:
 	for {
 		_, data, err := p.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
+			if p.closed {
+				// do nothing
+			} else if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseAbnormalClosure, websocket.CloseGoingAway) {
 				p.client.logger.Infof("peer closed (%v, %p): %+v", p.client.Id, p, err)
 			} else if websocket.IsUnexpectedCloseError(err) {
 				p.client.logger.Errorf("peer close error (%v, %p): %+v", p.client.Id, p, err)
 			} else {
+				p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 				if !errors.Is(err, net.ErrClosed) {
-					p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
 					p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
 				}
 			}

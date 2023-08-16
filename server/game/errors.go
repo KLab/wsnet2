@@ -22,18 +22,18 @@ func WithCode(err error, code codes.Code) ErrorWithCode {
 	if err == nil {
 		return nil
 	}
-	return &errorWithCode{err, code}
+	return errorWithCode{err, code}
 }
 
-func (e *errorWithCode) Code() codes.Code {
+func (e errorWithCode) Code() codes.Code {
 	return e.code
 }
 
-func (e *errorWithCode) Unwrap() error {
+func (e errorWithCode) Unwrap() error {
 	return e.error
 }
 
-func (e *errorWithCode) Format(f fmt.State, c rune) {
+func (e errorWithCode) Format(f fmt.State, c rune) {
 	if m, ok := e.error.(xerrors.Formatter); ok {
 		xerrors.FormatError(m, f, c)
 	} else {

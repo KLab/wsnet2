@@ -228,7 +228,7 @@ func (conn *Connection) connect(ctx context.Context, warn func(error)) (string, 
 			return err.(*websocket.CloseError).Text, nil
 		}
 		if ue := unrecoverable(nil); errors.As(err, &ue) {
-			return "give up reconnecting", ue.Unwrap()
+			return "give up on reconnection", ue.Unwrap()
 		}
 
 		warn(err)
@@ -356,12 +356,25 @@ func (conn *Connection) sender(ctx context.Context, ws *websocket.Conn, mu *sync
 }
 
 func (conn *Connection) systemSender(ctx context.Context, ws *websocket.Conn, mu *sync.Mutex) error {
+	// 送信中の投げ込みも受け付けるようcap=1のチャネルを挟む
+	mc := make(chan binary.Msg, 1)
+	// systemSenderが動き始めてからsysmsgへの書き込みを受け付ける (see: conn.SendSystemMsg())
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case mc <- <-conn.sysmsg:
+			}
+		}
+	}()
+
 	for {
 		var msg binary.Msg
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case msg = <-conn.sysmsg:
+		case msg = <-mc:
 		}
 
 		conn.mumsg.Lock()

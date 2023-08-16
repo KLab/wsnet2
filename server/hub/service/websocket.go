@@ -88,28 +88,36 @@ func (sv *HubService) serveWebSocket(ctx context.Context) <-chan error {
 
 func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	roomId := chi.URLParam(r, "id")
+	appId := r.Header.Get("Wsnet2-App")
 	clientId := r.Header.Get("Wsnet2-User")
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "ws:room",
+		log.KeyRoom, roomId,
+		log.KeyApp, appId,
+		log.KeyClient, clientId,
+		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
+	)
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
-		log.Debugf("WSHandler.HandleRoom invalid header: Wsnet2-LastEventSeq", r.Header.Get("Wsnet2-LastEventSeq"))
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	cli, err := s.repo.GetClient(roomId, clientId)
 	if err != nil {
-		log.Debugf("WSHandler.HandleRoom: GetClient error: %v", err)
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: repo.GetClient: %v", err)
+		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
-	log.Debugf("client: %v", cli)
+	logger.Infof("websocket: room=%v client=%v", roomId, clientId)
 
 	var authData string
 	if ad := r.Header.Get("Authorization"); strings.HasPrefix(ad, "Bearer ") {
 		authData = ad[len("Bearer "):]
 	}
 	if err := cli.ValidAuthData(authData); err != nil {
-		log.Debugf("WSHandler.HandleRoom: Authenticate failure: room=%v, client=%v, authdata=%v", roomId, clientId, authData)
+		logger.Infof("websocket: Authorization: %+v", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -120,18 +128,17 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		breq, _ := httputil.DumpRequest(r, false)
-		log.Errorf("WSHandler.HandleRoom upgrade error: room=%v, client=%v, remote=%v: %v\nrequest=%v",
-			roomId, clientId, err, r.RemoteAddr, string(breq))
-		return
-	}
-
-	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
-	if err != nil {
-		log.Errorf("WSHandler.HandleRoom new peer error: %v", err)
+		logger.Errorf("websocket: upgrade: %+v\nrequest: %v", err, string(breq))
 		return
 	}
 	metrics.Conns.Add(1)
+	defer metrics.Conns.Add(-1)
+
+	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
+	if err != nil {
+		logger.Warnf("websocket: new peer: %+v", err)
+		return
+	}
 	<-peer.Done()
-	metrics.Conns.Add(-1)
-	log.Debugf("HandleRoom finished: room=%v client=%v peer=%p", roomId, clientId, peer)
+	logger.Debugf("websocket: finish: room=%v client=%v peer=%p", roomId, clientId, peer)
 }

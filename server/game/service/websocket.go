@@ -95,27 +95,26 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		log.KeyRoom, roomId,
 		log.KeyApp, appId,
 		log.KeyClient, clientId,
-		log.KeyRemoteAddr, r.RemoteAddr,
 		log.KeyRequestedAt, float64(time.Now().UnixNano()/1000000)/1000,
 	)
 	lastEvSeq, err := strconv.Atoi(r.Header.Get("Wsnet2-LastEventSeq"))
 	if err != nil {
-		logger.Errorf("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: invalid header: LastEventSeq=%v, %+v", r.Header.Get("Wsnet2-LastEventSeq"), err)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	repo, ok := s.repos[appId]
 	if !ok {
-		logger.Errorf("websocket: invalid appId: %v", appId)
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: invalid appId: %v", appId)
+		http.Error(w, "Bad Request", http.StatusBadRequest)
 		return
 	}
 
 	cli, err := repo.GetClient(roomId, clientId)
 	if err != nil {
-		logger.Errorf("websocket: repo.GetClient: %+v", err)
-		http.Error(w, "Bad Request", 400)
+		logger.Infof("websocket: repo.GetClient: %v", err)
+		http.Error(w, "Not Found", http.StatusNotFound)
 		return
 	}
 	logger.Infof("websocket: room=%v client=%v", roomId, clientId)
@@ -125,7 +124,7 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 		authData = ad[len("Bearer "):]
 	}
 	if err := cli.ValidAuthData(authData); err != nil {
-		logger.Errorf("websocket: Authentication: %+v", err)
+		logger.Infof("websocket: Authorization: %+v", err)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -144,9 +143,9 @@ func (s *WSHandler) HandleRoom(w http.ResponseWriter, r *http.Request) {
 
 	peer, err := game.NewPeer(ctx, cli, conn, lastEvSeq)
 	if err != nil {
-		logger.Errorf("websocket: new peer: %+v", err)
+		logger.Warnf("websocket: NewPeer: %+v", err)
 		return
 	}
 	<-peer.Done()
-	logger.Debugf("websocket: finish")
+	logger.Debugf("websocket: finish: room=%v client=%v peer=%p", roomId, clientId, peer)
 }
