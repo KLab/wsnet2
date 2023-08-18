@@ -190,16 +190,17 @@ loop:
 		if err != nil {
 			if !p.closed {
 				if websocket.IsCloseError(err, websocket.CloseAbnormalClosure) {
-					// CloseMessage送信前のTCPソケットcloseもAbnorormalClosureになる
-					// iOSでバックグラウンドにしたりアプリkillでも起こるのでErrorにはしない
+					// CloseMessage送信前のEOFもAbnorormalClosureになる
+					// アプリkillでも起こるのでErrorにはしない
 					p.client.logger.Warnf("peer close error (%v, %p): %v", p.client.Id, p, err)
 					p.closeWithMessage(websocket.CloseUnsupportedData, "unexpected close message")
 				} else if websocket.IsUnexpectedCloseError(err) {
-					// その他のCloseMessageはErrorとして報告
+					// その他のCloseMessageはクライアントがおかしいのでErrorとして報告
 					p.client.logger.Errorf("peer close error (%v, %p): %v", p.client.Id, p, err)
 					p.closeWithMessage(websocket.CloseUnsupportedData, "unexpected close message")
 				} else {
-					p.client.logger.Errorf("peer read error (%v, %p): %T %+v", p.client.Id, p, err, err)
+					// 不慮の切断など。モバイルではよく起きるし再接続もあるのでWarn
+					p.client.logger.Warnf("peer read error (%v, %p): %T %v", p.client.Id, p, err, err)
 					if !errors.Is(err, net.ErrClosed) {
 						// 切断していないならclose messageを送ってから切断
 						p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())

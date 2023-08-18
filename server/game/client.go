@@ -41,6 +41,7 @@ type Client struct {
 	waitPeer     chan *Peer
 	renewPeer    chan struct{}
 	connectCount int
+	received     bool
 
 	authKey string
 	hmac    hash.Hash
@@ -137,9 +138,9 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			if c.connectCount == 0 {
-				// lobbyに繋がるがgameに繋げないのは何かある
-				c.logger.Errorf("client timeout: %v connectCount=%v", c.Id, c.connectCount)
+			if !c.received {
+				// lobbyに繋がるがgameに繋げなかったり繋いでもmsg送ってこないのは何かある
+				c.logger.Errorf("client timeout: %v connectCount=%v no msg received", c.Id, c.connectCount)
 			} else {
 				c.logger.Infof("client timeout: %v connectCount=%v", c.Id, c.connectCount)
 			}
@@ -211,6 +212,7 @@ loop:
 					})
 				break loop
 			}
+			c.received = true
 			if regmsg, ok := m.(binary.RegularMsg); ok {
 				seq := regmsg.SequenceNum()
 
