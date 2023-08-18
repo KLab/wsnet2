@@ -28,10 +28,29 @@ var (
 )
 
 // soakCmd runs soak test
+//
+// 耐久性テスト
+//  1. masterが部屋を作成し、player*2, watcher*5 が入室する
+//  2. 部屋が作成されてから指定範囲のランダムな時間が経過したらmasterは退室する
+//     - masterが退室したらplayerも退室して部屋が終了する
+//     - watcherは部屋が終了するまでいつづける
+//  3. 1,2を指定並列数で動かし続ける
+//     - およそ指定並列数の部屋が常に存在する状態を維持
+//
+// 送信メッセージ
+//  1. master
+//     - 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 broadcast
+//     - 30~60byteをランダムに毎秒 broadcast
+//     - 5秒に1回PublicPropを書きかえ
+//  2. player
+//     - 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 ToMaster
+//     - 30~60byteをランダムに毎秒 ToMaster
+//  3. watcher
+//     - 30~60byteをランダムに10秒毎 ToMaster
 var soakCmd = &cobra.Command{
 	Use:   "soak",
 	Short: "Run soak test",
-	Long:  `Run soak test`,
+	Long:  `soak test (耐久性テスト): 指定した範囲の寿命の部屋を、指定数並列に動かし続ける`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runSoak(cmd.Context(), roomCount, minLifeTime, maxLifeTime)
 	},
@@ -40,7 +59,7 @@ var soakCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(soakCmd)
 
-	soakCmd.Flags().IntVarP(&roomCount, "room-count", "c", 10, "Room count")
+	soakCmd.Flags().IntVarP(&roomCount, "room-count", "c", 10, "Parallel room count")
 	soakCmd.Flags().DurationVarP(&minLifeTime, "min-life-time", "m", 10*time.Minute, "Minimum life time")
 	soakCmd.Flags().DurationVarP(&maxLifeTime, "max-life-time", "M", 20*time.Minute, "Maximum life time")
 }
