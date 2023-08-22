@@ -177,11 +177,8 @@ func (p *Peer) sendCloseAndCloseConn(code int, msg string) {
 	}
 	p.closed = true
 	writeMessage(p.conn, websocket.CloseMessage, formatCloseMessage(code, msg))
-	go func() {
-		// wait close message from client
-		time.Sleep(waitCloseTimeout)
-		p.conn.Close()
-	}()
+	// wait close message from client
+	time.AfterFunc(waitCloseTimeout, func() { p.conn.Close() })
 }
 
 func (p *Peer) MsgLoop(ctx context.Context) {
@@ -205,6 +202,9 @@ loop:
 					if !errors.Is(err, net.ErrClosed) {
 						// 切断していないならclose messageを送ってから切断
 						p.closeWithMessage(websocket.CloseInternalServerErr, err.Error())
+					} else {
+						p.closed = true
+						p.conn.Close()
 					}
 				}
 			} else if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
