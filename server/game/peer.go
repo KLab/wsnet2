@@ -51,6 +51,7 @@ func NewPeer(ctx context.Context, cli *Client, conn *websocket.Conn, lastEvSeq i
 
 		evSeqNum: lastEvSeq,
 	}
+	conn.SetCloseHandler(func(code int, text string) error { return nil }) // CloseMessageの返送はこちらで制御する
 	err := cli.AttachPeer(p, lastEvSeq)
 	if err != nil {
 		p.closeWithMessage(websocket.CloseGoingAway, err.Error())
