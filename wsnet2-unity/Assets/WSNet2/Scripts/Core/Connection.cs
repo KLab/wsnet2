@@ -161,9 +161,7 @@ namespace WSNet2
                 {
                     await receiverTask; // recconectLimitへの書き込みがなくなるのを待つ
                 }
-                catch
-                {
-                }
+                catch { }
 
                 if (DateTime.Now > reconnectLimit)
                 {

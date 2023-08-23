@@ -34,7 +34,7 @@ namespace WSNet2
         /// </summary>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        [Conditional("DEBUG")]
+        [Conditional("DEBUG"), Conditional("WSNET2_LOG_DEBUG")]
         public void Debug(string format, params object[] args)
         {
             logger?.Log(WSNet2LogLevel.Debug, null, format, args);
@@ -46,7 +46,7 @@ namespace WSNet2
         /// <param name="e"></param>
         /// <param name="format"></param>
         /// <param name="args"></param>
-        [Conditional("DEBUG")]
+        [Conditional("DEBUG"), Conditional("WSNET2_LOG_DEBUG")]
         public void Debug(Exception e, string format, params object[] args)
         {
             logger?.Log(WSNet2LogLevel.Debug, e, format, args);
