@@ -13,6 +13,10 @@ namespace WSNet2
         /// <remarks>Ethernet frame payload size</remarks>
         const int EvBufExpandSize = 1500;
 
+        /// <summary>Closeメッセージを送り返すときのタイムアウト</summary>
+        /// <remarks>サーバ側のconn.Close()までの猶予時間に合わせる</remarks>
+        const int SendCloseTimeout = 3000;
+
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         public MsgPool msgPool { get; private set; }
@@ -263,7 +267,7 @@ namespace WSNet2
         /// <summary>
         ///   Eventの受信
         /// </summary>
-        private async Task<Event> ReceiveEvent(WebSocket ws, CancellationToken ct)
+        private async Task<Event> ReceiveEvent(ClientWebSocket ws, CancellationToken ct)
         {
             var buf = evBufPool.Take(ct);
             try
@@ -274,12 +278,14 @@ namespace WSNet2
                     var seg = new ArraySegment<byte>(buf, pos, buf.Length - pos);
                     var ret = await ws.ReceiveAsync(seg, ct);
 
-                    if (ret.CloseStatus.HasValue)
+                    if (ret.MessageType == WebSocketMessageType.Close)
                     {
-                        switch (ret.CloseStatus.Value)
+                        await SendClose(ws, ret.CloseStatusDescription, ct);
+
+                        switch (ret.CloseStatus)
                         {
                             case WebSocketCloseStatus.NormalClosure:
-                            case WebSocketCloseStatus.EndpointUnavailable:
+                            case WebSocketCloseStatus.EndpointUnavailable: // server: CloseGoingAway
                                 // unreconnectable states.
                                 evBufPool.Add(buf);
                                 return new EvClosed(ret.CloseStatusDescription);
@@ -389,6 +395,21 @@ namespace WSNet2
             {
                 NetworkInformer.OnRoomSend(room, msg);
                 await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+            }
+            finally
+            {
+                sendSemaphore.Release();
+            }
+        }
+
+        private async Task SendClose(ClientWebSocket ws, string msg, CancellationToken ct)
+        {
+            await sendSemaphore.WaitAsync(ct);
+            try
+            {
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(SendCloseTimeout);
+                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
             }
             finally
             {
