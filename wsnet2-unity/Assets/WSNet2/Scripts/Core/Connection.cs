@@ -109,14 +109,17 @@ namespace WSNet2
                 senderTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
                 pingerTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+                var receiverTask = Task.CompletedTask;
+
                 try
                 {
                     using var ws = await Connect(cts.Token);
                     connected = true;
                     room.ConnectionStateChanged(true);
 
+                    receiverTask = Task.Run(async () => await Receiver(ws, cts.Token));
                     await await Task.WhenAny(
-                        Task.Run(async () => await Receiver(ws, cts.Token)),
+                        receiverTask,
                         Task.Run(async () => await await senderTaskSource.Task),
                         Task.Run(async () => await await pingerTaskSource.Task));
 
@@ -146,14 +149,22 @@ namespace WSNet2
                     return;
                 }
 
+                room.handleError(lastException);
+
+                await retryInterval;
+
+                try
+                {
+                    await receiverTask; // recconectLimitへの書き込みがなくなるのを待つ
+                }
+                catch
+                {
+                }
+
                 if (DateTime.Now > reconnectLimit)
                 {
                     throw new Exception($"Gave up on Reconnection: {lastException.Message}", lastException);
                 }
-
-                room.handleError(lastException);
-
-                await retryInterval;
 
                 reconnection++;
                 logger?.Info("reconnect now:{0}, limit:{1}, count:{2}", DateTime.Now, reconnectLimit, reconnection);
