@@ -13,11 +13,16 @@ namespace WSNet2
         /// <remarks>Ethernet frame payload size</remarks>
         const int EvBufExpandSize = 1500;
 
+        /// <summary>Closeメッセージを送り返すときのタイムアウト</summary>
+        /// <remarks>サーバ側のconn.Close()までの猶予時間に合わせる</remarks>
+        const int SendCloseTimeout = 3000;
+
         static AuthDataGenerator authgen = new AuthDataGenerator();
 
         public MsgPool msgPool { get; private set; }
 
         CancellationTokenSource canceller;
+        DateTime reconnectLimit;
 
         Room room;
         string appId;
@@ -46,6 +51,7 @@ namespace WSNet2
         {
             this.logger = logger;
             this.canceller = new CancellationTokenSource();
+            this.reconnectLimit = DateTime.Now.AddSeconds(room.ClientDeadline);
             this.room = room;
             this.appId = joined.roomInfo.appId;
             this.clientId = clientId;
@@ -87,7 +93,7 @@ namespace WSNet2
         /// </remarks>
         public async Task Start()
         {
-            DateTime? reconnectLimit = null;
+            bool connected = false;
             int reconnection = 0;
 
             while (true)
@@ -107,19 +113,17 @@ namespace WSNet2
                 senderTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
                 pingerTaskSource = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+                var receiverTask = Task.CompletedTask;
+
                 try
                 {
-                    if (reconnectLimit == null)
-                    {
-                        reconnectLimit = DateTime.Now.AddSeconds(room.ClientDeadline);
-                    }
-
-                    var ws = await Connect(cts.Token);
-                    reconnectLimit = null;
+                    using var ws = await Connect(cts.Token);
+                    connected = true;
                     room.ConnectionStateChanged(true);
 
+                    receiverTask = Task.Run(async () => await Receiver(ws, cts.Token));
                     await await Task.WhenAny(
-                        Task.Run(async () => await Receiver(ws, cts.Token)),
+                        receiverTask,
                         Task.Run(async () => await await senderTaskSource.Task),
                         Task.Run(async () => await await pingerTaskSource.Task));
 
@@ -128,7 +132,7 @@ namespace WSNet2
                 }
                 catch (Exception e)
                 {
-                    logger?.Error(e, "connection exception: {0}", e);
+                    logger?.Warning(e, "connection exception: {0}", e);
                     // retry
                     lastException = e;
                 }
@@ -137,8 +141,9 @@ namespace WSNet2
                     senderTaskSource.TrySetCanceled();
                     pingerTaskSource.TrySetCanceled();
                     cts.Cancel();
-                    if (reconnectLimit == null) // 接続成功している
+                    if (connected)
                     {
+                        connected = false;
                         room.ConnectionStateChanged(false);
                     }
                 }
@@ -148,17 +153,23 @@ namespace WSNet2
                     return;
                 }
 
+                room.handleError(lastException);
+
+                await retryInterval;
+
+                try
+                {
+                    await receiverTask; // recconectLimitへの書き込みがなくなるのを待つ
+                }
+                catch { }
+
                 if (DateTime.Now > reconnectLimit)
                 {
                     throw new Exception($"Gave up on Reconnection: {lastException.Message}", lastException);
                 }
 
-                room.handleError(lastException);
-
-                await retryInterval;
-
                 reconnection++;
-                logger?.Info("reconnect now:{0}, limit:{1}, count:{2}", DateTime.Now, reconnectLimit?.ToString() ?? "null", reconnection);
+                logger?.Info("reconnect now:{0}, limit:{1}, count:{2}", DateTime.Now, reconnectLimit, reconnection);
             }
         }
 
@@ -220,6 +231,8 @@ namespace WSNet2
                     ct.ThrowIfCancellationRequested();
                     var ev = await ReceiveEvent(ws, ct);
 
+                    this.reconnectLimit = DateTime.Now.AddSeconds(room.ClientDeadline);
+
                     if (ev.IsRegular)
                     {
                         if (ev.SequenceNum != evSeqNum + 1)
@@ -233,6 +246,11 @@ namespace WSNet2
 
                     switch (ev.Type)
                     {
+                        case EvType.Closed:
+                            // 正常終了。もう再接続しない。
+                            room.handleEvent(ev);
+                            return;
+
                         case EvType.PeerReady:
                             var evpr = ev as EvPeerReady;
                             logger?.Info("receive peer-ready: lastMsgSeqNum={0}", evpr.LastMsgSeqNum);
@@ -241,9 +259,6 @@ namespace WSNet2
                             senderTaskSource.TrySetResult(sender);
                             pingerTaskSource.TrySetResult(pinger);
                             break;
-                        case EvType.Closed:
-                            room.handleEvent(ev);
-                            return;
                         case EvType.Pong:
                             onPong(ev as EvPong);
                             room.handleEvent(ev);
@@ -263,7 +278,7 @@ namespace WSNet2
         /// <summary>
         ///   Eventの受信
         /// </summary>
-        private async Task<Event> ReceiveEvent(WebSocket ws, CancellationToken ct)
+        private async Task<Event> ReceiveEvent(ClientWebSocket ws, CancellationToken ct)
         {
             var buf = evBufPool.Take(ct);
             try
@@ -274,12 +289,14 @@ namespace WSNet2
                     var seg = new ArraySegment<byte>(buf, pos, buf.Length - pos);
                     var ret = await ws.ReceiveAsync(seg, ct);
 
-                    if (ret.CloseStatus.HasValue)
+                    if (ret.MessageType == WebSocketMessageType.Close)
                     {
-                        switch (ret.CloseStatus.Value)
+                        await SendClose(ws, ret.CloseStatusDescription, ct);
+
+                        switch (ret.CloseStatus)
                         {
                             case WebSocketCloseStatus.NormalClosure:
-                            case WebSocketCloseStatus.EndpointUnavailable:
+                            case WebSocketCloseStatus.EndpointUnavailable: // server: CloseGoingAway
                                 // unreconnectable states.
                                 evBufPool.Add(buf);
                                 return new EvClosed(ret.CloseStatusDescription);
@@ -320,24 +337,21 @@ namespace WSNet2
         /// <param name="ct">ループ停止するトークン</param>
         private async Task Sender(ClientWebSocket ws, int seqNum, CancellationToken ct)
         {
-            try
+            while (true)
             {
-                while (true)
-                {
-                    msgPool.Wait(ct);
+                msgPool.Wait(ct);
 
-                    ArraySegment<byte>? msg;
-                    while ((msg = msgPool.Take(seqNum)).HasValue)
+                ArraySegment<byte>? msg;
+                while ((msg = msgPool.Take(seqNum)).HasValue)
+                {
+                    if (ct.IsCancellationRequested)
                     {
-                        ct.ThrowIfCancellationRequested();
-                        await Send(ws, msg.Value, ct);
-                        seqNum++;
+                        return; // ctのキャンセルで終了
                     }
+
+                    await Send(ws, msg.Value, ct);
+                    seqNum++;
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                // ctのキャンセルはループを抜けて終了
             }
         }
 
@@ -348,34 +362,30 @@ namespace WSNet2
         {
             var msg = new MsgPing(hmac);
 
-            try
+            while (true)
             {
-                while (true)
+                if (ct.IsCancellationRequested)
                 {
-                    ct.ThrowIfCancellationRequested();
+                    return; // ctのキャンセルで終了
+                }
 
-                    var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
-                    var time = (uint)msg.SetTimestamp();
-                    lastPingTime = time;
-                    await Send(ws, msg.Value, ct);
-                    try
+                var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
+                var time = (uint)msg.SetTimestamp();
+                lastPingTime = time;
+                await Send(ws, msg.Value, ct);
+                try
+                {
+                    await interval;
+                    // 対応するPongが返ってきていたらlastPingTimeは書き換わっている
+                    if (lastPingTime == time)
                     {
-                        await interval;
-                        // 対応するPongが返ってきていたらlastPingTimeは書き換わっている
-                        if (lastPingTime == time)
-                        {
-                            throw new Exception("Pong unreceived");
-                        }
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // pingerDelayCancellerによるcancelは無視
+                        throw new Exception("Pong unreceived");
                     }
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                // ctのキャンセルはループを抜けて終了
+                catch (TaskCanceledException)
+                {
+                    // pingerDelayCancellerによるcancelは無視
+                }
             }
         }
 
@@ -389,6 +399,21 @@ namespace WSNet2
             {
                 NetworkInformer.OnRoomSend(room, msg);
                 await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+            }
+            finally
+            {
+                sendSemaphore.Release();
+            }
+        }
+
+        private async Task SendClose(ClientWebSocket ws, string msg, CancellationToken ct)
+        {
+            await sendSemaphore.WaitAsync(ct);
+            try
+            {
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(SendCloseTimeout);
+                await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
             }
             finally
             {
