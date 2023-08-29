@@ -33,7 +33,7 @@ jobs:
 
       - run: go1.18.5 test wsnet2/binary
 
-      - run: GOARCH=386 go1.18.5 build -buildvcs=false
+      - run: GOARCH=386 go1.18.5 build
 
       - run: go install github.com/gopherjs/gopherjs@v1.18.0-beta2
 
