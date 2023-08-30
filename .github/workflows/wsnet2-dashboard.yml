@@ -17,15 +17,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-go@v3
+      - uses: actions/setup-go@v4
         with:
-          go-version: '^1.20.0'
+          go-version-file: "server/go.mod"
           cache: true
           cache-dependency-path: wsnet2-dashboard/backend/go-binary/go.sum
 
-      - uses: arduino/setup-protoc@v1
+      - uses: arduino/setup-protoc@v2
         with:
-          version: '3.x'
+          version: '24.x'
 
       - run: make -C ../../../server generate
 
@@ -37,4 +37,4 @@ jobs:
 
       - run: go install github.com/gopherjs/gopherjs@v1.18.0-beta2
 
-      - run: GOPHERJS_GOROOT="$(go1.18.5 env GOROOT)" gopherjs build
+      - run: PATH="$(go1.18.5 env GOROOT)/bin:$PATH" GOPHERJS_GOROOT="$(go1.18.5 env GOROOT)" gopherjs build
