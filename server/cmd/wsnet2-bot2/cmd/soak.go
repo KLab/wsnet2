@@ -74,25 +74,26 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 	}
 	lifetimeRange := int(maxLifeTime - minLifeTime)
 
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ech := make(chan error)
 	counter := make(chan struct{}, roomCount)
 
-	var wg sync.WaitGroup
 	for n := 0; ; n++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case err := <-ech:
 			cancel()
-			wg.Wait()
 			return err
 		case counter <- struct{}{}:
 		}
 
 		wg.Add(1)
-		go func() {
+		go func(n int) {
 			lifetime := minLifeTime
 			if lifetimeRange != 0 {
 				lifetime += time.Duration(rand.Intn(lifetimeRange))
@@ -103,7 +104,7 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 			}
 			wg.Done()
 			<-counter
-		}()
+		}(n)
 
 		time.Sleep(time.Second)
 	}
@@ -155,7 +156,7 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 		}
 
 		q := client.NewQuery()
-		q.Equal("name", room.PublicProps["name"])
+		q.Equal("room", room.PublicProps["room"])
 
 		_, player, err := client.RandomJoin(ctx, aci, SearchGroup, q, &pb.ClientInfo{Id: playerId}, nil)
 		if err != nil {
@@ -288,13 +289,9 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 		}
 	}()
 
-	_, err := conn.Wait(ctx)
-	if err != nil {
-		log.Printf("room[%d]: master error: %v", n, err)
-	}
-
+	msg, _ := conn.Wait(ctx)
 	avg := float64(rttSum) / float64(rttCnt)
-	log.Printf("room[%d]: end RTT sum=%v cnt=%v avg=%v max=%v", n, rttSum, rttCnt, avg, rttMax)
+	log.Printf("room[%d] %v: RTT sum=%v cnt=%v avg=%v max=%v", n, msg, rttSum, rttCnt, avg, rttMax)
 }
 
 func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, masterId string) {

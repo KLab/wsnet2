@@ -55,12 +55,12 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().StringVarP(&lobbyURL, "lobby", "l", "http://localhost:8080", "Lobby URL")
-	rootCmd.Flags().StringVarP(&appId, "app-id", "a", "testapp", "App ID")
-	rootCmd.Flags().StringVarP(&appKey, "app-key", "k", "testapppkey", "App key")
-	rootCmd.Flags().StringVarP(&proxyURL, "proxy", "p", "", "Proxy URL")
-	rootCmd.Flags().BoolVarP(&skipTLSVerify, "skip-tls-verify", "s", false, "Skip TLS verify")
-	rootCmd.Flags().DurationVarP(&timeout, "timeout", "t", 10*time.Second, "Timeout")
+	rootCmd.PersistentFlags().StringVarP(&lobbyURL, "lobby", "l", "http://localhost:8080", "Lobby URL")
+	rootCmd.PersistentFlags().StringVarP(&appId, "app-id", "a", "testapp", "App ID")
+	rootCmd.PersistentFlags().StringVarP(&appKey, "app-key", "k", "testapppkey", "App key")
+	rootCmd.PersistentFlags().StringVarP(&proxyURL, "proxy", "p", "", "Proxy URL")
+	rootCmd.PersistentFlags().BoolVarP(&skipTLSVerify, "skip-tls-verify", "s", false, "Skip TLS verify")
+	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 10*time.Second, "Timeout")
 }
 
 // newClient returns http.Client with proxy and TLS settings
