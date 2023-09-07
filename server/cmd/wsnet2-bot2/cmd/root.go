@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"net/url"
@@ -8,6 +9,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"wsnet2/binary"
+	"wsnet2/client"
+	"wsnet2/pb"
 )
 
 var (
@@ -20,7 +25,6 @@ var (
 	timeout       time.Duration
 
 	msgBody = make([]byte, 5000)
-	cli     *http.Client
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -32,8 +36,7 @@ var rootCmd = &cobra.Command{
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
-		cli, err = newClient()
-		return err
+		return applyClientSettings()
 	},
 }
 
@@ -60,32 +63,76 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&appKey, "app-key", "k", "testapppkey", "App key")
 	rootCmd.PersistentFlags().StringVarP(&proxyURL, "proxy", "p", "", "Proxy URL")
 	rootCmd.PersistentFlags().BoolVarP(&skipTLSVerify, "skip-tls-verify", "s", false, "Skip TLS verify")
-	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 10*time.Second, "Timeout")
+	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 5*time.Second, "Lobby request timeout")
 }
 
-// newClient returns http.Client with proxy and TLS settings
-func newClient() (*http.Client, error) {
-	if !skipTLSVerify && proxyURL == "" {
-		return &http.Client{
-			Timeout: timeout,
-		}, nil
+// applyClientSettings applies client lobby request settings
+func applyClientSettings() error {
+	client.LobbyTimeout = timeout
+
+	if skipTLSVerify || proxyURL == "" {
+		tr := &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+		}
+		if skipTLSVerify {
+			tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		}
+		if proxyURL != "" {
+			purl, err := url.Parse(proxyURL)
+			if err != nil {
+				return err
+			}
+			tr.Proxy = http.ProxyURL(purl)
+		}
+
+		client.LobbyTransport = tr
 	}
 
-	tr := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+	return nil
+}
+
+// createRoom creates room
+func createRoom(ctx context.Context, owner string, group uint32, pubprops binary.Dict) (*client.Room, *client.Connection, error) {
+	if pubprops == nil {
+		pubprops = make(binary.Dict)
 	}
-	if skipTLSVerify {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, owner)
+	if err != nil {
+		return nil, nil, err
 	}
-	if proxyURL != "" {
-		purl, err := url.Parse(proxyURL)
-		if err != nil {
-			return nil, err
-		}
-		tr.Proxy = http.ProxyURL(purl)
+
+	roomopt := &pb.RoomOption{
+		Visible:     true,
+		Joinable:    true,
+		Watchable:   true,
+		SearchGroup: group,
+		PublicProps: binary.MarshalDict(pubprops),
 	}
-	return &http.Client{
-		Transport: tr,
-		Timeout:   timeout,
-	}, nil
+
+	cinfo := &pb.ClientInfo{Id: owner}
+
+	return client.Create(ctx, accinfo, roomopt, cinfo, nil)
+}
+
+// joinRandom joins the player to a room randomly
+func joinRandom(ctx context.Context, player string, group uint32, query *client.Query) (*client.Room, *client.Connection, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, player)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cinfo := &pb.ClientInfo{Id: player}
+
+	return client.RandomJoin(ctx, accinfo, group, query, cinfo, nil)
+}
+
+// watchRoom joins the watcher to the room
+func watchRoom(ctx context.Context, watcher string, roomId string) (*client.Room, *client.Connection, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, watcher)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return client.Watch(ctx, accinfo, roomId, nil, nil)
 }

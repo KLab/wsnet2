@@ -12,13 +12,12 @@ import (
 
 	"wsnet2/binary"
 	"wsnet2/client"
-	"wsnet2/pb"
 )
 
 const (
-	SearchGroup = 10
+	SoakSearchGroup = 10
 
-	RttThreshold = 30 // millisecond
+	RttThreshold = 16 // millisecond
 )
 
 var (
@@ -115,29 +114,17 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	roomOpt := &pb.RoomOption{
-		Visible:        true,
-		Joinable:       true,
-		Watchable:      true,
-		SearchGroup:    SearchGroup,
-		MaxPlayers:     10,
-		ClientDeadline: 25,
-		PublicProps: binary.MarshalDict(binary.Dict{
-			"room":  binary.MarshalStr8(fmt.Sprintf("soak-%d", n)),
-			"score": binary.MarshalInt(0),
-		}),
-	}
 	masterId := fmt.Sprintf("master-%d", n)
-	eci, err := client.GenAccessInfo(lobbyURL, appId, appKey, masterId)
-	if err != nil {
-		return err
+	props := binary.Dict{
+		"room":  binary.MarshalStr8(fmt.Sprintf("soak-%d", n)),
+		"score": binary.MarshalInt(0),
 	}
 
-	room, master, err := client.Create(ctx, eci, roomOpt, &pb.ClientInfo{Id: masterId}, nil)
+	room, master, err := createRoom(ctx, masterId, SoakSearchGroup, props)
 	if err != nil {
 		return err
 	}
-	log.Printf("room[%d]: start %v lifetime=%v", n, room.Id, lifetime)
+	log.Printf("room[%d] start %v lifetime=%v", n, room.Id, lifetime)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -150,15 +137,11 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 	for i := 0; i < 2; i++ {
 		playerId := fmt.Sprintf("player-%v-%v", n, i)
-		aci, err := client.GenAccessInfo(lobbyURL, appId, appKey, playerId)
-		if err != nil {
-			return err
-		}
 
 		q := client.NewQuery()
 		q.Equal("room", room.PublicProps["room"])
 
-		_, player, err := client.RandomJoin(ctx, aci, SearchGroup, q, &pb.ClientInfo{Id: playerId}, nil)
+		_, player, err := joinRandom(ctx, playerId, SoakSearchGroup, q)
 		if err != nil {
 			return err
 		}
@@ -172,19 +155,15 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 	for i := 0; i < 5; i++ {
 		watcherId := fmt.Sprintf("watcher-%v-%v", n, i)
-		aci, err := client.GenAccessInfo(lobbyURL, appId, appKey, watcherId)
-		if err != nil {
-			return err
-		}
 
-		_, watcher, err := client.Watch(ctx, aci, room.Id, nil, nil)
+		_, watcher, err := watchRoom(ctx, watcherId, room.Id)
 		if err != nil {
 			return err
 		}
 
 		wg.Add(1)
 		go func() {
-			runWatcher(ctx, watcher)
+			runWatcher(ctx, watcher, n, watcherId)
 			wg.Done()
 		}()
 	}
@@ -196,16 +175,19 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 // runMaster runs a master
 func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime time.Duration) {
-	ctx, cancel := context.WithCancel(ctx)
+	clictx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
+		var msg string
 		select {
-		case <-ctx.Done():
+		case <-clictx.Done():
+			msg = "context done"
 		case <-time.After(lifetime):
-			conn.Send(binary.MsgTypeLeave, binary.MarshalLeavePayload("done"))
-			cancel()
+			msg = "done"
 		}
+		cancel()
+		conn.Leave(msg)
 	}()
 
 	sender := func() {
@@ -214,7 +196,7 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 			for {
 				for i := 0; i < 25; i++ {
 					select {
-					case <-ctx.Done():
+					case <-clictx.Done():
 						return
 					default:
 					}
@@ -223,7 +205,7 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 				}
 				for i := 0; i < 5; i++ {
 					select {
-					case <-ctx.Done():
+					case <-clictx.Done():
 						return
 					default:
 					}
@@ -236,7 +218,7 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 		go func() {
 			for {
 				select {
-				case <-ctx.Done():
+				case <-clictx.Done():
 					return
 				default:
 				}
@@ -248,12 +230,12 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 		go func() {
 			for {
 				select {
-				case <-ctx.Done():
+				case <-clictx.Done():
 					return
 				default:
 				}
 				conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
-					true, true, true, SearchGroup, 10, 0,
+					true, true, true, SoakSearchGroup, 10, 0,
 					binary.Dict{"score": binary.MarshalInt(rand.Intn(1024))}, binary.Dict{}))
 				time.Sleep(5 * time.Second)
 			}
@@ -274,7 +256,7 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 				p, _ := binary.UnmarshalEvPongPayload(ev.Payload())
 				rtt := time.Now().UnixMilli() - int64(p.Timestamp)
 				if rtt > RttThreshold {
-					log.Printf("room[%d]: master rtt=%d", n, rtt)
+					log.Printf("room[%d] master rtt=%d", n, rtt)
 				}
 				rttSum += rtt
 				rttCnt++
@@ -284,18 +266,22 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 
 			case binary.EvTypeLeft:
 				p, _ := binary.UnmarshalEvLeftPayload(ev.Payload())
-				log.Printf("room[%d]: player %v left: %v", n, p.ClientId, p.Cause)
+				log.Printf("room[%d] %v left: %v", n, p.ClientId, p.Cause)
 			}
 		}
 	}()
 
-	msg, _ := conn.Wait(ctx)
+	msg, err := conn.Wait(ctx)
+	if err != nil {
+		log.Printf("room[%v] master error: %v", n, err)
+	}
+
 	avg := float64(rttSum) / float64(rttCnt)
-	log.Printf("room[%d] %v: RTT sum=%v cnt=%v avg=%v max=%v", n, msg, rttSum, rttCnt, avg, rttMax)
+	log.Printf("room[%d] %v RTT sum=%v cnt=%v avg=%v max=%v", n, msg, rttSum, rttCnt, avg, rttMax)
 }
 
 func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, masterId string) {
-	ctx, cancel := context.WithCancel(ctx)
+	clictx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	sender := func() {
@@ -304,7 +290,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 			for {
 				for i := 0; i < 25; i++ {
 					select {
-					case <-ctx.Done():
+					case <-clictx.Done():
 						return
 					default:
 					}
@@ -313,7 +299,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 				}
 				for i := 0; i < 5; i++ {
 					select {
-					case <-ctx.Done():
+					case <-clictx.Done():
 						return
 					default:
 					}
@@ -326,7 +312,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 		go func() {
 			for {
 				select {
-				case <-ctx.Done():
+				case <-clictx.Done():
 					return
 				default:
 				}
@@ -345,24 +331,28 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 			case binary.EvTypeLeft:
 				p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 				if err != nil {
-					log.Printf("room[%v]: %v: UnmarshalEvLeftPayload: %v", n, myId, err)
-					conn.Send(binary.MsgTypeLeave, binary.MarshalLeavePayload("done"))
+					log.Printf("room[%v] %v error: UnmarshalEvLeftPayload %v", n, myId, err)
 					cancel()
+					conn.Leave("UnmarshalEvLeftPayload error")
+					break
 				}
 
 				if p.ClientId == masterId {
-					conn.Send(binary.MsgTypeLeave, binary.MarshalLeavePayload("done"))
 					cancel()
+					conn.Leave("done")
 				}
 			}
 		}
 	}()
 
-	conn.Wait(ctx)
+	_, err := conn.Wait(ctx)
+	if err != nil {
+		log.Printf("room[%v] %v error: %v", n, myId, err)
+	}
 }
 
-func runWatcher(ctx context.Context, conn *client.Connection) {
-	ctx, cancel := context.WithCancel(ctx)
+func runWatcher(ctx context.Context, conn *client.Connection, n int, myId string) {
+	clictx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	sender := func() {
@@ -370,7 +360,7 @@ func runWatcher(ctx context.Context, conn *client.Connection) {
 		go func() {
 			for {
 				select {
-				case <-ctx.Done():
+				case <-clictx.Done():
 					return
 				default:
 				}
@@ -391,5 +381,8 @@ func runWatcher(ctx context.Context, conn *client.Connection) {
 
 	// 部屋が自然消滅するまで居続ける
 
-	conn.Wait(ctx)
+	_, err := conn.Wait(ctx)
+	if err != nil {
+		log.Printf("room[%v] %v error: %v", n, myId, err)
+	}
 }

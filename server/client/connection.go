@@ -117,6 +117,11 @@ func (c *Connection) Wait(ctx context.Context) (string, error) {
 	}
 }
 
+// Leave : MsgLeaveを送信する
+func (c *Connection) Leave(msg string) error {
+	return c.Send(binary.MsgTypeLeave, binary.MarshalLeavePayload(msg))
+}
+
 // newConn allocates and starts new connection
 func newConn(ctx context.Context, accinfo *AccessInfo, joined *pb.JoinedRoomRes, warn func(error)) (*Connection, error) {
 
