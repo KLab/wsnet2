@@ -119,7 +119,7 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 		"score": binary.MarshalInt(0),
 	}
 
-	room, master, err := createRoom(ctx, masterId, SoakSearchGroup, props)
+	room, master, err := createRoom(ctx, masterId, true, true, true, SoakSearchGroup, props)
 	if err != nil {
 		return err
 	}
@@ -157,7 +157,7 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	for i := 0; i < 5; i++ {
 		watcherId := fmt.Sprintf("watcher-%v-%v", n, i)
 
-		_, watcher, err := watchRoom(ctx, watcherId, room.Id)
+		_, watcher, err := watchRoom(ctx, watcherId, room.Id, nil)
 		if err != nil {
 			return err
 		}

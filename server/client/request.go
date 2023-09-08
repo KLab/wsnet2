@@ -140,6 +140,16 @@ func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, r
 	return connectToRoom(ctx, accinfo, res, warn)
 }
 
+// Search 部屋を検索する
+func Search(ctx context.Context, accinfo *AccessInfo, param *lobby.SearchParam) ([]*pb.RoomInfo, error) {
+	res, err := lobbyRequest(ctx, accinfo, "/rooms/search", param)
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Rooms, nil
+}
+
 func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param interface{}) (*lobby.Response, error) {
 	var p bytes.Buffer
 	enc := msgpack.NewEncoder(&p)
@@ -181,9 +191,11 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	if err != nil {
 		return nil, xerrors.Errorf("decode body: %w", err)
 	}
-	if res.Type != lobby.ResponseTypeOK {
-		return nil, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
-	}
+	/*
+		if res.Type != lobby.ResponseTypeOK {
+			return nil, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
+		}
+	*/
 
 	return &res, nil
 }

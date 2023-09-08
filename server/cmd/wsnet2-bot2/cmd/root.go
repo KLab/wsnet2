@@ -14,6 +14,7 @@ import (
 
 	"wsnet2/binary"
 	"wsnet2/client"
+	"wsnet2/lobby"
 	"wsnet2/pb"
 )
 
@@ -118,11 +119,18 @@ func setupClient() error {
 	return nil
 }
 
-// createRoom creates room
-func createRoom(ctx context.Context, owner string, group uint32, pubprops binary.Dict) (*client.Room, *client.Connection, error) {
-	if pubprops == nil {
-		pubprops = make(binary.Dict)
+// searchRooms searches rooms.
+func searchRooms(ctx context.Context, cId string, param *lobby.SearchParam) ([]*pb.RoomInfo, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, cId)
+	if err != nil {
+		return nil, err
 	}
+
+	return client.Search(ctx, accinfo, param)
+}
+
+// createRoom creates room
+func createRoom(ctx context.Context, owner string, visible, joinable, watchable bool, group uint32, pubprops binary.Dict) (*client.Room, *client.Connection, error) {
 
 	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, owner)
 	if err != nil {
@@ -130,9 +138,9 @@ func createRoom(ctx context.Context, owner string, group uint32, pubprops binary
 	}
 
 	roomopt := &pb.RoomOption{
-		Visible:     true,
-		Joinable:    true,
-		Watchable:   true,
+		Visible:     visible,
+		Joinable:    joinable,
+		Watchable:   watchable,
 		SearchGroup: group,
 		PublicProps: binary.MarshalDict(pubprops),
 	}
@@ -140,6 +148,22 @@ func createRoom(ctx context.Context, owner string, group uint32, pubprops binary
 	cinfo := &pb.ClientInfo{Id: owner}
 
 	return client.Create(ctx, accinfo, roomopt, cinfo, nil)
+}
+
+// joinRoom joins the player to the room
+func joinRoom(ctx context.Context, player, roomId string, query *client.Query) (*client.Room, *client.Connection, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, player)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if query == nil {
+		query = client.NewQuery()
+	}
+
+	cinfo := &pb.ClientInfo{Id: player}
+
+	return client.Join(ctx, accinfo, roomId, query, cinfo, nil)
 }
 
 // joinRandom joins the player to a room randomly
@@ -155,11 +179,15 @@ func joinRandom(ctx context.Context, player string, group uint32, query *client.
 }
 
 // watchRoom joins the watcher to the room
-func watchRoom(ctx context.Context, watcher string, roomId string) (*client.Room, *client.Connection, error) {
+func watchRoom(ctx context.Context, watcher, roomId string, query *client.Query) (*client.Room, *client.Connection, error) {
 	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, watcher)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return client.Watch(ctx, accinfo, roomId, nil, nil)
+	if query == nil {
+		query = client.NewQuery()
+	}
+
+	return client.Watch(ctx, accinfo, roomId, query, nil)
 }
