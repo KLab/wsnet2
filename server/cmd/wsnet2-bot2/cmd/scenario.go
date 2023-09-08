@@ -88,6 +88,20 @@ func waitEvent(conn *client.Connection, d time.Duration, evtypes ...binary.EvTyp
 	}
 }
 
+func cleanupConn(ctx context.Context, conn *client.Connection) {
+	if conn == nil {
+		return
+	}
+	discardEvents(conn)
+	if err := conn.Leave("done"); err != nil {
+		logger.Debugf("cleanupConn(%v): %v", conn.UserId(), err)
+		return
+	}
+	if _, err := conn.Wait(ctx); err != nil {
+		logger.Debugf("cleanupConn(%v): %v", conn.UserId(), err)
+	}
+}
+
 // Lobbyの部屋検索のテスト
 func scenarioLobbySearch(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
@@ -106,8 +120,7 @@ func scenarioLobbySearch(ctx context.Context) error {
 		return fmt.Errorf("search: create room1: %w", err)
 	}
 	discardEvents(conn1)
-	defer conn1.Wait(ctx)
-	defer conn1.Leave("done")
+	defer cleanupConn(ctx, conn1)
 
 	room2, conn2, err := createRoom(ctx, "lobbysearch_master", &pb.RoomOption{
 		Visible:     true,
@@ -122,8 +135,7 @@ func scenarioLobbySearch(ctx context.Context) error {
 		return fmt.Errorf("search: create room2: %w", err)
 	}
 	discardEvents(conn2)
-	defer conn2.Wait(ctx)
-	defer conn2.Leave("done")
+	defer cleanupConn(ctx, conn2)
 
 	room3, conn3, err := createRoom(ctx, "lobbysearch_master", &pb.RoomOption{
 		Visible:     false,
@@ -136,8 +148,7 @@ func scenarioLobbySearch(ctx context.Context) error {
 		return fmt.Errorf("search: create room3: %w", err)
 	}
 	discardEvents(conn3)
-	defer conn3.Wait(ctx)
-	defer conn3.Leave("done")
+	defer cleanupConn(ctx, conn3)
 
 	logger.Infof("lobby-search: room1=%v room2=%v room3=%v", room1.Id, room2.Id, room3.Id)
 	time.Sleep(time.Second)
@@ -218,8 +229,7 @@ func scenarioJoinRoom(ctx context.Context) error {
 		return fmt.Errorf("join-room: create: %w", err)
 	}
 	logger.Infof("join-room: %v", room.Id)
-	defer conn.Wait(ctx)
-	defer conn.Leave("done")
+	defer cleanupConn(ctx, conn)
 
 	// 正常入室
 	_, p1, err := joinRoom(ctx, "joinroom_player1", room.Id, nil)
@@ -228,8 +238,7 @@ func scenarioJoinRoom(ctx context.Context) error {
 	}
 	logger.Infof("join-rooom: player1 ok")
 	discardEvents(p1)
-	defer p1.Wait(ctx)
-	defer p1.Leave("done")
+	defer cleanupConn(ctx, p1)
 
 	clearEventBuffer(conn)
 
@@ -240,18 +249,14 @@ func scenarioJoinRoom(ctx context.Context) error {
 	}
 	logger.Infof("join-rooom: player2 ok")
 	discardEvents(p2)
-	defer p2.Wait(ctx)
-	defer p2.Leave("done")
+	defer cleanupConn(ctx, p2)
 
 	clearEventBuffer(conn)
 
 	// 満室のためエラー
 	_, p3, err := joinRoom(ctx, "joinroom_player3", room.Id, nil)
 	if !errors.Is(err, client.ErrRoomFull) {
-		if p3 != nil {
-			p3.Leave("done")
-			p3.Wait(ctx)
-		}
+		cleanupConn(ctx, p3)
 		return fmt.Errorf("join-room: player3 wants RoomFull: %v", err)
 	}
 	logger.Infof("join-rooom: player3 ok (room full)")
@@ -265,8 +270,7 @@ func scenarioJoinRoom(ctx context.Context) error {
 	}
 	logger.Infof("join-room: watcher1 ok")
 	discardEvents(w1)
-	defer w1.Wait(ctx)
-	defer w1.Leave("done")
+	defer cleanupConn(ctx, w1)
 
 	clearEventBuffer(conn)
 
@@ -289,16 +293,12 @@ func scenarioJoinRoom(ctx context.Context) error {
 	}
 	logger.Infof("join-rooom: player4 ok")
 	discardEvents(p4)
-	defer p4.Wait(ctx)
-	defer p4.Leave("done")
+	defer cleanupConn(ctx, p4)
 
 	// 観戦はエラー
 	_, w2, err := watchRoom(ctx, "joinroom_watcher2", room.Id, nil)
 	if !errors.Is(err, client.ErrNoRoomFound) {
-		if w2 != nil {
-			w2.Leave("done")
-			w2.Wait(ctx)
-		}
+		cleanupConn(ctx, w2)
 		return fmt.Errorf("join-room: watcher2 wants NoRoomFound: %v", err)
 	}
 	logger.Infof("join-rooom: watcher2 ok (no room found)")
@@ -320,15 +320,10 @@ func scenarioJoinRoom(ctx context.Context) error {
 	// 入室できない
 	_, p5, err := joinRoom(ctx, "joinroom_player5", room.Id, nil)
 	if !errors.Is(err, client.ErrNoRoomFound) {
-		if p5 != nil {
-			p5.Leave("done")
-			p5.Wait(ctx)
-		}
+		cleanupConn(ctx, p5)
 		return fmt.Errorf("join-room: player5 wants NoRoomFound: %v", err)
 	}
 	logger.Infof("join-rooom: player5 ok (no room found)")
-
-	discardEvents(conn)
 
 	return nil
 }
