@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"sync"
 	"time"
@@ -124,12 +123,14 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	if err != nil {
 		return err
 	}
-	log.Printf("room[%d] start %v lifetime=%v", n, room.Id, lifetime)
+	logger.Infof("room[%d] start %v lifetime=%v", n, room.Id, lifetime)
 
+	var rttSum, rttCnt, rttMax int
+	var avg float64
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		runMaster(ctx, n, master, lifetime)
+		rttSum, rttCnt, avg, rttMax = runMaster(ctx, n, master, lifetime)
 		wg.Done()
 	}()
 
@@ -169,12 +170,12 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	}
 
 	wg.Wait()
-
+	logger.Infof("room[%d] end RTT sum=%v cnt=%v avg=%v max=%v", n, rttSum, rttCnt, avg, rttMax)
 	return nil
 }
 
 // runMaster runs a master
-func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime time.Duration) {
+func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime time.Duration) (int, int, float64, int) {
 	clictx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -256,7 +257,7 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 				p, _ := binary.UnmarshalEvPongPayload(ev.Payload())
 				rtt := time.Now().UnixMilli() - int64(p.Timestamp)
 				if rtt > RttThreshold {
-					log.Printf("room[%d] master rtt=%d", n, rtt)
+					logger.Warnf("room[%d] master rtt=%d", n, rtt)
 				}
 				rttSum += rtt
 				rttCnt++
@@ -266,18 +267,18 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 
 			case binary.EvTypeLeft:
 				p, _ := binary.UnmarshalEvLeftPayload(ev.Payload())
-				log.Printf("room[%d] %v left: %v", n, p.ClientId, p.Cause)
+				logger.Infof("room[%d] %v left: %v", n, p.ClientId, p.Cause)
 			}
 		}
 	}()
 
 	msg, err := conn.Wait(ctx)
 	if err != nil {
-		log.Printf("room[%v] master error: %v", n, err)
+		logger.Errorf("room[%v] master error: %v", n, err)
 	}
 
-	avg := float64(rttSum) / float64(rttCnt)
-	log.Printf("room[%d] %v RTT sum=%v cnt=%v avg=%v max=%v", n, msg, rttSum, rttCnt, avg, rttMax)
+	logger.Debugf("room[%d] master end: %v", n, msg)
+	return int(rttSum), rttCnt, float64(rttSum) / float64(rttCnt), int(rttMax)
 }
 
 func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, masterId string) {
@@ -331,7 +332,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 			case binary.EvTypeLeft:
 				p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
 				if err != nil {
-					log.Printf("room[%v] %v error: UnmarshalEvLeftPayload %v", n, myId, err)
+					logger.Errorf("room[%v] %v error: UnmarshalEvLeftPayload %v", n, myId, err)
 					cancel()
 					conn.Leave("UnmarshalEvLeftPayload error")
 					break
@@ -345,10 +346,11 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 		}
 	}()
 
-	_, err := conn.Wait(ctx)
+	msg, err := conn.Wait(ctx)
 	if err != nil {
-		log.Printf("room[%v] %v error: %v", n, myId, err)
+		logger.Errorf("room[%v] %v error: %v", n, myId, err)
 	}
+	logger.Debugf("room[%v] %v end: %v", n, myId, msg)
 }
 
 func runWatcher(ctx context.Context, conn *client.Connection, n int, myId string) {
@@ -381,8 +383,9 @@ func runWatcher(ctx context.Context, conn *client.Connection, n int, myId string
 
 	// 部屋が自然消滅するまで居続ける
 
-	_, err := conn.Wait(ctx)
+	msg, err := conn.Wait(ctx)
 	if err != nil {
-		log.Printf("room[%v] %v error: %v", n, myId, err)
+		logger.Errorf("room[%v] %v error: %v", n, myId, err)
 	}
+	logger.Debugf("room[%v] %v end: %v", n, myId, msg)
 }

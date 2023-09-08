@@ -3,12 +3,14 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"wsnet2/binary"
 	"wsnet2/client"
@@ -24,7 +26,10 @@ var (
 	skipTLSVerify bool
 	timeout       time.Duration
 
+	verbose bool
+
 	msgBody = make([]byte, 5000)
+	logger  *zap.SugaredLogger
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -36,8 +41,15 @@ var rootCmd = &cobra.Command{
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
-		return applyClientSettings()
+		return errors.Join(
+			setupLogger(),
+			setupClient(),
+		)
 	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		logger.Sync()
+	},
+	SilenceUsage: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -64,10 +76,25 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&proxyURL, "proxy", "p", "", "Proxy URL")
 	rootCmd.PersistentFlags().BoolVarP(&skipTLSVerify, "skip-tls-verify", "s", false, "Skip TLS verify")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 5*time.Second, "Lobby request timeout")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose log output")
 }
 
-// applyClientSettings applies client lobby request settings
-func applyClientSettings() error {
+func setupLogger() error {
+	cfg := zap.NewDevelopmentConfig()
+	if verbose {
+		cfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	} else {
+		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	}
+	lg, err := cfg.Build()
+	if err != nil {
+		return err
+	}
+	logger = lg.Sugar()
+	return nil
+}
+
+func setupClient() error {
 	client.LobbyTimeout = timeout
 
 	if skipTLSVerify || proxyURL == "" {
