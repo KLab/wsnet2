@@ -25,6 +25,10 @@ var (
 
 	// LobbyTimeout : Lobbyへのリクエストのタイムアウト時間
 	LobbyTimeout time.Duration = time.Second * 5
+
+	ErrRoomLimit   = xerrors.Errorf(lobby.ResponseTypeRoomLimit.String())
+	ErrNoRoomFound = xerrors.Errorf(lobby.ResponseTypeNoRoomFound.String())
+	ErrRoomFull    = xerrors.Errorf(lobby.ResponseTypeRoomFull.String())
 )
 
 // Create : Roomを作成して入室
@@ -191,13 +195,20 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	if err != nil {
 		return nil, xerrors.Errorf("decode body: %w", err)
 	}
-	/*
-		if res.Type != lobby.ResponseTypeOK {
-			return nil, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
-		}
-	*/
 
-	return &res, nil
+	switch res.Type {
+	case lobby.ResponseTypeOK:
+		return &res, nil
+
+	case lobby.ResponseTypeRoomLimit:
+		return &res, ErrRoomLimit
+	case lobby.ResponseTypeNoRoomFound:
+		return &res, ErrNoRoomFound
+	case lobby.ResponseTypeRoomFull:
+		return &res, ErrRoomFull
+	default:
+		return &res, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
+	}
 }
 
 func connectToRoom(ctx context.Context, accinfo *AccessInfo, joined *pb.JoinedRoomRes, warn func(error)) (*Room, *Connection, error) {

@@ -11,6 +11,7 @@ import (
 
 	"wsnet2/binary"
 	"wsnet2/client"
+	"wsnet2/pb"
 )
 
 const (
@@ -119,7 +120,13 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 		"score": binary.MarshalInt(0),
 	}
 
-	room, master, err := createRoom(ctx, masterId, true, true, true, SoakSearchGroup, props)
+	room, master, err := createRoom(ctx, masterId, &pb.RoomOption{
+		Visible:     true,
+		Joinable:    true,
+		Watchable:   true,
+		SearchGroup: SoakSearchGroup,
+		PublicProps: binary.MarshalDict(props),
+	})
 	if err != nil {
 		return err
 	}

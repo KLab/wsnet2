@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	"wsnet2/binary"
 	"wsnet2/client"
 	"wsnet2/lobby"
 	"wsnet2/pb"
@@ -130,19 +129,11 @@ func searchRooms(ctx context.Context, cId string, param *lobby.SearchParam) ([]*
 }
 
 // createRoom creates room
-func createRoom(ctx context.Context, owner string, visible, joinable, watchable bool, group uint32, pubprops binary.Dict) (*client.Room, *client.Connection, error) {
+func createRoom(ctx context.Context, owner string, roomopt *pb.RoomOption) (*client.Room, *client.Connection, error) {
 
 	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, owner)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	roomopt := &pb.RoomOption{
-		Visible:     visible,
-		Joinable:    joinable,
-		Watchable:   watchable,
-		SearchGroup: group,
-		PublicProps: binary.MarshalDict(pubprops),
 	}
 
 	cinfo := &pb.ClientInfo{Id: owner}
