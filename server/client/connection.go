@@ -73,29 +73,33 @@ type Connection struct {
 	done chan msgerr
 }
 
+func (c *Connection) UserId() string {
+	return c.userid
+}
+
 // Send : Msg (RegularMsg) を送信（バッファに書き込み、自動再送対象）
-func (r *Connection) Send(typ binary.MsgType, payload []byte) error {
-	r.mumsg.Lock()
-	defer r.mumsg.Unlock()
-	next := r.msgseq + 1
-	err := r.msgbuf.Write(marshaledMsg{
+func (c *Connection) Send(typ binary.MsgType, payload []byte) error {
+	c.mumsg.Lock()
+	defer c.mumsg.Unlock()
+	next := c.msgseq + 1
+	err := c.msgbuf.Write(marshaledMsg{
 		next,
-		binary.BuildRegularMsgFrame(typ, next, payload, r.hmac),
+		binary.BuildRegularMsgFrame(typ, next, payload, c.hmac),
 	})
 	if err != nil {
 		return xerrors.Errorf("write to msgbuf: %w", err)
 	}
-	r.msgseq++
+	c.msgseq++
 	return nil
 }
 
 // SendSystemMsg : SystemMsg (NonRegularMsg) を送信
-func (r *Connection) SendSystemMsg(msg binary.Msg) error {
+func (c *Connection) SendSystemMsg(msg binary.Msg) error {
 	if _, ok := msg.(binary.RegularMsg); ok {
 		return xerrors.Errorf("not a system msg: %T %v", msg, msg)
 	}
 	select {
-	case r.sysmsg <- msg:
+	case c.sysmsg <- msg:
 		return nil
 	default:
 		return xerrors.Errorf("system msg sender is not ready")

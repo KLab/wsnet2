@@ -37,11 +37,11 @@ func init() {
 
 // runScenario runs scenario test
 func runScenario(ctx context.Context) error {
-	for _, test := range []func(context.Context) error{
+	for _, scenario := range []func(context.Context) error{
 		scenarioLobbySearch,
 		scenarioJoinRoom,
 	} {
-		err := test(ctx)
+		err := scenario(ctx)
 		if err != nil {
 			return err
 		}
@@ -49,6 +49,7 @@ func runScenario(ctx context.Context) error {
 	return nil
 }
 
+// discardEvents : 以降すべてのEventを読み捨てる
 func discardEvents(conn *client.Connection) {
 	go func() {
 		for range conn.Events() {
@@ -56,6 +57,7 @@ func discardEvents(conn *client.Connection) {
 	}()
 }
 
+// clearEventBuffer : 現在バッファに溜まっているイベントを読み捨てる
 func clearEventBuffer(conn *client.Connection) {
 	for {
 		select {
@@ -67,6 +69,7 @@ func clearEventBuffer(conn *client.Connection) {
 	}
 }
 
+// waitEvent : 指定時間の間、指定したタイプのEventが来るのを待つ。それ以外のEventは読み捨てる。
 func waitEvent(conn *client.Connection, d time.Duration, evtypes ...binary.EvType) (binary.Event, bool) {
 	t := time.NewTimer(d)
 	for {
@@ -88,6 +91,7 @@ func waitEvent(conn *client.Connection, d time.Duration, evtypes ...binary.EvTyp
 	}
 }
 
+// cleanupConn : Leaveメッセージを送り退室するのを待つ
 func cleanupConn(ctx context.Context, conn *client.Connection) {
 	if conn == nil {
 		return
@@ -102,8 +106,9 @@ func cleanupConn(ctx context.Context, conn *client.Connection) {
 	}
 }
 
-// Lobbyの部屋検索のテスト
+// scenarioLobbySearch : Lobbyの部屋検索のテスト
 func scenarioLobbySearch(ctx context.Context) error {
+	logger.Infof("=== Scenario Lobby Search ===")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -214,7 +219,9 @@ func scenarioLobbySearch(ctx context.Context) error {
 	return nil
 }
 
+// scenarioJoinRoom : 入室テスト
 func scenarioJoinRoom(ctx context.Context) error {
+	logger.Infof("=== Scenario Join Room ===")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
