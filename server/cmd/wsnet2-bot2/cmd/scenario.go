@@ -43,6 +43,7 @@ func runScenario(ctx context.Context) error {
 		scenarioLobbySearch,
 		scenarioJoinRoom,
 		scenarioMessage,
+		scenarioKick,
 	} {
 		err := scenario(ctx)
 		if err != nil {
@@ -544,6 +545,64 @@ func scenarioMessage(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("message to master: %w", err)
 	}
+
+	return nil
+}
+
+// scenarioKick : Kickのテスト
+func scenarioKick(ctx context.Context) error {
+	logger.Infof("=== Scenario Kick ===")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// master, player
+	// master, player, watcherの3人
+	room, master, err := createRoom(ctx, "kick_master", &pb.RoomOption{
+		Joinable:  true,
+		Watchable: true,
+	})
+	if err != nil {
+		return fmt.Errorf("kick: create: %w", err)
+	}
+	defer cleanupConn(ctx, master)
+	_, player, err := joinRoom(ctx, "kick_player", room.Id, nil)
+	if err != nil {
+		return fmt.Errorf("kick: join: %w", err)
+	}
+
+	_, _ = waitEvent(player, time.Second, binary.EvTypePeerReady)
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+
+	// playerをkick、一定時間内にplayerが終了すること
+
+	msg := "scenario kick"
+	master.Kick(player.UserId(), msg)
+
+	type msgerr struct {
+		msg string
+		err error
+	}
+	ch := make(chan msgerr, 1)
+	go func() {
+		msg, err := player.Wait(ctx)
+		ch <- msgerr{msg, err}
+	}()
+
+	select {
+	case <-time.NewTimer(time.Second).C:
+		cleanupConn(ctx, player)
+		return fmt.Errorf("kick: player is not kicked")
+	case r := <-ch:
+		if r.err != nil {
+			return fmt.Errorf("kick: %w", err)
+		}
+		if r.msg != msg {
+			return fmt.Errorf("kick: msg %v, wants %v", r.msg, msg)
+		}
+	}
+
+	logger.Infof("kick ok")
 
 	return nil
 }

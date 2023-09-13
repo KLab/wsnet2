@@ -121,10 +121,12 @@ func (c *Connection) Wait(ctx context.Context) (string, error) {
 	}
 }
 
+// Broadcast : MsgTypeBloadcastで送信
 func (c *Connection) Broadcast(payload []byte) error {
 	return c.Send(binary.MsgTypeBroadcast, payload)
 }
 
+// ToTargets : MsgTypeTargetsで指定したPlayerに送信
 func (c *Connection) ToTargets(payload []byte, targets ...string) error {
 	list := binary.List{}
 	for _, target := range targets {
@@ -133,12 +135,19 @@ func (c *Connection) ToTargets(payload []byte, targets ...string) error {
 	return c.Send(binary.MsgTypeTargets, append(binary.MarshalList(list), payload...))
 }
 
+// ToMaster : Masterに送信
 func (c *Connection) ToMaster(payload []byte) error {
 	return c.Send(binary.MsgTypeToMaster, payload)
 }
 
+// SwitchMaster : Master交代
 func (c *Connection) SwitchMaster(player string) error {
 	return c.Send(binary.MsgTypeSwitchMaster, binary.MarshalSwitchMasterPayload(player))
+}
+
+// Kick : 指定したPlayerをKick
+func (c *Connection) Kick(player, msg string) error {
+	return c.Send(binary.MsgTypeKick, binary.MarshalKickPayload(player, msg))
 }
 
 // Leave : MsgLeaveを送信する
