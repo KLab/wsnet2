@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
 	"time"
 	"wsnet2/binary"
 	"wsnet2/client"
@@ -40,6 +42,7 @@ func runScenario(ctx context.Context) error {
 	for _, scenario := range []func(context.Context) error{
 		scenarioLobbySearch,
 		scenarioJoinRoom,
+		scenarioMessage,
 	} {
 		err := scenario(ctx)
 		if err != nil {
@@ -298,7 +301,7 @@ func scenarioJoinRoom(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("join-room: player4: %w", err)
 	}
-	logger.Infof("join-rooom: player4 ok")
+	logger.Infof("join-room: player4 ok")
 	discardEvents(p4)
 	defer cleanupConn(ctx, p4)
 
@@ -308,7 +311,7 @@ func scenarioJoinRoom(ctx context.Context) error {
 		cleanupConn(ctx, w2)
 		return fmt.Errorf("join-room: watcher2 wants NoRoomFound: %v", err)
 	}
-	logger.Infof("join-rooom: watcher2 ok (no room found)")
+	logger.Infof("join-room: watcher2 ok (no room found)")
 
 	clearEventBuffer(conn)
 
@@ -330,7 +333,217 @@ func scenarioJoinRoom(ctx context.Context) error {
 		cleanupConn(ctx, p5)
 		return fmt.Errorf("join-room: player5 wants NoRoomFound: %v", err)
 	}
-	logger.Infof("join-rooom: player5 ok (no room found)")
+	logger.Infof("join-room: player5 ok (no room found)")
+
+	return nil
+}
+
+func checkEvMessage(conn *client.Connection, sndrptn string, payload []byte) error {
+	logger.Debugf("  check %v", conn.UserId())
+
+	ev, ok := waitEvent(conn, time.Second, binary.EvTypeMessage)
+	if !ok {
+		return fmt.Errorf("%v: no message event", conn.UserId())
+	}
+
+	sndr, pl, err := binary.UnmarshalEvMessage(ev.Payload())
+	if err != nil {
+		return err
+	}
+	if ok, _ := regexp.MatchString(sndrptn, sndr); !ok {
+		return fmt.Errorf("%v: sender mismatch: %v wants %v", conn.UserId(), sndr, sndrptn)
+	}
+	if !reflect.DeepEqual(pl, payload) {
+		return fmt.Errorf("%v: payload mismatch: %v wants %v", conn.UserId(), pl, payload)
+	}
+	return nil
+}
+
+func checkNoEvMessage(conn *client.Connection) error {
+	logger.Debugf("  check %v", conn.UserId())
+	ev, ok := waitEvent(conn, time.Second, binary.EvTypeMessage)
+	if ok {
+		return fmt.Errorf("%v: unexpect message: %v", conn.UserId(), ev)
+	}
+	return nil
+}
+
+// scenarioMessage : メッセージ送信テスト
+func scenarioMessage(ctx context.Context) error {
+	logger.Infof("=== Scenario Message ===")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// master, player, watcherの3人
+	room, master, err := createRoom(ctx, "message_master", &pb.RoomOption{
+		Joinable:  true,
+		Watchable: true,
+	})
+	if err != nil {
+		return fmt.Errorf("message: create: %w", err)
+	}
+	defer cleanupConn(ctx, master)
+	_, player, err := joinRoom(ctx, "message_player", room.Id, nil)
+	if err != nil {
+		return fmt.Errorf("message: join: %w", err)
+	}
+	defer cleanupConn(ctx, player)
+	_, watcher, err := watchRoom(ctx, "message_watcher", room.Id, nil)
+	if err != nil {
+		return fmt.Errorf("message: watch: %w", err)
+	}
+	defer cleanupConn(ctx, watcher)
+
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+	clearEventBuffer(watcher)
+
+	// masterからのbroadcastが全員に届くこと
+	logger.Debugf("broadcast from master")
+	payload := binary.MarshalStr8("bloadcast from master")
+	master.Broadcast(payload)
+
+	err = checkEvMessage(master, master.UserId(), payload)
+	if err != nil {
+		return fmt.Errorf("bloadcast from master: %w", err)
+	}
+	err = checkEvMessage(player, master.UserId(), payload)
+	if err != nil {
+		return fmt.Errorf("bloadcast from master: %w", err)
+	}
+	err = checkEvMessage(watcher, master.UserId(), payload)
+	if err != nil {
+		return fmt.Errorf("bloadcast from master: %w", err)
+	}
+
+	logger.Infof("broadcast from master: ok")
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+	clearEventBuffer(watcher)
+
+	// masterからのtoTargetsがplayerのみに届きmaster,watcherに届かないこと
+	logger.Debugf("message to targets")
+
+	payload = binary.MarshalStr8("message to targets")
+	master.ToTargets(payload, player.UserId())
+
+	err = checkEvMessage(player, master.UserId(), payload)
+	if err != nil {
+		return fmt.Errorf("message to targets: %w", err)
+	}
+	err = checkNoEvMessage(master)
+	if err != nil {
+		return fmt.Errorf("message to targets: %w", err)
+	}
+	err = checkNoEvMessage(watcher)
+	if err != nil {
+		return fmt.Errorf("message to targets: %w", err)
+	}
+
+	logger.Infof("message to targets: ok")
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+	clearEventBuffer(watcher)
+
+	// playerからのtoMasterがmasterのみに届くこと
+	logger.Debugf("message to master")
+
+	payload = binary.MarshalStr8("message to master")
+	player.ToMaster(payload)
+
+	err = checkEvMessage(master, player.UserId(), payload)
+	if err != nil {
+		return fmt.Errorf("message to master: %w", err)
+	}
+	err = checkNoEvMessage(player)
+	if err != nil {
+		return fmt.Errorf("message to master: %w", err)
+	}
+	err = checkNoEvMessage(watcher)
+	if err != nil {
+		return fmt.Errorf("message to master: %w", err)
+	}
+
+	logger.Infof("message to master: ok")
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+	clearEventBuffer(watcher)
+
+	// watcherからもbroadcast/toMasterができること
+	logger.Debugf("message from watcher")
+
+	payload = binary.MarshalStr8("message from watcher")
+	watcher.Broadcast(payload)
+
+	err = checkEvMessage(master, "hub:.*", payload)
+	if err != nil {
+		return fmt.Errorf("message from watcher: %w", err)
+	}
+	err = checkEvMessage(player, "hub:.*", payload)
+	if err != nil {
+		return fmt.Errorf("message from watcher: %w", err)
+	}
+	err = checkEvMessage(watcher, "hub:.*", payload)
+	if err != nil {
+		return fmt.Errorf("message from watcher: %w", err)
+	}
+
+	watcher.ToMaster(payload)
+
+	err = checkEvMessage(master, "hub:.*", payload)
+	if err != nil {
+		return fmt.Errorf("message from watcher: %w", err)
+	}
+	err = checkNoEvMessage(player)
+	if err != nil {
+		return fmt.Errorf("message from watcher: %w", err)
+	}
+	err = checkNoEvMessage(watcher)
+	if err != nil {
+		return fmt.Errorf("message from watcher: %w", err)
+	}
+
+	logger.Infof("message from watcher: ok")
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+	clearEventBuffer(watcher)
+
+	// master交代 -> player
+	logger.Debugf("switch master")
+
+	master.SwitchMaster(player.UserId())
+
+	for _, conn := range []*client.Connection{master, player, watcher} {
+		logger.Debugf("  check %v", conn.UserId())
+		_, ok := waitEvent(conn, time.Second, binary.EvTypeMasterSwitched)
+		if !ok {
+			return fmt.Errorf("switch master: %v: no master-switched event", conn.UserId())
+		}
+	}
+
+	logger.Infof("switch master: ok")
+	clearEventBuffer(master)
+	clearEventBuffer(player)
+	clearEventBuffer(watcher)
+
+	// masterからのtoMasterがplayerに届きmasterに届かないこと
+	logger.Debugf("message to master")
+
+	payload = binary.MarshalStr8("message to master")
+	master.ToMaster(payload)
+
+	err = checkEvMessage(player, master.UserId(), payload)
+	if err != nil {
+		return fmt.Errorf("message to master: %w", err)
+	}
+	err = checkNoEvMessage(master)
+	if err != nil {
+		return fmt.Errorf("message to master: %w", err)
+	}
+	err = checkNoEvMessage(watcher)
+	if err != nil {
+		return fmt.Errorf("message to master: %w", err)
+	}
 
 	return nil
 }

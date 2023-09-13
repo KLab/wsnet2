@@ -121,6 +121,26 @@ func (c *Connection) Wait(ctx context.Context) (string, error) {
 	}
 }
 
+func (c *Connection) Broadcast(payload []byte) error {
+	return c.Send(binary.MsgTypeBroadcast, payload)
+}
+
+func (c *Connection) ToTargets(payload []byte, targets ...string) error {
+	list := binary.List{}
+	for _, target := range targets {
+		list = append(list, binary.MarshalStr8(target))
+	}
+	return c.Send(binary.MsgTypeTargets, append(binary.MarshalList(list), payload...))
+}
+
+func (c *Connection) ToMaster(payload []byte) error {
+	return c.Send(binary.MsgTypeToMaster, payload)
+}
+
+func (c *Connection) SwitchMaster(player string) error {
+	return c.Send(binary.MsgTypeSwitchMaster, binary.MarshalSwitchMasterPayload(player))
+}
+
 // Leave : MsgLeaveを送信する
 func (c *Connection) Leave(msg string) error {
 	return c.Send(binary.MsgTypeLeave, binary.MarshalLeavePayload(msg))
