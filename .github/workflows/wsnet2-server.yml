@@ -80,6 +80,6 @@ jobs:
           done
           sleep 5
 
-      - run: bin/wsnet2-bot
+      - run: bin/wsnet2-bot scenario
 
       - run: docker compose logs
