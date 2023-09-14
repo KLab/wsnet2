@@ -5,8 +5,8 @@ import roomHistories from "../store/roomHistories";
 import type { App } from "../store/apps";
 import type { RoomHistory } from "../store/roomHistories";
 import overview from "../store/overview";
-import RoomHistoryDataTable from "../components/RoomHistoryDataTable.vue";
 import { useMessage } from "naive-ui";
+import RoomHistoryDataTable from "../components/RoomHistoryDataTable.vue";
 
 // UI components
 import {
