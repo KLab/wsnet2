@@ -9,7 +9,9 @@ export const appQuery = extendType({
       type: "app",
       description: "Get all apps",
       resolve(_, __, ctx: Context) {
-        return ctx.prisma.app.findMany();
+        return ctx.prisma.app.findMany({
+          take: Number(process.env.GRAPHQL_RESULT_MAX_SIZE),
+        });
       },
     });
 

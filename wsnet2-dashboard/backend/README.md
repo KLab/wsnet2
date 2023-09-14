@@ -7,11 +7,12 @@ It provides APIs of `GraphQL` and `GRPC` for the dashboard.
 
 ## Environment variables
 
-| Name            | Description                                          | Example                                         |
-| --------------- | ---------------------------------------------------- | ----------------------------------------------- |
-| SERVER_PORT     | Port of the dashboard's server                       | "5555"                                          |
-| DATABASE_URL    | Database uri（including database name and password） | "mysql://wsnet:wsnetpass@localhost:3306/wsnet2" |
-| FRONTEND_ORIGIN | IP address of the dashboard frontend（for CORS）     | "http://localhost:3000"                         |
+| Name                    | Description                                               | Example                                         |
+| ----------------------- | --------------------------------------------------------- | ----------------------------------------------- |
+| SERVER_PORT             | Port of the dashboard's server                            | "5555"                                          |
+| DATABASE_URL            | Database uri（including database name and password）      | "mysql://wsnet:wsnetpass@localhost:3306/wsnet2" |
+| FRONTEND_ORIGIN         | IP address of the dashboard frontend（for CORS）          | "http://localhost:3000"                         |
+| GRAPHQL_RESULT_MAX_SIZE | The maximum number of results returned by a GraphQL query | "1000"                                          |
 
 ## Build the application
 

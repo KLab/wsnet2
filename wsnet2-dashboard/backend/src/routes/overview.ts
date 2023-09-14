@@ -36,4 +36,21 @@ router.get("/", (req: express.Request, res: express.Response) => {
     });
 });
 
+// パッケージのバージョンを取得
+router.get("/version", (req: express.Request, res: express.Response) => {
+  res.status(200).send({
+    version: process.env.npm_package_version,
+  });
+});
+
+// GraphQLの最大取得件数を取得
+router.get(
+  "/graphql_result_limit",
+  (req: express.Request, res: express.Response) => {
+    res.status(200).send({
+      limit: process.env.GRAPHQL_RESULT_MAX_SIZE,
+    });
+  }
+);
+
 export default router;

@@ -1,6 +1,6 @@
 {
   "name": "wsnet2-dashboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "scripts": {
     "dev": "NODE_ENV=development vite",
     "build": "vue-tsc --noEmit && vite build",

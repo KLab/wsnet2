@@ -1,6 +1,6 @@
 {
   "name": "wsnet2-dashboard-backend",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Backend for wsnet2-dashboard",
   "main": "src/index.ts",
   "scripts": {

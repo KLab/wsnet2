@@ -22,6 +22,7 @@ export const roomHistoryModel = objectType({
         return ctx.prisma.player_log.findMany({
           where: { room_id: parent.room_id },
           orderBy: { id: "asc" },
+          take: Number(process.env.GRAPHQL_RESULT_MAX_SIZE),
         });
       },
     });

@@ -8,7 +8,9 @@ export const hubServerQuery = extendType({
       type: "hub_server",
       description: "Get all hub servers",
       resolve(_, __, ctx: Context) {
-        return ctx.prisma.hub_server.findMany();
+        return ctx.prisma.hub_server.findMany({
+          take: Number(process.env.GRAPHQL_RESULT_MAX_SIZE),
+        });
       },
     });
 

@@ -99,6 +99,7 @@ export const roomHistoryQuery = extendType({
 
         return ctx.prisma.room_history.findMany({
           where: conditions,
+          take: Number(process.env.GRAPHQL_RESULT_MAX_SIZE),
         });
       },
     });

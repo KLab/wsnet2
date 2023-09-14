@@ -4,6 +4,8 @@ import apps from "../store/apps";
 import rooms from "../store/rooms";
 import type { App } from "../store/apps";
 import type { Room } from "../store/rooms";
+import overview from "../store/overview";
+import { useMessage } from "naive-ui";
 
 // UI components
 import {
@@ -24,6 +26,7 @@ import RoomsDataTableVue from "../components/RoomsDataTable.vue";
 import PropsFilter from "../components/PropsFilter.vue";
 import SliderRange from "../components/SliderRange.vue";
 
+const message = useMessage();
 const appList = ref<App[]>();
 const appIdList = computed(() =>
   appList.value?.map((item) => {
@@ -102,6 +105,14 @@ async function apply(useCache: boolean) {
       roomList.value = fetched.filter((room) => checkPropsFilter(room));
     } else {
       roomList.value = [...fetched];
+    }
+
+    // check if results reaches limit
+    var limit = await overview.fetchGraphqlResultLimit();
+    if (fetched.length == limit) {
+      message.warning(
+        `Number of results reaches the limit(${limit}). Please narrow down your search.`
+      );
     }
   } catch (err) {
     alert(`Failed to fetch Room list: \n${err}`);
