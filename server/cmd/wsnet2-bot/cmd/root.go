@@ -17,6 +17,17 @@ import (
 	"wsnet2/pb"
 )
 
+const (
+	RttThreshold = 16 // millisecond
+
+	ScenarioLobbySearchGroup = 100
+	ScenarioJoinRoomGroup    = 101
+	ScenarioMessageGroup     = 102
+	ScenarioKickGroup        = 103
+
+	SoakSearchGroup = 200
+)
+
 var (
 	lobbyURL string
 	appId    string

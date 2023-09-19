@@ -15,14 +15,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	ScenarioLobbySearchGroup = uint32(101) + iota
-	ScenarioJoinRoomGroup
-)
-
 // scenarioCmd runs scenario test
 //
-// 機能テスト
+// シナリオテスト（機能テスト）
+//   - 部屋検索
+//   - 入室
+//   - メッセージ送信
+//   - Kick
 var scenarioCmd = &cobra.Command{
 	Use:   "scenario",
 	Short: "Run scenario test",
@@ -34,7 +33,6 @@ var scenarioCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(scenarioCmd)
-
 }
 
 // runScenario runs scenario test
@@ -377,8 +375,9 @@ func scenarioMessage(ctx context.Context) error {
 
 	// master, player, watcherの3人
 	room, master, err := createRoom(ctx, "message_master", &pb.RoomOption{
-		Joinable:  true,
-		Watchable: true,
+		Joinable:    true,
+		Watchable:   true,
+		SearchGroup: ScenarioMessageGroup,
 	})
 	if err != nil {
 		return fmt.Errorf("message: create: %w", err)
@@ -558,8 +557,9 @@ func scenarioKick(ctx context.Context) error {
 	// master, player
 	// master, player, watcherの3人
 	room, master, err := createRoom(ctx, "kick_master", &pb.RoomOption{
-		Joinable:  true,
-		Watchable: true,
+		Joinable:    true,
+		Watchable:   true,
+		SearchGroup: ScenarioKickGroup,
 	})
 	if err != nil {
 		return fmt.Errorf("kick: create: %w", err)

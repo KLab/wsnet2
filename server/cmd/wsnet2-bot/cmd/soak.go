@@ -14,16 +14,10 @@ import (
 	"wsnet2/pb"
 )
 
-const (
-	SoakSearchGroup = 10
-
-	RttThreshold = 16 // millisecond
-)
-
 var (
-	roomCount   int
-	minLifeTime time.Duration
-	maxLifeTime time.Duration
+	soakRoomCount   int
+	soakMinLifeTime time.Duration
+	soakMaxLifeTime time.Duration
 )
 
 // soakCmd runs soak test
@@ -51,16 +45,16 @@ var soakCmd = &cobra.Command{
 	Short: "Run soak test",
 	Long:  `soak test (耐久性テスト): 指定した範囲の寿命の部屋を、指定数並列に動かし続ける`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runSoak(cmd.Context(), roomCount, minLifeTime, maxLifeTime)
+		return runSoak(cmd.Context(), soakRoomCount, soakMinLifeTime, soakMaxLifeTime)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(soakCmd)
 
-	soakCmd.Flags().IntVarP(&roomCount, "room-count", "c", 10, "Parallel room count")
-	soakCmd.Flags().DurationVarP(&minLifeTime, "min-life-time", "m", 10*time.Minute, "Minimum life time")
-	soakCmd.Flags().DurationVarP(&maxLifeTime, "max-life-time", "M", 20*time.Minute, "Maximum life time")
+	soakCmd.Flags().IntVarP(&soakRoomCount, "room-count", "c", 10, "Parallel room count")
+	soakCmd.Flags().DurationVarP(&soakMinLifeTime, "min-life-time", "m", 10*time.Minute, "Minimum life time")
+	soakCmd.Flags().DurationVarP(&soakMaxLifeTime, "max-life-time", "M", 20*time.Minute, "Maximum life time")
 }
 
 // runSoak runs soak test
@@ -73,11 +67,13 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 	}
 	lifetimeRange := int(maxLifeTime - minLifeTime)
 
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	var wg sync.WaitGroup
+	defer func() {
+		cancel()
+		wg.Wait()
+	}()
+
 	ech := make(chan error)
 	counter := make(chan struct{}, roomCount)
 
@@ -97,7 +93,7 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 			if lifetimeRange != 0 {
 				lifetime += time.Duration(rand.Intn(lifetimeRange))
 			}
-			err := runRoom(ctx, n, lifetime)
+			err := runSoakRoom(ctx, n, lifetime)
 			if err != nil {
 				ech <- err
 			}
@@ -109,11 +105,16 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 	}
 }
 
-// runRoom runs a room
-func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
+// runSoakRoom runs a room
+func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	var wg sync.WaitGroup
+	defer func() {
+		cancel()
+		wg.Wait()
+	}()
 
+	logprefix := fmt.Sprintf("room[%d]", n)
 	masterId := fmt.Sprintf("master-%d", n)
 	props := binary.Dict{
 		"room":  binary.MarshalStr8(fmt.Sprintf("soak-%d", n)),
@@ -130,14 +131,13 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	if err != nil {
 		return err
 	}
-	logger.Infof("room[%d] start %v lifetime=%v", n, room.Id, lifetime)
+	logger.Infof("%s start %v lifetime=%v", logprefix, room.Id, lifetime)
 
-	var rttSum, rttCnt, rttMax int
+	var rttSum, rttCnt, rttMax int64
 	var avg float64
-	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		rttSum, rttCnt, avg, rttMax = runMaster(ctx, n, master, lifetime)
+		rttSum, rttCnt, rttMax, avg = runMaster(ctx, master, lifetime, logprefix)
 		wg.Done()
 	}()
 
@@ -156,7 +156,7 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 		wg.Add(1)
 		go func() {
-			runPlayer(ctx, player, n, playerId, masterId)
+			runPlayer(ctx, player, masterId, logprefix)
 			wg.Done()
 		}()
 	}
@@ -171,100 +171,94 @@ func runRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 		wg.Add(1)
 		go func() {
-			runWatcher(ctx, watcher, n, watcherId)
+			runWatcher(ctx, watcher, logprefix)
 			wg.Done()
 		}()
 	}
 
 	wg.Wait()
-	logger.Infof("room[%d] end RTT sum=%v cnt=%v avg=%v max=%v", n, rttSum, rttCnt, avg, rttMax)
+	logger.Infof("%s end RTT sum=%v cnt=%v avg=%v max=%v", logprefix, rttSum, rttCnt, avg, rttMax)
 	return nil
 }
 
 // runMaster runs a master
-func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime time.Duration) (int, int, float64, int) {
+func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
 	clictx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	go func() {
+		var c <-chan time.Time
+		if lifetime > 0 {
+			c = time.After(lifetime)
+		}
 		var msg string
 		select {
-		case <-clictx.Done():
+		case <-ctx.Done():
 			msg = "context done"
-		case <-time.After(lifetime):
+		case <-c:
 			msg = "done"
 		}
 		cancel()
 		conn.Leave(msg)
+		logger.Debugf("master leave")
 	}()
 
-	sender := func() {
-		// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 broadcast
-		go func() {
-			for {
-				for i := 0; i < 25; i++ {
-					select {
-					case <-clictx.Done():
-						return
-					default:
-					}
-					conn.Send(binary.MsgTypeBroadcast, msgBody[:1500])
-					time.Sleep(200 * time.Millisecond)
-				}
-				for i := 0; i < 5; i++ {
-					select {
-					case <-clictx.Done():
-						return
-					default:
-					}
-					conn.Send(binary.MsgTypeBroadcast, msgBody[:4000])
-					time.Sleep(time.Second)
-				}
-			}
-		}()
-		// goroutine2: 30~60byteをランダムに毎秒 broadcast
-		go func() {
-			for {
+	// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 broadcast
+	go func() {
+		for {
+			for i := 0; i < 25; i++ {
 				select {
 				case <-clictx.Done():
 					return
 				default:
 				}
-				conn.Send(binary.MsgTypeBroadcast, msgBody[:rand.Intn(30)+30])
+				conn.Send(binary.MsgTypeBroadcast, msgBody[:1500])
+				time.Sleep(200 * time.Millisecond)
+			}
+			for i := 0; i < 5; i++ {
+				select {
+				case <-clictx.Done():
+					return
+				default:
+				}
+				conn.Send(binary.MsgTypeBroadcast, msgBody[:4000])
 				time.Sleep(time.Second)
 			}
-		}()
-		// groutine3: 5秒に1回PublicPropを書きかえ
-		go func() {
-			for {
-				select {
-				case <-clictx.Done():
-					return
-				default:
-				}
-				conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
-					true, true, true, SoakSearchGroup, 10, 0,
-					binary.Dict{"score": binary.MarshalInt(rand.Intn(1024))}, binary.Dict{}))
-				time.Sleep(5 * time.Second)
+		}
+	}()
+	// goroutine2: 30~60byteをランダムに毎秒 broadcast
+	go func() {
+		for {
+			select {
+			case <-clictx.Done():
+				return
+			default:
 			}
-		}()
-	}
-
-	rttSum := int64(0)
-	rttMax := int64(0)
-	rttCnt := 0
+			conn.Send(binary.MsgTypeBroadcast, msgBody[:rand.Intn(30)+30])
+			time.Sleep(time.Second)
+		}
+	}()
+	// groutine3: 5秒に1回PublicPropを書きかえ
+	go func() {
+		for {
+			select {
+			case <-clictx.Done():
+				return
+			default:
+			}
+			conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
+				true, true, true, SoakSearchGroup, 10, 0,
+				binary.Dict{"score": binary.MarshalInt(rand.Intn(1024))}, binary.Dict{}))
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	go func() {
 		for ev := range conn.Events() {
 			switch ev.Type() {
-			case binary.EvTypePeerReady:
-				sender()
-
 			case binary.EvTypePong:
 				p, _ := binary.UnmarshalEvPongPayload(ev.Payload())
 				rtt := time.Now().UnixMilli() - int64(p.Timestamp)
 				if rtt > RttThreshold {
-					logger.Warnf("room[%d] master rtt=%d", n, rtt)
+					logger.Warnf("%s master rtt=%d", logprefix, rtt)
 				}
 				rttSum += rtt
 				rttCnt++
@@ -274,80 +268,84 @@ func runMaster(ctx context.Context, n int, conn *client.Connection, lifetime tim
 
 			case binary.EvTypeLeft:
 				p, _ := binary.UnmarshalEvLeftPayload(ev.Payload())
-				logger.Infof("room[%d] %v left: %v", n, p.ClientId, p.Cause)
+				logger.Infof("%s %v left: %v", logprefix, p.ClientId, p.Cause)
 			}
 		}
 	}()
 
 	msg, err := conn.Wait(ctx)
 	if err != nil {
-		logger.Errorf("room[%v] master error: %v", n, err)
+		logger.Errorf("%s master error: %v", logprefix, err)
 	}
 
-	logger.Debugf("room[%d] master end: %v", n, msg)
-	return int(rttSum), rttCnt, float64(rttSum) / float64(rttCnt), int(rttMax)
+	logger.Debugf("%s master end: %v", logprefix, msg)
+	return rttSum, rttCnt, rttMax, float64(rttSum) / float64(rttCnt)
 }
 
-func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, masterId string) {
+func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix string) {
 	clictx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	sender := func() {
-		// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 ToMaster
-		go func() {
-			for {
-				for i := 0; i < 25; i++ {
-					select {
-					case <-clictx.Done():
-						return
-					default:
-					}
-					conn.Send(binary.MsgTypeToMaster, msgBody[:1500])
-					time.Sleep(200 * time.Millisecond)
-				}
-				for i := 0; i < 5; i++ {
-					select {
-					case <-clictx.Done():
-						return
-					default:
-					}
-					conn.Send(binary.MsgTypeToMaster, msgBody[:4000])
-					time.Sleep(time.Second)
-				}
-			}
-		}()
-		// goroutine2: 30~60byteをランダムに毎秒 ToMaster
-		go func() {
-			for {
+	// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 ToMaster
+	go func() {
+		for {
+			for i := 0; i < 25; i++ {
 				select {
 				case <-clictx.Done():
 					return
 				default:
 				}
-				conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+				conn.Send(binary.MsgTypeToMaster, msgBody[:1500])
+				time.Sleep(200 * time.Millisecond)
+			}
+			for i := 0; i < 5; i++ {
+				select {
+				case <-clictx.Done():
+					return
+				default:
+				}
+				conn.Send(binary.MsgTypeToMaster, msgBody[:4000])
 				time.Sleep(time.Second)
 			}
-		}()
-	}
+		}
+	}()
+	// goroutine2: 30~60byteをランダムに毎秒 ToMaster
+	go func() {
+		for {
+			select {
+			case <-clictx.Done():
+				return
+			default:
+			}
+			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+			time.Sleep(time.Second)
+		}
+	}()
 
 	go func() {
-		for ev := range conn.Events() {
-			switch ev.Type() {
-			case binary.EvTypePeerReady:
-				sender()
-
-			case binary.EvTypeLeft:
-				p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
-				if err != nil {
-					logger.Errorf("room[%v] %v error: UnmarshalEvLeftPayload %v", n, myId, err)
-					cancel()
-					conn.Leave("UnmarshalEvLeftPayload error")
-					break
+		for {
+			select {
+			case <-ctx.Done():
+				cancel()
+				conn.Leave("context done")
+			case ev, ok := <-conn.Events():
+				if !ok {
+					return
 				}
+				switch ev.Type() {
+				case binary.EvTypeLeft:
+					p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
+					if err != nil {
+						logger.Errorf("%s %v error: UnmarshalEvLeftPayload %v", logprefix, conn.UserId(), err)
+						cancel()
+						conn.Leave("UnmarshalEvLeftPayload error")
+						break
+					}
 
-				if p.ClientId == masterId {
-					cancel()
-					conn.Leave("done")
+					if p.ClientId == masterId {
+						cancel()
+						conn.Leave("done")
+					}
 				}
 			}
 		}
@@ -355,36 +353,30 @@ func runPlayer(ctx context.Context, conn *client.Connection, n int, myId, master
 
 	msg, err := conn.Wait(ctx)
 	if err != nil {
-		logger.Errorf("room[%v] %v error: %v", n, myId, err)
+		logger.Errorf("%s %v error: %v", logprefix, conn.UserId(), err)
 	}
-	logger.Debugf("room[%v] %v end: %v", n, myId, msg)
+	logger.Debugf("%s %v end: %v", logprefix, conn.UserId(), msg)
 }
 
-func runWatcher(ctx context.Context, conn *client.Connection, n int, myId string) {
+func runWatcher(ctx context.Context, conn *client.Connection, logprefix string) {
 	clictx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	sender := func() {
-		// goroutine1: 30~60byteをランダムに10秒毎 ToMaster
-		go func() {
-			for {
-				select {
-				case <-clictx.Done():
-					return
-				default:
-				}
-				conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
-				time.Sleep(10 * time.Second)
+	// goroutine1: 30~60byteをランダムに10秒毎 ToMaster
+	go func() {
+		for {
+			select {
+			case <-clictx.Done():
+				return
+			default:
 			}
-		}()
-	}
+			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+			time.Sleep(10 * time.Second)
+		}
+	}()
 
 	go func() {
-		for ev := range conn.Events() {
-			switch ev.Type() {
-			case binary.EvTypePeerReady:
-				sender()
-			}
+		for range conn.Events() {
 		}
 	}()
 
@@ -392,7 +384,7 @@ func runWatcher(ctx context.Context, conn *client.Connection, n int, myId string
 
 	msg, err := conn.Wait(ctx)
 	if err != nil {
-		logger.Errorf("room[%v] %v error: %v", n, myId, err)
+		logger.Errorf("%s %v error: %v", logprefix, conn.UserId(), err)
 	}
-	logger.Debugf("room[%v] %v end: %v", n, myId, msg)
+	logger.Debugf("%s %v end: %v", logprefix, conn.UserId(), msg)
 }
