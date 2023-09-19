@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -74,7 +77,14 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 		wg.Wait()
 	}()
 
-	ech := make(chan error)
+	go func() {
+		s := make(chan os.Signal, 1)
+		signal.Notify(s, syscall.SIGINT)
+		logger.Infof("signal: %v", <-s)
+		cancel()
+	}()
+
+	ech := make(chan error, roomCount)
 	counter := make(chan struct{}, roomCount)
 
 	for n := 0; ; n++ {
@@ -97,8 +107,8 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 			if err != nil {
 				ech <- err
 			}
-			wg.Done()
 			<-counter
+			wg.Done()
 		}(n)
 
 		time.Sleep(time.Second)
@@ -121,7 +131,8 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 		"score": binary.MarshalInt(0),
 	}
 
-	room, master, err := createRoom(ctx, masterId, &pb.RoomOption{
+	logger.Debugf("%s create %s", logprefix, masterId)
+	room, master, err := createRoom(context.Background(), masterId, &pb.RoomOption{
 		Visible:     true,
 		Joinable:    true,
 		Watchable:   true,
@@ -149,7 +160,8 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 		q := client.NewQuery()
 		q.Equal("room", room.PublicProps["room"])
 
-		_, player, err := joinRandom(ctx, playerId, SoakSearchGroup, q)
+		logger.Debugf("%s join %s", logprefix, playerId)
+		_, player, err := joinRandom(context.Background(), playerId, SoakSearchGroup, q)
 		if err != nil {
 			return err
 		}
@@ -164,7 +176,8 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	for i := 0; i < 5; i++ {
 		watcherId := fmt.Sprintf("watcher-%v-%v", n, i)
 
-		_, watcher, err := watchRoom(ctx, watcherId, room.Id, nil)
+		logger.Debugf("%s watch %s", logprefix, watcherId)
+		_, watcher, err := watchRoom(context.Background(), watcherId, room.Id, nil)
 		if err != nil {
 			return err
 		}
@@ -183,7 +196,8 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 // runMaster runs a master
 func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
-	clictx, cancel := context.WithCancel(ctx)
+	logger.Debugf("%s %s start", conn.UserId(), logprefix)
+	sendctx, cancel := context.WithCancel(ctx)
 	go func() {
 		var c <-chan time.Time
 		if lifetime > 0 {
@@ -197,8 +211,8 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 			msg = "done"
 		}
 		cancel()
+		logger.Debugf("%v master leave", logprefix)
 		conn.Leave(msg)
-		logger.Debugf("master leave")
 	}()
 
 	// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 broadcast
@@ -206,7 +220,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 		for {
 			for i := 0; i < 25; i++ {
 				select {
-				case <-clictx.Done():
+				case <-sendctx.Done():
 					return
 				default:
 				}
@@ -215,7 +229,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 			}
 			for i := 0; i < 5; i++ {
 				select {
-				case <-clictx.Done():
+				case <-sendctx.Done():
 					return
 				default:
 				}
@@ -228,7 +242,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 	go func() {
 		for {
 			select {
-			case <-clictx.Done():
+			case <-sendctx.Done():
 				return
 			default:
 			}
@@ -240,7 +254,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 	go func() {
 		for {
 			select {
-			case <-clictx.Done():
+			case <-sendctx.Done():
 				return
 			default:
 			}
@@ -273,17 +287,18 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 		}
 	}()
 
-	msg, err := conn.Wait(ctx)
+	msg, err := conn.Wait(context.Background())
 	if err != nil {
 		logger.Errorf("%s master error: %v", logprefix, err)
 	}
 
-	logger.Debugf("%s master end: %v", logprefix, msg)
+	logger.Debugf("%s %s end: %v", logprefix, conn.UserId(), msg)
 	return rttSum, rttCnt, rttMax, float64(rttSum) / float64(rttCnt)
 }
 
 func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix string) {
-	clictx, cancel := context.WithCancel(ctx)
+	logger.Debugf("%s %s start", conn.UserId(), logprefix)
+	sendctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 ToMaster
@@ -291,7 +306,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 		for {
 			for i := 0; i < 25; i++ {
 				select {
-				case <-clictx.Done():
+				case <-sendctx.Done():
 					return
 				default:
 				}
@@ -300,7 +315,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 			}
 			for i := 0; i < 5; i++ {
 				select {
-				case <-clictx.Done():
+				case <-sendctx.Done():
 					return
 				default:
 				}
@@ -313,7 +328,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 	go func() {
 		for {
 			select {
-			case <-clictx.Done():
+			case <-sendctx.Done():
 				return
 			default:
 			}
@@ -323,35 +338,28 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 	}()
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				cancel()
-				conn.Leave("context done")
-			case ev, ok := <-conn.Events():
-				if !ok {
-					return
+		for ev := range conn.Events() {
+			switch ev.Type() {
+			case binary.EvTypeLeft:
+				p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
+				if err != nil {
+					logger.Errorf("%s %v error: UnmarshalEvLeftPayload %v", logprefix, conn.UserId(), err)
+					cancel()
+					logger.Debugf("%s player leave: unmarshal error", logprefix)
+					conn.Leave("UnmarshalEvLeftPayload error")
+					break
 				}
-				switch ev.Type() {
-				case binary.EvTypeLeft:
-					p, err := binary.UnmarshalEvLeftPayload(ev.Payload())
-					if err != nil {
-						logger.Errorf("%s %v error: UnmarshalEvLeftPayload %v", logprefix, conn.UserId(), err)
-						cancel()
-						conn.Leave("UnmarshalEvLeftPayload error")
-						break
-					}
 
-					if p.ClientId == masterId {
-						cancel()
-						conn.Leave("done")
-					}
+				if p.ClientId == masterId {
+					cancel()
+					logger.Debugf("%s player leave", logprefix)
+					conn.Leave("done")
 				}
 			}
 		}
 	}()
 
-	msg, err := conn.Wait(ctx)
+	msg, err := conn.Wait(context.Background())
 	if err != nil {
 		logger.Errorf("%s %v error: %v", logprefix, conn.UserId(), err)
 	}
@@ -359,14 +367,15 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 }
 
 func runWatcher(ctx context.Context, conn *client.Connection, logprefix string) {
-	clictx, cancel := context.WithCancel(ctx)
+	logger.Debugf("%s %s start", logprefix, conn.UserId())
+	sendctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// goroutine1: 30~60byteをランダムに10秒毎 ToMaster
 	go func() {
 		for {
 			select {
-			case <-clictx.Done():
+			case <-sendctx.Done():
 				return
 			default:
 			}
@@ -382,7 +391,7 @@ func runWatcher(ctx context.Context, conn *client.Connection, logprefix string) 
 
 	// 部屋が自然消滅するまで居続ける
 
-	msg, err := conn.Wait(ctx)
+	msg, err := conn.Wait(context.Background())
 	if err != nil {
 		logger.Errorf("%s %v error: %v", logprefix, conn.UserId(), err)
 	}
