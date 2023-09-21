@@ -196,7 +196,7 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 // runMaster runs a master
 func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
-	logger.Debugf("%s %s start", conn.UserId(), logprefix)
+	logger.Debugf("%s %s start", logprefix, conn.UserId())
 	sendctx, cancel := context.WithCancel(ctx)
 	go func() {
 		var c <-chan time.Time
@@ -297,7 +297,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 }
 
 func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix string) {
-	logger.Debugf("%s %s start", conn.UserId(), logprefix)
+	logger.Debugf("%s %s start", logprefix, conn.UserId())
 	sendctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 

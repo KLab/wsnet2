@@ -26,6 +26,9 @@ const (
 	ScenarioKickGroup        = 103
 
 	SoakSearchGroup = 200
+
+	LoadSearchGroup    = 300
+	LoadWatchableGroup = 301
 )
 
 var (
@@ -84,7 +87,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&lobbyURL, "lobby", "l", "http://localhost:8080", "Lobby URL")
 	rootCmd.PersistentFlags().StringVarP(&appId, "app-id", "a", "testapp", "App ID")
 	rootCmd.PersistentFlags().StringVarP(&appKey, "app-key", "k", "testapppkey", "App key")
-	rootCmd.PersistentFlags().StringVarP(&proxyURL, "proxy", "p", "", "Proxy URL")
+	rootCmd.PersistentFlags().StringVar(&proxyURL, "proxy", "", "Proxy URL")
 	rootCmd.PersistentFlags().BoolVarP(&skipTLSVerify, "skip-tls-verify", "s", false, "Skip TLS verify")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 5*time.Second, "Lobby request timeout")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose log output")
