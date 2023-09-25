@@ -10,9 +10,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
-	"wsnet2/pb"
 
 	"github.com/spf13/cobra"
+
+	"wsnet2/pb"
 )
 
 var (
@@ -170,7 +171,7 @@ func runLoadRoom(ctx context.Context, p, w int, group uint32, lifetime time.Dura
 
 	wg.Add(1)
 	go func() {
-		rttSum, rttCnt, rttMax, avg := runMaster(ctx, master, lifetime, logprefix)
+		rttSum, rttCnt, rttMax, avg := runMaster(ctx, master, lifetime, group, logprefix)
 		logger.Infof("%s end RTT sum=%v cnt=%v avg=%v max=%v", logprefix, rttSum, rttCnt, avg, rttMax)
 		wg.Done()
 	}()
@@ -180,7 +181,7 @@ func runLoadRoom(ctx context.Context, p, w int, group uint32, lifetime time.Dura
 	for i := 0; i < p; i++ {
 		playerId := fmt.Sprintf("player-%v-%v", cidsuffix, i)
 
-		logger.Debugf("%s join %s", logprefix, playerId)
+		logger.Debugf("%s watch %s", logprefix, playerId)
 		_, player, err := joinRoom(context.Background(), playerId, room.Id, nil)
 		if err != nil {
 			return err
@@ -211,54 +212,4 @@ func runLoadRoom(ctx context.Context, p, w int, group uint32, lifetime time.Dura
 
 	wg.Wait()
 	return nil
-}
-
-func roomnazo(ctx context.Context, wid, seq, p, w int) error {
-	room, master, err := createRoom(ctx,
-		fmt.Sprintf("master-%03d:%03d", wid, seq),
-		&pb.RoomOption{
-			Visible:     true,
-			Joinable:    true,
-			Watchable:   true,
-			WithNumber:  true,
-			MaxPlayers:  6,
-			SearchGroup: LoadSearchGroup,
-		})
-	if err != nil {
-		return fmt.Errorf("createRoom: %w", err)
-	}
-	go func() {
-	}()
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	errch := make(chan error, 24)
-
-	var wgPlayers sync.WaitGroup
-	wgPlayers.Add(p)
-	for i := 0; i < p-1; i++ {
-		go func(cid int) {
-			defer wgPlayers.Done()
-
-			_, player, err := joinRoom(ctx, fmt.Sprintf("player-%03d:%03d-%03d", wid, seq, cid), room.Id, nil)
-			if err != nil {
-				errch <- fmt.Errorf("player-%d: %w", cid, err)
-				return
-			}
-			//runPlayer(ctx, player,
-			_ = player
-		}(i)
-	}
-
-	err = master.Leave("done")
-	if err == nil {
-		_, err = master.Wait(ctx)
-	}
-	if err != nil {
-		return fmt.Errorf("load %v-%v: master.Wait: %w", wid, seq, err)
-	}
-
-	_ = room
-	return <-errch
 }

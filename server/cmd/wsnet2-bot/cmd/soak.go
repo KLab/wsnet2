@@ -148,7 +148,7 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	var avg float64
 	wg.Add(1)
 	go func() {
-		rttSum, rttCnt, rttMax, avg = runMaster(ctx, master, lifetime, logprefix)
+		rttSum, rttCnt, rttMax, avg = runMaster(ctx, master, lifetime, room.SearchGroup, logprefix)
 		wg.Done()
 	}()
 
@@ -195,7 +195,7 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 }
 
 // runMaster runs a master
-func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
+func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, group uint32, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
 	logger.Debugf("%s %s start", logprefix, conn.UserId())
 	sendctx, cancel := context.WithCancel(ctx)
 	go func() {
@@ -217,51 +217,61 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 
 	// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 broadcast
 	go func() {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
 		for {
+			t.Reset(200 * time.Millisecond)
 			for i := 0; i < 25; i++ {
-				select {
-				case <-sendctx.Done():
-					return
-				default:
-				}
 				conn.Send(binary.MsgTypeBroadcast, msgBody[:1500])
-				time.Sleep(200 * time.Millisecond)
-			}
-			for i := 0; i < 5; i++ {
+
 				select {
 				case <-sendctx.Done():
 					return
-				default:
+				case <-t.C:
 				}
+			}
+			t.Reset(time.Second)
+			for i := 0; i < 5; i++ {
 				conn.Send(binary.MsgTypeBroadcast, msgBody[:4000])
-				time.Sleep(time.Second)
+
+				select {
+				case <-sendctx.Done():
+					return
+				case <-t.C:
+				}
 			}
 		}
 	}()
 	// goroutine2: 30~60byteをランダムに毎秒 broadcast
 	go func() {
+		t := time.NewTicker(5 * time.Second)
+		defer t.Stop()
+
 		for {
+			conn.Send(binary.MsgTypeBroadcast, msgBody[:rand.Intn(30)+30])
+
 			select {
 			case <-sendctx.Done():
 				return
-			default:
+			case <-t.C:
 			}
-			conn.Send(binary.MsgTypeBroadcast, msgBody[:rand.Intn(30)+30])
-			time.Sleep(time.Second)
 		}
 	}()
 	// groutine3: 5秒に1回PublicPropを書きかえ
 	go func() {
+		t := time.NewTicker(5 * time.Second)
+		defer t.Stop()
+
 		for {
+			conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
+				true, true, true, group, 10, 0,
+				binary.Dict{"score": binary.MarshalInt(rand.Intn(1024))}, binary.Dict{}))
+
 			select {
 			case <-sendctx.Done():
 				return
-			default:
+			case <-t.C:
 			}
-			conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
-				true, true, true, SoakSearchGroup, 10, 0,
-				binary.Dict{"score": binary.MarshalInt(rand.Intn(1024))}, binary.Dict{}))
-			time.Sleep(5 * time.Second)
 		}
 	}()
 
@@ -303,37 +313,44 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 
 	// goroutine1: 1500byteを0.2秒間隔で5秒(25回)、4000byteを1秒間隔で5回 ToMaster
 	go func() {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
 		for {
+			t.Reset(200 * time.Millisecond)
 			for i := 0; i < 25; i++ {
-				select {
-				case <-sendctx.Done():
-					return
-				default:
-				}
 				conn.Send(binary.MsgTypeToMaster, msgBody[:1500])
-				time.Sleep(200 * time.Millisecond)
-			}
-			for i := 0; i < 5; i++ {
+
 				select {
 				case <-sendctx.Done():
 					return
-				default:
+				case <-t.C:
 				}
+			}
+			t.Reset(time.Second)
+			for i := 0; i < 5; i++ {
 				conn.Send(binary.MsgTypeToMaster, msgBody[:4000])
-				time.Sleep(time.Second)
+
+				select {
+				case <-sendctx.Done():
+					return
+				case <-t.C:
+				}
 			}
 		}
 	}()
 	// goroutine2: 30~60byteをランダムに毎秒 ToMaster
 	go func() {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+
 		for {
+			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+
 			select {
 			case <-sendctx.Done():
 				return
-			default:
+			case <-t.C:
 			}
-			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
-			time.Sleep(time.Second)
 		}
 	}()
 
@@ -373,14 +390,18 @@ func runWatcher(ctx context.Context, conn *client.Connection, logprefix string) 
 
 	// goroutine1: 30~60byteをランダムに10秒毎 ToMaster
 	go func() {
+		t := time.NewTicker(10 * time.Second)
+		defer t.Stop()
+
 		for {
+			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+
 			select {
 			case <-sendctx.Done():
+				conn.Leave("canceled")
 				return
-			default:
+			case <-t.C:
 			}
-			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
-			time.Sleep(10 * time.Second)
 		}
 	}()
 
