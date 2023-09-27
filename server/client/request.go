@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -26,9 +27,9 @@ var (
 	// LobbyTimeout : Lobbyへのリクエストのタイムアウト時間
 	LobbyTimeout time.Duration = time.Second * 5
 
-	ErrRoomLimit   = xerrors.Errorf(lobby.ResponseTypeRoomLimit.String())
-	ErrNoRoomFound = xerrors.Errorf(lobby.ResponseTypeNoRoomFound.String())
-	ErrRoomFull    = xerrors.Errorf(lobby.ResponseTypeRoomFull.String())
+	ErrRoomLimit   = errors.New(lobby.ResponseTypeRoomLimit.String())
+	ErrNoRoomFound = errors.New(lobby.ResponseTypeNoRoomFound.String())
+	ErrRoomFull    = errors.New(lobby.ResponseTypeRoomFull.String())
 )
 
 // Create : Roomを作成して入室
