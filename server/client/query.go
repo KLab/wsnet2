@@ -23,6 +23,7 @@ func (q *Query) LessThan(key string, val []byte) *Query {
 	q.and(key, lobby.OpLessThan, val)
 	return q
 }
+
 func (q *Query) LessEqual(key string, val []byte) *Query {
 	q.and(key, lobby.OpLessThanOrEqual, val)
 	return q
