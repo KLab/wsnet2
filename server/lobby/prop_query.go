@@ -30,6 +30,9 @@ type PropQuery struct {
 }
 
 func unmarshalProps(props []byte) (binary.Dict, error) {
+	if len(props) == 0 {
+		return binary.Dict{}, nil
+	}
 	um, _, err := binary.Unmarshal(props)
 	if err != nil {
 		return nil, err

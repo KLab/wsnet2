@@ -3,10 +3,12 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
@@ -15,6 +17,19 @@ import (
 	"wsnet2/auth"
 	"wsnet2/lobby"
 	"wsnet2/pb"
+)
+
+var (
+	// LobbyTransport : Lobbyへのリクエストに使う http.Client.Transport
+	// プロキシやTLS設定などを変更できる
+	LobbyTransport http.RoundTripper
+
+	// LobbyTimeout : Lobbyへのリクエストのタイムアウト時間
+	LobbyTimeout time.Duration = time.Second * 5
+
+	ErrRoomLimit   = errors.New(lobby.ResponseTypeRoomLimit.String())
+	ErrNoRoomFound = errors.New(lobby.ResponseTypeNoRoomFound.String())
+	ErrRoomFull    = errors.New(lobby.ResponseTypeRoomFull.String())
 )
 
 // Create : Roomを作成して入室
@@ -130,6 +145,16 @@ func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, r
 	return connectToRoom(ctx, accinfo, res, warn)
 }
 
+// Search 部屋を検索する
+func Search(ctx context.Context, accinfo *AccessInfo, param *lobby.SearchParam) ([]*pb.RoomInfo, error) {
+	res, err := lobbyRequest(ctx, accinfo, "/rooms/search", param)
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Rooms, nil
+}
+
 func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param interface{}) (*lobby.Response, error) {
 	var p bytes.Buffer
 	enc := msgpack.NewEncoder(&p)
@@ -149,7 +174,11 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	req.Header.Add("Wsnet2-User", accinfo.UserId)
 	req.Header.Add("Authorization", "Bearer "+accinfo.Bearer)
 
-	r, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		Transport: LobbyTransport,
+		Timeout:   LobbyTimeout,
+	}
+	r, err := client.Do(req)
 	if err != nil {
 		return nil, xerrors.Errorf("do request: %w", err)
 	}
@@ -167,11 +196,20 @@ func lobbyRequest(ctx context.Context, accinfo *AccessInfo, path string, param i
 	if err != nil {
 		return nil, xerrors.Errorf("decode body: %w", err)
 	}
-	if res.Type != lobby.ResponseTypeOK {
-		return nil, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
-	}
 
-	return &res, nil
+	switch res.Type {
+	case lobby.ResponseTypeOK:
+		return &res, nil
+
+	case lobby.ResponseTypeRoomLimit:
+		return &res, ErrRoomLimit
+	case lobby.ResponseTypeNoRoomFound:
+		return &res, ErrNoRoomFound
+	case lobby.ResponseTypeRoomFull:
+		return &res, ErrRoomFull
+	default:
+		return &res, xerrors.Errorf("response type: %s: %v", res.Type, res.Msg)
+	}
 }
 
 func connectToRoom(ctx context.Context, accinfo *AccessInfo, joined *pb.JoinedRoomRes, warn func(error)) (*Room, *Connection, error) {
