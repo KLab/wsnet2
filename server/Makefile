@@ -6,7 +6,7 @@ VERSION := $(shell git describe --tag 2>/dev/null || echo "v0.0.0")
 PKG_LOBBY := . cmd/wsnet2-lobby lobby lobby/service auth binary common config log pb
 PKG_GAME  := . cmd/wsnet2-game  game  game/service  auth binary common config log pb
 PKG_HUB   := . cmd/wsnet2-hub   hub   hub/service   auth binary common config log pb game client
-PKG_BOT   := . cmd/wsnet2-bot cmd/wsnet2-bot/cmd lobby lobby/service auth binary common config log pb
+PKG_BOT   := . cmd/wsnet2-bot  cmd/wsnet2-bot/cmd   auth binary common            pb lobby client
 PKG_TOOL  := . cmd/wsnet2-tool cmd/wsnet2-tool/cmd       binary        config     pb
 
 # protoc targets
