@@ -108,10 +108,9 @@ async function apply(useCache: boolean) {
     }
 
     // check if results reaches limit
-    var limit = await overview.fetchGraphqlResultLimit();
-    if (fetched.length == limit) {
+    if (fetched.length == overview.graphqlResultLimit) {
       message.warning(
-        `Number of results reaches the limit(${limit}). Please narrow down your search.`
+        `Number of results reaches the limit(${overview.graphqlResultLimit}). Please narrow down your search.`
       );
     }
   } catch (err) {

@@ -22,10 +22,9 @@ async function apply(useCache: boolean) {
     list.value = [...(await app.fetch(useCache))];
 
     // check if results reaches limit
-    var limit = await overview.fetchGraphqlResultLimit();
-    if (list.value.length == limit) {
+    if (list.value.length == overview.graphqlResultLimit) {
       message.warning(
-        `Number of results reaches the limit(${limit}). Please narrow down your search.`
+        `Number of results reaches the limit(${overview.graphqlResultLimit}). Please narrow down your search.`
       );
     }
   } catch (err) {

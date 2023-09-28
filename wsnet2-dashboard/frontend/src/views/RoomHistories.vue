@@ -107,10 +107,9 @@ async function apply(useCache: boolean) {
     list.value = [...fetched];
 
     // send a warning if number of results reaches the limit
-    var limit = await overview.fetchGraphqlResultLimit();
-    if (fetched.length == limit) {
+    if (fetched.length == overview.graphqlResultLimit) {
       message.warning(
-        `Number of results reaches the GraphQL query limit of ${limit}, please narrow down your search.`
+        `Number of results reaches the GraphQL query limit of ${overview.graphqlResultLimit}, please narrow down your search.`
       );
     }
   } catch (err) {

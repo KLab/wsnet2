@@ -21,10 +21,9 @@ async function apply(useCache: boolean) {
     // create a copy of veux state to allow operations on retrieved data(e.g. sorting)
     list.value = [...(await server.fetchHubServers(useCache))];
     // check if results reaches limit
-    var limit = await overview.fetchGraphqlResultLimit();
-    if (list.value.length == limit) {
+    if (list.value.length == overview.graphqlResultLimit) {
       message.warning(
-        `Number of results reaches the limit(${limit}). Please narrow down your search.`
+        `Number of results reaches the limit(${overview.graphqlResultLimit}). Please narrow down your search.`
       );
     }
   } catch (err) {

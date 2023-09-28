@@ -35,23 +35,8 @@ onBeforeMount(() => {
     serverAddress.value = settings.serverAddress;
   }
 
-  overview
-    .fetchVersion()
-    .then((v) => {
-      version.value = v;
-    })
-    .catch((e) => {
-      message.error("Failed to get backend version.");
-    });
-
-  overview
-    .fetchGraphqlResultLimit()
-    .then((v) => {
-      maxResults.value = v;
-    })
-    .catch((e) => {
-      message.error("Failed to get backend max results.");
-    });
+  version.value = overview.serverVersion;
+  maxResults.value = overview.graphqlResultLimit;
 });
 </script>
 
