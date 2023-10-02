@@ -2,6 +2,8 @@
 import { ref, onBeforeMount } from "vue";
 import server from "../store/servers";
 import type { Server } from "../store/servers";
+import overview from "../store/overview";
+import { useMessage } from "naive-ui";
 
 // UI components
 import { NCard, NButton, NIcon, NTooltip } from "naive-ui";
@@ -9,6 +11,7 @@ import { CachedFilled } from "@vicons/material";
 
 import ServersDataTable from "../components/ServersDataTable.vue";
 
+const message = useMessage();
 const list = ref<Server[]>();
 const loading = ref(false);
 
@@ -17,6 +20,13 @@ async function apply(useCache: boolean) {
   try {
     // create a copy of veux state to allow operations on retrieved data(e.g. sorting)
     list.value = [...(await server.fetchGameServers(useCache))];
+
+    // check if results reaches limit
+    if (list.value.length == overview.graphqlResultLimit) {
+      message.warning(
+        `Number of results reaches the limit(${overview.graphqlResultLimit}). Please narrow down your search.`
+      );
+    }
   } catch (err) {
     alert(`Failed to fetch game server list: \n${err}`);
   } finally {

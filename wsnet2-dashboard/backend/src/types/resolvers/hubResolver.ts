@@ -8,7 +8,9 @@ export const hubQuery = extendType({
       type: "hub",
       description: "Get all hubs",
       resolve(_, __, ctx: Context) {
-        return ctx.prisma.hub.findMany();
+        return ctx.prisma.hub.findMany({
+          take: Number(process.env.GRAPHQL_RESULT_MAX_SIZE),
+        });
       },
     });
 

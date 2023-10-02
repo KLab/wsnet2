@@ -132,6 +132,7 @@ export const roomQuery = extendType({
         // raw result
         const result: room[] = await ctx.prisma.room.findMany({
           where: conditions,
+          take: Number(process.env.GRAPHQL_RESULT_MAX_SIZE),
         });
 
         return result;

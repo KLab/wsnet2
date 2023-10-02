@@ -4,6 +4,8 @@ import apps from "../store/apps";
 import roomHistories from "../store/roomHistories";
 import type { App } from "../store/apps";
 import type { RoomHistory } from "../store/roomHistories";
+import overview from "../store/overview";
+import { useMessage } from "naive-ui";
 import RoomHistoryDataTable from "../components/RoomHistoryDataTable.vue";
 
 // UI components
@@ -22,6 +24,7 @@ import {
 } from "naive-ui";
 import { CachedFilled } from "@vicons/material";
 
+const message = useMessage();
 const appList = ref<App[]>();
 const appIdList = computed(() =>
   appList.value?.map((item) => {
@@ -52,8 +55,31 @@ function reset() {
   closedRange.value = null;
 }
 
+// check if all parameters are empty except selectedAppIds
+function checkEmptyParameters() {
+  return (
+    !roomId.value &&
+    !hostId.value &&
+    !number.value &&
+    !maxPlayers.value &&
+    !searchGroup.value &&
+    !createdRange.value &&
+    !closedRange.value
+  );
+}
+
 async function apply(useCache: boolean) {
   loading.value = true;
+
+  // check if all parameters are empty and send a warning
+  if (checkEmptyParameters()) {
+    message.warning(
+      "No search parameters set. Please fill in at least one parameter."
+    );
+    loading.value = false;
+    return;
+  }
+
   try {
     // create a copy of veux state to allow operations on retrieved data(e.g. sorting)
     const fetched = await roomHistories.fetch({
@@ -79,6 +105,13 @@ async function apply(useCache: boolean) {
     });
 
     list.value = [...fetched];
+
+    // send a warning if number of results reaches the limit
+    if (fetched.length == overview.graphqlResultLimit) {
+      message.warning(
+        `Number of results reaches the GraphQL query limit of ${overview.graphqlResultLimit}, please narrow down your search.`
+      );
+    }
   } catch (err) {
     alert(`Failed to fetch RoomHistory  list: \n${err}`);
   } finally {

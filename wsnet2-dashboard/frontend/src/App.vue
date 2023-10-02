@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, h, Component } from "vue";
+import { ref, h, Component, onBeforeMount } from "vue";
 import { useRouter } from "vue-router";
 import {
   lightTheme,
@@ -14,7 +14,6 @@ import {
   MenuOption,
   NTag,
   NSpace,
-  NDivider,
 } from "naive-ui";
 import {
   AppFolder24Filled,
@@ -29,11 +28,11 @@ import {
   ColorPalette,
   Settings,
   SettingsAdjust,
-  Version,
 } from "@vicons/carbon";
 import { DeviceHubFilled } from "@vicons/material";
 
 import settings from "./store/settings";
+import overview from "./store/overview";
 
 import apolloClient from "./apolloClient";
 import { createHttpLink } from "@apollo/client/core";
@@ -75,6 +74,14 @@ apolloClient.setLink(
     },
   })
 );
+
+// update server info
+onBeforeMount(async () => {
+  // fetch server version
+  await overview.fetchServerVersion();
+  // fetch graphql result limit
+  await overview.fetchGraphqlResultLimit();
+});
 
 function renderIcon(icon: Component) {
   return () => h(NIcon, null, { default: () => h(icon) });

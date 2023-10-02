@@ -1,14 +1,27 @@
 <script setup lang="ts">
 import { ref, onBeforeMount } from "vue";
 import settings from "../store/settings";
+import overview from "../store/overview";
 
 // UI components
-import { NCard, NButton, NIcon, NInput, NGrid, NGi } from "naive-ui";
+import {
+  NCard,
+  NButton,
+  NIcon,
+  NInput,
+  NGrid,
+  NGi,
+  NDescriptions,
+  NDescriptionsItem,
+  NDivider,
+} from "naive-ui";
 import { useMessage } from "naive-ui";
 import { RefreshOutlined } from "@vicons/material";
 
 const serverAddress = ref<string>();
 const message = useMessage();
+const version = ref<string>();
+const maxResults = ref<number>();
 
 function applyServerAddress() {
   settings.setServerAddress(String(serverAddress.value));
@@ -21,11 +34,23 @@ onBeforeMount(() => {
   } else {
     serverAddress.value = settings.serverAddress;
   }
+
+  version.value = overview.serverVersion;
+  maxResults.value = overview.graphqlResultLimit;
 });
 </script>
 
 <template>
   <n-card title="Server Settings">
+    <n-descriptions label-placement="top" bordered :column="6">
+      <n-descriptions-item label="Backend Version">
+        {{ version }}
+      </n-descriptions-item>
+      <n-descriptions-item label="GraphQL Max Number of Results">
+        {{ maxResults }}
+      </n-descriptions-item>
+    </n-descriptions>
+    <n-divider></n-divider>
     <n-grid x-gap="12" cols="12">
       <n-gi span="10">
         <n-input
