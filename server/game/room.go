@@ -184,15 +184,15 @@ func (r *Room) updateLastMsg(cid ClientID) {
 
 // removeClient :  Player/Watcherを退室させる.
 // muClients のロックを取得してから呼び出す.
-func (r *Room) removeClient(c *Client, cause string) {
+func (r *Room) removeClient(c *Client, cause string, logmsg PlayerLogMsg) {
 	if c.isPlayer {
-		r.removePlayer(c, cause)
+		r.removePlayer(c, cause, logmsg)
 	} else {
 		r.removeWatcher(c, cause)
 	}
 }
 
-func (r *Room) removePlayer(c *Client, cause string) {
+func (r *Room) removePlayer(c *Client, cause string, logmsg PlayerLogMsg) {
 	cid := c.ID()
 
 	if r.players[cid] != c {
@@ -209,7 +209,7 @@ func (r *Room) removePlayer(c *Client, cause string) {
 		}
 	}
 
-	r.repo.PlayerLog(c, PlayerLogLeave)
+	r.repo.PlayerLog(c, logmsg)
 
 	c.logger.Infof("player left: %v: %v", cid, cause)
 	c.Removed(cause)
@@ -345,7 +345,7 @@ func (r *Room) sendTo(c *Client, ev *binary.RegularEvent) {
 		// players/watchersのループ内で呼ばれているため、removeClientは別goroutineで呼ぶ
 		go func() {
 			r.muClients.Lock()
-			r.removeClient(c, err.Error())
+			r.removeClient(c, err.Error(), PlayerLogError)
 			r.muClients.Unlock()
 		}()
 	}
@@ -546,7 +546,7 @@ func (r *Room) msgNodeCount(msg *MsgNodeCount) {
 func (r *Room) msgLeave(msg *MsgLeave) {
 	r.muClients.RLock()
 	defer r.muClients.RUnlock()
-	r.removeClient(msg.Sender, msg.Message)
+	r.removeClient(msg.Sender, msg.Message, PlayerLogLeave)
 }
 
 func (r *Room) msgRoomProp(msg *MsgRoomProp) {
@@ -764,7 +764,7 @@ func (r *Room) msgKick(msg *MsgKick) {
 	r.logger.Infof("kick: %v", target.Id)
 	r.sendTo(msg.Sender, binary.NewEvSucceeded(msg))
 
-	r.removeClient(target, msg.Message)
+	r.removeClient(target, msg.Message, PlayerLogKick)
 }
 
 func (r *Room) msgAdminKick(msg *MsgAdminKick) {
@@ -776,7 +776,7 @@ func (r *Room) msgAdminKick(msg *MsgAdminKick) {
 		return
 	}
 
-	r.removeClient(target, "kicked by admin")
+	r.removeClient(target, "kicked by admin", PlayerLogKick)
 	msg.Res <- nil
 }
 
@@ -809,13 +809,13 @@ func (r *Room) msgGetRoomInfo(msg *MsgGetRoomInfo) {
 func (r *Room) msgClientError(msg *MsgClientError) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
-	r.removeClient(msg.Sender, msg.ErrMsg)
+	r.removeClient(msg.Sender, msg.ErrMsg, PlayerLogError)
 }
 
 func (r *Room) msgClientTimeout(msg *MsgClientTimeout) {
 	r.muClients.Lock()
 	defer r.muClients.Unlock()
-	r.removeClient(msg.Sender, "timeout")
+	r.removeClient(msg.Sender, "timeout", PlayerLogTimeout)
 }
 
 // IRoom実装
