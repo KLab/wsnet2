@@ -515,12 +515,15 @@ func (repo *Repository) adminKickRoom(room *Room, userID string) error {
 type PlayerLogMsg string
 
 const (
-	PlayerLogCreate PlayerLogMsg = "Create"
-	PlayerLogJoin   PlayerLogMsg = "Join"
-	PlayerLogRejoin PlayerLogMsg = "Rejoin"
-	PlayerLogLeave  PlayerLogMsg = "Leave"
-	PlayerLogAttach PlayerLogMsg = "Attach"
-	PlayerLogDetach PlayerLogMsg = "Detach"
+	PlayerLogCreate  PlayerLogMsg = "Create"
+	PlayerLogJoin    PlayerLogMsg = "Join"
+	PlayerLogRejoin  PlayerLogMsg = "Rejoin"
+	PlayerLogLeave   PlayerLogMsg = "Leave"
+	PlayerLogTimeout PlayerLogMsg = "Timeout"
+	PlayerLogKick    PlayerLogMsg = "Kick"
+	PlayerLogError   PlayerLogMsg = "Error"
+	PlayerLogAttach  PlayerLogMsg = "Attach"
+	PlayerLogDetach  PlayerLogMsg = "Detach"
 )
 
 func (repo *Repository) PlayerLog(c *Client, msg PlayerLogMsg) {
