@@ -285,15 +285,13 @@ func (h *Hub) broadcast(ev *binary.RegularEvent) {
 func (h *Hub) msgWatch(msg *game.MsgWatch) {
 	if !h.room.Watchable {
 		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", h.ID(), msg.Info.Id)
-		h.logger.Info(err.Error())
-		msg.Err <- game.WithCode(err, codes.FailedPrecondition)
+		msg.Err <- game.NormalWithCode(err, codes.FailedPrecondition)
 		return
 	}
 
 	// Playerとして参加中の観戦は不許可
 	if _, ok := h.room.Players[string(msg.SenderID())]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", h.ID(), msg.SenderID())
-		h.logger.Warn(err.Error())
 		msg.Err <- game.WithCode(err, codes.AlreadyExists)
 		return
 	}
@@ -303,7 +301,6 @@ func (h *Hub) msgWatch(msg *game.MsgWatch) {
 		err = game.WithCode(
 			xerrors.Errorf("NewWatcher error. room=%v, client=%v: %w", h.ID(), msg.Info.Id, err),
 			err.Code())
-		h.logger.Warn(err.Error())
 		msg.Err <- err
 		return
 	}

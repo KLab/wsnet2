@@ -1,6 +1,7 @@
 package game
 
 import (
+	"errors"
 	"fmt"
 
 	"golang.org/x/xerrors"
@@ -11,22 +12,40 @@ import (
 type ErrorWithCode interface {
 	error
 	Code() codes.Code
+	IsNormal() bool
 }
 
 type errorWithCode struct {
 	error
-	code codes.Code
+	code     codes.Code
+	isNormal bool
 }
 
 func WithCode(err error, code codes.Code) ErrorWithCode {
 	if err == nil {
 		return nil
 	}
-	return errorWithCode{err, code}
+	var ewc ErrorWithCode
+	if errors.As(err, &ewc) {
+		return errorWithCode{err, code, ewc.IsNormal()}
+	}
+
+	return errorWithCode{err, code, false}
+}
+
+func NormalWithCode(err error, code codes.Code) ErrorWithCode {
+	if err == nil {
+		return nil
+	}
+	return errorWithCode{err, code, true}
 }
 
 func (e errorWithCode) Code() codes.Code {
 	return e.code
+}
+
+func (e errorWithCode) IsNormal() bool {
+	return e.isNormal
 }
 
 func (e errorWithCode) Unwrap() error {

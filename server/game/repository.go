@@ -223,7 +223,7 @@ func (repo *Repository) joinRoom(ctx context.Context, id string, client *pb.Clie
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, WithCode(xerrors.Errorf("repo.GetRoom: %w", err), codes.NotFound)
+		return nil, NormalWithCode(xerrors.Errorf("repo.GetRoom: %w", err), codes.NotFound)
 	}
 
 	jch := make(chan *JoinedInfo, 1)
@@ -433,7 +433,7 @@ func (repo *Repository) GetRoomInfo(ctx context.Context, id string) (*pb.GetRoom
 
 	room, err := repo.GetRoom(id)
 	if err != nil {
-		return nil, WithCode(xerrors.Errorf("GetRoomInfo: %w", err), codes.NotFound)
+		return nil, NormalWithCode(xerrors.Errorf("GetRoomInfo: %w", err), codes.NotFound)
 	}
 
 	ch := make(chan *pb.GetRoomInfoRes, 1)
@@ -462,7 +462,7 @@ func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string, lo
 	if roomID != "" {
 		room, err := repo.GetRoom(roomID)
 		if err != nil {
-			return WithCode(xerrors.Errorf("AdminKick: can not find room %q; %w", roomID, err), codes.NotFound)
+			return NormalWithCode(xerrors.Errorf("AdminKick: can not find room %q; %w", roomID, err), codes.NotFound)
 		}
 
 		return repo.adminKickRoom(room, userID)

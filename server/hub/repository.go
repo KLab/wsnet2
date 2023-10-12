@@ -155,7 +155,7 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	}
 	select {
 	case <-hub.Done():
-		return nil, game.WithCode(
+		return nil, game.NormalWithCode(
 			xerrors.Errorf("hub closed: room=%v client=%v", roomId, client.Id),
 			codes.NotFound)
 	case <-ctx.Done():
@@ -168,7 +168,7 @@ func (r *Repository) WatchRoom(ctx context.Context, appId AppID, roomId RoomID, 
 	var joined *game.JoinedInfo
 	select {
 	case <-hub.Done():
-		return nil, game.WithCode(
+		return nil, game.NormalWithCode(
 			xerrors.Errorf("hub closed: room=%v client=%v", roomId, client.Id),
 			codes.NotFound)
 	case <-ctx.Done():

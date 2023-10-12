@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 
+	"wsnet2/game"
 	"wsnet2/hub"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -62,7 +63,7 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 
 	res, err := sv.repo.WatchRoom(ctx, in.AppId, hub.RoomID(in.RoomId), in.ClientInfo, in.GrpcHost, in.WsHost, in.MacKey)
 	if err != nil {
-		logger.Errorf("repo.WatchRoom: %+v", err)
+		logEWC(logger, "repo.WatchRoom", err)
 		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)
 	}
 
@@ -71,4 +72,12 @@ func (sv *HubService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 	logger.Infof("gRPC Watch OK: room=%v user=%v", res.RoomInfo.Id, in.ClientInfo.Id)
 
 	return res, nil
+}
+
+func logEWC(logger log.Logger, msg string, err game.ErrorWithCode) {
+	if err.IsNormal() {
+		logger.Infof("%s: %v", msg, err)
+	} else {
+		logger.Errorf("%s: %+v", msg, err)
+	}
 }
