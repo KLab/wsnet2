@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"wsnet2/game"
 	"wsnet2/log"
 	"wsnet2/pb"
 )
@@ -68,7 +69,7 @@ func (sv *GameService) Create(ctx context.Context, in *pb.CreateRoomReq) (*pb.Jo
 
 	res, err := repo.CreateRoom(ctx, in.RoomOption, in.MasterInfo, in.MacKey)
 	if err != nil {
-		logger.Errorf("repo.CreateRoom: %+v", err)
+		logEWC(logger, "repo.CreateRoom", err)
 		return nil, status.Errorf(err.Code(), "CreateRoom failed: %s", err)
 	}
 
@@ -109,7 +110,7 @@ func (sv *GameService) Join(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joined
 
 	res, err := repo.JoinRoom(ctx, in.RoomId, in.ClientInfo, in.MacKey)
 	if err != nil {
-		logger.Errorf("repo.JoinRoom: %+v", err)
+		logEWC(logger, "repo.JoinRoom", err)
 		return nil, status.Errorf(err.Code(), "JoinRoom failed: %s", err)
 	}
 
@@ -138,7 +139,7 @@ func (sv *GameService) Watch(ctx context.Context, in *pb.JoinRoomReq) (*pb.Joine
 
 	res, err := repo.WatchRoom(ctx, in.RoomId, in.ClientInfo, in.MacKey)
 	if err != nil {
-		logger.Errorf("repo.WatchRoom: %+v", err)
+		logEWC(logger, "repo.WatchRoom", err)
 		return nil, status.Errorf(err.Code(), "WatchRoom failed: %s", err)
 	}
 
@@ -196,4 +197,12 @@ func (sv *GameService) Kick(ctx context.Context, in *pb.KickReq) (*pb.Empty, err
 	logger.Infof("gRPC Kick OK: room=%q user=%q", in.RoomId, in.ClientId)
 
 	return &pb.Empty{}, nil
+}
+
+func logEWC(logger log.Logger, msg string, err game.ErrorWithCode) {
+	if err.IsNormal() {
+		logger.Infof("%s: %v", msg, err)
+	} else {
+		logger.Errorf("%s: %+v", msg, err)
+	}
 }

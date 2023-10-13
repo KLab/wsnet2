@@ -371,7 +371,6 @@ func (r *Room) msgCreate(msg *MsgCreate) {
 		err = WithCode(
 			xerrors.Errorf("NewPlayer(%v): %w", msg.Info.Id, err),
 			err.Code())
-		r.logger.Error(err.Error())
 		msg.Err <- err
 		return
 	}
@@ -394,8 +393,7 @@ func (r *Room) msgCreate(msg *MsgCreate) {
 func (r *Room) msgJoin(msg *MsgJoin) {
 	if !r.Joinable {
 		err := xerrors.Errorf("Room is not joinable. room=%v, client=%v", r.ID(), msg.Info.Id)
-		r.logger.Info(err.Error())
-		msg.Err <- WithCode(err, codes.FailedPrecondition)
+		msg.Err <- NormalWithCode(err, codes.FailedPrecondition)
 		return
 	}
 
@@ -407,15 +405,13 @@ func (r *Room) msgJoin(msg *MsgJoin) {
 	// 観戦しながらの入室は不許可（ただしhub経由で観戦している場合は考慮しない）
 	if _, ok := r.watchers[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Player already exists as a watcher. room=%v, client=%v", r.ID(), msg.SenderID())
-		r.logger.Warn(err.Error())
 		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return
 	}
 
 	if !rejoin && r.MaxPlayers <= uint32(len(r.players)) {
 		err := xerrors.Errorf("Room full. room=%v max=%v, client=%v", r.ID(), r.MaxPlayers, msg.Info.Id)
-		r.logger.Info(err.Error())
-		msg.Err <- WithCode(err, codes.ResourceExhausted)
+		msg.Err <- NormalWithCode(err, codes.ResourceExhausted)
 		return
 	}
 
@@ -424,7 +420,6 @@ func (r *Room) msgJoin(msg *MsgJoin) {
 		err = WithCode(
 			xerrors.Errorf("NewPlayer room=%v, client=%v: %w", r.ID(), msg.Info.Id, err),
 			err.Code())
-		r.logger.Warn(err.Error())
 		msg.Err <- err
 		return
 	}
@@ -463,8 +458,7 @@ func (r *Room) msgJoin(msg *MsgJoin) {
 func (r *Room) msgWatch(msg *MsgWatch) {
 	if !r.Watchable {
 		err := xerrors.Errorf("Room is not watchable. room=%v, client=%v", r.ID(), msg.Info.Id)
-		r.logger.Infof(err.Error())
-		msg.Err <- WithCode(err, codes.FailedPrecondition)
+		msg.Err <- NormalWithCode(err, codes.FailedPrecondition)
 		return
 	}
 
@@ -474,7 +468,6 @@ func (r *Room) msgWatch(msg *MsgWatch) {
 	// Playerとして参加中に観戦は不許可
 	if _, ok := r.players[msg.SenderID()]; ok {
 		err := xerrors.Errorf("Watcher already exists as a player. room=%v, client=%v", r.ID(), msg.SenderID())
-		r.logger.Warn(err.Error())
 		msg.Err <- WithCode(err, codes.AlreadyExists)
 		return
 	}
