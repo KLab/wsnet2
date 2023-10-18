@@ -9,7 +9,7 @@ on:
       - 'wsnet2-unity/**'
 
 jobs:
-  build:
+  dotnet:
     runs-on: "ubuntu-latest"
     defaults:
       run:
