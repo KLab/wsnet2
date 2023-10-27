@@ -24,6 +24,7 @@ const (
 	ScenarioJoinRoomGroup    = 101
 	ScenarioMessageGroup     = 102
 	ScenarioKickGroup        = 103
+	ScenarioSearchCurrent    = 104
 
 	SoakSearchGroup = 200
 
@@ -195,4 +196,14 @@ func watchRoom(ctx context.Context, watcher, roomId string, query *client.Query)
 	}
 
 	return client.Watch(ctx, accinfo, roomId, query, nil)
+}
+
+// searchCurrent search current rooms
+func searchCurrent(ctx context.Context, cid string) ([]*pb.RoomInfo, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, cid)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Current(ctx, accinfo, &lobby.SearchCurrentRoomsParam{})
 }
