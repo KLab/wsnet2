@@ -67,4 +67,11 @@ namespace WSNet2
         [Key("query")]
         public List<List<Query.Condition>> queries;
     }
+
+    [MessagePackObject]
+    public class SearchCurrentRoomsParam
+    {
+        [Key("query")]
+        public List<List<Query.Condition>> queries;
+    }
 }
