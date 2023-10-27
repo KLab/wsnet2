@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
@@ -351,7 +352,18 @@ func (rs *RoomService) SearchCurrentRooms(ctx context.Context, appId, clientId s
 		return nil, xerrors.Errorf("sqlx.In: %w", err)
 	}
 
-	return rs.searchBySQL(ctx, sql, params, queries, logger)
+	rooms, err := rs.searchBySQL(ctx, sql, params, queries, logger)
+	if err != nil {
+		return nil, xerrors.Errorf("searchBySQL: %w", err)
+	}
+
+	sort.Slice(rooms, func(i, j int) bool {
+		ti := rooms[i].Created.Timestamp.AsTime()
+		tj := rooms[j].Created.Timestamp.AsTime()
+		return ti.Before(tj)
+	})
+
+	return rooms, nil
 }
 
 func (rs *RoomService) searchBySQL(ctx context.Context, sql string, params []any, queries []PropQueries, logger log.Logger) ([]*pb.RoomInfo, error) {
