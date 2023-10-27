@@ -36,6 +36,10 @@ type SearchByNumbersParam struct {
 	Queries     []PropQueries `json:"query"`
 }
 
+type SearchCurrentRoomsParam struct {
+	Queries []PropQueries `json:"query"`
+}
+
 type AdminKickParam struct {
 	TargetID string `json:"target_id"`
 }

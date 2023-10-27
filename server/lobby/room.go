@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -294,6 +295,58 @@ func (rs *RoomService) SearchByNumbers(ctx context.Context, appId string, roomNu
 	}
 
 	sql, params, err := sqlx.In("SELECT * FROM room WHERE app_id = ? AND number IN (?)", appId, roomNumbers)
+	if err != nil {
+		return nil, xerrors.Errorf("sqlx.In: %w", err)
+	}
+
+	return rs.searchBySQL(ctx, sql, params, queries, logger)
+}
+
+func (rs *RoomService) SearchCurrentRooms(ctx context.Context, appId, clientId string, queries []PropQueries, logger log.Logger) ([]*pb.RoomInfo, error) {
+	allGameServers, err := rs.gameCache.All()
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var roomIds []string
+
+	wg.Add(len(allGameServers))
+	for _, svr := range allGameServers {
+		go func(svr *gameServer) {
+			defer wg.Done()
+
+			client, err := rs.newGameClient(svr.Hostname, svr.GRPCPort)
+			if err != nil {
+				logger.Errorf("SearchCurrentRooms: newGameClient: %+v", err)
+				return
+			}
+
+			req := &pb.CurrentRoomsReq{
+				AppId:    appId,
+				ClientId: clientId,
+			}
+			res, err := client.CurrentRooms(ctx, req)
+			if err != nil {
+				logger.Errorf("SearchCurrentRooms: app=%q client=%q host=%q err=%+v", appId, clientId, svr.Hostname, err)
+				return
+			}
+			if len(res.RoomIds) > 0 {
+				mu.Lock()
+				roomIds = append(roomIds, res.RoomIds...)
+				mu.Unlock()
+			}
+		}(svr)
+	}
+
+	wg.Wait()
+
+	if len(roomIds) == 0 {
+		return []*pb.RoomInfo{}, nil
+	}
+
+	sql, params, err := sqlx.In("SELECT * FROM room WHERE app_id = ? AND id IN (?)", appId, roomIds)
 	if err != nil {
 		return nil, xerrors.Errorf("sqlx.In: %w", err)
 	}
