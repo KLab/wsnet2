@@ -42,6 +42,7 @@ func runScenario(ctx context.Context) error {
 		scenarioJoinRoom,
 		scenarioMessage,
 		scenarioKick,
+		scenarioSearchCurrent,
 	} {
 		err := scenario(ctx)
 		if err != nil {
@@ -603,6 +604,86 @@ func scenarioKick(ctx context.Context) error {
 	}
 
 	logger.Infof("kick ok")
+
+	return nil
+}
+
+// scenarioSearchCurrent : 入室している部屋一覧取得のテスト
+func scenarioSearchCurrent(ctx context.Context) error {
+	logger.Infof("=== Scenario SearchCurrent ===")
+
+	p1id := "searchcurrent_p1"
+
+	// room1: masterとして入室
+	// room2: 一般playerとして入室
+	// room3: 観戦入室
+	// => [room1, room2]
+
+	room1, conn1, err := createRoom(ctx, p1id, &pb.RoomOption{
+		SearchGroup: ScenarioSearchCurrent,
+	})
+	if err != nil {
+		return fmt.Errorf("search: create room1: %w", err)
+	}
+	discardEvents(conn1)
+	defer cleanupConn(ctx, conn1)
+	logger.Infof("room1=%v", room1.Id)
+
+	time.Sleep(time.Second)
+
+	room2, conn2, err := createRoom(ctx, "searchcurrent_p2", &pb.RoomOption{
+		Joinable:    true,
+		SearchGroup: ScenarioSearchCurrent,
+	})
+	if err != nil {
+		return fmt.Errorf("search: create room2: %w", err)
+	}
+	discardEvents(conn2)
+	defer cleanupConn(ctx, conn2)
+	logger.Infof("room2=%v", room2.Id)
+
+	time.Sleep(time.Second)
+
+	room3, conn3, err := createRoom(ctx, "searchcurrent_p3", &pb.RoomOption{
+		Watchable:   true,
+		SearchGroup: ScenarioSearchCurrent,
+	})
+	if err != nil {
+		return fmt.Errorf("search: create room2: %w", err)
+	}
+	discardEvents(conn3)
+	defer cleanupConn(ctx, conn3)
+	logger.Infof("room3=%v", room3.Id)
+
+	_, conn4, err := joinRoom(ctx, p1id, room2.Id, nil)
+	if err != nil {
+		return fmt.Errorf("search: join room2: %w", err)
+	}
+	discardEvents(conn4)
+	defer cleanupConn(ctx, conn4)
+
+	_, conn5, err := watchRoom(ctx, p1id, room3.Id, nil)
+	if err != nil {
+		return fmt.Errorf("search: watch room3: %w", err)
+	}
+	discardEvents(conn5)
+	defer cleanupConn(ctx, conn5)
+
+	rooms, err := searchCurrent(ctx, p1id)
+	if err != nil {
+		return fmt.Errorf("searchCurrent: %w", err)
+	}
+
+	ids := make([]string, len(rooms))
+	for i, r := range rooms {
+		ids[i] = r.Id
+	}
+	logger.Infof("found: %v", ids)
+
+	wants := []string{room1.Id, room2.Id}
+	if !reflect.DeepEqual(ids, wants) {
+		return fmt.Errorf("rooms %v, wants %v", ids, wants)
+	}
 
 	return nil
 }

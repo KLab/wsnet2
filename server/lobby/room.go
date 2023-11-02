@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -71,13 +73,10 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 		return nil, xerrors.Errorf("get game server: %w", err)
 	}
 
-	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := rs.grpcPool.Get(grpcAddr)
+	client, err := rs.newGameClient(game.Hostname, game.GRPCPort)
 	if err != nil {
-		return nil, xerrors.Errorf("get gRPC client(%s): %w", grpcAddr, err)
+		return nil, xerrors.Errorf("newGameClient: %w", err)
 	}
-
-	client := pb.NewGameClient(conn)
 
 	req := &pb.CreateRoomReq{
 		AppId:      appId,
@@ -142,13 +141,10 @@ func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInf
 		return nil, xerrors.Errorf("get game server(%v): %w", hostId, err)
 	}
 
-	grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-	conn, err := rs.grpcPool.Get(grpcAddr)
+	client, err := rs.newGameClient(game.Hostname, game.GRPCPort)
 	if err != nil {
-		return nil, xerrors.Errorf("grpcPool.Get(%s): %w", grpcAddr, err)
+		return nil, xerrors.Errorf("newGameClient: %w", err)
 	}
-
-	client := pb.NewGameClient(conn)
 
 	req := &pb.JoinRoomReq{
 		AppId:      appId,
@@ -307,6 +303,69 @@ func (rs *RoomService) SearchByNumbers(ctx context.Context, appId string, roomNu
 	return rs.searchBySQL(ctx, sql, params, queries, logger)
 }
 
+func (rs *RoomService) SearchCurrentRooms(ctx context.Context, appId, clientId string, queries []PropQueries, logger log.Logger) ([]*pb.RoomInfo, error) {
+	allGameServers, err := rs.gameCache.All()
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var roomIds []string
+
+	wg.Add(len(allGameServers))
+	for _, svr := range allGameServers {
+		go func(svr *gameServer) {
+			defer wg.Done()
+
+			client, err := rs.newGameClient(svr.Hostname, svr.GRPCPort)
+			if err != nil {
+				logger.Errorf("SearchCurrentRooms: newGameClient: %+v", err)
+				return
+			}
+
+			req := &pb.CurrentRoomsReq{
+				AppId:    appId,
+				ClientId: clientId,
+			}
+			res, err := client.CurrentRooms(ctx, req)
+			if err != nil {
+				logger.Errorf("SearchCurrentRooms: app=%q client=%q host=%q err=%+v", appId, clientId, svr.Hostname, err)
+				return
+			}
+			if len(res.RoomIds) > 0 {
+				mu.Lock()
+				roomIds = append(roomIds, res.RoomIds...)
+				mu.Unlock()
+			}
+		}(svr)
+	}
+
+	wg.Wait()
+
+	if len(roomIds) == 0 {
+		return []*pb.RoomInfo{}, nil
+	}
+
+	sql, params, err := sqlx.In("SELECT * FROM room WHERE app_id = ? AND id IN (?)", appId, roomIds)
+	if err != nil {
+		return nil, xerrors.Errorf("sqlx.In: %w", err)
+	}
+
+	rooms, err := rs.searchBySQL(ctx, sql, params, queries, logger)
+	if err != nil {
+		return nil, xerrors.Errorf("searchBySQL: %w", err)
+	}
+
+	sort.Slice(rooms, func(i, j int) bool {
+		ti := rooms[i].Created.Timestamp.AsTime()
+		tj := rooms[j].Created.Timestamp.AsTime()
+		return ti.Before(tj)
+	})
+
+	return rooms, nil
+}
+
 func (rs *RoomService) searchBySQL(ctx context.Context, sql string, params []any, queries []PropQueries, logger log.Logger) ([]*pb.RoomInfo, error) {
 	var rooms []*pb.RoomInfo
 	err := rs.db.SelectContext(ctx, &rooms, sql, params...)
@@ -342,13 +401,10 @@ func (rs *RoomService) watch(ctx context.Context, room *pb.RoomInfo, clientInfo 
 		return nil, xerrors.Errorf("get hub server: %w", err)
 	}
 
-	grpcAddr := fmt.Sprintf("%s:%d", hub.Hostname, hub.GRPCPort)
-	conn, err := rs.grpcPool.Get(grpcAddr)
+	client, err := rs.newGameClient(hub.Hostname, hub.GRPCPort)
 	if err != nil {
-		return nil, xerrors.Errorf("get gRPC client: %w", err)
+		return nil, xerrors.Errorf("newGameClient: %w", err)
 	}
-
-	client := pb.NewGameClient(conn)
 
 	game, err := rs.gameCache.Get(room.HostId)
 	if err != nil {
@@ -459,14 +515,12 @@ func (rs *RoomService) adminKick(appID, targetID string, logger log.Logger) {
 	}
 
 	for _, game := range allGameServers {
-		grpcAddr := fmt.Sprintf("%s:%d", game.Hostname, game.GRPCPort)
-		conn, err := rs.grpcPool.Get(grpcAddr)
+		client, err := rs.newGameClient(game.Hostname, game.GRPCPort)
 		if err != nil {
-			logger.Errorf("adminKick: gRPC: %+v", err)
+			logger.Errorf("adminKick: newGameClient: %+v", err)
 			continue
 		}
 
-		client := pb.NewGameClient(conn)
 		req := &pb.KickReq{
 			AppId:    appID,
 			RoomId:   "",
@@ -479,4 +533,16 @@ func (rs *RoomService) adminKick(appID, targetID string, logger log.Logger) {
 		}
 	}
 
+}
+
+func (rs *RoomService) newGameClient(host string, port int) (pb.GameClient, error) {
+	grpcAddr := fmt.Sprintf("%s:%d", host, port)
+	conn, err := rs.grpcPool.Get(grpcAddr)
+	if err != nil {
+		return nil, xerrors.Errorf("grpcPool.Get(%v): %w", grpcAddr, err)
+	}
+
+	client := pb.NewGameClient(conn)
+
+	return client, nil
 }

@@ -145,9 +145,19 @@ func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, r
 	return connectToRoom(ctx, accinfo, res, warn)
 }
 
-// Search 部屋を検索する
+// Search : 部屋を検索する
 func Search(ctx context.Context, accinfo *AccessInfo, param *lobby.SearchParam) ([]*pb.RoomInfo, error) {
 	res, err := lobbyRequest(ctx, accinfo, "/rooms/search", param)
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Rooms, nil
+}
+
+// Current : 現在入室しているRoomInfo一覧を取得する
+func Current(ctx context.Context, accinfo *AccessInfo, param *lobby.SearchCurrentRoomsParam) ([]*pb.RoomInfo, error) {
+	res, err := lobbyRequest(ctx, accinfo, "/rooms/search/current", param)
 	if err != nil {
 		return nil, err
 	}

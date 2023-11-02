@@ -171,7 +171,31 @@ func (sv *GameService) GetRoomInfo(ctx context.Context, in *pb.GetRoomInfoReq) (
 
 	logger.Infof("gRPC GetRoomInfo OK: room=%v", res.RoomInfo.Id)
 
-	return res, err
+	return res, nil
+}
+
+func (sv *GameService) CurrentRooms(ctx context.Context, in *pb.CurrentRoomsReq) (*pb.RoomIdsRes, error) {
+	logger := log.GetLoggerWith(
+		log.KeyHandler, "grpc:CurrentRooms",
+		log.KeyApp, in.AppId,
+		log.KeyClient, in.ClientId,
+		log.KeyRequestedAt, float64(time.Now().UnixMilli())/1000,
+	)
+	logger.Debugf("gRPC CurrentRooms: %v", in.ClientId)
+	repo, ok := sv.repos[in.AppId]
+	if !ok {
+		logger.Errorf("invalid app_id: %v", in.AppId)
+		return nil, status.Errorf(codes.Internal, "Invalid app_id: %v", in.AppId)
+	}
+	res, err := repo.GetCurrentRoomIds(ctx, in.ClientId)
+	if err != nil {
+		logger.Errorf("repo.CurrentRooms: %+v", err)
+		return nil, err
+	}
+
+	logger.Infof("gRPC CurrentRooms OK: %v", res.RoomIds)
+
+	return res, nil
 }
 
 func (sv *GameService) Kick(ctx context.Context, in *pb.KickReq) (*pb.Empty, error) {

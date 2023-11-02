@@ -420,6 +420,17 @@ namespace WSNet2
             Task.Run(() => search("/rooms/search/numbers", content, onSuccess, onFailed));
         }
 
+        public void CurrentRooms(Query query, Action<PublicRoom[]> onSuccess, Action<Exception> onFailed)
+        {
+            var param = new SearchCurrentRoomsParam()
+            {
+                queries = query?.condsList,
+            };
+            var content = MessagePackSerializer.Serialize(param);
+
+            Task.Run(() => search("/rooms/search/current", content, onSuccess, onFailed));
+        }
+
         private async Task<LobbyResponse> post(string path, byte[] content)
         {
             var url = baseUri + path;

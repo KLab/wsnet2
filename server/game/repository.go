@@ -458,6 +458,24 @@ func (repo *Repository) GetRoomInfo(ctx context.Context, id string) (*pb.GetRoom
 	return res, nil
 }
 
+func (repo *Repository) GetCurrentRoomIds(ctx context.Context, clientId string) (*pb.RoomIdsRes, error) {
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+
+	var ids []string
+	for rid, cli := range repo.clients[ClientID(clientId)] {
+		if cli.isPlayer {
+			ids = append(ids, string(rid))
+		}
+	}
+
+	res := &pb.RoomIdsRes{
+		RoomIds: ids,
+	}
+
+	return res, nil
+}
+
 func (repo *Repository) AdminKick(ctx context.Context, roomID, userID string, logger log.Logger) error {
 	if roomID != "" {
 		room, err := repo.GetRoom(roomID)

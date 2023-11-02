@@ -86,6 +86,7 @@ func (sv *LobbyService) registerRoutes(r chi.Router) {
 	r.Post("/rooms/search", sv.handleSearchRooms)
 	r.Post("/rooms/search/ids", sv.handleSearchByIds)
 	r.Post("/rooms/search/numbers", sv.handleSearchByNumbers)
+	r.Post("/rooms/search/current", sv.handleSearchCurrentRooms)
 	r.Post("/rooms/watch/id/{roomId}", sv.handleWatchRoom)
 	r.Post("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber)
 	r.Post("/_admin/kick", sv.handleAdminKick)
@@ -489,6 +490,34 @@ func (sv *LobbyService) handleSearchByNumbers(w http.ResponseWriter, r *http.Req
 	rooms, err := sv.roomService.SearchByNumbers(r.Context(), h.appId, param.RoomNumbers, param.Queries, logger)
 	if err != nil {
 		renderErrorResponse(w, "Failed to list rooms", http.StatusInternalServerError, err, logger)
+		return
+	}
+
+	renderFoundRoomsResponse(w, rooms, logger)
+}
+
+func (sv *LobbyService) handleSearchCurrentRooms(w http.ResponseWriter, r *http.Request) {
+	h := parseSpecificHeader(r)
+	logger := prepareLogger("lobby:search/current", h, r)
+	logger.Debugf("handleSearchCurrentRooms")
+
+	if _, err := sv.authUser(h); err != nil {
+		renderErrorResponse(w, "Failed to user auth", http.StatusUnauthorized, err, logger)
+		return
+	}
+
+	var param lobby.SearchCurrentRoomsParam
+	err := msgpackDecode(r.Body, &param)
+	if err != nil {
+		renderErrorResponse(w, "Failed to read request body", http.StatusBadRequest, err, logger)
+		return
+	}
+
+	logger.Debugf("search current param: %#v", param)
+
+	rooms, err := sv.roomService.SearchCurrentRooms(r.Context(), h.appId, h.userId, param.Queries, logger)
+	if err != nil {
+		renderErrorResponse(w, "Failed to get search rooms", http.StatusInternalServerError, err, logger)
 		return
 	}
 

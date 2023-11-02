@@ -15,6 +15,7 @@
   - [Watch(number)](#watchnumber)
 - [部屋検索](#部屋検索)
   - [Search](#search)
+  - [CurrentRooms](#currentrooms)
 
 ## 概要
 WSNet2へのアクセスは、[`WSNet2.WSNet2Client`](../wsnet2-unity/Assets/WSNet2/Scripts/Core/WSNet2Client.cs)クラスを利用します。
@@ -216,3 +217,21 @@ void Search(
 - `checkWatchable`: true: 観戦可能な部屋のみ含める
 - `onSuccess`: 成功時コールバック。引数はRoom一覧
 - `onFailed`: 失敗時コールバック。引数は例外オブジェクト
+
+### CurrentRooms
+
+```C#
+void CurrentRooms(
+    Query query,
+    Action<PublicRoom[]> onSuccess,
+    Action<Exception> onFailed);
+```
+
+自分自身がPlayerとして入室中のRoom一覧を取得します。
+
+- `query`: 部屋条件クエリ
+- `onSuccess`: 成功時コールバック。引数はRoom一覧
+- `onFailed`: 失敗時コールバック。引数は例外オブジェクト
+
+観戦中のRoomは含みません。
+結果のRoomは作成時刻順に昇順ソートされています。
