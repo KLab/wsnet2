@@ -35,6 +35,7 @@ namespace WSNet2
         volatile uint lastPingTime;
         CancellationTokenSource pingerDelayCanceller;
         SemaphoreSlim sendSemaphore;
+        bool closed;
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
@@ -61,6 +62,7 @@ namespace WSNet2
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
             this.sendSemaphore = new SemaphoreSlim(1, 1);
+            this.closed = false;
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
@@ -397,6 +399,11 @@ namespace WSNet2
             await sendSemaphore.WaitAsync(ct);
             try
             {
+                if (closed)
+                {
+                    return;
+                }
+
                 NetworkInformer.OnRoomSend(room, msg);
                 await ws.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
             }
@@ -411,9 +418,16 @@ namespace WSNet2
             await sendSemaphore.WaitAsync(ct);
             try
             {
+                if (closed)
+                {
+                    return;
+                }
+
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(SendCloseTimeout);
                 await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
+
+                closed = true;
             }
             finally
             {
