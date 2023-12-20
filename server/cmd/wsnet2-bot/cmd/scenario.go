@@ -31,19 +31,21 @@ var scenarioCmd = &cobra.Command{
 	},
 }
 
+var scenarios = map[string]func(context.Context) error{
+	"LobbySearch":   scenarioLobbySearch,
+	"JoinRoom":      scenarioJoinRoom,
+	"Message":       scenarioMessage,
+	"Kick":          scenarioKick,
+	"SearchCurrent": scenarioSearchCurrent,
+}
+
 func init() {
 	rootCmd.AddCommand(scenarioCmd)
 }
 
 // runScenario runs scenario test
 func runScenario(ctx context.Context) error {
-	for _, scenario := range []func(context.Context) error{
-		scenarioLobbySearch,
-		scenarioJoinRoom,
-		scenarioMessage,
-		scenarioKick,
-		scenarioSearchCurrent,
-	} {
+	for _, scenario := range scenarios {
 		err := scenario(ctx)
 		if err != nil {
 			return err
