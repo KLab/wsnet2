@@ -25,6 +25,8 @@ const (
 	ScenarioMessageGroup     = 102
 	ScenarioKickGroup        = 103
 	ScenarioSearchCurrent    = 104
+	ScenarioClientProp       = 105
+	ScenarioRejoin           = 106
 
 	SoakSearchGroup = 200
 
