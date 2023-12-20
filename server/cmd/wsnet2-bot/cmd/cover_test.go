@@ -1,3 +1,5 @@
+//go:build scenariocoverage
+
 package cmd
 
 import (
@@ -27,7 +29,7 @@ docker run -d --rm \
   -e MYSQL_PASSWORD=wsnet2pass \
   -p 3306:3306 mysql:8.0
 
-go test . -cover -coverprofile=cover.out \
+go test . -cover -coverprofile=cover.out -tags scenariocoverage \
   -coverpkg=wsnet2/auth,wsnet2/binary,wsnet2/common,wsnet2/config,wsnet2/game,wsnet2/game/service,wsnet2/hub,wsnet2/hub/service,wsnet2/lobby,wsnet2/lobby/service,wsnet2/log,wsnet2/pb
 
 go tool cover -html=cover.out -o cover.html
