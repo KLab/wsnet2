@@ -225,7 +225,7 @@ func UnmarshalEvPongPayload(payload []byte) (*EvPongPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid EvPong payload (watchers): %w", e)
 	}
-	pp.Watchers = uint32(d.(int))
+	pp.Watchers = uint32(d.(int64))
 	payload = payload[l:]
 
 	// lastmsg

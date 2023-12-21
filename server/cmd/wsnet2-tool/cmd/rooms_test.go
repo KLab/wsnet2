@@ -69,8 +69,8 @@ func TestAppendPrimitiveArraySimple(t *testing.T) {
 			exp:  `"Bools[5]",`,
 		},
 		"ints4": {
-			data: binary.MarshalInts([]int{1, 2, 3, 4}),
-			fnc:  appendPrimitiveArraySimple[int],
+			data: binary.MarshalInts([]int64{1, 2, 3, 4}),
+			fnc:  appendPrimitiveArraySimple[int64],
 			exp:  "[1,2,3,4],",
 		},
 		"bytes5": {

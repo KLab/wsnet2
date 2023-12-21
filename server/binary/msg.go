@@ -207,7 +207,7 @@ func UnmarshalNodeCountPayload(payload []byte) (uint32, error) {
 	if e != nil {
 		return 0, xerrors.Errorf("Invalid MsgNodeCount payload (node count): %w", e)
 	}
-	return uint32(d.(int)), nil
+	return uint32(d.(int64)), nil
 }
 
 // MarshalLeavePayload marshals MsgLeave payload

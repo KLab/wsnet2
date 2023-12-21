@@ -516,7 +516,7 @@ func TestPropQueryMatchContains(t *testing.T) {
 			binary.MarshalStr16("あいうえお"),
 			binary.MarshalDouble(10),
 		}),
-		"bbb": binary.MarshalInts([]int{1, 3, 5, 7, 9}),
+		"bbb": binary.MarshalInts([]int64{1, 3, 5, 7, 9}),
 		"ccc": binary.MarshalFloats([]float32{-10, -0.5, 0, 1.1}),
 	}
 	tests := []struct {
