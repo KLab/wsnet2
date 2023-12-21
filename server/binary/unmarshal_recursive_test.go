@@ -16,11 +16,11 @@ func TestUnmarshalRecursive(t *testing.T) {
 	}{
 		{
 			[]byte{byte(binary.TypeInt), 0x80, 0x00, 0x00, 0x01},
-			int(1),
+			int64(1),
 		},
 		{
 			[]byte{byte(binary.TypeUInt), 0x01, 0x02, 0x03, 0x04, byte(binary.TypeStr8), 0x03, 'a', 'b', 'c'},
-			[]interface{}{int(0x1020304), "abc"},
+			[]interface{}{int64(0x1020304), "abc"},
 		},
 		{
 			[]byte{

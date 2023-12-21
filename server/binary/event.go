@@ -139,7 +139,7 @@ func UnmarshalEvent(data []byte) (Event, int, error) {
 	if len(data) < 4 {
 		return nil, 0, xerrors.Errorf("data length not enough: %v", len(data))
 	}
-	seq := get32(data)
+	seq := int(get32(data))
 	data = data[4:]
 
 	return &RegularEvent{et, data}, seq, nil
@@ -194,7 +194,7 @@ func UnmarshalEvPeerReadyPayload(payload []byte) (int, error) {
 // - dict: last msg timestamps of each player.
 func NewEvPong(pingtime uint64, watchers uint32, lastMsg Dict) *SystemEvent {
 	payload := MarshalULong(pingtime)
-	payload = append(payload, MarshalUInt(int(watchers))...)
+	payload = append(payload, MarshalUInt(int64(watchers))...)
 	payload = append(payload, MarshalDict(lastMsg)...)
 
 	return &SystemEvent{

@@ -105,7 +105,7 @@ func TestMarshalInteger(t *testing.T) {
 
 func TestMarshalInteger32(t *testing.T) {
 	tests := []struct {
-		marshal func(int) []byte
+		marshal func(int64) []byte
 		in      int64
 		out     int64
 		buf     []byte
@@ -124,7 +124,7 @@ func TestMarshalInteger32(t *testing.T) {
 		{MarshalInt, 0x80000000, 0x7fffffff, []byte{byte(TypeInt), 0xff, 0xff, 0xff, 0xff}},
 	}
 	for _, test := range tests {
-		b := test.marshal(int(test.in))
+		b := test.marshal(test.in)
 		if !reflect.DeepEqual(b, test.buf) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%x):\n%#v\n%#v", fname, test.in, b, test.buf)
@@ -134,7 +134,7 @@ func TestMarshalInteger32(t *testing.T) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%x): Unmarshal error: %v", fname, test.in, e)
 		}
-		if r != int(test.out) || l != len(test.buf) {
+		if r != test.out || l != len(test.buf) {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%x): Unmarshal = %v (len=%v) wants %v (len=%v)",
 				fname, test.in, r, l, test.out, len(test.buf))
@@ -668,14 +668,14 @@ func TestMarshalIntegers(t *testing.T) {
 
 func TestMarshalIntegers32(t *testing.T) {
 	tests := []struct {
-		marshal func([]int) []byte
+		marshal func([]int64) []byte
 		in      []int64
 		out     []int64
 		buf     []byte
 	}{
 		{MarshalInts, []int64{}, []int64{}, []byte{byte(TypeInts), 0, 0}},
 		{MarshalInts,
-			[]int64{0, 1, (math.MinInt32 - 1) + 1, math.MinInt32, math.MaxInt32, (math.MaxInt32 + 1) - 1},
+			[]int64{0, 1, math.MinInt32 - 1, math.MinInt32, math.MaxInt32, math.MaxInt32 + 1},
 			[]int64{0, 1, math.MinInt32, math.MinInt32, math.MaxInt32, math.MaxInt32},
 			[]byte{byte(TypeInts), 0, 6,
 				0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x01,
@@ -685,7 +685,7 @@ func TestMarshalIntegers32(t *testing.T) {
 
 		{MarshalUInts, []int64{}, []int64{}, []byte{byte(TypeUInts), 0, 0}},
 		{MarshalUInts,
-			[]int64{0, 1, (-1) + 1, math.MaxInt32 + 1, math.MaxUint32, (math.MaxUint32 + 1) - 1},
+			[]int64{0, 1, -1, math.MaxInt32 + 1, math.MaxUint32, math.MaxUint32 + 1},
 			[]int64{0, 1, 0, math.MaxInt32 + 1, math.MaxUint32, math.MaxUint32},
 			[]byte{byte(TypeUInts), 0, 6,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
@@ -696,26 +696,9 @@ func TestMarshalIntegers32(t *testing.T) {
 		{MarshalInts, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalUInts, nil, nil, []byte{byte(TypeNull)}},
 	}
-	to32 := func(a []int64) []int {
-		if a == nil {
-			return []int(nil)
-		}
-		r := make([]int, len(a))
-		for i := range a {
-			r[i] = int(a[i])
-		}
-		return r
-	}
-	to64 := func(a []int) []int64 {
-		r := make([]int64, len(a))
-		for i := range a {
-			r[i] = int64(a[i])
-		}
-		return r
-	}
 
 	for _, test := range tests {
-		b := test.marshal(to32(test.in))
+		b := test.marshal(test.in)
 		if diff := cmp.Diff(b, test.buf); diff != "" {
 			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 			t.Fatalf("%s(%#v): Marshal (-got +want)\n%s", fname, test.in, diff)
@@ -726,7 +709,6 @@ func TestMarshalIntegers32(t *testing.T) {
 			t.Fatalf("%s(%#v): Unmarshal error: %v", fname, test.in, e)
 		}
 		if !(test.out == nil && r == nil) {
-			r = to64(r.([]int))
 			if diff := cmp.Diff(r, test.out); diff != "" {
 				fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
 				t.Fatalf("%s(%#v): Unmarshal (-got +want)\n%s", fname, test.in, diff)

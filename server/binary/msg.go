@@ -194,7 +194,7 @@ func UnmarshalPingPayload(payload []byte) (uint64, error) {
 
 // NewMsgNodeCount constructs MsgNodeCount
 func NewMsgNodeCount(count uint32) Msg {
-	payload := MarshalUInt(int(count))
+	payload := MarshalUInt(int64(count))
 	return &nonregularMsg{
 		mtype:   MsgTypeNodeCount,
 		payload: payload,
@@ -270,7 +270,7 @@ func MarshalRoomPropPayload(visible, joinable, watchable bool, searchGroup, maxP
 	}
 	p := make([]byte, 0, 15)
 	p = append(p, MarshalByte(flg)...)
-	p = append(p, MarshalUInt(int(searchGroup))...)
+	p = append(p, MarshalUInt(int64(searchGroup))...)
 	p = append(p, MarshalUShort(int(maxPlayer))...)
 	p = append(p, MarshalUShort(int(clientDeadline))...)
 	p = append(p, MarshalDict(publicProps)...)
@@ -300,7 +300,7 @@ func UnmarshalRoomPropPayload(payload []byte) (*MsgRoomPropPayload, error) {
 	if e != nil {
 		return nil, xerrors.Errorf("Invalid MsgRoomProp payload (search group): %w", e)
 	}
-	rpp.SearchGroup = uint32(d.(int))
+	rpp.SearchGroup = uint32(d.(int64))
 	payload = payload[l:]
 
 	// max players
