@@ -31,19 +31,23 @@ var scenarioCmd = &cobra.Command{
 	},
 }
 
+var scenarios = map[string]func(context.Context) error{
+	"LobbySearch":   scenarioLobbySearch,
+	"JoinRoom":      scenarioJoinRoom,
+	"Message":       scenarioMessage,
+	"Kick":          scenarioKick,
+	"SearchCurrent": scenarioSearchCurrent,
+	"ClientProp":    scenarioClientProp,
+	"Rejoin":        scenarioRejoin,
+}
+
 func init() {
 	rootCmd.AddCommand(scenarioCmd)
 }
 
 // runScenario runs scenario test
 func runScenario(ctx context.Context) error {
-	for _, scenario := range []func(context.Context) error{
-		scenarioLobbySearch,
-		scenarioJoinRoom,
-		scenarioMessage,
-		scenarioKick,
-		scenarioSearchCurrent,
-	} {
+	for _, scenario := range scenarios {
 		err := scenario(ctx)
 		if err != nil {
 			return err
@@ -685,5 +689,164 @@ func scenarioSearchCurrent(ctx context.Context) error {
 		return fmt.Errorf("rooms %v, wants %v", ids, wants)
 	}
 
+	return nil
+}
+
+// scenarioClientProp : Playerのプロパティ変更テスト
+func scenarioClientProp(ctx context.Context) error {
+	logger.Infof("=== Scenario ClientProp ===")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	room, master, err := createRoom(ctx, "cliprop_master", &pb.RoomOption{
+		Joinable:    true,
+		SearchGroup: ScenarioClientProp,
+	})
+	if err != nil {
+		return fmt.Errorf("cliprop: create: %w", err)
+	}
+	defer cleanupConn(ctx, master)
+
+	prop := binary.Dict{
+		"prop1": binary.MarshalInt(100),
+		"prop2": binary.MarshalStr8("abc"),
+	}
+
+	master.Send(binary.MsgTypeClientProp, binary.MarshalClientPropPayload(prop))
+
+	ev, ok := waitEvent(master, time.Second, binary.EvTypeClientProp)
+	if !ok {
+		return fmt.Errorf("cliprop: wait EvClientProp failed")
+	}
+	p, err := binary.UnmarshalEvClientPropPayload(ev.Payload())
+	if err != nil {
+		return fmt.Errorf("cliprop: unmarshal payload: %w", err)
+	}
+	logger.Infof("master prop: %v", p.Props)
+	if !reflect.DeepEqual(p.Props, prop) {
+		return fmt.Errorf("cliprop: prop %v, wants %v", p.Props, prop)
+	}
+
+	// "prop1"のみ変更
+	prop1 := binary.Dict{"prop1": binary.MarshalInt(200)}
+	master.Send(binary.MsgTypeClientProp, binary.MarshalClientPropPayload(prop1))
+
+	ev, ok = waitEvent(master, time.Second, binary.EvTypeClientProp)
+	if !ok {
+		return fmt.Errorf("cliprop: wait EvClientProp failed")
+	}
+	p, err = binary.UnmarshalEvClientPropPayload(ev.Payload())
+	if err != nil {
+		return fmt.Errorf("cliprop: unmarshal payload: %w", err)
+	}
+	logger.Infof("prop1: %v", p)
+	if reflect.DeepEqual(p, prop1) {
+		return fmt.Errorf("cliprop: prop1 %v, wants %v", p, prop)
+	}
+
+	// roomに保存されていることを確認
+	room2, player, err := joinRoom(ctx, "cliprop_player", room.Id, nil)
+	if err != nil {
+		return fmt.Errorf("cliprop: join: %w", err)
+	}
+	defer cleanupConn(ctx, player)
+
+	prop["prop1"] = prop1["prop1"]
+	mprop := room2.Players["cliprop_master"].Props
+	logger.Infof("master prop: %v", mprop)
+	if !reflect.DeepEqual(mprop, prop) {
+		return fmt.Errorf("cliprop: master prop: %v, wants %v", mprop, prop)
+	}
+
+	logger.Info("clientprop ok")
+	return nil
+}
+
+// scenarioRejoin : 再入室テスト
+func scenarioRejoin(ctx context.Context) error {
+	logger.Infof("=== Scenario Rejoin ===")
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	room, master, err := createRoom(ctx, "rejoin_master", &pb.RoomOption{
+		Joinable:    true,
+		SearchGroup: ScenarioRejoin,
+	})
+	if err != nil {
+		return fmt.Errorf("rejoin: create: %w", err)
+	}
+	defer cleanupConn(ctx, master)
+
+	_, ok := waitEvent(master, time.Second, binary.EvTypeJoined)
+	if !ok {
+		return fmt.Errorf("rejoin: wait EvJoined failed")
+	}
+
+	id := "rejoin_player"
+	_, player1, err := joinRoom(ctx, id, room.Id, nil)
+	if err != nil {
+		return fmt.Errorf("rejoin: join player1: %w", err)
+	}
+	discardEvents(player1)
+
+	ev, ok := waitEvent(master, time.Second, binary.EvTypeJoined)
+	if !ok {
+		return fmt.Errorf("rejoin: wait EvJoined failed")
+	}
+	c, err := binary.UnmarshalEvJoinedPayload(ev.Payload())
+	if err != nil {
+		return fmt.Errorf("rejoin: UnmarshalEvJoinedPayload: %w", err)
+	}
+	if c.Id != id {
+		return fmt.Errorf("rejoin: joined: %v, wants %v", c.Id, id)
+	}
+
+	// rejoin
+	_, player2, err := joinRoom(ctx, id, room.Id, nil)
+	if err != nil {
+		return fmt.Errorf("rejoin: join player2: %w", err)
+	}
+	defer cleanupConn(ctx, player2)
+	logger.Info("rejoin: player rejoined")
+
+	// master,player2にrejoin通知
+	ev, ok = waitEvent(master, time.Second, binary.EvTypeRejoined)
+	if !ok {
+		return fmt.Errorf("rejoin: wait EvRejoined failed")
+	}
+	c, err = binary.UnmarshalEvRejoinedPayload(ev.Payload())
+	if err != nil {
+		return fmt.Errorf("rejoin: UnmarshalEvRejoinedPayload: %w", err)
+	}
+	if c.Id != id {
+		return fmt.Errorf("rejoin: joined: %v, wants %v", c.Id, id)
+	}
+
+	ev, ok = waitEvent(player2, time.Second, binary.EvTypeRejoined)
+	if !ok {
+		return fmt.Errorf("rejoin: wait EvRejoined failed")
+	}
+	c, err = binary.UnmarshalEvRejoinedPayload(ev.Payload())
+	if err != nil {
+		return fmt.Errorf("rejoin: UnmarshalEvRejoinedPayload: %w", err)
+	}
+	if c.Id != id {
+		return fmt.Errorf("rejoin: joined: %v, wants %v", c.Id, id)
+	}
+
+	// player1は正常切断
+	ctx2, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
+	_, err = player1.Wait(ctx2)
+	if errors.Is(err, context.DeadlineExceeded) {
+		cleanupConn(ctx, player1)
+		return fmt.Errorf("rejoin: player1 did not left")
+	}
+	if err != nil {
+		return fmt.Errorf("rejoin: player1.Wait: %w", err)
+	}
+	logger.Info("rejoin: player1 closed")
+
+	logger.Info("rejoin ok")
 	return nil
 }
