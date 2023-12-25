@@ -1182,62 +1182,63 @@ func get8(src []byte) int {
 }
 
 func put16(dst []byte, val int64) {
-	dst[0] = byte((val & 0xff00) >> 8)
 	dst[1] = byte(val & 0xff)
+	dst[0] = byte((val & 0xff00) >> 8)
 }
 
 func get16(src []byte) int {
-	v := int(src[0]) << 8
-	v += int(src[1])
+	v := int(src[1])
+	v |= int(src[0]) << 8
 	return v
 }
 
 func put24(dst []byte, val int64) {
-	dst[0] = byte((val & 0xff0000) >> 16)
-	dst[1] = byte((val & 0xff00) >> 8)
 	dst[2] = byte(val & 0xff)
+	dst[1] = byte((val & 0xff00) >> 8)
+	dst[0] = byte((val & 0xff0000) >> 16)
 }
 
 func get24(src []byte) int {
-	i := int(src[0]) << 16
-	i += int(src[1]) << 8
-	i += int(src[2])
+	i := int(src[2])
+	i |= int(src[1]) << 8
+	i |= int(src[0]) << 16
 	return i
 }
 
 func put32(dst []byte, val int64) {
-	dst[0] = byte((val & 0xff000000) >> 24)
-	dst[1] = byte((val & 0xff0000) >> 16)
-	dst[2] = byte((val & 0xff00) >> 8)
 	dst[3] = byte(val & 0xff)
+	dst[2] = byte((val & 0xff00) >> 8)
+	dst[1] = byte((val & 0xff0000) >> 16)
+	dst[0] = byte((val & 0xff000000) >> 24)
 }
+
 func get32(src []byte) int64 {
-	i := int64(src[0]) << 24
-	i += int64(src[1]) << 16
-	i += int64(src[2]) << 8
-	i += int64(src[3])
+	i := int64(src[3])
+	i |= int64(src[2]) << 8
+	i |= int64(src[1]) << 16
+	i |= int64(src[0]) << 24
 	return i
 }
 
 func put64(dst []byte, val uint64) {
-	dst[0] = byte((val & 0xff00000000000000) >> 56)
-	dst[1] = byte((val & 0xff000000000000) >> 48)
-	dst[2] = byte((val & 0xff0000000000) >> 40)
-	dst[3] = byte((val & 0xff00000000) >> 32)
-	dst[4] = byte((val & 0xff000000) >> 24)
-	dst[5] = byte((val & 0xff0000) >> 16)
-	dst[6] = byte((val & 0xff00) >> 8)
 	dst[7] = byte(val & 0xff)
+	dst[6] = byte((val & 0xff00) >> 8)
+	dst[5] = byte((val & 0xff0000) >> 16)
+	dst[4] = byte((val & 0xff000000) >> 24)
+	dst[3] = byte((val & 0xff00000000) >> 32)
+	dst[2] = byte((val & 0xff0000000000) >> 40)
+	dst[1] = byte((val & 0xff000000000000) >> 48)
+	dst[0] = byte((val & 0xff00000000000000) >> 56)
 }
 
 func get64(src []byte) uint64 {
-	i := uint64(src[0]) << 56
-	i += uint64(src[1]) << 48
-	i += uint64(src[2]) << 40
-	i += uint64(src[3]) << 32
-	i += uint64(src[4]) << 24
-	i += uint64(src[5]) << 16
-	i += uint64(src[6]) << 8
-	i += uint64(src[7])
+	i := uint64(src[7])
+	i |= uint64(src[6]) << 8
+	i |= uint64(src[5]) << 16
+	i |= uint64(src[4]) << 24
+	i |= uint64(src[3]) << 32
+	i |= uint64(src[2]) << 40
+	i |= uint64(src[1]) << 48
+	i |= uint64(src[0]) << 56
 	return i
 }
