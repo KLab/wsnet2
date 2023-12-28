@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Threading;
@@ -217,6 +219,8 @@ namespace WSNet2
             cts.CancelAfter(WSNet2Settings.ConnectTimeoutMilliSec);
             NetworkInformer.OnRoomConnectRequest(room, uri.AbsoluteUri);
             await ws.ConnectAsync(uri, cts.Token);
+            SetTcpNoDelay(ws);
+
             logger?.Info("connected");
             return ws;
         }
@@ -466,6 +470,51 @@ namespace WSNet2
             var ms = (int)deadline * 1000 / 5;
             return (ms < WSNet2Settings.MinPingIntervalMilliSec) ? WSNet2Settings.MinPingIntervalMilliSec
                 : (ms > WSNet2Settings.MaxPingIntervalMilliSec) ? WSNet2Settings.MaxPingIntervalMilliSec : ms;
+        }
+
+        /// <summary>
+        /// TCP_NODELAYを有効にする
+        /// </summary>
+        /// <remarks>
+        /// ClientWebSocketからTCPのSocketにアクセスする手段がないためReflectionを使います
+        /// </remarks>
+        private void SetTcpNoDelay(ClientWebSocket ws)
+        {
+            var fieldChain = new string[]{
+                "_innerWebSocket", // System.Net.WebSockets.WebSocketHandle
+                "_webSocket",      // System.Net.WebSockets.ManagedWebSocket
+                "_stream",         // System.Net.Sockets.NetworkStream
+                "_streamSocket",   // System.Net.Sockets.Socket
+            };
+
+            object obj = ws;
+            foreach (var fieldName in fieldChain)
+            {
+                var type = obj.GetType();
+                var field = type.GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+                if (field == null)
+                {
+                    logger?.Warning("Field not found: {0}.{1}", type, fieldName);
+                    return;
+                }
+
+                obj = field.GetValue(obj);
+                if (obj == null)
+                {
+                    logger?.Warning("Field value is null: {0}.{1}", type, fieldName);
+                    return;
+                }
+            }
+
+            var socket = obj as Socket;
+            if (socket == null)
+            {
+                logger?.Warning("object is not a Socket: {0}", obj.GetType());
+                return;
+            }
+
+            socket.NoDelay = true;
+            logger?.Info("TCP_NODELAY = {0}", socket.NoDelay);
         }
     }
 }
