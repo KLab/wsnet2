@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Reflection;
@@ -475,9 +476,11 @@ namespace WSNet2
         /// <summary>
         /// TCP_NODELAYを有効にする
         /// </summary>
+        /// UnityのC# (.NET Framework/.NET Standard 2.1) ではデフォルト無効のため。
         /// <remarks>
         /// ClientWebSocketからTCPのSocketにアクセスする手段がないためReflectionを使います
         /// </remarks>
+        [Conditional("NET_4_6"), Conditional("NET_STANDARD_2_0")]
         private void SetTcpNoDelay(ClientWebSocket ws)
         {
             var fieldChain = new string[]{
