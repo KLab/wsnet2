@@ -265,7 +265,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 		for {
 			conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
 				true, true, true, group, 10, 0,
-				binary.Dict{"score": binary.MarshalInt(rand.Intn(1024))}, binary.Dict{}))
+				binary.Dict{"score": binary.MarshalInt(rand.Int63n(1024))}, binary.Dict{}))
 
 			select {
 			case <-sendctx.Done():

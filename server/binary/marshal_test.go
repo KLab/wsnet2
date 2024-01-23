@@ -83,7 +83,33 @@ func TestMarshalInteger(t *testing.T) {
 		{MarshalShort, 1, 1, []byte{byte(TypeShort), 0x80, 0x01}},
 		{MarshalShort, 0x7fff, 0x7fff, []byte{byte(TypeShort), 0xff, 0xff}},
 		{MarshalShort, 0x8000, 0x7fff, []byte{byte(TypeShort), 0xff, 0xff}},
+	}
+	for _, test := range tests {
+		b := test.marshal(test.in)
+		if !reflect.DeepEqual(b, test.buf) {
+			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+			t.Fatalf("%s(%x):\n%#v\n%#v", fname, test.in, b, test.buf)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+			t.Fatalf("%s(%x): Unmarshal error: %v", fname, test.in, e)
+		}
+		if r != test.out || l != len(test.buf) {
+			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+			t.Fatalf("%s(%x): Unmarshal = %v (len=%v) wants %v (len=%v)",
+				fname, test.in, r, l, test.out, len(test.buf))
+		}
+	}
+}
 
+func TestMarshalInteger32(t *testing.T) {
+	tests := []struct {
+		marshal func(int64) []byte
+		in      int64
+		out     int64
+		buf     []byte
+	}{
 		{MarshalUInt, -1, 0, []byte{byte(TypeUInt), 0x00, 0x00, 0x00, 0x00}},
 		{MarshalUInt, 0, 0, []byte{byte(TypeUInt), 0x00, 0x00, 0x00, 0x00}},
 		{MarshalUInt, 0x01020304, 0x01020304, []byte{byte(TypeUInt), 0x01, 0x02, 0x03, 0x04}},
@@ -611,32 +637,66 @@ func TestMarshalIntegers(t *testing.T) {
 			[]byte{byte(TypeUShorts), 0, 6, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x80, 0x00, 0xff, 0xff, 0xff, 0xff},
 		},
 
-		{MarshalInts, []int{}, []int{}, []byte{byte(TypeInts), 0, 0}},
+		{MarshalSBytes, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalBytes, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalShorts, nil, nil, []byte{byte(TypeNull)}},
+		{MarshalUShorts, nil, nil, []byte{byte(TypeNull)}},
+	}
+	for _, test := range tests {
+		b := test.marshal(test.in)
+		if diff := cmp.Diff(b, test.buf); diff != "" {
+			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+			t.Fatalf("%s(%#v): Marshal (-got +want)\n%s", fname, test.in, diff)
+		}
+		r, l, e := Unmarshal(b)
+		if e != nil {
+			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+			t.Fatalf("%s(%#v): Unmarshal error: %v", fname, test.in, e)
+		}
+		if !(test.out == nil && r == nil) {
+			if diff := cmp.Diff(r, test.out); diff != "" {
+				fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+				t.Fatalf("%s(%#v): Unmarshal (-got +want)\n%s", fname, test.in, diff)
+			}
+		}
+		if l != len(test.buf) {
+			fname := runtime.FuncForPC(reflect.ValueOf(test.marshal).Pointer()).Name()
+			t.Fatalf("%s(%#v): Unmarshal len=%v wants %v", fname, test.in, l, len(test.buf))
+		}
+	}
+}
+
+func TestMarshalIntegers32(t *testing.T) {
+	tests := []struct {
+		marshal func([]int64) []byte
+		in      []int64
+		out     []int64
+		buf     []byte
+	}{
+		{MarshalInts, []int64{}, []int64{}, []byte{byte(TypeInts), 0, 0}},
 		{MarshalInts,
-			[]int{0, 1, math.MinInt32 - 1, math.MinInt32, math.MaxInt32, math.MaxInt32 + 1},
-			[]int{0, 1, math.MinInt32, math.MinInt32, math.MaxInt32, math.MaxInt32},
+			[]int64{0, 1, math.MinInt32 - 1, math.MinInt32, math.MaxInt32, math.MaxInt32 + 1},
+			[]int64{0, 1, math.MinInt32, math.MinInt32, math.MaxInt32, math.MaxInt32},
 			[]byte{byte(TypeInts), 0, 6,
 				0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x01,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
 
-		{MarshalUInts, []int{}, []int{}, []byte{byte(TypeUInts), 0, 0}},
+		{MarshalUInts, []int64{}, []int64{}, []byte{byte(TypeUInts), 0, 0}},
 		{MarshalUInts,
-			[]int{0, 1, -1, math.MaxInt32 + 1, math.MaxUint32, math.MaxUint32 + 1},
-			[]int{0, 1, 0, math.MaxInt32 + 1, math.MaxUint32, math.MaxUint32},
+			[]int64{0, 1, -1, math.MaxInt32 + 1, math.MaxUint32, math.MaxUint32 + 1},
+			[]int64{0, 1, 0, math.MaxInt32 + 1, math.MaxUint32, math.MaxUint32},
 			[]byte{byte(TypeUInts), 0, 6,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
 				0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00,
 				0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 		},
-		{MarshalSBytes, nil, nil, []byte{byte(TypeNull)}},
-		{MarshalBytes, nil, nil, []byte{byte(TypeNull)}},
-		{MarshalShorts, nil, nil, []byte{byte(TypeNull)}},
-		{MarshalUShorts, nil, nil, []byte{byte(TypeNull)}},
+
 		{MarshalInts, nil, nil, []byte{byte(TypeNull)}},
 		{MarshalUInts, nil, nil, []byte{byte(TypeNull)}},
 	}
+
 	for _, test := range tests {
 		b := test.marshal(test.in)
 		if diff := cmp.Diff(b, test.buf); diff != "" {

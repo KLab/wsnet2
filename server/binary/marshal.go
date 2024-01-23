@@ -1,6 +1,7 @@
 package binary
 
 import (
+	"encoding/binary"
 	"math"
 	"unicode/utf16"
 
@@ -201,7 +202,7 @@ func unmarshalShort(src []byte) (int, int, error) {
 }
 
 // MarshalUInt marshals unsigned 32bit integer
-func MarshalUInt(val int) []byte {
+func MarshalUInt(val int64) []byte {
 	v := clamp(int64(val), 0, math.MaxUint32)
 	buf := make([]byte, 1+UIntDataSize)
 	buf[0] = byte(TypeUInt)
@@ -209,7 +210,7 @@ func MarshalUInt(val int) []byte {
 	return buf
 }
 
-func unmarshalUInt(src []byte) (int, int, error) {
+func unmarshalUInt(src []byte) (int64, int, error) {
 	if len(src) < 1+UIntDataSize {
 		return 0, 0, xerrors.Errorf("Unmarshal UInt error: not enough data (%v)", len(src))
 	}
@@ -217,7 +218,7 @@ func unmarshalUInt(src []byte) (int, int, error) {
 }
 
 // MarshalInt marshals signed 32bit integer comparably
-func MarshalInt(val int) []byte {
+func MarshalInt(val int64) []byte {
 	v := clamp(int64(val), math.MinInt32, math.MaxInt32)
 	buf := make([]byte, 1+IntDataSize)
 	buf[0] = byte(TypeInt)
@@ -225,7 +226,7 @@ func MarshalInt(val int) []byte {
 	return buf
 }
 
-func unmarshalInt(src []byte) (int, int, error) {
+func unmarshalInt(src []byte) (int64, int, error) {
 	if len(src) < 1+IntDataSize {
 		return 0, 0, xerrors.Errorf("Unmarshal Int error: not enough data (%v)", len(src))
 	}
@@ -773,7 +774,7 @@ func unmarshalUShorts(src []byte) ([]int, int, error) {
 //   - TypeInts
 //   - 16bit count
 //   - repeat: 32bit BE integer...
-func MarshalInts(vals []int) []byte {
+func MarshalInts(vals []int64) []byte {
 	if vals == nil {
 		return MarshalNull()
 	}
@@ -787,14 +788,14 @@ func MarshalInts(vals []int) []byte {
 	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		v := clamp(int64(vals[i]), math.MinInt32, math.MaxInt32) - math.MinInt32
+		v := clamp(vals[i], math.MinInt32, math.MaxInt32) - math.MinInt32
 		put32(buf[3+i*IntDataSize:], v)
 	}
 
 	return buf
 }
 
-func unmarshalInts(src []byte) ([]int, int, error) {
+func unmarshalInts(src []byte) ([]int64, int, error) {
 	if len(src) < 3 {
 		return nil, 0, xerrors.Errorf("Unmarshal Intts error: not enough data (%v)", len(src))
 	}
@@ -803,7 +804,7 @@ func unmarshalInts(src []byte) ([]int, int, error) {
 	if len(src) < l {
 		return nil, 0, xerrors.Errorf("Unmarshal Ints error: not enough data (%v)", len(src))
 	}
-	vals := make([]int, count)
+	vals := make([]int64, count)
 	for i := 0; i < count; i++ {
 		vals[i] = get32(src[3+i*IntDataSize:]) + math.MinInt32
 	}
@@ -815,7 +816,7 @@ func unmarshalInts(src []byte) ([]int, int, error) {
 //   - TypeUInts
 //   - 16bit count
 //   - repeat: 32bit BE integer...
-func MarshalUInts(vals []int) []byte {
+func MarshalUInts(vals []int64) []byte {
 	if vals == nil {
 		return MarshalNull()
 	}
@@ -829,14 +830,14 @@ func MarshalUInts(vals []int) []byte {
 	put16(buf[1:], int64(count))
 
 	for i := 0; i < count; i++ {
-		v := clamp(int64(vals[i]), 0, math.MaxUint32)
+		v := clamp(vals[i], 0, math.MaxUint32)
 		put32(buf[3+i*UIntDataSize:], v)
 	}
 
 	return buf
 }
 
-func unmarshalUInts(src []byte) ([]int, int, error) {
+func unmarshalUInts(src []byte) ([]int64, int, error) {
 	if len(src) < 3 {
 		return nil, 0, xerrors.Errorf("Unmarshal UInts error: not enough data (%v)", len(src))
 	}
@@ -845,7 +846,7 @@ func unmarshalUInts(src []byte) ([]int, int, error) {
 	if len(src) < l {
 		return nil, 0, xerrors.Errorf("Unmarshal UInts error: not enough data (%v)", len(src))
 	}
-	vals := make([]int, count)
+	vals := make([]int64, count)
 	for i := 0; i < count; i++ {
 		vals[i] = get32(src[3+i*UIntDataSize:])
 	}
@@ -1182,62 +1183,38 @@ func get8(src []byte) int {
 }
 
 func put16(dst []byte, val int64) {
-	dst[0] = byte((val & 0xff00) >> 8)
-	dst[1] = byte(val & 0xff)
+	binary.BigEndian.PutUint16(dst, uint16(val))
 }
 
 func get16(src []byte) int {
-	v := int(src[0]) << 8
-	v += int(src[1])
-	return v
+	return int(binary.BigEndian.Uint16(src))
 }
 
 func put24(dst []byte, val int64) {
-	dst[0] = byte((val & 0xff0000) >> 16)
-	dst[1] = byte((val & 0xff00) >> 8)
 	dst[2] = byte(val & 0xff)
+	dst[1] = byte((val & 0xff00) >> 8)
+	dst[0] = byte((val & 0xff0000) >> 16)
 }
 
 func get24(src []byte) int {
-	i := int(src[0]) << 16
-	i += int(src[1]) << 8
-	i += int(src[2])
+	i := int(src[2])
+	i |= int(src[1]) << 8
+	i |= int(src[0]) << 16
 	return i
 }
 
 func put32(dst []byte, val int64) {
-	dst[0] = byte((val & 0xff000000) >> 24)
-	dst[1] = byte((val & 0xff0000) >> 16)
-	dst[2] = byte((val & 0xff00) >> 8)
-	dst[3] = byte(val & 0xff)
+	binary.BigEndian.PutUint32(dst, uint32(val))
 }
-func get32(src []byte) int {
-	i := int(src[0]) << 24
-	i += int(src[1]) << 16
-	i += int(src[2]) << 8
-	i += int(src[3])
-	return i
+
+func get32(src []byte) int64 {
+	return int64(binary.BigEndian.Uint32(src))
 }
 
 func put64(dst []byte, val uint64) {
-	dst[0] = byte((val & 0xff00000000000000) >> 56)
-	dst[1] = byte((val & 0xff000000000000) >> 48)
-	dst[2] = byte((val & 0xff0000000000) >> 40)
-	dst[3] = byte((val & 0xff00000000) >> 32)
-	dst[4] = byte((val & 0xff000000) >> 24)
-	dst[5] = byte((val & 0xff0000) >> 16)
-	dst[6] = byte((val & 0xff00) >> 8)
-	dst[7] = byte(val & 0xff)
+	binary.BigEndian.PutUint64(dst, val)
 }
 
 func get64(src []byte) uint64 {
-	i := uint64(src[0]) << 56
-	i += uint64(src[1]) << 48
-	i += uint64(src[2]) << 40
-	i += uint64(src[3]) << 32
-	i += uint64(src[4]) << 24
-	i += uint64(src[5]) << 16
-	i += uint64(src[6]) << 8
-	i += uint64(src[7])
-	return i
+	return binary.BigEndian.Uint64(src)
 }

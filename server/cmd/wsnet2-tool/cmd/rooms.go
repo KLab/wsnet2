@@ -143,9 +143,13 @@ func parsePropsSimple(data []byte) (string, error) {
 			if err != nil {
 				return string(out), err
 			}
-		case binary.TypeSBytes, binary.TypeBytes, binary.TypeShorts, binary.TypeUShorts,
-			binary.TypeInts, binary.TypeUInts, binary.TypeLongs:
+		case binary.TypeSBytes, binary.TypeBytes, binary.TypeShorts, binary.TypeUShorts:
 			out, err = appendPrimitiveArraySimple[int](out, d)
+			if err != nil {
+				return string(out), err
+			}
+		case binary.TypeInts, binary.TypeUInts, binary.TypeLongs:
+			out, err = appendPrimitiveArraySimple[int64](out, d)
 			if err != nil {
 				return string(out), err
 			}
