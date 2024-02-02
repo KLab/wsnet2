@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using MessagePack;
+using MessagePack.Resolvers;
 using Sample.Logic;
 using WSNet2;
 
@@ -47,6 +49,16 @@ namespace Sample
         /// タイムアウト(秒)
         /// </summary>
         public static uint Deadline = 3;
+
+        static TitleScene()
+        {
+            StaticCompositeResolver.Instance.Register(
+                GeneratedResolver.Instance, StandardResolver.Instance);
+
+            var option = MessagePackSerializerOptions.Standard.WithResolver(StaticCompositeResolver.Instance);
+
+            MessagePackSerializer.DefaultOptions = option;
+        }
 
         /// <summary>
         /// CPU戦ボタンコールバック
