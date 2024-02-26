@@ -1,4 +1,4 @@
-FROM golang:1.21
+FROM golang:1.22
 
 ARG protoc_ver="24.2"
 

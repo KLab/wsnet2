@@ -9,7 +9,16 @@ on:
       - 'server/**'
 
 jobs:
+  C:
+    runs-on: "ubuntu-latest"
+    outputs:
+      GO: "go1.19.13"
+      GOPHERJS_VER: "v1.19.0-beta1"
+    steps:
+      - run: echo 'Set Constants'
+
   gopherjs:
+    needs: [ C ]
     runs-on: "ubuntu-latest"
     defaults:
       run:
@@ -21,7 +30,7 @@ jobs:
         with:
           go-version-file: "server/go.mod"
           cache: true
-          cache-dependency-path: wsnet2-dashboard/backend/go-binary/go.sum
+          cache-dependency-path: "server/go.sum"
 
       - uses: arduino/setup-protoc@v2
         with:
@@ -29,12 +38,10 @@ jobs:
 
       - run: make -C ../../../server generate
 
-      - run: go install golang.org/dl/go1.18.5@latest && go1.18.5 download
+      - run: go install golang.org/dl/${{ needs.C.outputs.GO }}@latest && ${{ needs.C.outputs.GO }} download
 
-      - run: GOARCH=386 go1.18.5 test wsnet2/binary
+      - run: cd ../../../server && GOARCH=386 go test ./binary
 
-      - run: GOARCH=386 go1.18.5 build
+      - run: go install github.com/gopherjs/gopherjs@${{ needs.C.outputs.GOPHERJS_VER }}
 
-      - run: go install github.com/gopherjs/gopherjs@v1.18.0-beta2
-
-      - run: PATH="$(go1.18.5 env GOROOT)/bin:$PATH" GOPHERJS_GOROOT="$(go1.18.5 env GOROOT)" gopherjs build
+      - run: GOPHERJS_GOROOT="$(${{ needs.C.outputs.GO }} env GOROOT)" gopherjs build
