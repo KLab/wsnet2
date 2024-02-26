@@ -9,9 +9,9 @@ RUN apt-get update && apt-get install -y wget make && \
 
 ENV PATH /root/go/bin:/go/bin:$PATH
 RUN cd / && \
-  wget -O go.tar.gz https://go.dev/dl/go1.18.5.linux-$([ $(uname -m) = aarch64 ] && echo -n arm64 || echo -n amd64).tar.gz && \
+  wget -O go.tar.gz https://go.dev/dl/go1.19.13.linux-$([ $(uname -m) = aarch64 ] && echo -n arm64 || echo -n amd64).tar.gz && \
   tar xvf go.tar.gz && \
   rm go.tar.gz && \
-  go install github.com/gopherjs/gopherjs@v1.18.0-beta2
+  go install github.com/gopherjs/gopherjs@v1.19.0-beta1
 
 WORKDIR /repo/wsnet2-dashboard/backend
