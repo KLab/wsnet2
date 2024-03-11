@@ -10,6 +10,7 @@ PROTOC_GEN_TS := node_modules/.bin/protoc-gen-ts
 
 proto := $(wildcard $(PROTO_SRC)/*.proto)
 pb.js := $(proto:$(PROTO_SRC)%.proto=$(PROTO_DST)%_pb.js)
+pb.go := $(proto:%.proto=%.pb.go)
 
 .PHONY: build re-build run re-run clean install-deps
 
@@ -35,8 +36,11 @@ install-deps:
 $(target): prisma/schema.prisma $(pb.js) $(src.ts) .env src/plugins/binary.js
 	npx tsc
 
-src/plugins/binary.js: ../../server/binary/*.go go-binary/*
+src/plugins/binary.js: ../../server/binary/*.go go-binary/* $(pb.go)
 	cd go-binary && gopherjs build -o ../$@
+
+%.pb.go: %.proto
+	$(MAKE) -C ../../server generate
 
 prisma/schema.prisma: $(wildcard ../../server/sql/trigger.d/db.trigger)
 	if [ ! -e prisma/schema.prisma ]; then \
