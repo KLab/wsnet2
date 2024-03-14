@@ -36,6 +36,12 @@ namespace WSNet2
         public Action<string, IReadOnlyDictionary<string, string>, byte[], TaskCompletionSource<(int, byte[])>> HttpPost { private get; set; }
 
         /// <summary>
+        ///   Task AdjustJoinedRoomInfo(joinedRoom): 接続前に入室した部屋の情報を必要に応じて調整する
+        /// </summary>
+        /// 別スレッドで呼び出されるので注意
+        public Func<JoinedRoom, Task> AdjustJoinedRoomInfo { private get; set; }
+
+        /// <summary>
         ///   コンストラクタ
         /// </summary>
         /// <param name="baseUri">LobbyのURI</param>
@@ -487,6 +493,11 @@ namespace WSNet2
                         throw new RoomNotFoundException(res.msg);
                     case LobbyResponseType.RoomFull:
                         throw new RoomFullException(res.msg);
+                }
+
+                if (AdjustJoinedRoomInfo != null)
+                {
+                    await AdjustJoinedRoomInfo(res.room);
                 }
 
                 var logger = prepareLogger(roomLogger);
