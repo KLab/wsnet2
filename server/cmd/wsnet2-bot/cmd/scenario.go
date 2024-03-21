@@ -787,7 +787,6 @@ func scenarioRejoin(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("rejoin: join player1: %w", err)
 	}
-	discardEvents(player1)
 
 	ev, ok := waitEvent(master, time.Second, binary.EvTypeJoined)
 	if !ok {
@@ -801,13 +800,20 @@ func scenarioRejoin(ctx context.Context) error {
 		return fmt.Errorf("rejoin: joined: %v, wants %v", c.Id, id)
 	}
 
+	_, ok = waitEvent(player1, time.Second, binary.EvTypeJoined)
+	if !ok {
+		return fmt.Errorf("rejoin: wait EvJoined failed")
+	}
+	logger.Info("refoin: player joined (player1)")
+	discardEvents(player1)
+
 	// rejoin
 	_, player2, err := joinRoom(ctx, id, room.Id, nil)
 	if err != nil {
 		return fmt.Errorf("rejoin: join player2: %w", err)
 	}
 	defer cleanupConn(ctx, player2)
-	logger.Info("rejoin: player rejoined")
+	logger.Info("rejoin: player rejoined (player2)")
 
 	// master,player2にrejoin通知
 	ev, ok = waitEvent(master, time.Second, binary.EvTypeRejoined)
