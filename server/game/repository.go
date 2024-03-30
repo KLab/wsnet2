@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"math/rand"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -26,6 +27,8 @@ import (
 const (
 	// RoomID文字列長
 	lenId = 16
+
+	idPattern = "^[0-9a-f]+$"
 )
 
 var (
@@ -34,12 +37,16 @@ var (
 	roomHistoryInsertQuery string
 
 	randsrc *rand.Rand
+
+	rerid *regexp.Regexp
 )
 
 func init() {
 	initQueries()
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	randsrc = rand.New(rand.NewSource(seed.Int64()))
+
+	rerid = regexp.MustCompile(idPattern)
 }
 
 func dbCols(t reflect.Type) []string {
@@ -80,6 +87,10 @@ func RandomHex(n int) string {
 	b := make([]byte, n)
 	_, _ = randsrc.Read(b) // (*rand.Rand).Read always success.
 	return hex.EncodeToString(b)
+}
+
+func IsValidRoomId(id string) bool {
+	return rerid.Match([]byte(id))
 }
 
 type Repository struct {

@@ -37,6 +37,20 @@ func TestQueries(t *testing.T) {
 	}
 }
 
+func TestIsValidRoomId(t *testing.T) {
+	tests := map[string]bool{
+		"123456789abcdef": true,
+		"123456789ABCDEF": false,
+		"":                false,
+	}
+
+	for id, valid := range tests {
+		if IsValidRoomId(id) != valid {
+			t.Fatalf("IsValidRoomId(%v) wants %v", id, valid)
+		}
+	}
+}
+
 func newDbMock(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
