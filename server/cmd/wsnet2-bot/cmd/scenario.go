@@ -257,7 +257,7 @@ func scenarioJoinRoom(ctx context.Context) error {
 	clearEventBuffer(conn)
 
 	// 正常入室
-	_, p2, err := joinRoom(ctx, "joinroom_player2", room.Id, nil)
+	_, p2, err := joinByNumber(ctx, "joinroom_player2", *room.Number, nil)
 	if err != nil {
 		return fmt.Errorf("join-room: player2: %w", err)
 	}
@@ -286,6 +286,14 @@ func scenarioJoinRoom(ctx context.Context) error {
 	discardEvents(w1)
 	defer cleanupConn(ctx, w1)
 
+	_, w2, err := watchByNumber(ctx, "joinroom_watcher2", *room.Number, nil)
+	if err != nil {
+		return fmt.Errorf("join-room: watcher2: %w", err)
+	}
+	logger.Infof("join-room: watcher2 ok")
+	discardEvents(w2)
+	defer cleanupConn(ctx, w2)
+
 	clearEventBuffer(conn)
 
 	// MaxPlayerを+2増やしwatchable=falseに
@@ -310,12 +318,12 @@ func scenarioJoinRoom(ctx context.Context) error {
 	defer cleanupConn(ctx, p4)
 
 	// 観戦はエラー
-	_, w2, err := watchRoom(ctx, "joinroom_watcher2", room.Id, nil)
+	_, w3, err := watchRoom(ctx, "joinroom_watcher3", room.Id, nil)
 	if !errors.Is(err, client.ErrNoRoomFound) {
-		cleanupConn(ctx, w2)
-		return fmt.Errorf("join-room: watcher2 wants NoRoomFound: %v", err)
+		cleanupConn(ctx, w3)
+		return fmt.Errorf("join-room: watcher3 wants NoRoomFound: %v", err)
 	}
-	logger.Infof("join-room: watcher2 ok (no room found)")
+	logger.Infof("join-room: watcher3 ok (no room found)")
 
 	clearEventBuffer(conn)
 

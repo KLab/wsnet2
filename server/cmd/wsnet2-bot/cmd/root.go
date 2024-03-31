@@ -174,6 +174,22 @@ func joinRoom(ctx context.Context, player, roomId string, query *client.Query) (
 	return client.Join(ctx, accinfo, roomId, query, cinfo, nil)
 }
 
+// joinByNumber joins the player to a room specified by the number
+func joinByNumber(ctx context.Context, player string, number int32, query *client.Query) (*client.Room, *client.Connection, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, player)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if query == nil {
+		query = client.NewQuery()
+	}
+
+	cinfo := &pb.ClientInfo{Id: player}
+
+	return client.JoinByNumber(ctx, accinfo, number, query, cinfo, nil)
+}
+
 // joinRandom joins the player to a room randomly
 func joinRandom(ctx context.Context, player string, group uint32, query *client.Query) (*client.Room, *client.Connection, error) {
 	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, player)
@@ -198,6 +214,20 @@ func watchRoom(ctx context.Context, watcher, roomId string, query *client.Query)
 	}
 
 	return client.Watch(ctx, accinfo, roomId, query, nil)
+}
+
+// watchByNumber joins the watcher to a room specified by the number
+func watchByNumber(ctx context.Context, watcher string, number int32, query *client.Query) (*client.Room, *client.Connection, error) {
+	accinfo, err := client.GenAccessInfo(lobbyURL, appId, appKey, watcher)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if query == nil {
+		query = client.NewQuery()
+	}
+
+	return client.WatchByNumber(ctx, accinfo, number, query, nil)
 }
 
 // searchCurrent search current rooms
