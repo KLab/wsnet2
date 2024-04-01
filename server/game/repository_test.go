@@ -46,7 +46,7 @@ func TestIsValidRoomId(t *testing.T) {
 
 	for id, valid := range tests {
 		if IsValidRoomId(id) != valid {
-			t.Fatalf("IsValidRoomId(%v) wants %v", id, valid)
+			t.Errorf("IsValidRoomId(%v) wants %v", id, valid)
 		}
 	}
 }
