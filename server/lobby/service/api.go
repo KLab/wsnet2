@@ -248,9 +248,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 }
 
 var (
-	idRegexp  = regexp.MustCompile("^[0-9a-f]+$")
-	numRegexp = regexp.MustCompile("^[0-9]+$")
-	grpRegexp = regexp.MustCompile("^[0-9]+$")
+	idRegexp = regexp.MustCompile("^[0-9a-f]+$")
 )
 
 type JoinVars struct {
@@ -263,25 +261,19 @@ func NewJoinVars(r *http.Request) JoinVars {
 
 func (vars JoinVars) roomId() (string, bool) {
 	id := vars.r.PathValue("roomId")
-	return id, idRegexp.Match([]byte(id))
+	return id, idRegexp.MatchString(id)
 }
 
 func (vars JoinVars) roomNumber() (int32, bool) {
 	v := vars.r.PathValue("roomNumber")
-	if !numRegexp.Match([]byte(v)) {
-		return 0, false
-	}
 	n, err := strconv.ParseInt(v, 10, 32)
-	return int32(n), err == nil && n != 0
+	return int32(n), err == nil && n > 0
 }
 
 func (vars JoinVars) searchGroup() (uint32, bool) {
 	v := vars.r.PathValue("searchGroup")
-	if !grpRegexp.Match([]byte(v)) {
-		return 0, false
-	}
 	n, err := strconv.ParseInt(v, 10, 32)
-	return uint32(n), err == nil
+	return uint32(n), err == nil && n >= 0
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
