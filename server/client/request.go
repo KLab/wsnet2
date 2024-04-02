@@ -145,6 +145,26 @@ func WatchDirect(ctx context.Context, grpccon *grpc.ClientConn, wshost, appid, r
 	return connectToRoom(ctx, accinfo, res, warn)
 }
 
+// WatchByNumber : 部屋番号で観戦入室
+func WatchByNumber(ctx context.Context, accinfo *AccessInfo, number int32, query *Query, warn func(error)) (*Room, *Connection, error) {
+	var q []lobby.PropQueries
+	if query != nil {
+		q = []lobby.PropQueries(*query)
+	}
+	param := lobby.JoinParam{
+		Queries:    q,
+		ClientInfo: &pb.ClientInfo{Id: accinfo.UserId},
+		EncMACKey:  accinfo.EncMACKey,
+	}
+
+	res, err := lobbyRequest(ctx, accinfo, fmt.Sprintf("/rooms/watch/number/%d", number), param)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("lobbyRequest: %w", err)
+	}
+
+	return connectToRoom(ctx, accinfo, res.Room, warn)
+}
+
 // Search : 部屋を検索する
 func Search(ctx context.Context, accinfo *AccessInfo, param *lobby.SearchParam) ([]*pb.RoomInfo, error) {
 	res, err := lobbyRequest(ctx, accinfo, "/rooms/search", param)

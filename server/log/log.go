@@ -54,6 +54,8 @@ const (
 	KeyRemoteAddr = "remoteAddr"
 	// Requested at (unix timestamp, float64)
 	KeyRequestedAt = "requestedAt"
+	// URL Path
+	KeyPath = "path"
 	// Room ID
 	KeyRoom = "room"
 	// Room count

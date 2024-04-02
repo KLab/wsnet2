@@ -9,11 +9,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/vmihailenco/msgpack/v5"
 	"golang.org/x/xerrors"
 
@@ -61,7 +61,7 @@ func (sv *LobbyService) serveAPI(ctx context.Context) <-chan error {
 			}
 		}
 
-		r := chi.NewMux()
+		r := http.NewServeMux()
 		sv.registerRoutes(r)
 
 		errCh <- http.Serve(listener, r)
@@ -75,21 +75,21 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("wsnet2 works\n"))
 }
 
-func (sv *LobbyService) registerRoutes(r chi.Router) {
-	r.Get("/health", handleHealth)
-	r.Get("/health/", handleHealth)
+func (sv *LobbyService) registerRoutes(r *http.ServeMux) {
+	r.HandleFunc("GET /health", handleHealth)
+	r.HandleFunc("GET /health/{$}", handleHealth)
 
-	r.Post("/rooms", sv.handleCreateRoom)
-	r.Post("/rooms/join/id/{roomId}", sv.handleJoinRoom)
-	r.Post("/rooms/join/number/{roomNumber:[0-9]+}", sv.handleJoinRoomByNumber)
-	r.Post("/rooms/join/random/{searchGroup:[0-9]+}", sv.handleJoinRoomAtRandom)
-	r.Post("/rooms/search", sv.handleSearchRooms)
-	r.Post("/rooms/search/ids", sv.handleSearchByIds)
-	r.Post("/rooms/search/numbers", sv.handleSearchByNumbers)
-	r.Post("/rooms/search/current", sv.handleSearchCurrentRooms)
-	r.Post("/rooms/watch/id/{roomId}", sv.handleWatchRoom)
-	r.Post("/rooms/watch/number/{roomNumber:[0-9]+}", sv.handleWatchRoomByNumber)
-	r.Post("/_admin/kick", sv.handleAdminKick)
+	r.HandleFunc("POST /rooms", sv.handleCreateRoom)
+	r.HandleFunc("POST /rooms/join/id/{roomId}", sv.handleJoinRoom)
+	r.HandleFunc("POST /rooms/join/number/{roomNumber}", sv.handleJoinRoomByNumber)
+	r.HandleFunc("POST /rooms/join/random/{searchGroup}", sv.handleJoinRoomAtRandom)
+	r.HandleFunc("POST /rooms/search", sv.handleSearchRooms)
+	r.HandleFunc("POST /rooms/search/ids", sv.handleSearchByIds)
+	r.HandleFunc("POST /rooms/search/numbers", sv.handleSearchByNumbers)
+	r.HandleFunc("POST /rooms/search/current", sv.handleSearchCurrentRooms)
+	r.HandleFunc("POST /rooms/watch/id/{roomId}", sv.handleWatchRoom)
+	r.HandleFunc("POST /rooms/watch/number/{roomNumber}", sv.handleWatchRoomByNumber)
+	r.HandleFunc("POST /_admin/kick", sv.handleAdminKick)
 }
 
 type header struct {
@@ -126,7 +126,9 @@ func prepareLogger(handler string, hdr header, r *http.Request) log.Logger {
 		log.KeyRequestedAt, float64(time.Now().UnixMilli())/1000,
 		log.KeyApp, hdr.appId,
 		log.KeyClient, hdr.userId,
-		log.KeyRemoteAddr, raddr)
+		log.KeyRemoteAddr, raddr,
+		log.KeyPath, r.URL.Path,
+	)
 	if err != nil {
 		l.Errorf("SplitHostPort: %v", err)
 	}
@@ -245,37 +247,33 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 	renderJoinedRoomResponse(w, room, logger)
 }
 
+var (
+	idRegexp = regexp.MustCompile("^[0-9a-f]+$")
+)
+
 type JoinVars struct {
-	ctx *chi.Context
+	r *http.Request
 }
 
-func NewJoinVars(r *http.Request) *JoinVars {
-	return &JoinVars{
-		ctx: chi.RouteContext(r.Context()),
-	}
+func NewJoinVars(r *http.Request) JoinVars {
+	return JoinVars{r: r}
 }
 
-func (vars JoinVars) roomId() string {
-	id := vars.ctx.URLParam("roomId")
-	return id
+func (vars JoinVars) roomId() (string, bool) {
+	id := vars.r.PathValue("roomId")
+	return id, idRegexp.MatchString(id)
 }
 
-func (vars JoinVars) roomNumber() (number int32) {
-	v := vars.ctx.URLParam("roomNumber")
-	if v != "" {
-		n, _ := strconv.ParseInt(v, 10, 32)
-		number = int32(n)
-	}
-	return number
+func (vars JoinVars) roomNumber() (int32, bool) {
+	v := vars.r.PathValue("roomNumber")
+	n, err := strconv.ParseInt(v, 10, 32)
+	return int32(n), err == nil && n > 0
 }
 
-func (vars JoinVars) searchGroup() (sg uint32) {
-	v := vars.ctx.URLParam("searchGroup")
-	if v != "" {
-		n, _ := strconv.ParseInt(v, 10, 32)
-		sg = uint32(n)
-	}
-	return sg
+func (vars JoinVars) searchGroup() (uint32, bool) {
+	v := vars.r.PathValue("searchGroup")
+	n, err := strconv.ParseInt(v, 10, 32)
+	return uint32(n), err == nil && n >= 0
 }
 
 func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
@@ -306,8 +304,8 @@ func (sv *LobbyService) handleJoinRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := NewJoinVars(r)
-	roomId := vars.roomId()
-	if roomId == "" {
+	roomId, ok := vars.roomId()
+	if !ok {
 		renderErrorResponse(
 			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"), logger)
 		return
@@ -351,10 +349,10 @@ func (sv *LobbyService) handleJoinRoomByNumber(w http.ResponseWriter, r *http.Re
 	}
 
 	vars := NewJoinVars(r)
-	roomNumber := vars.roomNumber()
-	if roomNumber == 0 {
+	roomNumber, ok := vars.roomNumber()
+	if !ok {
 		renderErrorResponse(
-			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"), logger)
+			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number"), logger)
 		return
 	}
 	logger = logger.With(log.KeyRoomNumber, roomNumber)
@@ -396,7 +394,13 @@ func (sv *LobbyService) handleJoinRoomAtRandom(w http.ResponseWriter, r *http.Re
 	}
 
 	vars := NewJoinVars(r)
-	searchGroup := vars.searchGroup()
+	searchGroup, ok := vars.searchGroup()
+	if !ok {
+		renderErrorResponse(
+			w, "Failed to join room", http.StatusBadRequest, xerrors.Errorf("Invalid search group"), logger)
+		return
+	}
+
 	logger = logger.With(log.KeySearchGroup, searchGroup)
 
 	room, err := sv.roomService.JoinAtRandom(ctx, h.appId, searchGroup, param.Queries, param.ClientInfo, macKey, logger)
@@ -552,8 +556,8 @@ func (sv *LobbyService) handleWatchRoom(w http.ResponseWriter, r *http.Request) 
 	}
 
 	vars := NewJoinVars(r)
-	roomId := vars.roomId()
-	if roomId == "" {
+	roomId, ok := vars.roomId()
+	if !ok {
 		renderErrorResponse(
 			w, "Invalid room id", http.StatusBadRequest, xerrors.Errorf("Invalid room id"), logger)
 		return
@@ -597,10 +601,10 @@ func (sv *LobbyService) handleWatchRoomByNumber(w http.ResponseWriter, r *http.R
 	}
 
 	vars := NewJoinVars(r)
-	roomNumber := vars.roomNumber()
-	if roomNumber == 0 {
+	roomNumber, ok := vars.roomNumber()
+	if !ok {
 		renderErrorResponse(
-			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number: 0"), logger)
+			w, "Invalid room number", http.StatusBadRequest, xerrors.Errorf("Invalid room number"), logger)
 		return
 	}
 	logger = logger.With(log.KeyRoomNumber, roomNumber)
