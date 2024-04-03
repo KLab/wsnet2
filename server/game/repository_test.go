@@ -130,3 +130,16 @@ func TestNewRoomInfo(t *testing.T) {
 		t.Errorf("there were unfulfilled expectations: %s", err)
 	}
 }
+
+func TestRandomHexRoomId(t *testing.T) {
+	rid := RandomHex(lenId)
+
+	if len(rid) != lenId {
+		t.Errorf("room id len = %v wants %v (%q)", len(rid), lenId, rid)
+	}
+
+	ok, err := regexp.MatchString(idPattern, rid)
+	if err != nil || !ok {
+		t.Errorf("room id pattern missmatch: %v", rid)
+	}
+}

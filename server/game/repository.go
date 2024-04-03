@@ -84,9 +84,9 @@ func initQueries() {
 }
 
 func RandomHex(n int) string {
-	b := make([]byte, n)
+	b := make([]byte, (n+1)/2)
 	_, _ = randsrc.Read(b) // (*rand.Rand).Read always success.
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b)[:n]
 }
 
 func IsValidRoomId(id string) bool {
