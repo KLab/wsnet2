@@ -6,5 +6,5 @@ const (
 	HostStatusClosing  = 2
 
 	RoomIdLen     = 32
-	RoomIdPattern = "^[0-9a-f]+$"
+	RoomIdPattern = "^[0-9a-f]{32}$"
 )

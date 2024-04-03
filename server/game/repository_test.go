@@ -40,9 +40,11 @@ func TestQueries(t *testing.T) {
 
 func TestIsValidRoomId(t *testing.T) {
 	tests := map[string]bool{
-		"123456789abcdef": true,
-		"123456789ABCDEF": false,
-		"":                false,
+		"0123456789abcdef0123456789abcdef":  true,
+		"0123456789ABCDEF0123456789ABCDEF":  false,
+		"0123456789abcdef0123456789abcde":   false,
+		"0123456789abcdef0123456789abcdef0": false,
+		"":                                  false,
 	}
 
 	for id, valid := range tests {

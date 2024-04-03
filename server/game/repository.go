@@ -84,7 +84,7 @@ func RandomHex(n int) string {
 }
 
 func IsValidRoomId(id string) bool {
-	return rerid.Match([]byte(id))
+	return rerid.MatchString(id)
 }
 
 type Repository struct {
