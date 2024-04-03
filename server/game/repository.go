@@ -19,16 +19,10 @@ import (
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc/codes"
 
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/log"
 	"wsnet2/pb"
-)
-
-const (
-	// RoomID文字列長
-	lenId = 32
-
-	idPattern = "^[0-9a-f]+$"
 )
 
 var (
@@ -46,7 +40,7 @@ func init() {
 	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	randsrc = rand.New(rand.NewSource(seed.Int64()))
 
-	rerid = regexp.MustCompile(idPattern)
+	rerid = regexp.MustCompile(common.RoomIdPattern)
 }
 
 func dbCols(t reflect.Type) []string {
@@ -309,7 +303,7 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 		default:
 		}
 
-		ri.Id = RandomHex(lenId)
+		ri.Id = RandomHex(common.RoomIdLen)
 		if op.WithNumber {
 			ri.Number.Number = randsrc.Int31n(maxNumber) + 1 // [1..maxNumber]
 		}

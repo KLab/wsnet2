@@ -11,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/pb"
 )
@@ -60,6 +61,7 @@ func newDbMock(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
 }
 
 func TestNewRoomInfo(t *testing.T) {
+	const lenId = common.RoomIdLen
 	ctx := context.Background()
 	db, mock := newDbMock(t)
 	retryCount := 3
@@ -132,13 +134,14 @@ func TestNewRoomInfo(t *testing.T) {
 }
 
 func TestRandomHexRoomId(t *testing.T) {
+	const lenId = common.RoomIdLen
 	rid := RandomHex(lenId)
 
 	if len(rid) != lenId {
 		t.Errorf("room id len = %v wants %v (%q)", len(rid), lenId, rid)
 	}
 
-	ok, err := regexp.MatchString(idPattern, rid)
+	ok, err := regexp.MatchString(common.RoomIdPattern, rid)
 	if err != nil || !ok {
 		t.Errorf("room id pattern missmatch: %v", rid)
 	}
