@@ -26,7 +26,7 @@ import (
 
 const (
 	// RoomID文字列長
-	lenId = 16
+	lenId = 32
 
 	idPattern = "^[0-9a-f]+$"
 )

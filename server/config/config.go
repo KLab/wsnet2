@@ -187,7 +187,7 @@ func Load(conffile string) (*Config, error) {
 			ClientConf: ClientConf{
 				EventBufSize:   128,
 				WaitAfterClose: Duration(30 * time.Second),
-				AuthKeyLen:     32,
+				AuthKeyLen:     64,
 			},
 
 			LogConf: LogConf{
@@ -217,7 +217,7 @@ func Load(conffile string) (*Config, error) {
 			ClientConf: ClientConf{
 				EventBufSize:   128,
 				WaitAfterClose: Duration(30 * time.Second),
-				AuthKeyLen:     32,
+				AuthKeyLen:     64,
 			},
 
 			LogConf: LogConf{
