@@ -18,6 +18,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"wsnet2/auth"
+	"wsnet2/common"
 	"wsnet2/lobby"
 	"wsnet2/log"
 	"wsnet2/pb"
@@ -248,7 +249,7 @@ func (sv *LobbyService) handleCreateRoom(w http.ResponseWriter, r *http.Request)
 }
 
 var (
-	idRegexp = regexp.MustCompile("^[0-9a-f]+$")
+	idRegexp = regexp.MustCompile(common.RoomIdPattern)
 )
 
 type JoinVars struct {
