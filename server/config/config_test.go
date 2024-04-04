@@ -48,7 +48,7 @@ func TestLoad(t *testing.T) {
 		ClientConf: ClientConf{
 			EventBufSize:   512,
 			WaitAfterClose: Duration(time.Second * 60),
-			AuthKeyLen:     32,
+			AuthKeyLen:     64,
 		},
 
 		LogConf: LogConf{

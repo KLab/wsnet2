@@ -11,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/xerrors"
 
+	"wsnet2/common"
 	"wsnet2/config"
 	"wsnet2/pb"
 )
@@ -39,9 +40,11 @@ func TestQueries(t *testing.T) {
 
 func TestIsValidRoomId(t *testing.T) {
 	tests := map[string]bool{
-		"123456789abcdef": true,
-		"123456789ABCDEF": false,
-		"":                false,
+		"0123456789abcdef0123456789abcdef":  true,
+		"0123456789ABCDEF0123456789ABCDEF":  false,
+		"0123456789abcdef0123456789abcde":   false,
+		"0123456789abcdef0123456789abcdef0": false,
+		"":                                  false,
 	}
 
 	for id, valid := range tests {
@@ -60,6 +63,7 @@ func newDbMock(t *testing.T) (*sqlx.DB, sqlmock.Sqlmock) {
 }
 
 func TestNewRoomInfo(t *testing.T) {
+	const lenId = common.RoomIdLen
 	ctx := context.Background()
 	db, mock := newDbMock(t)
 	retryCount := 3
@@ -128,5 +132,19 @@ func TestNewRoomInfo(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Errorf("there were unfulfilled expectations: %s", err)
+	}
+}
+
+func TestRandomHexRoomId(t *testing.T) {
+	const lenId = common.RoomIdLen
+	rid := RandomHex(lenId)
+
+	if len(rid) != lenId {
+		t.Errorf("room id len = %v wants %v (%q)", len(rid), lenId, rid)
+	}
+
+	ok, err := regexp.MatchString(common.RoomIdPattern, rid)
+	if err != nil || !ok {
+		t.Errorf("room id pattern missmatch: %v", rid)
 	}
 }
