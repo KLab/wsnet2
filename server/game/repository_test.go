@@ -3,6 +3,7 @@ package game
 import (
 	"context"
 	crand "crypto/rand"
+	"encoding/binary"
 	"errors"
 	"math/rand/v2"
 	"regexp"
@@ -93,9 +94,12 @@ func TestNewRoomInfo(t *testing.T) {
 	}
 
 	// 生成されるはずの値
-	var seed [32]byte
+	var seed [16]byte
 	_, _ = crand.Read(seed[:])
-	randsrc = rand.New(rand.NewChaCha8(seed))
+	s1 := binary.NativeEndian.Uint64(seed[:8])
+	s2 := binary.NativeEndian.Uint64(seed[8:])
+	randsrc = rand.New(rand.NewPCG(s1, s2))
+
 	id1 := RandomHex(lenId)
 	num1 := randsrc.Int32N(int32(maxNumber)) + 1
 	id2 := RandomHex(lenId)
@@ -106,7 +110,7 @@ func TestNewRoomInfo(t *testing.T) {
 	mock.ExpectExec(insQuery).WillReturnError(dupErr)
 	mock.ExpectExec(insQuery).WillReturnResult(sqlmock.NewResult(1, 1))
 
-	randsrc = rand.New(rand.NewChaCha8(seed))
+	randsrc = rand.New(rand.NewPCG(s1, s2))
 	tx, _ := db.Beginx()
 	ri, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {

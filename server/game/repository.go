@@ -4,6 +4,7 @@ import (
 	"context"
 	crand "crypto/rand"
 	"database/sql"
+	"encoding/binary"
 	"fmt"
 	"math/rand/v2"
 	"reflect"
@@ -36,9 +37,11 @@ var (
 func init() {
 	initQueries()
 
-	var seed [32]byte
+	var seed [16]byte
 	_, _ = crand.Read(seed[:])
-	randsrc = rand.New(rand.NewChaCha8(seed))
+	s1 := binary.NativeEndian.Uint64(seed[:8])
+	s2 := binary.NativeEndian.Uint64(seed[8:])
+	randsrc = rand.New(rand.NewPCG(s1, s2))
 
 	rerid = regexp.MustCompile(common.RoomIdPattern)
 }
