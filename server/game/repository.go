@@ -4,11 +4,9 @@ import (
 	"context"
 	crand "crypto/rand"
 	"database/sql"
-	"encoding/hex"
+	"encoding/binary"
 	"fmt"
-	"math"
-	"math/big"
-	"math/rand"
+	"math/rand/v2"
 	"reflect"
 	"regexp"
 	"strings"
@@ -31,14 +29,19 @@ var (
 	roomHistoryInsertQuery string
 
 	randsrc *rand.Rand
+	murand  sync.Mutex
 
 	rerid *regexp.Regexp
 )
 
 func init() {
 	initQueries()
-	seed, _ := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
-	randsrc = rand.New(rand.NewSource(seed.Int64()))
+
+	var seed [16]byte
+	_, _ = crand.Read(seed[:])
+	s1 := binary.NativeEndian.Uint64(seed[:8])
+	s2 := binary.NativeEndian.Uint64(seed[8:])
+	randsrc = rand.New(rand.NewPCG(s1, s2))
 
 	rerid = regexp.MustCompile(common.RoomIdPattern)
 }
@@ -78,9 +81,13 @@ func initQueries() {
 }
 
 func RandomHex(n int) string {
-	b := make([]byte, (n+1)/2)
-	_, _ = randsrc.Read(b) // (*rand.Rand).Read always success.
-	return hex.EncodeToString(b)[:n]
+	b := make([]byte, 0, n+15)
+	murand.Lock()
+	defer murand.Unlock()
+	for len(b) < n {
+		b = fmt.Appendf(b, "%016x", randsrc.Uint64())
+	}
+	return string(b[:n])
 }
 
 func IsValidRoomId(id string) bool {
@@ -305,7 +312,9 @@ func (repo *Repository) newRoomInfo(ctx context.Context, tx *sqlx.Tx, op *pb.Roo
 
 		ri.Id = RandomHex(common.RoomIdLen)
 		if op.WithNumber {
-			ri.Number.Number = randsrc.Int31n(maxNumber) + 1 // [1..maxNumber]
+			murand.Lock()
+			ri.Number.Number = randsrc.Int32N(maxNumber) + 1 // [1..maxNumber]
+			murand.Unlock()
 		}
 
 		_, err = tx.NamedExecContext(ctx, roomInsertQuery, ri)

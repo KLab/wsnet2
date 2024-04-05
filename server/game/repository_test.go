@@ -2,10 +2,12 @@ package game
 
 import (
 	"context"
+	crand "crypto/rand"
+	"encoding/binary"
 	"errors"
+	"math/rand/v2"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
@@ -92,19 +94,23 @@ func TestNewRoomInfo(t *testing.T) {
 	}
 
 	// 生成されるはずの値
-	seed := time.Now().Unix()
-	randsrc.Seed(seed)
+	var seed [16]byte
+	_, _ = crand.Read(seed[:])
+	s1 := binary.NativeEndian.Uint64(seed[:8])
+	s2 := binary.NativeEndian.Uint64(seed[8:])
+	randsrc = rand.New(rand.NewPCG(s1, s2))
+
 	id1 := RandomHex(lenId)
-	num1 := randsrc.Int31n(int32(maxNumber)) + 1
+	num1 := randsrc.Int32N(int32(maxNumber)) + 1
 	id2 := RandomHex(lenId)
-	num2 := randsrc.Int31n(int32(maxNumber)) + 1
+	num2 := randsrc.Int32N(int32(maxNumber)) + 1
 
 	insQuery := "INSERT INTO room "
 	mock.ExpectBegin()
 	mock.ExpectExec(insQuery).WillReturnError(dupErr)
 	mock.ExpectExec(insQuery).WillReturnResult(sqlmock.NewResult(1, 1))
 
-	randsrc.Seed(seed)
+	randsrc = rand.New(rand.NewPCG(s1, s2))
 	tx, _ := db.Beginx()
 	ri, err := repo.newRoomInfo(ctx, tx, op)
 	if err != nil {

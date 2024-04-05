@@ -3,7 +3,7 @@ package lobby
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sort"
 	"sync"
 	"time"
@@ -392,7 +392,7 @@ func (rs *RoomService) watch(ctx context.Context, room *pb.RoomInfo, clientInfo 
 
 	var hub *hubServer
 	if len(hubIDs) > 0 {
-		n := rand.Intn(len(hubIDs))
+		n := rand.IntN(len(hubIDs))
 		hub, err = rs.hubCache.Get(hubIDs[n])
 	} else {
 		hub, err = rs.hubCache.Rand()

@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"sync"
@@ -70,7 +70,7 @@ func runLoadWatcher(ctx context.Context, watcherCount int) error {
 	for i := 0; i < watcherCount; i++ {
 		go func(i int) {
 			defer wg.Done()
-			time.Sleep(time.Duration(rand.Intn(900)+100) * time.Millisecond)
+			time.Sleep(time.Duration(rand.IntN(900)+100) * time.Millisecond)
 
 			watcherId := fmt.Sprintf("watcher-%v-%v", pid, i)
 			logprefix := fmt.Sprintf("watcher[%v]", i)

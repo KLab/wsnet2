@@ -3,7 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"sync"
@@ -101,7 +101,7 @@ func runSoak(ctx context.Context, roomCount int, minLifeTime, maxLifeTime time.D
 		go func(n int) {
 			lifetime := minLifeTime
 			if lifetimeRange != 0 {
-				lifetime += time.Duration(rand.Intn(lifetimeRange))
+				lifetime += time.Duration(rand.IntN(lifetimeRange))
 			}
 			err := runSoakRoom(ctx, n, lifetime)
 			if err != nil {
@@ -248,7 +248,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 		defer t.Stop()
 
 		for {
-			conn.Send(binary.MsgTypeBroadcast, msgBody[:rand.Intn(30)+30])
+			conn.Send(binary.MsgTypeBroadcast, msgBody[:rand.IntN(30)+30])
 
 			select {
 			case <-sendctx.Done():
@@ -265,7 +265,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 		for {
 			conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
 				true, true, true, group, 10, 0,
-				binary.Dict{"score": binary.MarshalInt(rand.Int63n(1024))}, binary.Dict{}))
+				binary.Dict{"score": binary.MarshalInt(rand.Int64N(1024))}, binary.Dict{}))
 
 			select {
 			case <-sendctx.Done():
@@ -344,7 +344,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 		defer t.Stop()
 
 		for {
-			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.IntN(30)+30])
 
 			select {
 			case <-sendctx.Done():
@@ -394,7 +394,7 @@ func runWatcher(ctx context.Context, conn *client.Connection, logprefix string) 
 		defer t.Stop()
 
 		for {
-			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.Intn(30)+30])
+			conn.Send(binary.MsgTypeToMaster, msgBody[:rand.IntN(30)+30])
 
 			select {
 			case <-sendctx.Done():

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"sync"
@@ -126,7 +126,7 @@ func runLoadWorker(ctx context.Context, p, w int, minLifeTime, maxLifeTime time.
 	lifetimeRange := int(maxLifeTime - minLifeTime)
 	n := 0
 	for {
-		time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
+		time.Sleep(time.Millisecond * time.Duration(rand.IntN(100)))
 
 		select {
 		case <-ctx.Done():
@@ -136,7 +136,7 @@ func runLoadWorker(ctx context.Context, p, w int, minLifeTime, maxLifeTime time.
 
 		lifetime := minLifeTime
 		if lifetimeRange > 0 {
-			lifetime += time.Duration(rand.Intn(lifetimeRange))
+			lifetime += time.Duration(rand.IntN(lifetimeRange))
 		}
 		widsuffix := fmt.Sprintf("%v-%v", wid, n)
 		logprefix := fmt.Sprintf("room[%v]", widsuffix)

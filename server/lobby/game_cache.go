@@ -1,7 +1,7 @@
 package lobby
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -108,7 +108,7 @@ func (c *gameCache) Rand() (*gameServer, error) {
 	if len(c.order) == 0 {
 		return nil, xerrors.New("no available game server")
 	}
-	id := c.order[rand.Intn(len(c.order))]
+	id := c.order[rand.IntN(len(c.order))]
 	return c.servers[id], nil
 }
 
