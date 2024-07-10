@@ -136,10 +136,10 @@ func BuildRegularMsgFrame(t MsgType, seq int, payload []byte, hmac hash.Hash) []
 }
 
 // ParseMsg parse binary data to Msg struct
-func UnmarshalMsg(hmac hash.Hash, data []byte) (Msg, error) {
-	data, ok := auth.ValidateMsgHMAC(hmac, data)
+func UnmarshalMsg(hmac hash.Hash, alldata []byte) (Msg, error) {
+	data, ok := auth.ValidateMsgHMAC(hmac, alldata)
 	if !ok {
-		return nil, xerrors.Errorf("invalid msg")
+		return nil, xerrors.Errorf("invalid msg hmac (len=%v)", len(alldata))
 	}
 
 	if len(data) < 1 {
