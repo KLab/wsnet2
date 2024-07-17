@@ -72,7 +72,7 @@ func EncryptMACKey(appKey, macKey string) (string, error) {
 func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, error) {
 	dlen := len(data) - mac.Size()
 	if dlen < 0 {
-		return nil, xerrors.Errorf("data=%v", data)
+		return nil, xerrors.Errorf("data=[% X]", data)
 	}
 	data, h := data[:dlen], data[dlen:]
 	hash := CalculateMsgHMAC(mac, data)
