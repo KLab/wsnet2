@@ -69,13 +69,17 @@ func EncryptMACKey(appKey, macKey string) (string, error) {
 }
 
 // ValidateMsgHMAC validates the hmac of a websocket message.
-func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, bool) {
+func ValidateMsgHMAC(mac hash.Hash, data []byte) ([]byte, error) {
 	dlen := len(data) - mac.Size()
 	if dlen < 0 {
-		return nil, false
+		return nil, xerrors.Errorf("data=[% X]", data)
 	}
 	data, h := data[:dlen], data[dlen:]
-	return data, hmac.Equal(h, CalculateMsgHMAC(mac, data))
+	hash := CalculateMsgHMAC(mac, data)
+	if !hmac.Equal(h, hash) {
+		return nil, xerrors.Errorf("hash=(%v, %v)", h, hash)
+	}
+	return data, nil
 }
 
 func CalculateMsgHMAC(mac hash.Hash, data []byte) []byte {

@@ -351,7 +351,7 @@ func (c *Client) DetachPeer(p *Peer) {
 	if c.peer != p {
 		return // すでにdetach済み
 	}
-	c.logger.Infof("detach peer: %v peer=%p", c.Id, p)
+	c.logger.Infof("detach peer: %v peer=%p lastMsg=%v", c.Id, p, c.msgSeqNum)
 	c.peer.Detached()
 	go c.drainMsg(c.peer.MsgCh())
 
