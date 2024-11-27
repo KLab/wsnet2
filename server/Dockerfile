@@ -1,6 +1,6 @@
 FROM golang:1.22
 
-ARG protoc_ver="24.2"
+ARG protoc_ver="27.3"
 
 RUN apt-get update && apt-get install -y unzip && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
