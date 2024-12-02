@@ -5,7 +5,7 @@ import {
   GraphQLByte,
   GraphQLJSON,
 } from "graphql-scalars";
-import binary = require("../../plugins/binary");
+import { binary } from "../../plugins/binary.js";
 
 export const dateTimeScalar = GraphQLDateTime;
 export const bigIntScalar = GraphQLBigInt;
