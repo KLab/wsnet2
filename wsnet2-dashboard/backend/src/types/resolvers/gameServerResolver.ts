@@ -1,5 +1,5 @@
 import { extendType, idArg } from "nexus";
-import { Context } from "../../context";
+import { Context } from "../../context.js";
 
 export const gameServerQuery = extendType({
   type: "Query",

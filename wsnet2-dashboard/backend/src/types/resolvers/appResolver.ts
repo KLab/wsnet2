@@ -1,5 +1,5 @@
 import { extendType, idArg, stringArg, nonNull } from "nexus";
-import { Context } from "../../context";
+import { Context } from "../../context.js";
 import { Prisma } from "@prisma/client";
 
 export const appQuery = extendType({

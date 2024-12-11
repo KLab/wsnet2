@@ -1,5 +1,6 @@
 import { objectType } from "nexus";
-import { room_history } from "nexus-prisma";
+import np from "nexus-prisma";
+const { room_history } = np;
 
 export const roomHistoryModel = objectType({
   name: room_history.$name,

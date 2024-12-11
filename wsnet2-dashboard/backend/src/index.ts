@@ -2,11 +2,11 @@ import express from "express";
 import cors from "cors";
 import { ApolloServer } from "apollo-server-express";
 // local imports
-import { schema } from "./schema";
-import { createContext } from "./context";
+import { schema } from "./schema.js";
+import { createContext } from "./context.js";
 // import routes
-import game from "./routes/game";
-import overview from "./routes/overview";
+import game from "./routes/game.js";
+import overview from "./routes/overview.js";
 
 async function init() {
   // consts

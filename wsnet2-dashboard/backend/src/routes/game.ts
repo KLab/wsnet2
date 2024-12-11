@@ -1,14 +1,14 @@
 import * as express from "express";
-import { RoomNumber } from "../pb/roominfo_pb";
-import { Timestamp } from "../pb/timestamp_pb";
-import { GameClient } from "../pb/gameservice_grpc_pb";
+import { RoomNumber } from "../pb/roominfo_pb.js";
+import { Timestamp } from "../pb/timestamp_pb.js";
+import { GameClient } from "../pb/gameservice_grpc_pb.js";
 import { credentials } from "@grpc/grpc-js";
 import {
   GetRoomInfoReq,
   GetRoomInfoRes,
   KickReq,
   Empty,
-} from "../pb/gameservice_pb";
+} from "../pb/gameservice_pb.js";
 
 import { PrismaClient } from "@prisma/client";
 import * as binary from "../plugins/binary.js";
