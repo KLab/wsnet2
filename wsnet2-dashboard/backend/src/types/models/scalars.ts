@@ -5,7 +5,7 @@ import {
   GraphQLByte,
   GraphQLJSON,
 } from "graphql-scalars";
-import { binary } from "../../plugins/binary.js";
+import * as binary from "../../plugins/binary.js";
 
 export const dateTimeScalar = GraphQLDateTime;
 export const bigIntScalar = GraphQLBigInt;
@@ -24,7 +24,10 @@ export const bytesScalar = scalarType({
   asNexusMethod: "bytes",
   description: "Bytes custom scalar type",
   parseValue: GraphQLByte.parseValue,
-  serialize(value: Uint8Array) {
+  serialize(value: unknown) {
+    if (!(value instanceof Uint8Array)) {
+      throw new Error('Value must be a Uint8Array');
+    }
     return binary.UnmarshalRecursive(value);
   },
   parseLiteral: GraphQLByte.parseLiteral,

@@ -11,7 +11,7 @@ import {
 } from "../pb/gameservice_pb";
 
 import { PrismaClient } from "@prisma/client";
-import { binary } from "../plugins/binary.js";
+import * as binary from "../plugins/binary.js";
 
 export interface RESTRoomInfoReq {
   appId: string;

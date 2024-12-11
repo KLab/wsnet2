@@ -2,6 +2,7 @@ include .env
 
 target := dist/index.js
 src.ts := $(wildcard src/*.ts src/*/*.ts src/*/*/*.ts)
+plugins := src/plugins/binary.wasm $(wildcard src/plugins/*.js)
 
 PROTO_DST := ./src/pb
 PROTO_SRC := ../../server/pb
@@ -33,11 +34,15 @@ install-deps:
 	npm install
 	chmod +x node_modules/nexus-prisma/dist-cjs/cli/nexus-prisma.js
 
-$(target): prisma/schema.prisma $(pb.js) $(src.ts) .env src/plugins/binary.js
+$(target): prisma/schema.prisma $(pb.js) $(src.ts) .env $(plugins)
 	npx tsc
+	cp src/plugins/binary.wasm dist/plugins/binary.wasm
 
-src/plugins/binary.js: ../../server/binary/*.go go-binary/* $(pb.go)
-	cd go-binary && gopherjs build -o ../$@
+src/plugins/binary.wasm: ../../server/binary/*.go go-binary/* $(pb.go)
+	cd go-binary && GOOS=js GOARCH=wasm go build -o ../$@
+
+src/plugins/wasm_exec.js:
+	cp "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" $@
 
 %.pb.go: %.proto
 	$(MAKE) -C ../../server generate
