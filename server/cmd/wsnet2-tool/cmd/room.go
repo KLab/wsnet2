@@ -44,7 +44,7 @@ func selectGrpcServers(ctx context.Context, ids []string) (map[string]*grpcServe
 }
 
 func (s *grpcServer) Dial() (*grpc.ClientConn, error) {
-	return grpc.Dial(fmt.Sprintf("%s:%d", s.Host, s.Port),
+	return grpc.NewClient(fmt.Sprintf("%s:%d", s.Host, s.Port),
 		grpc.WithTransportCredentials(insecure.NewCredentials()))
 }
 
