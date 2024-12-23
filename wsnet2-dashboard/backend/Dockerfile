@@ -1,4 +1,4 @@
-FROM node:22.11.0-bookworm-slim
+FROM node:22.12.0-bookworm-slim
 
 RUN apt-get update && apt-get install -y wget make unzip && \
   apt-get clean && rm -rf /var/lib/apt/lists/* && \
