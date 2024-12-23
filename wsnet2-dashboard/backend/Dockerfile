@@ -5,8 +5,8 @@ RUN apt-get update && apt-get install -y wget make unzip && \
   wget -O /wait-for-it.sh https://github.com/vishnubob/wait-for-it/raw/master/wait-for-it.sh > /dev/null 2>&1 && \
   chmod +x /wait-for-it.sh
 
-ARG go_ver="1.23.3"
-ARG protoc_ver="27.3"
+ARG go_ver="1.23.4"
+ARG protoc_ver="29.2"
 
 ENV PATH=/root/go/bin:/go/bin:$PATH
 

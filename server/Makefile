@@ -45,7 +45,7 @@ install-deps:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 	go install github.com/favadi/protoc-go-inject-tag@v1.4.0
-	go install golang.org/x/tools/cmd/stringer@v0.27.0
+	go install golang.org/x/tools/cmd/stringer@v0.28.0
 	go install honnef.co/go/tools/cmd/staticcheck@v0.5.1
 
 build: $(TARGETS)
