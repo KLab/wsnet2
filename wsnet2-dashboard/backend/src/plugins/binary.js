@@ -11,7 +11,7 @@ const binary = globalThis.binary;
 
 export function UnmarshalRecursive(src) {
     const ret = binary.UnmarshalRecursive(src);
-    if (ret.err != null) {
+    if (ret.err != "") {
         return [null, ret.err]
     }
     return [JSON.parse(ret.val), null];

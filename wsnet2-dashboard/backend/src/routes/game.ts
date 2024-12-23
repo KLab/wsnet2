@@ -43,7 +43,7 @@ export interface RoomInfo {
         watchers: number | undefined;
         publicProps: binary.Unmarshaled;
         privateProps: binary.Unmarshaled;
-        created: Timestamp | undefined;
+        created: string | undefined;
       }
     | undefined;
   clientInfosList: ClientInfo[];
@@ -77,7 +77,7 @@ function ConvertRoomInfo(src: GetRoomInfoRes): RoomInfo {
       privateProps: room
         ? binary.UnmarshalRecursive(room?.privateProps)
         : [null, {}],
-      created: room?.created,
+        created: room?.created?.timestamp?.seconds?.toString(),
     },
     clientInfosList: src.clientInfos.map((info) => {
       return {
@@ -107,7 +107,7 @@ async function getCachedGameClient(hostId: number) {
     throw new Error("Can't find game server by given hostId!");
 
   const gameClient = createClient(Game, createGrpcTransport({
-    baseUrl: `${server.hostname}:${server.grpc_port}`,
+    baseUrl: `http://${server.hostname}:${server.grpc_port}`,
     interceptors: [],
   }));
 

@@ -11,7 +11,6 @@ const sql = mysql.createPool({
 
 //一覧取得
 router.get("/", (req: express.Request, res: express.Response) => {
-	console.log("get /overview/");
   Promise.all([
     sql.query(`
         SELECT room.host_id, game_server.hostname, COUNT(room.host_id) AS num 
@@ -39,7 +38,6 @@ router.get("/", (req: express.Request, res: express.Response) => {
 
 // パッケージのバージョンを取得
 router.get("/version", (req: express.Request, res: express.Response) => {
-	console.log("get /overview/version");
   res.status(200).send({
     version: process.env.npm_package_version,
   });
@@ -49,7 +47,6 @@ router.get("/version", (req: express.Request, res: express.Response) => {
 router.get(
   "/graphql_result_limit",
   (req: express.Request, res: express.Response) => {
-	console.log("get /overview/graphql_result_limit");
     res.status(200).send({
       limit: process.env.GRAPHQL_RESULT_MAX_SIZE,
     });
