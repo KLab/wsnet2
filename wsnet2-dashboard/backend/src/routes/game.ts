@@ -2,7 +2,6 @@ import * as express from "express";
 import { Client, createClient } from "@connectrpc/connect";
 import { createGrpcTransport } from "@connectrpc/connect-node";
 import { RoomNumber } from "../pb/roominfo_pb.js";
-import { Timestamp } from "../pb/timestamp_pb.js";
 import {
   Game,
   GetRoomInfoReq,
