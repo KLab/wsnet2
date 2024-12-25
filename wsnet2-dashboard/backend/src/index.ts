@@ -1,19 +1,19 @@
 import express from "express";
 import cors from "cors";
-import { ApolloServer } from "apollo-server-express";
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@apollo/server/express4";
 // local imports
-import { schema } from "./schema";
-import { createContext } from "./context";
+import { schema } from "./schema.js";
+import { createContext } from "./context.js";
 // import routes
-import game from "./routes/game";
-import overview from "./routes/overview";
+import game from "./routes/game.js";
+import overview from "./routes/overview.js";
 
 async function init() {
   // consts
   const app = express();
   const server = new ApolloServer({
     schema: schema,
-    context: createContext,
   });
 
   // middlewares
@@ -27,7 +27,13 @@ async function init() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   await server.start();
-  server.applyMiddleware({ app, path: "/graphql" });
+
+  app.use(
+    '/graphql',
+    expressMiddleware(server, {
+      context: async ({ req }) => createContext(req),
+    }),
+  );
 
   // routes
   app.use("/game", game);

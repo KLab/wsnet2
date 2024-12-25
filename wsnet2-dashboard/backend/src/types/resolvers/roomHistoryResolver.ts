@@ -7,7 +7,7 @@ import {
   nonNull,
   list,
 } from "nexus";
-import { Context } from "../../context";
+import { Context } from "../../context.js";
 
 interface IConditions {
   OR?: { app_id: string }[];

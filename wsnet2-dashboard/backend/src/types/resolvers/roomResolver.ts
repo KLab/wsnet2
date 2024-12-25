@@ -7,7 +7,7 @@ import {
   nonNull,
   list,
 } from "nexus";
-import { Context } from "../../context";
+import { Context } from "../../context.js";
 import { Prisma, room } from "@prisma/client";
 
 interface IConditions {

@@ -1,17 +1,17 @@
 import * as express from "express";
-import { RoomNumber } from "../pb/roominfo_pb";
-import { Timestamp } from "../pb/timestamp_pb";
-import { GameClient } from "../pb/gameservice_grpc_pb";
-import { credentials } from "@grpc/grpc-js";
+import { Client, createClient } from "@connectrpc/connect";
+import { createGrpcTransport } from "@connectrpc/connect-node";
+import { RoomNumber } from "../pb/roominfo_pb.js";
 import {
+  Game,
   GetRoomInfoReq,
   GetRoomInfoRes,
   KickReq,
   Empty,
-} from "../pb/gameservice_pb";
+} from "../pb/gameservice_pb.js";
 
 import { PrismaClient } from "@prisma/client";
-import binary = require("../plugins/binary.js");
+import * as binary from "../plugins/binary.js";
 
 export interface RESTRoomInfoReq {
   appId: string;
@@ -35,14 +35,14 @@ export interface RoomInfo {
         visible: boolean | undefined;
         joinable: boolean | undefined;
         watchable: boolean | undefined;
-        number: RoomNumber.AsObject | undefined;
+        number: RoomNumber | undefined;
         searchGroup: number | undefined;
         maxPlayers: number | undefined;
         players: number | undefined;
         watchers: number | undefined;
         publicProps: binary.Unmarshaled;
         privateProps: binary.Unmarshaled;
-        created: Timestamp.AsObject | undefined;
+        created: string | undefined;
       }
     | undefined;
   clientInfosList: ClientInfo[];
@@ -56,41 +56,41 @@ export interface ClientInfo {
 }
 
 function ConvertRoomInfo(src: GetRoomInfoRes): RoomInfo {
-  const room = src.getRoomInfo();
+  const room = src.roomInfo;
   return {
     roomInfo: {
-      id: room?.getId(),
-      appId: room?.getAppId(),
-      hostId: room?.getHostId(),
-      visible: room?.getVisible(),
-      joinable: room?.getJoinable(),
-      watchable: room?.getWatchable(),
-      number: room?.getNumber()?.toObject(),
-      searchGroup: room?.getSearchGroup(),
-      maxPlayers: room?.getMaxPlayers(),
-      players: room?.getPlayers(),
-      watchers: room?.getWatchers(),
+      id: room?.id,
+      appId: room?.appId,
+      hostId: room?.hostId,
+      visible: room?.visible,
+      joinable: room?.joinable,
+      watchable: room?.watchable,
+      number: room?.number,
+      searchGroup: room?.searchGroup,
+      maxPlayers: room?.maxPlayers,
+      players: room?.players,
+      watchers: room?.watchers,
       publicProps: room
-        ? binary.UnmarshalRecursive(room.getPublicProps_asU8())
+        ? binary.UnmarshalRecursive(room?.publicProps)
         : [null, {}],
       privateProps: room
-        ? binary.UnmarshalRecursive(room.getPrivateProps_asU8())
+        ? binary.UnmarshalRecursive(room?.privateProps)
         : [null, {}],
-      created: room?.getCreated()?.toObject(),
+        created: room?.created?.timestamp?.seconds?.toString(),
     },
-    clientInfosList: src.getClientInfosList().map((info) => {
+    clientInfosList: src.clientInfos.map((info) => {
       return {
-        id: info.getId(),
-        isHub: info.getIsHub(),
-        props: binary.UnmarshalRecursive(info.getProps_asU8()),
+        id: info.id,
+        isHub: info.isHub,
+        props: binary.UnmarshalRecursive(info.props),
       };
     }),
-    masterId: src.getMasterId(),
+    masterId: src.masterId,
   };
 }
 
 const prisma = new PrismaClient();
-const serversCache: { [id: string]: GameClient } = {};
+const serversCache: { [id: string]: Client<typeof Game> } = {};
 const router = express.Router();
 
 async function getCachedGameClient(hostId: number) {
@@ -104,46 +104,34 @@ async function getCachedGameClient(hostId: number) {
 
   if (server == null)
     throw new Error("Can't find game server by given hostId!");
-  const gameClient = new GameClient(
-    `${server.hostname}:${server.grpc_port}`,
-    credentials.createInsecure()
-  );
+
+  const gameClient = createClient(Game, createGrpcTransport({
+    baseUrl: `http://${server.hostname}:${server.grpc_port}`,
+    interceptors: [],
+  }));
 
   serversCache[hostId.toString()] = gameClient;
   return gameClient;
 }
 
 async function getRoomInfo(args: RESTRoomInfoReq) {
-  return new Promise<GetRoomInfoRes>((resolve, reject) => {
-    getCachedGameClient(args.hostId)
-      .then((gameClient) => {
-        const req = new GetRoomInfoReq();
-        req.setAppId(args.appId);
-        req.setRoomId(args.roomId);
-        gameClient.getRoomInfo(req, (error, response) => {
-          if (error) reject(error);
-          resolve(response);
-        });
-      })
-      .catch((err) => reject(err));
-  });
+  //return new Promise<GetRoomInfoRes>((resolve, reject) => {
+  const gameClient = await getCachedGameClient(args.hostId);
+  const req = {
+    appId: args.appId,
+    roomId: args.roomId,
+  };
+  return await gameClient.getRoomInfo(req);
 }
 
 async function kick(args: RESTKickReq) {
-  return new Promise<Empty>((resolve, reject) => {
-    getCachedGameClient(args.hostId)
-      .then((gameClient) => {
-        const req = new KickReq();
-        req.setAppId(args.appId);
-        req.setRoomId(args.roomId);
-        req.setClientId(args.clientId);
-        gameClient.kick(req, (error, response) => {
-          if (error) reject(error);
-          resolve(response);
-        });
-      })
-      .catch((err) => reject(err));
-  });
+  const gameClient = await getCachedGameClient(args.hostId);
+  const req = {
+    appId: args.appId,
+    roomId: args.roomId,
+    clientId: args.clientId,
+  };
+  return await gameClient.kick(req);
 }
 
 // router implementations
@@ -164,12 +152,12 @@ router.post(
 router.post(
   "/kick",
   (
-    req: express.Request<unknown, Empty.AsObject, RESTKickReq>,
+    req: express.Request<unknown, Empty, RESTKickReq>,
     res: express.Response
   ) => {
     kick(req.body)
       .then((info) => {
-        res.status(200).send(info.toObject());
+        res.status(200).send(info);
       })
       .catch((err: Error) => res.status(500).send({ details: err.message }));
   }

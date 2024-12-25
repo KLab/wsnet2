@@ -1,5 +1,6 @@
 import { objectType } from "nexus";
-import { game_server } from "nexus-prisma";
+import np from "nexus-prisma";
+const { game_server } = np;
 
 export const gameServerModel = objectType({
   name: game_server.$name,

@@ -1,5 +1,6 @@
 import { objectType } from "nexus";
-import { hub } from "nexus-prisma";
+import np from "nexus-prisma";
+const { hub } = np;
 
 export const hubModel = objectType({
   name: hub.$name,

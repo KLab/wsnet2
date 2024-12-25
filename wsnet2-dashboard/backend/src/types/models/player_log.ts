@@ -1,5 +1,6 @@
 import { objectType } from "nexus";
-import { player_log } from "nexus-prisma";
+import np from "nexus-prisma";
+const { player_log } = np;
 
 export const playerLogModel = objectType({
   name: player_log.$name,

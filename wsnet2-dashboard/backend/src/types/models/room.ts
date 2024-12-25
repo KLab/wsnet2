@@ -1,5 +1,6 @@
 import { objectType } from "nexus";
-import { room } from "nexus-prisma";
+import np from "nexus-prisma";
+const { room } = np;
 
 export const roomModel = objectType({
   name: room.$name,

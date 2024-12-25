@@ -28,7 +28,7 @@ func (p *GrpcPool) Get(target string) (*grpc.ClientConn, error) {
 		return cc, nil
 	}
 
-	cc, err := grpc.Dial(target, p.opts...)
+	cc, err := grpc.NewClient(target, p.opts...)
 	if err != nil {
 		return nil, err
 	}
