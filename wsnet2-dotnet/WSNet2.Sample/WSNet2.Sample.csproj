@@ -2,15 +2,15 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MessagePack" Version="2.1.115" />
+    <PackageReference Include="MessagePack" Version="3.1.0" />
     <Compile Include="../../wsnet2-unity/Assets/WSNet2/Scripts/Core/**/*.cs" />
     <Compile Include="../../wsnet2-unity/Assets/Sample/Logic/**/*.cs" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
-    <PackageReference Include="ZLogger" Version="1.6.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="ZLogger" Version="1.7.1" />
   </ItemGroup>
 
 </Project>

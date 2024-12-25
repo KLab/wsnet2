@@ -104,8 +104,8 @@ namespace WSNet2.Core.Test
             query.Or();
             var expect = new object[] { new object[] { } };
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
 
             // ()*(A+B) = (A+B)
             query.Or(
@@ -121,14 +121,14 @@ namespace WSNet2.Core.Test
                 },
             };
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
 
             // (A+B)*() = (A+B)
             query.Or(new Query());
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
 
             // (A+B)*((C+D)+(E)) = (AC+AD+AE+BC+BD+BE)
             var q2 = new Query().Or(
@@ -164,8 +164,8 @@ namespace WSNet2.Core.Test
             };
             query.Or(new Query());
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
         }
 
         [Test]
@@ -196,8 +196,8 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
         }
 
         [Test]
@@ -218,8 +218,8 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
         }
 
         [Test]
@@ -239,8 +239,8 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
         }
 
         [Test]
@@ -278,8 +278,8 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
 
             query.Equal("k3", 100);
             query.Or(
@@ -345,8 +345,8 @@ namespace WSNet2.Core.Test
             };
 
             Assert.AreEqual(
-                MessagePackSerializer.Serialize(expect),
-                MessagePackSerializer.Serialize(query.condsList));
+                MessagePackSerializer.SerializeToJson(expect),
+                MessagePackSerializer.SerializeToJson(query.condsList));
         }
 
         [Test]

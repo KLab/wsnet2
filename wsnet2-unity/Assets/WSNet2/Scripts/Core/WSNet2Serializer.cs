@@ -165,10 +165,6 @@ namespace WSNet2
         public WSNet2SerializerException(string message, Exception innerException) : base(message, innerException)
         {
         }
-
-        protected WSNet2SerializerException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
     }
 
 }
