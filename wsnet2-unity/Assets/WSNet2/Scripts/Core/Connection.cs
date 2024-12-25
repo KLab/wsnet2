@@ -26,6 +26,7 @@ namespace WSNet2
 
         CancellationTokenSource canceller;
         DateTime reconnectLimit;
+        Exception reconnectLimitException;
 
         Room room;
         string appId;
@@ -56,6 +57,7 @@ namespace WSNet2
             this.logger = logger;
             this.canceller = new CancellationTokenSource();
             this.reconnectLimit = DateTime.Now.AddSeconds(room.ClientDeadline);
+            this.reconnectLimitException = null;
             this.room = room;
             this.appId = joined.roomInfo.appId;
             this.clientId = clientId;
@@ -168,9 +170,16 @@ namespace WSNet2
                 }
                 catch { }
 
+                if (reconnectLimitException != null)
+                {
+                    // 再接続時間切れの次の試行で失敗したら終わり
+                    throw new AggregateException($"Gave up on Reconnection", reconnectLimitException, lastException);
+                }
+
                 if (DateTime.Now > reconnectLimit)
                 {
-                    throw new Exception($"Gave up on Reconnection: {lastException.Message}", lastException);
+                    // 再接続時間切れしてももう一回試す
+                    reconnectLimitException = lastException;
                 }
 
                 reconnection++;
@@ -239,6 +248,7 @@ namespace WSNet2
                     var ev = await ReceiveEvent(ws, ct);
 
                     this.reconnectLimit = DateTime.Now.AddSeconds(room.ClientDeadline);
+                    this.reconnectLimitException = null;
 
                     if (ev.IsRegular)
                     {
