@@ -308,7 +308,9 @@ namespace WSNet2
 
                     if (ret.MessageType == WebSocketMessageType.Close)
                     {
-                        await SendClose(ws, ret.CloseStatusDescription, ct);
+                        // iOSでごく稀にws.CloseAsync()が返ってこないことがあるので別Taskで実行
+                        // Semaphoreを握りっぱなしになるけどこの接続は終了するので基本的には問題ない
+                        Task.Run(async () => await SendClose(ws, ret.CloseStatusDescription, ct));
 
                         switch (ret.CloseStatus)
                         {
@@ -411,6 +413,13 @@ namespace WSNet2
         /// </summary>
         private async Task Send(ClientWebSocket ws, ArraySegment<byte> msg, CancellationToken ct)
         {
+            if (closed)
+            {
+                // SendCloseがsemaphore握りっぱなしになる対策で先にチェック
+                // ここすり抜けてsemaphore待ってしまったらご愁傷さま……
+                return;
+            }
+
             await sendSemaphore.WaitAsync(ct);
             try
             {
@@ -438,11 +447,11 @@ namespace WSNet2
                     return;
                 }
 
+                closed = true;
+
                 var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(SendCloseTimeout);
                 await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
-
-                closed = true;
             }
             finally
             {
