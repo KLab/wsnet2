@@ -90,6 +90,7 @@ func runLoad(ctx context.Context, roomCount, players, watchers int, withWatchabl
 		}(roomCount)
 	}
 	for i := 0; i < roomCount; i++ {
+		time.Sleep(5 * time.Millisecond)
 		go func(i int) {
 			wid := fmt.Sprintf("%v-%v", pid, i)
 			err := runLoadWorker(ctx, players, watchers, minLifeTime, maxLifeTime, wid)

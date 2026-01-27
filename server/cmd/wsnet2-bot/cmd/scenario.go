@@ -41,8 +41,11 @@ var scenarios = map[string]func(context.Context) error{
 	"Rejoin":        scenarioRejoin,
 }
 
+var scenarioNoWatcher bool
+
 func init() {
 	rootCmd.AddCommand(scenarioCmd)
+	scenarioCmd.Flags().BoolVar(&scenarioNoWatcher, "no-watcher", false, "no watcher scenario")
 }
 
 // runScenario runs scenario test
@@ -66,6 +69,9 @@ func discardEvents(conn *client.Connection) {
 
 // clearEventBuffer : 現在バッファに溜まっているイベントを読み捨てる
 func clearEventBuffer(conn *client.Connection) {
+	if conn == nil {
+		return
+	}
 	for {
 		select {
 		case ev := <-conn.Events():
@@ -277,24 +283,26 @@ func scenarioJoinRoom(ctx context.Context) error {
 
 	clearEventBuffer(conn)
 
-	// 満室でも観戦は可能
-	_, w1, err := watchRoom(ctx, "joinroom_watcher1", room.Id, nil)
-	if err != nil {
-		return fmt.Errorf("join-room: watcher1: %w", err)
-	}
-	logger.Infof("join-room: watcher1 ok")
-	discardEvents(w1)
-	defer cleanupConn(ctx, w1)
+	if !scenarioNoWatcher {
+		// 満室でも観戦は可能
+		_, w1, err := watchRoom(ctx, "joinroom_watcher1", room.Id, nil)
+		if err != nil {
+			return fmt.Errorf("join-room: watcher1: %w", err)
+		}
+		logger.Infof("join-room: watcher1 ok")
+		discardEvents(w1)
+		defer cleanupConn(ctx, w1)
 
-	_, w2, err := watchByNumber(ctx, "joinroom_watcher2", *room.Number, nil)
-	if err != nil {
-		return fmt.Errorf("join-room: watcher2: %w", err)
-	}
-	logger.Infof("join-room: watcher2 ok")
-	discardEvents(w2)
-	defer cleanupConn(ctx, w2)
+		_, w2, err := watchByNumber(ctx, "joinroom_watcher2", *room.Number, nil)
+		if err != nil {
+			return fmt.Errorf("join-room: watcher2: %w", err)
+		}
+		logger.Infof("join-room: watcher2 ok")
+		discardEvents(w2)
+		defer cleanupConn(ctx, w2)
 
-	clearEventBuffer(conn)
+		clearEventBuffer(conn)
+	}
 
 	// MaxPlayerを+2増やしwatchable=falseに
 	err = conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
@@ -317,13 +325,15 @@ func scenarioJoinRoom(ctx context.Context) error {
 	discardEvents(p4)
 	defer cleanupConn(ctx, p4)
 
-	// 観戦はエラー
-	_, w3, err := watchRoom(ctx, "joinroom_watcher3", room.Id, nil)
-	if !errors.Is(err, client.ErrNoRoomFound) {
-		cleanupConn(ctx, w3)
-		return fmt.Errorf("join-room: watcher3 wants NoRoomFound: %v", err)
+	if !scenarioNoWatcher {
+		// 観戦はエラー
+		_, w3, err := watchRoom(ctx, "joinroom_watcher3", room.Id, nil)
+		if !errors.Is(err, client.ErrNoRoomFound) {
+			cleanupConn(ctx, w3)
+			return fmt.Errorf("join-room: watcher3 wants NoRoomFound: %v", err)
+		}
+		logger.Infof("join-room: watcher3 ok (no room found)")
 	}
-	logger.Infof("join-room: watcher3 ok (no room found)")
 
 	clearEventBuffer(conn)
 
@@ -351,6 +361,9 @@ func scenarioJoinRoom(ctx context.Context) error {
 }
 
 func checkEvMessage(conn *client.Connection, sndrptn string, payload []byte) error {
+	if conn == nil {
+		return nil
+	}
 	logger.Debugf("  check %v", conn.UserId())
 
 	ev, ok := waitEvent(conn, time.Second, binary.EvTypeMessage)
@@ -372,6 +385,9 @@ func checkEvMessage(conn *client.Connection, sndrptn string, payload []byte) err
 }
 
 func checkNoEvMessage(conn *client.Connection) error {
+	if conn == nil {
+		return nil
+	}
 	logger.Debugf("  check %v", conn.UserId())
 	ev, ok := waitEvent(conn, time.Second, binary.EvTypeMessage)
 	if ok {
@@ -401,11 +417,14 @@ func scenarioMessage(ctx context.Context) error {
 		return fmt.Errorf("message: join: %w", err)
 	}
 	defer cleanupConn(ctx, player)
-	_, watcher, err := watchRoom(ctx, "message_watcher", room.Id, nil)
-	if err != nil {
-		return fmt.Errorf("message: watch: %w", err)
+	var watcher *client.Connection
+	if !scenarioNoWatcher {
+		_, watcher, err = watchRoom(ctx, "message_watcher", room.Id, nil)
+		if err != nil {
+			return fmt.Errorf("message: watch: %w", err)
+		}
+		defer cleanupConn(ctx, watcher)
 	}
-	defer cleanupConn(ctx, watcher)
 
 	clearEventBuffer(master)
 	clearEventBuffer(player)
@@ -482,44 +501,46 @@ func scenarioMessage(ctx context.Context) error {
 	clearEventBuffer(player)
 	clearEventBuffer(watcher)
 
-	// watcherからもbroadcast/toMasterができること
-	logger.Debugf("message from watcher")
+	if watcher != nil {
+		// watcherからもbroadcast/toMasterができること
+		logger.Debugf("message from watcher")
 
-	payload = binary.MarshalStr8("message from watcher")
-	watcher.Broadcast(payload)
+		payload = binary.MarshalStr8("message from watcher")
+		watcher.Broadcast(payload)
 
-	err = checkEvMessage(master, "hub:.*", payload)
-	if err != nil {
-		return fmt.Errorf("message from watcher: %w", err)
-	}
-	err = checkEvMessage(player, "hub:.*", payload)
-	if err != nil {
-		return fmt.Errorf("message from watcher: %w", err)
-	}
-	err = checkEvMessage(watcher, "hub:.*", payload)
-	if err != nil {
-		return fmt.Errorf("message from watcher: %w", err)
-	}
+		err = checkEvMessage(master, "hub:.*", payload)
+		if err != nil {
+			return fmt.Errorf("message from watcher: %w", err)
+		}
+		err = checkEvMessage(player, "hub:.*", payload)
+		if err != nil {
+			return fmt.Errorf("message from watcher: %w", err)
+		}
+		err = checkEvMessage(watcher, "hub:.*", payload)
+		if err != nil {
+			return fmt.Errorf("message from watcher: %w", err)
+		}
 
-	watcher.ToMaster(payload)
+		watcher.ToMaster(payload)
 
-	err = checkEvMessage(master, "hub:.*", payload)
-	if err != nil {
-		return fmt.Errorf("message from watcher: %w", err)
-	}
-	err = checkNoEvMessage(player)
-	if err != nil {
-		return fmt.Errorf("message from watcher: %w", err)
-	}
-	err = checkNoEvMessage(watcher)
-	if err != nil {
-		return fmt.Errorf("message from watcher: %w", err)
-	}
+		err = checkEvMessage(master, "hub:.*", payload)
+		if err != nil {
+			return fmt.Errorf("message from watcher: %w", err)
+		}
+		err = checkNoEvMessage(player)
+		if err != nil {
+			return fmt.Errorf("message from watcher: %w", err)
+		}
+		err = checkNoEvMessage(watcher)
+		if err != nil {
+			return fmt.Errorf("message from watcher: %w", err)
+		}
 
-	logger.Infof("message from watcher: ok")
-	clearEventBuffer(master)
-	clearEventBuffer(player)
-	clearEventBuffer(watcher)
+		logger.Infof("message from watcher: ok")
+		clearEventBuffer(master)
+		clearEventBuffer(player)
+		clearEventBuffer(watcher)
+	}
 
 	// master交代 -> player
 	logger.Debugf("switch master")
@@ -527,6 +548,9 @@ func scenarioMessage(ctx context.Context) error {
 	master.SwitchMaster(player.UserId())
 
 	for _, conn := range []*client.Connection{master, player, watcher} {
+		if conn == nil {
+			continue
+		}
 		logger.Debugf("  check %v", conn.UserId())
 		_, ok := waitEvent(conn, time.Second, binary.EvTypeMasterSwitched)
 		if !ok {
@@ -674,12 +698,14 @@ func scenarioSearchCurrent(ctx context.Context) error {
 	discardEvents(conn4)
 	defer cleanupConn(ctx, conn4)
 
-	_, conn5, err := watchRoom(ctx, p1id, room3.Id, nil)
-	if err != nil {
-		return fmt.Errorf("search: watch room3: %w", err)
+	if !scenarioNoWatcher {
+		_, conn5, err := watchRoom(ctx, p1id, room3.Id, nil)
+		if err != nil {
+			return fmt.Errorf("search: watch room3: %w", err)
+		}
+		discardEvents(conn5)
+		defer cleanupConn(ctx, conn5)
 	}
-	discardEvents(conn5)
-	defer cleanupConn(ctx, conn5)
 
 	rooms, err := searchCurrent(ctx, p1id)
 	if err != nil {
