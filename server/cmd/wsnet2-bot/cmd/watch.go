@@ -27,7 +27,7 @@ var watchCmd = &cobra.Command{
 	Short: "Run watcher load test",
 	Long:  "Watcher load test: Watcher大量投入負荷試験",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runLoadWatcher(cmd.Context(), watchWatcherCount)
+		return runWatchers(cmd.Context(), watchWatcherCount)
 	},
 }
 
@@ -37,7 +37,7 @@ func init() {
 	watchCmd.Flags().IntVarP(&watchWatcherCount, "watchers", "w", 1000, "Watchers count")
 }
 
-func runLoadWatcher(ctx context.Context, watcherCount int) error {
+func runWatchers(ctx context.Context, watcherCount int) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -80,7 +80,7 @@ func runLoadWatcher(ctx context.Context, watcherCount int) error {
 				errch <- err
 				return
 			}
-			runWatcher(ctx, watcher, logprefix)
+			runLoadWatcher(ctx, watcher, logprefix)
 		}(i)
 	}
 

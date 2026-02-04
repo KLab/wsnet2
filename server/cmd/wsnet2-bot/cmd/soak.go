@@ -148,13 +148,13 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	var avg float64
 	wg.Add(1)
 	go func() {
-		rttSum, rttCnt, rttMax, avg = runMaster(ctx, master, lifetime, room.SearchGroup, logprefix)
+		rttSum, rttCnt, rttMax, avg = runSoakMaster(ctx, master, lifetime, room.SearchGroup, logprefix)
 		wg.Done()
 	}()
 
 	time.Sleep(time.Second) // wait for refleshing cache of the lobby
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		playerId := fmt.Sprintf("player-%v-%v", n, i)
 
 		q := client.NewQuery()
@@ -168,12 +168,12 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 		wg.Add(1)
 		go func() {
-			runPlayer(ctx, player, masterId, logprefix)
+			runSoakPlayer(ctx, player, masterId, logprefix)
 			wg.Done()
 		}()
 	}
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		watcherId := fmt.Sprintf("watcher-%v-%v", n, i)
 
 		logger.Debugf("%s watch %s", logprefix, watcherId)
@@ -184,7 +184,7 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 
 		wg.Add(1)
 		go func() {
-			runWatcher(ctx, watcher, logprefix)
+			runSoakWatcher(ctx, watcher, logprefix)
 			wg.Done()
 		}()
 	}
@@ -194,8 +194,8 @@ func runSoakRoom(ctx context.Context, n int, lifetime time.Duration) error {
 	return nil
 }
 
-// runMaster runs a master
-func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, group uint32, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
+// runSoakMaster runs a master
+func runSoakMaster(ctx context.Context, conn *client.Connection, lifetime time.Duration, group uint32, logprefix string) (rttSum, rttCnt, rttMax int64, rttAvg float64) {
 	logger.Debugf("%s %s start", logprefix, conn.UserId())
 	sendctx, cancel := context.WithCancel(ctx)
 	go func() {
@@ -221,7 +221,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 		defer t.Stop()
 		for {
 			t.Reset(200 * time.Millisecond)
-			for i := 0; i < 25; i++ {
+			for range 25 {
 				conn.Send(binary.MsgTypeBroadcast, msgBody[:1500])
 
 				select {
@@ -231,7 +231,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 				}
 			}
 			t.Reset(time.Second)
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				conn.Send(binary.MsgTypeBroadcast, msgBody[:4000])
 
 				select {
@@ -306,7 +306,7 @@ func runMaster(ctx context.Context, conn *client.Connection, lifetime time.Durat
 	return rttSum, rttCnt, rttMax, float64(rttSum) / float64(rttCnt)
 }
 
-func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix string) {
+func runSoakPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix string) {
 	logger.Debugf("%s %s start", logprefix, conn.UserId())
 	sendctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -317,7 +317,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 		defer t.Stop()
 		for {
 			t.Reset(200 * time.Millisecond)
-			for i := 0; i < 25; i++ {
+			for range 25 {
 				conn.Send(binary.MsgTypeToMaster, msgBody[:1500])
 
 				select {
@@ -327,7 +327,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 				}
 			}
 			t.Reset(time.Second)
-			for i := 0; i < 5; i++ {
+			for range 5 {
 				conn.Send(binary.MsgTypeToMaster, msgBody[:4000])
 
 				select {
@@ -383,7 +383,7 @@ func runPlayer(ctx context.Context, conn *client.Connection, masterId, logprefix
 	logger.Debugf("%s %v end: %v", logprefix, conn.UserId(), msg)
 }
 
-func runWatcher(ctx context.Context, conn *client.Connection, logprefix string) {
+func runSoakWatcher(ctx context.Context, conn *client.Connection, logprefix string) {
 	logger.Debugf("%s %s start", logprefix, conn.UserId())
 	sendctx, cancel := context.WithCancel(ctx)
 	defer cancel()

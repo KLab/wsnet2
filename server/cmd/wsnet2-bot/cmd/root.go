@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -94,6 +95,10 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&skipTLSVerify, "skip-tls-verify", "s", false, "Skip TLS verify")
 	rootCmd.PersistentFlags().DurationVarP(&timeout, "timeout", "t", 5*time.Second, "Lobby request timeout")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Verbose log output")
+
+	for i := range msgBody {
+		msgBody[i] = byte(rand.IntN(256))
+	}
 }
 
 func setupLogger() error {
