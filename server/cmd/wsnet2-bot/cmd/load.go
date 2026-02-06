@@ -234,7 +234,7 @@ func runLoadRoom(ctx context.Context, p, w int, group uint32, lifetime time.Dura
 //
 // 2. メッセージ送信
 //   - size: 300±150b、5%の確率で+1kb
-//   - freq: 15msg / 1sec
+//   - freq: 12msg / 1sec
 //   - type: broadcastとtargets(全員)を交互に
 //
 // 3. lifetime経過でLeave
@@ -304,9 +304,9 @@ func runLoadMaster(ctx context.Context, conn *client.Connection, lifetime time.D
 
 		logger.Debugf("%v change room unjoinable", logprefix)
 		conn.Send(binary.MsgTypeRoomProp, binary.MarshalRoomPropPayload(
-			true, false, true, LoadSearchGroup, uint32(len(pids)), 0, nil, nil))
+			false, false, true, LoadSearchGroup, uint32(len(pids)), 0, nil, nil))
 
-		tick := time.NewTicker(time.Second / 10)
+		tick := time.NewTicker(time.Second / 12)
 		defer tick.Stop()
 
 		broadcast := true
