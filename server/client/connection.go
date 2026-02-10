@@ -25,8 +25,8 @@ const reconnectInterval = 3 * time.Second
 
 var dialer = &websocket.Dialer{
 	Subprotocols:    []string{"wsnet2"},
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  1024 * 4,
+	WriteBufferSize: 1024 * 4,
 }
 
 type msgerr struct {
@@ -175,7 +175,7 @@ func newConn(ctx context.Context, accinfo *AccessInfo, joined *pb.JoinedRoomRes,
 		hmac:   mac,
 
 		evch:   make(chan binary.Event, 32),
-		sysmsg: make(chan binary.Msg),
+		sysmsg: make(chan binary.Msg, 1),
 		done:   make(chan msgerr, 1),
 	}
 
@@ -394,25 +394,12 @@ func (conn *Connection) sender(ctx context.Context, ws *websocket.Conn, mu *sync
 }
 
 func (conn *Connection) systemSender(ctx context.Context, ws *websocket.Conn, mu *sync.Mutex) error {
-	// 送信中の投げ込みも受け付けるようcap=1のチャネルを挟む
-	mc := make(chan binary.Msg, 1)
-	// systemSenderが動き始めてからsysmsgへの書き込みを受け付ける (see: conn.SendSystemMsg())
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case mc <- <-conn.sysmsg:
-			}
-		}
-	}()
-
 	for {
 		var msg binary.Msg
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case msg = <-mc:
+		case msg = <-conn.sysmsg:
 		}
 
 		conn.mumsg.Lock()

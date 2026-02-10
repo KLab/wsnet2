@@ -94,7 +94,7 @@ func runLoad(ctx context.Context, roomCount, players, watchers int, withWatchabl
 	for i := range roomCount {
 		time.Sleep(5 * time.Millisecond)
 		go func(i int) {
-			wid := fmt.Sprintf("%v-%v", pid, i)
+			wid := fmt.Sprintf("%s-%v-%v", hostname, pid, i)
 			err := runLoadWorker(ctx, players, watchers, minLifeTime, maxLifeTime, wid)
 			if err != nil && !errors.Is(err, ctx.Err()) {
 				errch <- err

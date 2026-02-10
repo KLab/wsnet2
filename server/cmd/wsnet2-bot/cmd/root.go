@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	RttThreshold = 16 // millisecond
+	RttThreshold = 30 // millisecond
 
 	ScenarioLobbySearchGroup = 100
 	ScenarioJoinRoomGroup    = 101
@@ -48,6 +48,8 @@ var (
 
 	msgBody = make([]byte, 5000)
 	logger  *zap.SugaredLogger
+
+	hostname, _ = os.Hostname()
 )
 
 // rootCmd represents the base command when called without any subcommands
