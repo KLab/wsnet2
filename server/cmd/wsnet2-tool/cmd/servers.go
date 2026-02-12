@@ -78,9 +78,8 @@ func printServersHeader(cmd *cobra.Command) {
 func printServer(cmd *cobra.Command, typ string, s server) {
 	st := serverStatusStr[s.Status]
 	hb := time.Unix(s.HeartBeat, 0)
-	v := time.Duration(conf.Lobby.ValidHeartBeat)
 	ok := "Available"
-	if hb.Before(time.Now().Add(-v)) {
+	if !s.Available() {
 		if !serversAll {
 			return
 		}
@@ -89,4 +88,9 @@ func printServer(cmd *cobra.Command, typ string, s server) {
 
 	cmd.Printf("%s\t%d\t%s\t%s\t%d\t%d\t%s:%s\t%v\n",
 		typ, s.Id, s.HostName, s.PublicName, s.GRPCPort, s.WebSocketPort, st, ok, hb)
+}
+
+func (s *server) Available() bool {
+	v := time.Now().Add(-time.Duration(conf.Lobby.ValidHeartBeat)).Unix()
+	return v < s.HeartBeat
 }

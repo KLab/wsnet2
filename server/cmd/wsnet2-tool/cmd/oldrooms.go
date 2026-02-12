@@ -144,7 +144,7 @@ func printOldRoomsHeader(cmd *cobra.Command) {
 	cmd.Println("id\tapp\thost\tnumber\tgroup\tmax_players\tplayers\tcreated\tclosed\tprops")
 }
 
-func printOldRoom(cmd *cobra.Command, r *roomHistory, hosts map[uint32]*server) error {
+func printOldRoom(cmd *cobra.Command, r *roomHistory, hosts map[uint32]hostserver) error {
 	host := "-"
 	if h, ok := hosts[r.HostID]; ok {
 		host = h.HostName

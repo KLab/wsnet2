@@ -12,6 +12,15 @@ import (
 	"wsnet2/pb"
 )
 
+var (
+	roomsAll bool
+)
+
+type hostserver struct {
+	*server
+	Avilable bool
+}
+
 // roomsCmd represents the rooms command
 var roomsCmd = &cobra.Command{
 	Use:   "rooms",
@@ -48,9 +57,11 @@ var roomsCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(roomsCmd)
+
+	roomsCmd.Flags().BoolVarP(&roomsAll, "all", "a", false, "include rooms hosted on dead servers")
 }
 
-func hostMap(ctx context.Context) (map[uint32]*server, error) {
+func hostMap(ctx context.Context) (map[uint32]hostserver, error) {
 	const hostsql = "SELECT * FROM game_server"
 	var hosts []*server
 	err := db.SelectContext(ctx, &hosts, hostsql)
@@ -58,9 +69,12 @@ func hostMap(ctx context.Context) (map[uint32]*server, error) {
 		return nil, err
 	}
 
-	m := make(map[uint32]*server)
+	m := make(map[uint32]hostserver)
 	for _, h := range hosts {
-		m[uint32(h.Id)] = h
+		m[uint32(h.Id)] = hostserver{
+			server:   h,
+			Avilable: h.Available(),
+		}
 	}
 
 	return m, nil
@@ -70,7 +84,11 @@ func printRoomsHeader(cmd *cobra.Command) {
 	cmd.Println("id\tapp\thost\tflags\tnumber\tgroup\tmax_players\tplayers\twatchers\tcreated\tprops")
 }
 
-func printRoom(cmd *cobra.Command, r *pb.RoomInfo, h map[uint32]*server) error {
+func printRoom(cmd *cobra.Command, r *pb.RoomInfo, h map[uint32]hostserver) error {
+	host := h[r.HostId]
+	if !host.Avilable && !roomsAll {
+		return nil
+	}
 	var num int32
 	if r.Number != nil {
 		num = r.Number.Number
@@ -79,7 +97,7 @@ func printRoom(cmd *cobra.Command, r *pb.RoomInfo, h map[uint32]*server) error {
 	p, err := parsePropsSimple(r.PublicProps)
 
 	cmd.Printf("%v\t%v\t%v\t%v\t%06d\t%d\t%d\t%d\t%d\t%v\t%s\n",
-		r.Id, r.AppId, h[r.HostId].HostName, roomFlags(r), num,
+		r.Id, r.AppId, host.HostName, roomFlags(r), num,
 		r.SearchGroup, r.MaxPlayers, r.Players, r.Watchers,
 		r.Created.Time(), p)
 
