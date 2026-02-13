@@ -193,7 +193,7 @@ func runLoadRoom(ctx context.Context, p, w int, group uint32, lifetime time.Dura
 	time.Sleep(time.Second)
 
 	for _, playerId := range playerIds[1:] {
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 		logger.Debugf("%s join %s", logprefix, playerId)
 		_, player, err := joinRandom(context.Background(), playerId, group, query)
 		if err != nil {
@@ -244,6 +244,8 @@ func runLoadMaster(ctx context.Context, conn *client.Connection, lifetime time.D
 	var wg sync.WaitGroup
 	wg.Add(3)
 
+	connClosed := make(chan struct{})
+
 	go func() {
 		defer wg.Done()
 
@@ -257,9 +259,11 @@ func runLoadMaster(ctx context.Context, conn *client.Connection, lifetime time.D
 			msg = "context done"
 		case <-c:
 			msg = "lifetime elapsed"
+		case <-connClosed:
+			msg = "connection closed"
 		}
 		cancel()
-		logger.Debugf("%v master leave", logprefix)
+		logger.Debugf("%v master leave: %v", logprefix, msg)
 		conn.Leave(msg)
 	}()
 
@@ -338,6 +342,7 @@ func runLoadMaster(ctx context.Context, conn *client.Connection, lifetime time.D
 	}
 	logger.Debugf("%s %v end: %v", logprefix, conn.UserId(), msg)
 
+	close(connClosed)
 	wg.Wait()
 	return rttSum, rttCnt, rttMax, float64(rttSum) / float64(rttCnt)
 }
