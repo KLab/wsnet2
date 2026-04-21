@@ -140,7 +140,7 @@ loop:
 		case <-t.C:
 			if !c.received {
 				// lobbyに繋がるがgameに繋げなかったり繋いでもmsg送ってこないのは何かある
-				c.logger.Errorf("client timeout: %v connectCount=%v no msg received", c.Id, c.connectCount)
+				c.logger.Warnf("client timeout: %v connectCount=%v no msg received", c.Id, c.connectCount)
 			} else {
 				c.logger.Infof("client timeout: %v connectCount=%v", c.Id, c.connectCount)
 			}
