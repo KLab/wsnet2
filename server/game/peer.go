@@ -117,7 +117,12 @@ func (p *Peer) SendEvents(evbuf *common.RingBuf[*binary.RegularEvent]) error {
 	if err != nil {
 		// evSeqNumが古すぎるため. 復帰不能.
 		// 頻発するようならevbufのサイズ(ClientConf.EventBufSize)を拡張したほうがよいかも
-		p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
+		if p.client.IsClosed() {
+			// タイムアウト退室後に接続に来て溜まってるEventを読むケースではwarnで十分
+			p.client.logger.Warnf("peer evbuf.Read (%v(removed), %p): %v", p.client.Id, p, err)
+		} else {
+			p.client.logger.Errorf("peer evbuf.Read (%v, %p): %+v", p.client.Id, p, err)
+		}
 		p.sendCloseAndCloseConn(
 			websocket.CloseGoingAway, // client: EndpointUnavailable
 			err.Error())

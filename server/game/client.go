@@ -280,6 +280,16 @@ func (c *Client) Removed(cause string) {
 	}
 }
 
+// IsClosed : 退室済みか判定
+func (c *Client) IsClosed() bool {
+	select {
+	case <-c.done:
+		return true
+	default:
+		return false
+	}
+}
+
 // RoomのMsgLoopから呼ばれる
 func (c *Client) Send(e *binary.RegularEvent) error {
 	return c.evbuf.Write(e)
