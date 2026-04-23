@@ -15,6 +15,8 @@ const (
 	AllowedTimeGain = time.Second * 10
 )
 
+var ErrExpired = xerrors.New("expired")
+
 func ValidHMAC(mac, key []byte, args ...[]byte) bool {
 	mac2 := CalculateHMAC(key, args...)
 	return hmac.Equal(mac, mac2)
@@ -45,7 +47,7 @@ func ValidAuthData(authData, key, userId string, expired time.Time) error {
 	}
 
 	if timestamp.Before(expired) {
-		return xerrors.Errorf("expired: %v", timestamp)
+		return xerrors.Errorf("timestamp=%v: %w", timestamp, ErrExpired)
 	}
 
 	return nil

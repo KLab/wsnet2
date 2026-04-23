@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -191,6 +192,10 @@ func renderErrorResponse(w http.ResponseWriter, msg string, status int, err erro
 			logger.Infof("Failed with status OK: %+v", err)
 			renderResponse(w, &lobby.Response{Msg: msg, Type: lobby.ResponseTypeNoRoomFound}, logger)
 			return
+		case lobby.ErrAuthDataExpired:
+			logger.Warnf("ErrorResponse: %d %s: %v", status, logmsg, err)
+			http.Error(w, msg, status)
+			return
 		}
 	}
 	logger.Errorf("ErrorResponse: %d %s: %+v", status, logmsg, err)
@@ -204,6 +209,9 @@ func (sv *LobbyService) authUser(h header) (string, error) {
 	}
 	expired := time.Now().Add(-time.Duration(sv.conf.AuthDataExpire))
 	if err := auth.ValidAuthData(h.authData, appKey, h.userId, expired); err != nil {
+		if errors.Is(err, auth.ErrExpired) {
+			return "", lobby.WithType(xerrors.Errorf("invalid authdata: %w", err), lobby.ErrAuthDataExpired)
+		}
 		return "", xerrors.Errorf("invalid authdata: %w", err)
 	}
 	return appKey, nil

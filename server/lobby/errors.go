@@ -15,6 +15,7 @@ const (
 	ErrRoomFull
 	ErrAlreadyJoined
 	ErrNoWatchableRoom
+	ErrAuthDataExpired
 )
 
 // ErrorWithErrType : ErrTypeとerrorの組
@@ -29,7 +30,7 @@ type errorWithType struct {
 	errType ErrType
 }
 
-func withType(err error, errType ErrType) ErrorWithType {
+func WithType(err error, errType ErrType) ErrorWithType {
 	if err == nil {
 		return nil
 	}
@@ -54,6 +55,8 @@ func (e *errorWithType) Message() string {
 		return "Already exists"
 	case ErrNoWatchableRoom:
 		return "No watchable room found"
+	case ErrAuthDataExpired:
+		return "AuthData expired"
 	}
 	return ""
 }
