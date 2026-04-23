@@ -92,9 +92,9 @@ func (rs *RoomService) Create(ctx context.Context, appId string, roomOption *pb.
 		if ok {
 			switch st.Code() {
 			case codes.InvalidArgument:
-				err = withType(err, ErrArgument)
+				err = WithType(err, ErrArgument)
 			case codes.ResourceExhausted:
-				err = withType(err, ErrRoomLimit)
+				err = WithType(err, ErrRoomLimit)
 			}
 		}
 		return nil, err
@@ -160,15 +160,15 @@ func (rs *RoomService) join(ctx context.Context, appId, roomId string, clientInf
 		if ok {
 			switch st.Code() {
 			case codes.NotFound: // roomが既に消えた
-				err = withType(err, ErrNoJoinableRoom)
+				err = WithType(err, ErrNoJoinableRoom)
 			case codes.FailedPrecondition: // joinableでなくなっていた
-				err = withType(err, ErrNoJoinableRoom)
+				err = WithType(err, ErrNoJoinableRoom)
 			case codes.ResourceExhausted: // 満室
-				err = withType(err, ErrRoomFull)
+				err = WithType(err, ErrRoomFull)
 			case codes.AlreadyExists: // 既に入室している
-				err = withType(err, ErrAlreadyJoined)
+				err = WithType(err, ErrAlreadyJoined)
 			case codes.InvalidArgument:
-				err = withType(err, ErrArgument)
+				err = WithType(err, ErrArgument)
 			}
 		}
 		return nil, err
@@ -185,7 +185,7 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND joinable = 1", appId, roomId)
 	if err != nil {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("select room (id=%v): %w", roomId, err),
 			ErrNoJoinableRoom)
 	}
@@ -197,7 +197,7 @@ func (rs *RoomService) JoinById(ctx context.Context, appId, roomId string, queri
 
 	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false, logger)
 	if len(filtered) == 0 {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("filter result is empty: room=%v", roomId),
 			ErrNoJoinableRoom)
 	}
@@ -213,7 +213,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND joinable = 1", appId, roomNumber)
 	if err != nil {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("select room (num=%v): %w", roomNumber, err),
 			ErrNoJoinableRoom)
 	}
@@ -225,7 +225,7 @@ func (rs *RoomService) JoinByNumber(ctx context.Context, appId string, roomNumbe
 
 	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, true, false, logger)
 	if len(filtered) == 0 {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("filter result is empty: number=%v: %w", roomNumber, err),
 			ErrNoJoinableRoom)
 	}
@@ -263,7 +263,7 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 		logger.Debugf("try join %v: %v", room.Id, err)
 	}
 
-	return nil, withType(
+	return nil, WithType(
 		xerrors.Errorf("Failed to join all rooms"),
 		ErrNoJoinableRoom)
 }
@@ -427,13 +427,13 @@ func (rs *RoomService) watch(ctx context.Context, room *pb.RoomInfo, clientInfo 
 		if ok {
 			switch st.Code() {
 			case codes.NotFound: // roomが既に消えた
-				err = withType(err, ErrNoWatchableRoom)
+				err = WithType(err, ErrNoWatchableRoom)
 			case codes.FailedPrecondition: // watchableでなくなっていた
-				err = withType(err, ErrNoWatchableRoom)
+				err = WithType(err, ErrNoWatchableRoom)
 			case codes.AlreadyExists: // 既に入室している
-				err = withType(err, ErrAlreadyJoined)
+				err = WithType(err, ErrAlreadyJoined)
 			case codes.InvalidArgument:
-				err = withType(err, ErrArgument)
+				err = WithType(err, ErrArgument)
 			}
 		}
 		return nil, err
@@ -450,7 +450,7 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND id = ? AND watchable = 1", appId, roomId)
 	if err != nil {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("select room (id=%v): %w", roomId, err),
 			ErrNoWatchableRoom)
 	}
@@ -462,7 +462,7 @@ func (rs *RoomService) WatchById(ctx context.Context, appId, roomId string, quer
 
 	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true, logger)
 	if len(filtered) == 0 {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("filter result is empty: room=%v", roomId),
 			ErrNoWatchableRoom)
 	}
@@ -478,7 +478,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 	var room pb.RoomInfo
 	err := rs.db.Get(&room, "SELECT * FROM room WHERE app_id = ? AND number = ? AND watchable = 1", appId, roomNumber)
 	if err != nil {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("select room (num=%v): %w", roomNumber, err),
 			ErrNoWatchableRoom)
 	}
@@ -490,7 +490,7 @@ func (rs *RoomService) WatchByNumber(ctx context.Context, appId string, roomNumb
 
 	filtered := filter([]*pb.RoomInfo{&room}, []binary.Dict{props}, queries, 1, false, true, logger)
 	if len(filtered) == 0 {
-		return nil, withType(
+		return nil, WithType(
 			xerrors.Errorf("filter result is empty: number=%v", roomNumber),
 			ErrNoWatchableRoom)
 	}
