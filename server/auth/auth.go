@@ -67,7 +67,7 @@ func ValidAuthDataHash(authData, key, userId string) ([]byte, error) {
 	data, hmac := d[:16], d[16:]
 
 	if !ValidHMAC(hmac, []byte(key), []byte(userId), data) {
-		return nil, xerrors.Errorf("hmac mismatch")
+		return nil, xerrors.Errorf("hmac mismatch: user=%s data=%s", userId, authData)
 	}
 
 	return data, nil
