@@ -245,7 +245,7 @@ func (rs *RoomService) JoinAtRandom(ctx context.Context, appId string, searchGro
 	for _, room := range filtered {
 		select {
 		case <-ctx.Done():
-			return nil, xerrors.Errorf("context done")
+			return nil, xerrors.Errorf("context done: %w", context.Cause(ctx))
 		default:
 		}
 
