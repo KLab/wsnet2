@@ -358,7 +358,11 @@ namespace WSNet2
         {
             while (true)
             {
-                msgPool.Wait(ct);
+                if (!msgPool.Wait(ct))
+                {
+                    // ctがキャンセルされているとき falseが返るので終了
+                    return;
+                }
 
                 ArraySegment<byte>? msg;
                 while ((msg = msgPool.Take(seqNum)).HasValue)
