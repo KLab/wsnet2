@@ -49,9 +49,9 @@ namespace WSNet2
 
         class WebSockConn : IDisposable
         {
-            public ClientWebSocket client;
-            public SemaphoreSlim sendSemaphore;
-            public bool closed;
+            ClientWebSocket client;
+            SemaphoreSlim sendSemaphore;
+            bool closed;
 
             public WebSockConn(ClientWebSocket client)
             {
@@ -63,6 +63,58 @@ namespace WSNet2
             public void Dispose()
             {
                 client.Dispose();
+            }
+
+            public Task<WebSocketReceiveResult> ReceiveAsync(ArraySegment<byte> seg, CancellationToken ct)
+            {
+                return client.ReceiveAsync(seg, ct);
+            }
+
+            public async Task Send(ArraySegment<byte> msg, CancellationToken ct)
+            {
+                if (closed)
+                {
+                    // SendCloseがsemaphore握りっぱなしになる対策で先にチェック
+                    // ここすり抜けてsemaphore待ってしまったらご愁傷さま……
+                    return;
+                }
+
+                await sendSemaphore.WaitAsync(ct);
+                try
+                {
+                    if (closed)
+                    {
+                        return;
+                    }
+
+                    await client.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
+                }
+                finally
+                {
+                    sendSemaphore.Release();
+                }
+            }
+
+            public async Task SendClose(string msg, CancellationToken ct)
+            {
+                await sendSemaphore.WaitAsync(ct);
+                try
+                {
+                    if (closed)
+                    {
+                        return;
+                    }
+
+                    closed = true;
+
+                    var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(SendCloseTimeout);
+                    await client.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
+                }
+                finally
+                {
+                    sendSemaphore.Release();
+                }
             }
         }
 
@@ -319,13 +371,13 @@ namespace WSNet2
                 while (true)
                 {
                     var seg = new ArraySegment<byte>(buf, pos, buf.Length - pos);
-                    var ret = await ws.client.ReceiveAsync(seg, ct);
+                    var ret = await ws.ReceiveAsync(seg, ct);
 
                     if (ret.MessageType == WebSocketMessageType.Close)
                     {
                         // iOSでごく稀にws.CloseAsync()が返ってこないことがあるので別Taskで実行
                         // Semaphoreを握りっぱなしになるけどこの接続は終了するので基本的には問題ない
-                        Task.Run(async () => await SendClose(ws, ret.CloseStatusDescription, ct));
+                        Task.Run(async () => await ws.SendClose(ret.CloseStatusDescription, ct));
 
                         switch (ret.CloseStatus)
                         {
@@ -387,7 +439,8 @@ namespace WSNet2
                         return; // ctのキャンセルで終了
                     }
 
-                    await Send(ws, msg.Value, ct);
+                    NetworkInformer.OnRoomSend(room, msg.Value);
+                    await ws.Send(msg.Value, ct);
                     seqNum++;
                 }
             }
@@ -410,7 +463,8 @@ namespace WSNet2
                 var interval = Task.Delay(pingInterval, pingerDelayCanceller.Token);
                 var time = (uint)msg.SetTimestamp();
                 lastPingTime = time;
-                await Send(ws, msg.Value, ct);
+                NetworkInformer.OnRoomSend(room, msg.Value);
+                await ws.Send(msg.Value, ct);
                 try
                 {
                     await interval;
@@ -424,57 +478,6 @@ namespace WSNet2
                 {
                     // pingerDelayCancellerによるcancelは無視
                 }
-            }
-        }
-
-        /// <summary>
-        ///   websocketメッセージを送信
-        /// </summary>
-        private async Task Send(WebSockConn ws, ArraySegment<byte> msg, CancellationToken ct)
-        {
-            if (ws.closed)
-            {
-                // SendCloseがsemaphore握りっぱなしになる対策で先にチェック
-                // ここすり抜けてsemaphore待ってしまったらご愁傷さま……
-                return;
-            }
-
-            await ws.sendSemaphore.WaitAsync(ct);
-            try
-            {
-                if (ws.closed)
-                {
-                    return;
-                }
-
-                NetworkInformer.OnRoomSend(room, msg);
-                await ws.client.SendAsync(msg, WebSocketMessageType.Binary, true, ct);
-            }
-            finally
-            {
-                ws.sendSemaphore.Release();
-            }
-        }
-
-        private async Task SendClose(WebSockConn ws, string msg, CancellationToken ct)
-        {
-            await ws.sendSemaphore.WaitAsync(ct);
-            try
-            {
-                if (ws.closed)
-                {
-                    return;
-                }
-
-                ws.closed = true;
-
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(SendCloseTimeout);
-                await ws.client.CloseAsync(WebSocketCloseStatus.NormalClosure, msg, cts.Token);
-            }
-            finally
-            {
-                ws.sendSemaphore.Release();
             }
         }
 
