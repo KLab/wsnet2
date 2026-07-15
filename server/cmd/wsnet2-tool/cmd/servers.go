@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"database/sql"
 	"os"
 	"time"
 
@@ -16,13 +17,13 @@ var (
 )
 
 type server struct {
-	Id            int    `db:"id"`
-	HostName      string `db:"hostname"`
-	PublicName    string `db:"public_name"`
-	GRPCPort      int    `db:"grpc_port"`
-	WebSocketPort int    `db:"ws_port"`
-	Status        int    `db:"status"`
-	HeartBeat     int64  `db:"heartbeat"`
+	Id            int             `db:"id"`
+	HostName      string          `db:"hostname"`
+	PublicName    string          `db:"public_name"`
+	GRPCPort      int             `db:"grpc_port"`
+	WebSocketPort int             `db:"ws_port"`
+	Status        int             `db:"status"`
+	HeartBeat     sql.Null[int64] `db:"heartbeat"`
 }
 
 // serversCmd represents the servers command
@@ -77,7 +78,7 @@ func printServersHeader(cmd *cobra.Command) {
 
 func printServer(cmd *cobra.Command, typ string, s server) {
 	st := serverStatusStr[s.Status]
-	hb := time.Unix(s.HeartBeat, 0)
+	hb := time.Unix(s.HeartBeat.V, 0)
 	ok := "Available"
 	if !s.Available() {
 		if !serversAll {
@@ -92,5 +93,5 @@ func printServer(cmd *cobra.Command, typ string, s server) {
 
 func (s *server) Available() bool {
 	v := time.Now().Add(-time.Duration(conf.Lobby.ValidHeartBeat)).Unix()
-	return v < s.HeartBeat
+	return v < s.HeartBeat.V
 }
