@@ -41,6 +41,7 @@ namespace WSNet2
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
+        readonly object senderLock;
 
         BlockingCollection<byte[]> evBufPool;
         uint evSeqNum;
@@ -135,6 +136,7 @@ namespace WSNet2
             this.hmac = hmac;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
+            this.senderLock = new object();
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
@@ -214,7 +216,10 @@ namespace WSNet2
                 {
                     senderTaskSource.TrySetCanceled();
                     pingerTaskSource.TrySetCanceled();
-                    cts.Cancel();
+                    lock (senderLock)
+                    {
+                        cts.Cancel();
+                    }
                     if (connected)
                     {
                         connected = false;
@@ -431,12 +436,21 @@ namespace WSNet2
                     return;
                 }
 
-                ArraySegment<byte>? msg;
-                while ((msg = msgPool.Take(seqNum)).HasValue)
-                {
-                    if (ct.IsCancellationRequested)
+                while (true) {
+                    ArraySegment<byte>? msg;
+                    lock (senderLock)
                     {
-                        return; // ctのキャンセルで終了
+                        // ctのキャンセルで終了, キャンセル後にmsgPool.Takeしない
+                        if (ct.IsCancellationRequested)
+                        {
+                            return;
+                        }
+
+                        msg = msgPool.Take(seqNum);
+                    }
+
+                    if (!msg.HasValue) {
+                        break;
                     }
 
                     NetworkInformer.OnRoomSend(room, msg.Value);
