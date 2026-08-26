@@ -52,7 +52,7 @@ namespace WSNet2
         {
             ClientWebSocket client;
             SemaphoreSlim sendSemaphore;
-            bool closed;
+            volatile bool closed;
 
             public WebSockConn(ClientWebSocket client)
             {
