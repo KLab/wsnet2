@@ -436,7 +436,8 @@ namespace WSNet2
                     return;
                 }
 
-                while (true) {
+                while (true)
+                {
                     ArraySegment<byte>? msg;
                     lock (senderLock)
                     {
@@ -449,7 +450,8 @@ namespace WSNet2
                         msg = msgPool.Take(seqNum);
                     }
 
-                    if (!msg.HasValue) {
+                    if (!msg.HasValue)
+                    {
                         break;
                     }
 
