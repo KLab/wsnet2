@@ -77,6 +77,12 @@ namespace WSNet2
             return true;
         }
 
+        /// <summary>Msgが存在することを通知</summary>
+        public void Notify()
+        {
+            hasMsg.TryAdd(true);
+        }
+
         /// <summary>
         ///   送信するバイト列を取得
         /// </summary>

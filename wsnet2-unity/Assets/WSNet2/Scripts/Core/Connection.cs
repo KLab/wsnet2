@@ -428,37 +428,46 @@ namespace WSNet2
         /// <param name="ct">ループ停止するトークン</param>
         private async Task Sender(WebSockConn ws, int seqNum, CancellationToken ct)
         {
-            while (true)
+            try
             {
-                if (!msgPool.Wait(ct))
-                {
-                    // ctがキャンセルされているとき falseが返るので終了
-                    return;
-                }
-
                 while (true)
                 {
-                    ArraySegment<byte>? msg;
-                    lock (senderLock)
+                    if (!msgPool.Wait(ct))
                     {
-                        // ctのキャンセルで終了, キャンセル後にmsgPool.Takeしない
-                        if (ct.IsCancellationRequested)
+                        // ctがキャンセルされているとき falseが返るので終了
+                        return;
+                    }
+
+                    while (true)
+                    {
+                        ArraySegment<byte>? msg;
+                        lock (senderLock)
                         {
-                            return;
+                            // ctのキャンセルで終了, キャンセル後にmsgPool.Takeしない
+                            if (ct.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
+                            msg = msgPool.Take(seqNum);
                         }
 
-                        msg = msgPool.Take(seqNum);
-                    }
+                        if (!msg.HasValue)
+                        {
+                            break;
+                        }
 
-                    if (!msg.HasValue)
-                    {
-                        break;
+                        NetworkInformer.OnRoomSend(room, msg.Value);
+                        await ws.Send(msg.Value, ct);
+                        seqNum++;
                     }
-
-                    NetworkInformer.OnRoomSend(room, msg.Value);
-                    await ws.Send(msg.Value, ct);
-                    seqNum++;
                 }
+            }
+            finally
+            {
+                // 未送信Msgが残っていても新しいSenderが処理できるように通知する
+                // 空振りだったとしてもTakeがnullを返すだけなので無害
+                msgPool.Notify();
             }
         }
 
