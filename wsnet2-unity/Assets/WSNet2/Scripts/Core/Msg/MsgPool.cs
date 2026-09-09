@@ -17,6 +17,8 @@ namespace WSNet2
     /// </remarks>
     class MsgPool
     {
+        readonly object mu = new object();
+
         int sequenceNum;
         int tookSeqNum;
         SerialWriter[] pool;
@@ -101,7 +103,7 @@ namespace WSNet2
         /// </return>
         public ArraySegment<byte>? Take(int seqNum)
         {
-            lock (this)
+            lock (mu)
             {
                 if (sequenceNum - pool.Length >= seqNum)
                 {
@@ -122,7 +124,7 @@ namespace WSNet2
         /// </summary>
         public int PostLeave(string message)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeMsgType(MsgType.Leave);
                 writer.Write(message);
@@ -136,7 +138,7 @@ namespace WSNet2
         /// </summary>
         public int PostSwitchMaster(string newMasterId)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeMsgType(MsgType.SwitchMaster);
                 writer.Write(newMasterId);
@@ -156,7 +158,7 @@ namespace WSNet2
             IDictionary<string, object> publicProps,
             IDictionary<string, object> privateProps)
         {
-            lock (this)
+            lock (mu)
             {
                 var flags = (byte)((visible ? 1 : 0) + (joinable ? 2 : 0) + (watchable ? 4 : 0));
 
@@ -177,7 +179,7 @@ namespace WSNet2
         /// </summary>
         public int PostClientProp(IDictionary<string, object> props)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeMsgType(MsgType.ClientProp);
                 writer.Write(props);
@@ -191,7 +193,7 @@ namespace WSNet2
         /// </summary>
         public int PostKick(string targetId, string message)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeMsgType(MsgType.Kick);
                 writer.Write(targetId);
@@ -206,7 +208,7 @@ namespace WSNet2
         /// </summary>
         public int PostRPC(byte id, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.AppendHMAC(hmac);
@@ -215,7 +217,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, bool param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -225,7 +227,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, sbyte param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -235,7 +237,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, byte param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -245,7 +247,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, char param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -255,7 +257,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, short param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -265,7 +267,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, ushort param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -275,7 +277,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, int param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -285,7 +287,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, uint param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -295,7 +297,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, long param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -305,7 +307,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, ulong param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -315,7 +317,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, float param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -325,7 +327,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, double param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -335,7 +337,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, string param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -345,7 +347,7 @@ namespace WSNet2
         }
         public int PostRPC<T>(byte id, T param, string[] targets) where T : class, IWSNet2Serializable
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -355,7 +357,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, IEnumerable param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -365,7 +367,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, IDictionary<string, object> param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -375,7 +377,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, bool[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -385,7 +387,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, sbyte[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -395,7 +397,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, byte[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -405,7 +407,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, char[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -415,7 +417,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, short[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -425,7 +427,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, ushort[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -435,7 +437,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, int[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -445,7 +447,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, uint[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -455,7 +457,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, long[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -465,7 +467,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, ulong[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -475,7 +477,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, float[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
@@ -485,7 +487,7 @@ namespace WSNet2
         }
         public int PostRPC(byte id, double[] param, string[] targets)
         {
-            lock (this)
+            lock (mu)
             {
                 var writer = writeRPCHeader(id, targets);
                 writer.Write(param);
