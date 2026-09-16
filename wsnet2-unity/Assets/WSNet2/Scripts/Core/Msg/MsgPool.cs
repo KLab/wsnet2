@@ -68,7 +68,8 @@ namespace WSNet2
         {
             _ = hasMsg.Take(ct);
 
-            if (ct.IsCancellationRequested) {
+            if (ct.IsCancellationRequested)
+            {
                 // 古いConnectionから呼ばれていたとき、hasMsgを戻してfalseを返す
                 hasMsg.TryAdd(true);
                 return false;
