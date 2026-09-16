@@ -56,9 +56,9 @@ namespace WSNet2
         /// <summary>
         ///   Msgが来るまで待つ
         /// </summary>
-        /// <return>
+        /// <returns>
         ///   ctがキャンセルされている古いSenderから呼ばれていたときはfalse
-        /// </return>
+        /// </returns>
         /// <remarks>
         ///   <para>
         ///     スレッドをブロックする
