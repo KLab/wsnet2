@@ -56,14 +56,32 @@ namespace WSNet2
         /// <summary>
         ///   Msgが来るまで待つ
         /// </summary>
+        /// <returns>
+        ///   ctがキャンセルされている古いSenderから呼ばれていたときはfalse
+        /// </returns>
         /// <remarks>
         ///   <para>
         ///     スレッドをブロックする
         ///   </para>
         /// </remarks>
-        public void Wait(CancellationToken ct)
+        public bool Wait(CancellationToken ct)
         {
             _ = hasMsg.Take(ct);
+
+            if (ct.IsCancellationRequested)
+            {
+                // 古いConnectionから呼ばれていたとき、hasMsgを戻してfalseを返す
+                hasMsg.TryAdd(true);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>Msgが存在することを通知</summary>
+        public void Notify()
+        {
+            hasMsg.TryAdd(true);
         }
 
         /// <summary>
