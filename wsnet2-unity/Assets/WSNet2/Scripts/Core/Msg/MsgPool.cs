@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
@@ -22,17 +21,6 @@ namespace WSNet2
         int sequenceNum;
         int tookSeqNum;
         SerialWriter[] pool;
-
-        ///<summary>PoolにMsgが追加されたフラグ</summary>
-        /// <remarks>
-        ///   <para>
-        ///     msgPoolにAdd*したあとTryAdd(true)する。
-        ///     送信ループがTake()で待機しているので、Addされたら動き始める。
-        ///     サイズ=1にしておくことで、送信前に複数回Addされても1度のループで送信される。
-        ///   </para>
-        /// </remarks>
-        BlockingCollection<bool> hasMsg;
-
         HMAC hmac;
 
         /// <summary>
@@ -50,40 +38,7 @@ namespace WSNet2
                 pool[i] = WSNet2Serializer.NewWriter(initialBufSize);
             }
 
-            hasMsg = new BlockingCollection<bool>(1);
-
             this.hmac = hmac;
-        }
-
-        /// <summary>
-        ///   Msgが来るまで待つ
-        /// </summary>
-        /// <returns>
-        ///   ctがキャンセルされている古いSenderから呼ばれていたときはfalse
-        /// </returns>
-        /// <remarks>
-        ///   <para>
-        ///     スレッドをブロックする
-        ///   </para>
-        /// </remarks>
-        public bool Wait(CancellationToken ct)
-        {
-            _ = hasMsg.Take(ct);
-
-            if (ct.IsCancellationRequested)
-            {
-                // 古いConnectionから呼ばれていたとき、hasMsgを戻してfalseを返す
-                hasMsg.TryAdd(true);
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <summary>Msgが存在することを通知</summary>
-        public void Notify()
-        {
-            hasMsg.TryAdd(true);
         }
 
         /// <summary>
@@ -96,22 +51,33 @@ namespace WSNet2
         ///   </para>
         /// </remarks>
         /// <param name="seqNum">取得するMsgの通し番号</param>
-        /// <return>
+        /// <returns>
         ///   seqNum番目のMsgのバイト列。
-        ///   まだ生成されていない番号のときはnull。
-        ///   もうバッファから落ちた古い番号のときは例外を投げる。
-        /// </return>
-        public ArraySegment<byte>? Take(int seqNum)
+        ///   ctキャンセルや、バッファから落ちた古い番号のときは例外を投げる。
+        /// </returns>
+        public ArraySegment<byte> Take(int seqNum, CancellationToken ct)
         {
+            // ctキャンセル時にMonitor.Waitから抜ける
+            using var reg = ct.Register(() => { lock (mu) { Monitor.PulseAll(mu); } });
+
             lock (mu)
             {
+                while (true)
+                {
+                    // 新しいmsgがみつかるまでループ
+
+                    ct.ThrowIfCancellationRequested();
+                    if (seqNum <= sequenceNum)
+                    {
+                        break;
+                    }
+
+                    Monitor.Wait(mu); // Pulseされるまでmuを開放して待つ
+                }
+
                 if (sequenceNum - pool.Length >= seqNum)
                 {
                     throw new Exception($"Msg too old: {seqNum}, {sequenceNum - pool.Length}");
-                }
-                if (seqNum > sequenceNum)
-                {
-                    return null;
                 }
 
                 tookSeqNum = seqNum;
@@ -521,7 +487,6 @@ namespace WSNet2
         private SerialWriter writeMsgType(MsgType msgType)
         {
             incrementSeqNum();
-            hasMsg.TryAdd(true);
             var writer = pool[sequenceNum % pool.Length];
             writer.Reset();
             writer.Put8((int)msgType);
@@ -534,6 +499,9 @@ namespace WSNet2
         /// </summary>
         /// <remarks>
         ///   <para>
+        ///     かならずlock(mu)した状態で呼ぶ
+        ///   </para>
+        ///   <para>
         ///     直前にTakeされた場所を上書きいてしまう場合は例外を送出
         ///   </para>
         /// </remarks>
@@ -544,6 +512,7 @@ namespace WSNet2
                 throw new Exception($"MsgPool full: {tookSeqNum}..{sequenceNum}");
             }
 
+            Monitor.PulseAll(mu);
             sequenceNum++;
         }
 

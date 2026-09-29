@@ -41,7 +41,6 @@ namespace WSNet2
 
         TaskCompletionSource<Task> senderTaskSource;
         TaskCompletionSource<Task> pingerTaskSource;
-        readonly object senderLock;
 
         BlockingCollection<byte[]> evBufPool;
         uint evSeqNum;
@@ -73,7 +72,7 @@ namespace WSNet2
 
             public async Task Send(ArraySegment<byte> msg, CancellationToken ct)
             {
-                if (closed)
+                if (closed || ct.IsCancellationRequested)
                 {
                     // SendCloseがsemaphore握りっぱなしになる対策で先にチェック
                     // ここすり抜けてsemaphore待ってしまったらご愁傷さま……
@@ -136,7 +135,6 @@ namespace WSNet2
             this.hmac = hmac;
             this.pingInterval = calcPingInterval(room.ClientDeadline);
             this.pingerDelayCanceller = new CancellationTokenSource();
-            this.senderLock = new object();
 
             this.evSeqNum = 0;
             this.evBufPool = new BlockingCollection<byte[]>(
@@ -216,10 +214,7 @@ namespace WSNet2
                 {
                     senderTaskSource.TrySetCanceled();
                     pingerTaskSource.TrySetCanceled();
-                    lock (senderLock)
-                    {
-                        cts.Cancel();
-                    }
+                    cts.Cancel();
                     if (connected)
                     {
                         connected = false;
@@ -428,46 +423,13 @@ namespace WSNet2
         /// <param name="ct">ループ停止するトークン</param>
         private async Task Sender(WebSockConn ws, int seqNum, CancellationToken ct)
         {
-            try
+            while (true)
             {
-                while (true)
-                {
-                    if (!msgPool.Wait(ct))
-                    {
-                        // ctがキャンセルされているとき falseが返るので終了
-                        return;
-                    }
+                var msg = msgPool.Take(seqNum, ct);
 
-                    while (true)
-                    {
-                        ArraySegment<byte>? msg;
-                        lock (senderLock)
-                        {
-                            // ctのキャンセルで終了, キャンセル後にmsgPool.Takeしない
-                            if (ct.IsCancellationRequested)
-                            {
-                                return;
-                            }
-
-                            msg = msgPool.Take(seqNum);
-                        }
-
-                        if (!msg.HasValue)
-                        {
-                            break;
-                        }
-
-                        NetworkInformer.OnRoomSend(room, msg.Value);
-                        await ws.Send(msg.Value, ct);
-                        seqNum++;
-                    }
-                }
-            }
-            finally
-            {
-                // 未送信Msgが残っていても新しいSenderが処理できるように通知する
-                // 空振りだったとしてもTakeがnullを返すだけなので無害
-                msgPool.Notify();
+                NetworkInformer.OnRoomSend(room, msg);
+                await ws.Send(msg, ct);
+                seqNum++;
             }
         }
 
