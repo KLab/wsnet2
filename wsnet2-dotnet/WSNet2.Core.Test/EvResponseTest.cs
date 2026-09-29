@@ -38,7 +38,7 @@ namespace WSNet2.Core.Test
                 searchGroup, maxPlayers, clientDeadline,
                 publicProps, privateProps);
 
-            var msg = msgpool.Take(seqnum).Value;
+            var msg = msgpool.Take(seqnum, default);
             var buf = new byte[3 + msg.Count];
             msg.CopyTo(buf, 3);
             var reader = WSNet2Serializer.NewReader(new ArraySegment<byte>(buf));
